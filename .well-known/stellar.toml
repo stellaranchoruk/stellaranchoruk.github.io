@@ -10,7 +10,7 @@ ORG_URL="https://stellaranchor.uk"
 ORG_LOGO="https://i.imgur.com/vX2TTYX.png"
 ORG_OFFICIAL_EMAIL="gbpcstellar@gmail.com"
 ORG_TWITTER="https://twitter.com/StellarAnchorUK"
-ORG_DESCRIPTION="Stellar Anchor UK is an anchor for the Great British Pound. We are working hard to get the licensing in place to enable SEP-24, withdrawals & deposits, integration in the United Kingdom. We currently have the ability to allow users of GBPC to exchange back to USDC through the Stellar DEX."
+ORG_DESCRIPTION="Stellar Anchor UK mirrors real world assets on the Stellar network. We currently provide the pegged stablecoin GBPC, allowing users of Stellar to hold a representation on the Great British Pound within the ecosystem. Currently, holders of GBPC can exchange their tokens back to USDC & yUSDC through the Stellar DEX. We are using a temporary TOML file through runkit.com while we finish getting our website fully functional."
 
 [[PRINCIPALS]]
 email="gbpcstellar@gmail.com"
@@ -22,7 +22,7 @@ display_decimals=7
 is_asset_anchored=false
 anchor_asset_type="fiat"
 anchor_asset="GBP"
-redemption_instructions="Redeemable through the GBPC/USDC trading pair on the SDEX"
+redemption_instructions="Redeemable through the GBPC/USDC trading pair on the SDEX."
 name="GBP Coin"
-desc="GBPC is a GBP backed stablecoin on the Stellar network. It is redeemable through the SDEX on the GBPC/USDC market pair"
+desc="GBPC is a mirror representation of the Great British Pound on the Stellar network. Using the Stellar DEX we keep GBPC pegged to the same value as the current market rates of real world GBP & USD. GBPC allows users of Stellar to hold a representation on the Great British Pound within the ecosystem. Each token is backed by a USD reserve, which is verifiable by viewing our distribution wallet on the network. We ensure to always have enough USD in reserve to buy back all issued GBPC. GBPC can be redeemed through the SDEX. Visit us at https://stellaranchor.uk"
 image="https://i.imgur.com/vX2TTYX.png"
