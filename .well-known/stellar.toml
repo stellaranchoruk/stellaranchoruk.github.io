@@ -6,10 +6,10 @@ ACCOUNTS=[
 [DOCUMENTATION]
 ORG_NAME="Stellar Anchor UK"
 ORG_DBA="Stellar Anchor UK"
-ORG_URL="Coming Soon"
-ORG_LOGO="Coming Soon"
+ORG_URL="stellaranchor.uk"
+ORG_LOGO="https://i.imgur.com/vX2TTYX.png"
 ORG_OFFICIAL_EMAIL="gbpcstellar@gmail.com"
-ORG_TWITTER="Coming Soon"
+ORG_TWITTER="https://twitter.com/StellarAnchorUK"
 ORG_DESCRIPTION="Stellar Anchor UK is an anchor for the Great British Pound. We are working hard to get the licensing in place to enable SEP-24, withdrawals & deposits, integration in the United Kingdom. We currently have the ability to allow users of GBPC to exchange back to USDC through the Stellar DEX."
 
 [[PRINCIPALS]]
