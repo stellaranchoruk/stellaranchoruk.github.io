@@ -10,8 +10,7 @@ ORG_URL="https://stellaranchor.uk"
 ORG_LOGO="https://i.imgur.com/vX2TTYX.png"
 ORG_OFFICIAL_EMAIL="gbpcstellar@gmail.com"
 ORG_TWITTER="https://twitter.com/StellarAnchorUK"
-ORG_DESCRIPTION="Stellar Anchor UK mirrors real world assets on the Stellar network. We currently provide the pegged stablecoin GBPC, allowing users of Stellar to hold a representation on the Great British Pound within the ecosystem. Currently, holders of GBPC can exchange their tokens back to USDC & yUSDC through the Stellar DEX. We are using a temporary TOML file through runkit.com while we finish getting our website fully functional."
-
+ORG_DESCRIPTION="Stellar Anchor UK mirrors real world assets on the Stellar network. We currently provide the pegged stablecoin GBPC, allowing users of Stellar to hold a representation on the Great British Pound within the ecosystem. Currently, holders of GBPC can exchange their tokens back to USDC & yUSDC through the Stellar DEX."
 [[PRINCIPALS]]
 email="gbpcstellar@gmail.com"
 
