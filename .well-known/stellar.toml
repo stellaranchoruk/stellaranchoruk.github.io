@@ -6,7 +6,7 @@ ACCOUNTS=[
 [DOCUMENTATION]
 ORG_NAME="Stellar Anchor UK"
 ORG_DBA="Stellar Anchor UK"
-ORG_URL="stellaranchor.uk"
+ORG_URL="https://stellaranchor.uk"
 ORG_LOGO="https://i.imgur.com/vX2TTYX.png"
 ORG_OFFICIAL_EMAIL="gbpcstellar@gmail.com"
 ORG_TWITTER="https://twitter.com/StellarAnchorUK"
