@@ -1,5 +1,5 @@
 # Stellar Anchor UK
 
-Homepage: https://stellar-anchor-uk.github.io/
+Homepage: https://stellaranchoruk.github.io/
 
 &copy; Stellar Anchor UK 2022
