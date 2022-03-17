@@ -1,0 +1,27 @@
+NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
+ACCOUNTS=[
+"GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
+"GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP"]
+
+[DOCUMENTATION]
+ORG_NAME="Stellar Anchor UK"
+ORG_DBA="Stellar Anchor UK"
+ORG_URL="Coming Soon"
+ORG_LOGO="Coming Soon"
+ORG_OFFICIAL_EMAIL="gbpcstellar@gmail.com"
+ORG_TWITTER="Coming Soon"
+ORG_DESCRIPTION="Stellar Anchor UK is an anchor for the Great British Pound. We are working hard to get the licensing in place to enable SEP-24, withdrawals & deposits, integration in the United Kingdom. We currently have the ability to allow users of GBPC to exchange back to USDC through the Stellar DEX."
+
+[[PRINCIPALS]]
+email="gbpcstellar@gmail.com"
+
+[[CURRENCIES]]
+code="GBPC"
+issuer="GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+display_decimals=7
+is_asset_anchored=false
+anchor_asset_type="fiat"
+anchor_asset="GBP"
+redemption_instructions="Redeemable through the GBPC/USDC trading pair on the SDEX"
+name="GBP Coin"
+desc="GBPC is a GBP backed stablecoin on the Stellar network. It is redeemable through the SDEX on the GBPC/USDC market pair"
