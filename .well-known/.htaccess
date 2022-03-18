@@ -2,3 +2,7 @@
 
 Header set Access-Control-Allow-Origin *
 </IfModule>
+
+<Location "/stellar.toml">
+    ForceType text/plain
+</Location>
