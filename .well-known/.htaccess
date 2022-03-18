@@ -1,8 +1,3 @@
-<IfModule mod_headers.c>
-
-Header set Access-Control-Allow-Origin *
-</IfModule>
-
-<Location "/stellar.toml">
-    ForceType text/plain
-</Location>
+<FilesMatch "\.(tex|log|aux)$">
+        Header set Content-Type text/plain
+</FilesMatch>
