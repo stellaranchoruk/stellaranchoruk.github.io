@@ -1,0 +1,5 @@
+<IfModule mod_rewrite.c>
+  <FilesMatch "^stellar\.toml$">
+    AddType text/plain .toml
+  </FilesMatch>
+</IfModule>
