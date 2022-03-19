@@ -19,6 +19,7 @@ email="gbpcstellar@gmail.com"
 [[CURRENCIES]]
 code="GBPC"
 issuer="GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+status="live"
 display_decimals=7
 is_asset_anchored=false
 anchor_asset_type="fiat"
