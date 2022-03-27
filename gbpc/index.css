@@ -258,27 +258,17 @@ body {
     display: block;
 }
 
-.content .content_head {
-    /* background-image: url("vote_bg.jpeg"); */
-    background-image: url("https://stellaranchoruk.github.io/images/header-image.png");
-    background-size: cover;
-    text-align: center;
-    display: block;
-    height: 400px;
-    width: 100%;
-}
-
 .content .gbpc_head {
     /* background-image: url("vote_bg.jpeg"); */
     background-image: url("https://stellaranchoruk.github.io/images/gbpc_header.png");
     background-size: cover;
     text-align: center;
     display: block;
-    height: 400px;
+    height: 457px;
     width: 100%;
 }
 
-.content .content_head h1 {
+.content .gbpc_head h1 {
     font-size: 100px;
     height: 200px;
     line-height: 200px;
@@ -286,7 +276,7 @@ body {
     color: #fff;
 }
 
-.content .content_head h2 {
+.content .gbpc_head h2 {
     font-size: 30px;
     height: 200px;
     line-height: 200px;
