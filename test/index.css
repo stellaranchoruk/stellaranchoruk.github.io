@@ -287,8 +287,9 @@ body {
 .content .main {
     font-size: 20px;
     margin: 30px 4%;
-    display: block;
-    height: calc(100% - 200px);
+      display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 .main .explore {
