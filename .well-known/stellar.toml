@@ -3,7 +3,9 @@ VERSION="2.2.0"
 NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
 ACCOUNTS=[
 "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
-"GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP"]
+"GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP",
+"GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC",
+"GC7QJZNPG7FZT2C4QV7V2NJ7EGNMC4KYS2IZUSO3ZPBUNKSUMLSJZKRW"]
 
 [DOCUMENTATION]
 ORG_NAME="Stellar Anchor UK"
@@ -28,3 +30,16 @@ redemption_instructions="Redeemable through the GBPC/USDC trading pair on the SD
 name="GBP Coin"
 desc="GBPC is a mirror representation of the Great British Pound on the Stellar network. Using the Stellar DEX we keep GBPC pegged to the same value as the current market rates of real world GBP & USD. GBPC allows users of Stellar to hold a representation on the Great British Pound within the ecosystem. Each token is backed by a USD reserve, which is verifiable by viewing our distribution wallet on the network. We ensure to always have enough USD in reserve to buy back all issued GBPC through the SDEX. A minimum spread of 1% is set by the distribution wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://stellaranchor.uk"
 image="https://i.imgur.com/vX2TTYX.png"
+
+[[CURRENCIES]]
+code="KRWC"
+issuer="GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC"
+status="live"
+display_decimals=7
+is_asset_anchored=false
+anchor_asset_type="fiat"
+anchor_asset="KRW"
+redemption_instructions="Redeemable through the KRW/yUSDC trading pair on the SDEX."
+name="KRW Coin"
+desc="KRW is a mirror representation of the South Korean Won on the Stellar network. Using the Stellar DEX we keep KRWC pegged to the same value as the current market rates of real world KRW & USD. KRWC allows users of Stellar to hold a representation on the South Korean Won within the ecosystem. Each token is backed by a USD reserve, which is verifiable by viewing our distribution wallet on the network. We ensure to always have enough USD in reserve to buy back all issued KRWC through the SDEX. A minimum spread of 1% is set by the distribution wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://stellaranchor.uk"
+image="https://stellaranchoruk.github.io/images/tokens/KRWC.png"
