@@ -262,7 +262,8 @@ body {
 .content .content_head {
     /* background-image: url("vote_bg.jpeg"); */
     background-image: url("https://stellaranchoruk.github.io/images/header_image.png");
-    background-size: cover;
+    background-size: 100%;
+    background-repeat: no-repeat;
     text-align: center;
     display: block;
     height: 457px;
