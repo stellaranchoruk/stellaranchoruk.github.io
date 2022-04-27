@@ -52,12 +52,13 @@ body {
 	z-index: 30;
 }
 
-@media only screen and (min-width: 768px)
-.top_navbar {
-    position: absolute;
-    background-color: transparent;
-    height: 5.6rem;
-    padding: 0 1.6rem;
+@media only screen and (min-width: 768px) {
+	.top_navbar {
+  	  position: absolute;
+  	  background-color: transparent;
+  	  height: 5.6rem;
+  	  padding: 0 1.6rem;
+	}
 }
 
 .top_navbar .top_navbar_ctn {
