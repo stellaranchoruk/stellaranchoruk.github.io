@@ -52,14 +52,15 @@ body {
 	z-index: 30;
 }
 
-@media only screen and (min-width: 768px) {
+@media only screen and (max-width: 768px) {
 	.top_navbar {
   	  position: absolute;
-  	  background: transparent;
-  	  height: 5.6rem;
   	  padding: 0 1.6rem;
 	}
 	.menu {
+	  display: none;
+	}
+	.menu-ctn {
 	  display: none;
 	}
 }
