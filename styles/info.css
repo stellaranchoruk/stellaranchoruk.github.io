@@ -191,7 +191,6 @@ header.page-header {
     height: 5.6rem;
     padding: 0 1.6rem; }
     header.page-header img {
-      height: 1.75rem;
       z-index: 50; }
     header.page-header .menu {
       position: fixed;
