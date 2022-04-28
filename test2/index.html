@@ -34,9 +34,9 @@
     <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
 </head>
-<body>
-    <link rel="stylesheet" href="https://stellaranchoruk.xyz/styles/info.css">
-    <div class="main-content" id="main-content">
+<body data-new-gr-c-s-check-loaded="14.1058.0" data-gr-ext-installed="">
+<link rel="stylesheet" href="https://stellaranchoruk.xyz/styles/info.css">
+<div class="main-content" id="main-content">
     <header class="page-header">
         <a class="main-link" href="/"><img src="/icons/sauk-logo.png"></a>
     
@@ -54,15 +54,16 @@
         <div class="menu">
             <div class="relative">
                 <nav>
-                    <a href="https://stellaranchoruk.xyz/" target="_self">Home</a>
-                    <a href="https://stellaranchoruk.xyz/gbpc" target="_self">GBPC</a>
-                    <a href="https://stellaranchoruk.xyz/eurc" target="_self">EURC</a>
-                    <a href="https://stellaranchoruk.xyz/krwc" target="_self">KRWC</a>
-                    <a href="https://stellaranchoruk.xyz/yusdc" target="_self">yUSDC</a>
-                    <a href="https://aqua.network/rewards?ordering=-daily_total_reward" target="_blank">AQUA Voting</a>
-                    <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC" target="_blank">AQUA Rewards</a>
+                    <a href="/rewards" class="reward-link">Rewards</a>
+                    <a href="https://vote.aqua.network/" target="_blank">Voting</a>
+                    <a href="https://locker.aqua.network/" target="_blank">Locker</a>
+                    <a href="/airdrop2" class="airdrop-link">Airdrop</a>
+                    <a href="https://gov.aqua.network/" target="_blank">Governance</a>
+                    <a href="/#roadmap" class="roadmap">Roadmap</a>
                 </nav>
             </div>
+    
+            <button class="get-token-popup-button">$AQUA</button>
     
             <div class="social-links">
             
@@ -124,6 +125,359 @@
             
         </div>
     </header>
-  </div>
+    
+
+    <section class="main-block">
+        <img src="./assets/img/airdrop2.svg">
+    
+        <img class="text" src="./assets/img/airdrop2-text.svg">
+    
+        <img src="./assets/img/airdrop2.svg">
+    </section>
+    
+
+    <section class="conditions">
+        <h2 class="heading">Snapshot Done! 📸</h2>
+        <p>Taken at ledger
+            <a href="https://horizon.stellar.org/ledgers/39185028" target="_blank">#39185028
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M11.6464 5L13.6464 7L14 7.35355L13.6464 7.70711L11.6464 9.70711L10.9393 9L12.0858 7.85355H0.292893V6.85355H12.0858L10.9393 5.70711L11.6464 5Z" fill="currentColor"></path>
+                </svg>
+            </a>
+        </p>
+        <div class="cards">
+            <div class="card">
+                <div class="heading">Jan. 15, 2022</div>
+                <div class="description">Snapshot of the Stellar network was taken at 00:00:00 UTC.</div>
+            </div>
+            <div class="divider"></div>
+            <div class="card">
+                <div class="heading">&gt;500 XLM</div>
+                <div class="description">And at least 1 AQUA in your Stellar wallet to be eligible.</div>
+            </div>
+        </div>
+        <div class="check-form-block">
+            <div class="horizontal-divider"></div>
+            <div class="main-description">Check your Stellar addresses to see if they're eligible</div>
+            <form class="form" id="check-form">
+                <input type="text" name="address" id="address" placeholder="Enter your public key (starts with G)" class="form-input">
+                <button type="submit" class="form-button" id="button-submit">Check</button>
+            </form>
+        </div>
+    </section>
+    
+
+    <section class="account-eligibility hidden" id="account-eligibility">
+        <div class="eligibility">
+            <h4>Account eligibility</h4>
+    
+            <div class="status status-loading">
+                <svg viewBox="0 0 16 16" fill="none">
+                    <defs>
+                        <linearGradient id="gradient" gradientTransform="rotate(-45) scale(0.8) translate(-0.8)">
+                            <stop offset="0" stop-color="transparent"></stop>
+                            <stop id="color" offset="100%" stop-color="black"></stop>
+                        </linearGradient>
+                    </defs>
+                    <g id="loader">
+                        <circle cx="8" cy="8" r="7" stroke-width="2" color="#872AB0"></circle>
+                        <path d="M15 8
+                                a 7 7 0 0 0 -14 0" stroke="url(#gradient)" stroke-width="2"></path>
+                    </g>
+                </svg>
+            </div>
+    
+            <div id="status-result"></div>
+        </div>
+    </section>
+    
+    
+
+    <section class="current-stats">
+       <div class="centered-block" id="current-stats-data"><div class="title">Snapshot stats</div>
+<div class="date">January 15, 2022 00:00:00 UTC</div>
+
+<div class="table">
+    <div>
+        <div class="count">55,695</div>
+        <div class="description">Eligible Accounts</div>
+    </div>
+
+    <div>
+        <div class="count">2,003,424 XLM</div>
+        <div class="description">XLM to hit 10M AQUA limit</div>
+    </div>
+
+    <div>
+        <div class="count">4.99145</div>
+        <div class="description">Projected AQUA per XLM</div>
+    </div>
+
+    <div>
+        <div class="count">15B AQUA</div>
+        <div class="description">Total AQUA for airdrop</div>
+    </div>
+
+    <div>
+        <div class="count">3,160,603,362 XLM</div>
+        <div class="description">Total XLM in eligible wallets</div>
+    </div>
+
+    <div>
+        <div class="count">2,495.7273 AQUA</div>
+        <div class="description">Projected total reward with 500 XLM</div>
+    </div>
+</div>
+
+<a target="_blank" href="https://medium.com/aquarius-aqua/announcing-aqua-airdrop-2-b338e21c2bf6">
+    Read more about Airdrop #2
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12.6464 6L15 8.35355L12.6464 10.7071L11.9393 10L13.0858 8.85355H1.29289V7.85355H13.0858L11.9393 6.70711L12.6464 6Z" fill="#ffffff"></path>
+    </svg>
+</a>
+</div>
+    </section>
+    
+
+    <section class="wallets-and-exchanges centered-block">
+        <div class="text wallets">
+            <h4>Supported wallets</h4>
+            <div>
+                AQUA is supported by all wallets on the Stellar network, choose the one you like. We recommend using LOBSTR
+                for mobile and StellarX for desktop.
+            </div>
+        </div>
+    
+        <div class="icons wallets">
+            <a class="icon-container" href="https://lobstr.co/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/lobstr.svg">
+            </a>
+            <a class="icon-container" href="https://www.stellarx.com/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/stellarx.svg">
+            </a>
+            <a class="icon-container" href="https://stellarterm.com/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/stellarterm.svg">
+            </a>
+            <a class="icon-container" href="https://lumenswap.io/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/lumenswap.svg">
+            </a>
+            <a class="icon-container" href="https://www.ledger.com/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/ledger.svg">
+            </a>
+            <a class="icon-container" href="https://www.freighter.app/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/frighter.svg">
+            </a>
+        </div>
+    
+        <div class="text exchanges">
+            <h4>Supported exchanges</h4>
+            <div>
+                We are working to make sure AQUA airdrop is supported by major exchanges. Keep an eye on announcements on
+                Twitter and refer to our Medium article. <br>
+                <a class="medium-link" href="https://medium.com/aquarius-aqua/airdrop-2-participating-exchanges-daec43175387" target="_blank">
+                    View full list
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.6465 6L15.0001 8.35355L12.6465 10.7071L11.9394 10L13.0859 8.85355H1.29297V7.85355H13.0859L11.9394 6.70711L12.6465 6Z" fill="#872AB0"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    
+        <div class="icons exchanges">
+            <a class="icon-container" href="https://www.liquid.com/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/liquid.svg">
+            </a>
+            <a class="icon-container" href="https://sg.upbit.com/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/upbit.svg">
+            </a>
+            <a class="icon-container" href="https://www.bithumb.com/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/bithumb.svg">
+            </a>
+            <a class="icon-container" href="https://www.gopax.co.kr/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/gopax.svg">
+            </a>
+            <a class="icon-container" href="https://www.probit.com/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/probit.svg">
+            </a>
+            <a class="icon-container" href="https://coinone.co.kr/" target="_blank">
+                <img src="/assets/img/wallets-and-exchanges/coinone.svg">
+            </a>
+        </div>
+    </section>
+    
+
+    <section class="faq centered-block">
+        <div class="description">
+            <h3>Questions?</h3>
+            <div class="text">
+                We have tried to answer the most common questions. If you need to find out more information, please join our
+                community chats.
+            </div>
+            <div class="links">
+                <a href="https://discord.com/invite/sgzFscHp4C" target="_blank">
+                    Discord chat
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.6465 6L15.0001 8.35355L12.6465 10.7071L11.9394 10L13.0859 8.85355H1.29297V7.85355H13.0859L11.9394 6.70711L12.6465 6Z" fill="#872AB0"></path>
+                    </svg>
+                </a>
+                <a href="https://t.me/aquarius_HOME" target="_blank">
+                    Telegram chat
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.6465 6L15.0001 8.35355L12.6465 10.7071L11.9394 10L13.0859 8.85355H1.29297V7.85355H13.0859L11.9394 6.70711L12.6465 6Z" fill="#872AB0"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+        <div class="faq-questions"><div class="question-block"><div class="question">
+    Who was eligible for Airdrop #2?
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M7.07321 10.7812L1.78032 5.48836L2.48743 4.78125L7.78032 10.0741C7.97558 10.2694 8.29216 10.2694 8.48743 10.0741L13.7803 4.78125L14.4874 5.48836L9.19453 10.7813C8.60875 11.367 7.659 11.367 7.07321 10.7812Z" fill="black"></path>
+    </svg>
+</div>
+<div class="answer">Anyone who held at least 500 XLM/yXLM &amp; 1 AQUA inside a Stellar wallet at the time of the snapshot. Use this page to check if your Stellar wallet was eligible and the expected AQUA reward the wallet will get.</div>
+</div><div class="question-block"><div class="question">
+    When was the snapshot?
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M7.07321 10.7812L1.78032 5.48836L2.48743 4.78125L7.78032 10.0741C7.97558 10.2694 8.29216 10.2694 8.48743 10.0741L13.7803 4.78125L14.4874 5.48836L9.19453 10.7813C8.60875 11.367 7.659 11.367 7.07321 10.7812Z" fill="black"></path>
+    </svg>
+</div>
+<div class="answer">The snapshot was taken on January 15, 2022 at 00:00:00 UTC (at the Stellar ledger 39185028). We took into account the amount of XLM, yXLM and AQUA held by wallets to determine their airdrop reward. Those who locked AQUA inside the locker tool received a boost to their airdrop reward.<br><br>On December 6, the AQUA community voted to pass proposal 19, moving the snapshot date to January 15, 2022. You can learn more on our Gov website <a href="https://gov.aqua.network/" target="_blank">https://gov.aqua.network/</a></div>
+</div><div class="question-block"><div class="question">
+    What if I held my XLM on an exchange?
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M7.07321 10.7812L1.78032 5.48836L2.48743 4.78125L7.78032 10.0741C7.97558 10.2694 8.29216 10.2694 8.48743 10.0741L13.7803 4.78125L14.4874 5.48836L9.19453 10.7813C8.60875 11.367 7.659 11.367 7.07321 10.7812Z" fill="black"></path>
+    </svg>
+</div>
+<div class="answer">Please refer to <a href="https://medium.com/aquarius-aqua/airdrop-2-participating-exchanges-daec43175387" target="_blank">this Medium article</a> to see all exchanges that are taking part in AQUA airdrop.<br><br>If you held XLM on an eligible exchange, you typically didn't need to do anything. Participating exchanges will distribute AQUA to users in proportion to their XLM holdings at the time of the snapshot. Users of participating exchanges didn't need to hold AQUA to participate and could typically hold less than 500 XLM to be eligible.</div>
+</div><div class="question-block"><div class="question">
+    What's my total three year reward?
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M7.07321 10.7812L1.78032 5.48836L2.48743 4.78125L7.78032 10.0741C7.97558 10.2694 8.29216 10.2694 8.48743 10.0741L13.7803 4.78125L14.4874 5.48836L9.19453 10.7813C8.60875 11.367 7.659 11.367 7.07321 10.7812Z" fill="black"></path>
+    </svg>
+</div>
+<div class="answer">Please use the airdrop checker tool to find out the expected amount of AQUA your wallet will receive during the 3 year distribution. Your final reward took into consideration how many other people participated, the amount of XLM/yXLM and AQUA that you held at the time of the snapshot, and whether or not you locked AQUA for the snapshot.</div>
+</div></div>
+    </section>
+    
+
+    <section class="stay-in-touch" id="stay-in-touch">
+        <div class="centered-block content">
+            <div class="main-title">Join AQUA community</div>
+            <div class="main-description">
+                Learn more about Aquarius, follow the project updates, chat with the team and other community members.
+            </div>
+    
+            <div class="items">
+                <a class="links-items" href="https://t.me/aquarius_HOME" target="_blank">
+                    <div class="item">
+                        <div class="item-content">
+                            <img class="image" src="./assets/img/telegram.svg" alt="telegram">
+                            <span class="link">Telegram chat</span>
+                        </div>
+                    </div>
+                </a>
+                <a class="links-items" href="https://t.me/aqua_token" target="_blank">
+                    <div class="item">
+                        <div class="item-content">
+                            <img class="image" src="./assets/img/telegram.svg" alt="telegram">
+                            <span class="link">Telegram news</span>
+                        </div>
+                    </div>
+                </a>
+                <a class="links-items" href="https://twitter.com/aqua_token" target="_blank">
+                    <div class="item">
+                        <div class="item-content">
+                            <img class="image" src="./assets/img/twitter.svg" alt="twitter">
+                            <span class="link">Twitter</span>
+                        </div>
+                    </div>
+                </a>
+                <a class="links-items" href="https://github.com/AquaToken" target="_blank">
+                    <div class="item">
+                        <div class="item-content">
+                            <img class="image" src="./assets/img/github.svg" alt="github">
+                            <span class="link">GitHub</span>
+                        </div>
+                    </div>
+                </a>
+                <a class="links-items" href="https://discord.gg/sgzFscHp4C" target="_blank">
+                    <div class="item">
+                        <div class="item-content">
+                            <img class="image" src="./assets/img/discord.svg" alt="github">
+                            <span class="link">Discord</span>
+                        </div>
+                    </div>
+                </a>
+                <a class="links-items" href="https://www.reddit.com/r/AquariusAqua/" target="_blank">
+                    <div class="item">
+                        <div class="item-content">
+                            <img class="image" src="./assets/img/reddit.svg" alt="github">
+                            <span class="link">Reddit</span>
+                        </div>
+                    </div>
+                </a>
+                <a class="links-items" href="https://medium.com/aquarius-aqua" target="_blank">
+                    <div class="item">
+                        <div class="item-content">
+                            <img class="image" src="./assets/img/medium.svg" alt="medium">
+                            <span class="link">Medium</span>
+                        </div>
+                    </div>
+                </a>
+                <a class="links-items" href="mailto:hello@aqua.network" target="_blank">
+                    <div class="item">
+                        <div class="item-content">
+                            <img class="image" src="./assets/img/email.svg" alt="email">
+                            <span class="link">hello@aqua.network</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+    
+
+    <section class="subscribe" id="subscribe">
+    	<div class="centered-block content">
+    		<div class="subscribe-container">
+    			<div class="description">
+    				<div class="main-title">Subscribe to stay updated</div>
+    				<div class="main-description">Aquarius is moving fast, do not forget to subscribe to news</div>
+    			</div>
+    			<div class="email">
+    				<form class="form" method="post" name="subscribe"><input type="hidden" name="form-name" value="subscribe">
+    					<input type="email" name="email" placeholder="Enter your email" class="form-input">
+    					<button type="submit" class="form-button">Subscribe</button>
+    				</form>
+    			</div>
+    		</div>
+    	</div>
+    </section>
+    
+
+    <footer>
+        <div class="centered-block content">
+            <div class="helpful-line">
+                <div><img src="./assets/img/header-logo.svg"></div>
+            </div>
+            <div class="copyright-line">
+                <div class="copyright">
+                    © 2022 aqua.network
+                </div>
+                <div class="terms">
+                    Aquarius runs on Stellar. AQUA tokens are issued on Stellar. The project is unaffiliated with the Stellar Development Foundation.
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+</div>
+
+
+
+
+<script src="scripts/airdrop2.72b2057fb25d38ec050aed4485c2ba28.js"></script>
+
+
 </body>
 </html>
