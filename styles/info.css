@@ -827,10 +827,6 @@ section.main-block {
     background-color: #FAFAFB;
     padding-top: 11rem;
     overflow: hidden;
-    background-image: url(https://stellaranchoruk.xyz/images/header_image.png);
-    background-size: 100%;
-    background-repeat: no-repeat;
-    margin-top: 80px;
 
     img {
         height: 100%;
@@ -844,29 +840,40 @@ section.main-block {
     }
 }
 
-@media screen and (max-width: 1000px) {
-  section.main-block img {
-    margin-top: -110px; } }
+@media screen and (max-width: 1000px){
+    section.main-block {
+        img {
+            margin-top: -110px;
+        }
+    }
+}
 
-@media screen and (max-width: 800px) {
-  section.main-block {
-    background-image: url(https://stellaranchoruk.xyz/images/header_image_mobile.png);
-    height: 50rem;
-    justify-content: center;
-    padding-bottom: 10rem; }
-    section.main-block img:not(.text) {
-      height: 160%;
-      margin-top: 2rem; }
-    section.main-block img.text {
-      height: 27%;
-      margin-top: -31rem;
-      margin-left: -20rem; }
-    section.main-block img:last-child {
-      display: none; } }
+@media screen and (max-width: 800px){
+    section.main-block {
+        height: 50rem;
+        justify-content: center;
+        padding-bottom: 10rem;
+        img:not(.text) {
+            height: 160%;
+            margin-top: 2rem;
+        }
+        img.text {
+            height: 27%;
+            margin-top: -31rem;
+            margin-left: -20rem;
+        }
+        img:last-child {
+            display: none;
+        }
+    }
+}
 
-@media screen and (max-width: 470px) {
-  section.main-block {
-    justify-content: flex-start; } }
+@media screen and (max-width: 470px){
+    section.main-block {
+        justify-content: flex-start;
+    }
+}
+
 
 section.conditions {
   position: relative;
