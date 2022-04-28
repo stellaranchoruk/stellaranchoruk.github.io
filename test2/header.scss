@@ -28,14 +28,14 @@ header.page-header {
 
     a {
         font-size: 1.4rem;
-        color: #23024D;
+        color: #f0cb78;
         padding: 0 1rem;
         text-decoration: none;
         outline: none;
         transition: 0.15s;
 
         &:hover {
-            color: #872AB0;
+            color: #edae20;
         }
     }
 
@@ -50,36 +50,6 @@ header.page-header {
 
     .menu-toggle, .social-links {
         display: none;
-    }
-
-    .tooltip {
-        position: absolute;
-        top: 22px;
-        left: 60px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 4px 8px 4px 8px;
-        border-radius: 5px;
-        background:#8620B9;
-        opacity: 1;
-        color: #ffffff;
-        font-size: 1.4rem;
-        &:after {
-            content: '';
-            position: absolute;
-            left: 50%;
-            top: -9px;
-            border: 0.5rem solid transparent;
-            border-top-color: #8620B9;
-            margin-left: -0.5rem;
-            transform: rotate(180deg);
-        }
-        img {
-            width: 12px;
-            height: 16px;
-            margin: 0 2px 0 0;
-        }
     }
 }
 
