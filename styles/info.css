@@ -857,7 +857,7 @@ section.main-block {
         height: 50rem;
         justify-content: center;
         padding-bottom: 10rem;
-        background-image: url(https://stellaranchoruk.xyz/images/header_image.png);
+        background-image: url(https://stellaranchoruk.xyz/images/header_image_mobile.png);
         img:not(.text) {
             height: 160%;
             margin-top: 2rem;
