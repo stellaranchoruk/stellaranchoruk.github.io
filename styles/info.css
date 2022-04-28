@@ -131,13 +131,13 @@ header.page-header {
     align-items: center; }
   header.page-header a {
     font-size: 1.4rem;
-    color: #23024D;
+    color: #f0cb78;
     padding: 0 1rem;
     text-decoration: none;
     outline: none;
     transition: 0.15s; }
     header.page-header a:hover {
-      color: #872AB0; }
+      color: #edae20; }
   header.page-header .main-link {
     display: flex; }
   header.page-header button {
