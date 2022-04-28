@@ -115,7 +115,7 @@ header.page-header {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 11rem;
+  height: 8rem;
   padding: 0 4rem;
   left: 0;
   top: 0;
@@ -188,7 +188,7 @@ header.page-header {
   header.page-header {
     position: absolute;
     background-color: transparent;
-    height: 5.6rem;
+    height: 8rem;
     padding: 0 1.6rem; }
     header.page-header img {
       z-index: 50; }
@@ -818,22 +818,18 @@ section.faq {
     transform: scaleY(1); } }
 
 section.main-block {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  height: 50vw;
-  background-color: #FAFAFB;
-  padding-top: 11rem;
-  overflow: hidden; }
-  section.main-block img {
-    height: 100%;
-    margin-top: -150px; }
-  section.main-block img.text {
-    height: 35%; }
-  section.main-block img:last-child {
-    transform: scale(-1, 1); }
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 34vw;
+    background-color: #FAFAFB;
+    overflow: hidden;
+    background-image: url(https://stellaranchoruk.xyz/images/header_image.png);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin-top: 80px;
 
 @media screen and (max-width: 1000px) {
   section.main-block img {
@@ -841,6 +837,7 @@ section.main-block {
 
 @media screen and (max-width: 800px) {
   section.main-block {
+    background-image: url(https://stellaranchoruk.xyz/images/header_image_mobile.png);
     height: 50rem;
     justify-content: center;
     padding-bottom: 10rem; }
