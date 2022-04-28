@@ -1495,12 +1495,12 @@ section.account-eligibility {
 section.wallets-and-exchanges {
   position: relative;
   display: grid;
-  padding: 8rem 10rem 11.6rem;
+  padding: 6rem 6rem 6rem;
   font-family: Roboto;
   font-style: normal;
   font-weight: 400;
   letter-spacing: 0;
-  grid-template-areas: 'a b' 'c d';
+  grid-template-areas: 'a b';
   grid-column-gap: 6rem;
   grid-row-gap: 8rem;
   grid-template-columns: 1fr 1fr;
@@ -1509,12 +1509,8 @@ section.wallets-and-exchanges {
   section.wallets-and-exchanges .text.wallets {
     grid-area: a;
     justify-self: flex-end; }
-  section.wallets-and-exchanges .icons.wallets {
-    grid-area: b; }
-  section.wallets-and-exchanges .icons.exchanges {
-    grid-area: c; }
   section.wallets-and-exchanges .text.exchanges {
-    grid-area: d; }
+    grid-area: b; }
   section.wallets-and-exchanges .text {
     max-width: 36.6rem;
     font-size: 1.6rem;
@@ -1569,7 +1565,7 @@ section.wallets-and-exchanges {
       height: 10rem; } }
   @media screen and (max-width: 800px) {
     section.wallets-and-exchanges {
-      grid-template-areas: 'a' 'b' 'd' 'c';
+      grid-template-areas: 'a' 'b';
       grid-row-gap: 3.8rem;
       grid-template-columns: 1fr;
       padding: 2.1rem 1.6rem 1.6rem; }
