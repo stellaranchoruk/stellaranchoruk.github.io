@@ -827,6 +827,10 @@ section.main-block {
     background-color: #FAFAFB;
     padding-top: 11rem;
     overflow: hidden;
+    background-image: url(https://stellaranchoruk.xyz/images/header_image.png);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin-top: 80px;
 
     img {
         height: 100%;
@@ -853,6 +857,7 @@ section.main-block {
         height: 50rem;
         justify-content: center;
         padding-bottom: 10rem;
+        background-image: url(https://stellaranchoruk.xyz/images/header_image.png);
         img:not(.text) {
             height: 160%;
             margin-top: 2rem;
@@ -871,6 +876,7 @@ section.main-block {
 @media screen and (max-width: 470px){
     section.main-block {
         justify-content: flex-start;
+        height: 35rem;
     }
 }
 
