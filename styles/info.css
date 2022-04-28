@@ -200,7 +200,7 @@ header.page-header {
       top: 0;
       left: 0;
       height: 100%;
-      background-color: #ffffff;
+      background-color: #4a4a4a;
       width: 100%;
       animation: fadeIn 0.2s ease-in; }
     header.page-header nav {
@@ -216,7 +216,7 @@ header.page-header {
       font-weight: bold;
       font-size: 1.6rem;
       line-height: 4.6rem;
-      color: #23024D; }
+      color: #f0cb78; }
     header.page-header .tooltip {
       top: 80px;
       left: 45px; }
