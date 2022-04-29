@@ -115,29 +115,29 @@ header.page-header {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 11rem;
+  height: 8rem;
   padding: 0 4rem;
   left: 0;
   top: 0;
-  background-color: #ffffff;
+  background: linear-gradient(90deg, #000000, #4a4a4a);
   z-index: 30; }
   header.page-header .relative {
     position: relative; }
   header.page-header img {
-    height: 4.4rem;
+    height: 1.75rem;
     margin-right: 1rem; }
   header.page-header .menu {
     display: flex;
     align-items: center; }
   header.page-header a {
     font-size: 1.4rem;
-    color: #23024D;
+    color: #f0cb78;
     padding: 0 1rem;
     text-decoration: none;
     outline: none;
     transition: 0.15s; }
     header.page-header a:hover {
-      color: #872AB0; }
+      color: #edae20; }
   header.page-header .main-link {
     display: flex; }
   header.page-header button {
@@ -188,10 +188,9 @@ header.page-header {
   header.page-header {
     position: absolute;
     background-color: transparent;
-    height: 5.6rem;
+    height: 8rem;
     padding: 0 1.6rem; }
     header.page-header img {
-      height: 3.4rem;
       z-index: 50; }
     header.page-header .menu {
       position: fixed;
@@ -201,7 +200,7 @@ header.page-header {
       top: 0;
       left: 0;
       height: 100%;
-      background-color: #ffffff;
+      background-color: #4a4a4a;
       width: 100%;
       animation: fadeIn 0.2s ease-in; }
     header.page-header nav {
@@ -217,7 +216,7 @@ header.page-header {
       font-weight: bold;
       font-size: 1.6rem;
       line-height: 4.6rem;
-      color: #23024D; }
+      color: #f0cb78; }
     header.page-header .tooltip {
       top: 80px;
       left: 45px; }
@@ -234,7 +233,7 @@ header.page-header {
       justify-content: center;
       width: 34px;
       height: 34px;
-      background: #FFFFFF;
+      background: #f0cb78;
       box-shadow: 0 2rem 3rem rgba(0, 6, 54, 0.06);
       border-radius: 5px;
       cursor: pointer;
@@ -255,7 +254,7 @@ header.page-header {
     opacity: 1; } }
 
 footer {
-  margin-top: 16rem;
+  margin-top: 0rem;
   display: flex;
   justify-content: center;
   flex: auto;
@@ -819,45 +818,321 @@ section.faq {
     transform: scaleY(1); } }
 
 section.main-block {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  height: 50vw;
-  background-color: #FAFAFB;
-  padding-top: 11rem;
-  overflow: hidden; }
-  section.main-block img {
-    height: 100%;
-    margin-top: -150px; }
-  section.main-block img.text {
-    height: 35%; }
-  section.main-block img:last-child {
-    transform: scale(-1, 1); }
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 25vw;
+    background-color: #FAFAFB;
+    padding-top: 11rem;
+    overflow: hidden;
+    background-image: url(https://stellaranchoruk.xyz/images/header_image.png);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin-top: 80px;
 
-@media screen and (max-width: 1000px) {
-  section.main-block img {
-    margin-top: -110px; } }
+    img {
+        height: 100%;
+        margin-top: -150px;
+    }
+    img.text {
+        height: 35%;
+    }
+    img:last-child {
+        transform: scale(-1, 1)
+    }
+}
 
-@media screen and (max-width: 800px) {
-  section.main-block {
-    height: 50rem;
-    justify-content: center;
-    padding-bottom: 10rem; }
-    section.main-block img:not(.text) {
-      height: 160%;
-      margin-top: 2rem; }
-    section.main-block img.text {
-      height: 27%;
-      margin-top: -31rem;
-      margin-left: -20rem; }
-    section.main-block img:last-child {
-      display: none; } }
+@media screen and (max-width: 1000px){
+    section.main-block {
+        img {
+            margin-top: -110px;
+        }
+    }
+}
 
-@media screen and (max-width: 470px) {
-  section.main-block {
-    justify-content: flex-start; } }
+@media screen and (max-width: 800px){
+    section.main-block {
+        height: 50rem;
+        justify-content: center;
+        padding-bottom: 10rem;
+        background-image: url(https://stellaranchoruk.xyz/images/header_image_mobile.png);
+        img:not(.text) {
+            height: 160%;
+            margin-top: 2rem;
+        }
+        img.text {
+            height: 27%;
+            margin-top: -31rem;
+            margin-left: -20rem;
+        }
+        img:last-child {
+            display: none;
+        }
+    }
+}
+
+@media screen and (max-width: 470px){
+    section.main-block {
+        justify-content: flex-start;
+        height: 35rem;
+    }
+}
+
+section.main-block-gbpc {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 25vw;
+    background-color: #FAFAFB;
+    padding-top: 11rem;
+    overflow: hidden;
+    background-image: url(https://stellaranchoruk.xyz/images/gbpc_header.png);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin-top: 80px;
+
+    img {
+        height: 100%;
+        margin-top: -150px;
+    }
+    img.text {
+        height: 35%;
+    }
+    img:last-child {
+        transform: scale(-1, 1)
+    }
+}
+
+@media screen and (max-width: 1000px){
+    section.main-block-gbpc {
+        img {
+            margin-top: -110px;
+        }
+    }
+}
+
+@media screen and (max-width: 800px){
+    section.main-block-gbpc {
+        height: 50rem;
+        justify-content: center;
+        padding-bottom: 10rem;
+        background-image: url(https://stellaranchoruk.xyz/images/gbpc_header_mobile.png);
+        img:not(.text) {
+            height: 160%;
+            margin-top: 2rem;
+        }
+        img.text {
+            height: 27%;
+            margin-top: -31rem;
+            margin-left: -20rem;
+        }
+        img:last-child {
+            display: none;
+        }
+    }
+}
+
+@media screen and (max-width: 470px){
+    section.main-block-gbpc {
+        justify-content: flex-start;
+        height: 35rem;
+    }
+}
+
+section.main-block-yusdc {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 25vw;
+    background-color: #FAFAFB;
+    padding-top: 11rem;
+    overflow: hidden;
+    background-image: url(https://stellaranchoruk.xyz/images/yUSDC_header.png);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin-top: 80px;
+
+    img {
+        height: 100%;
+        margin-top: -150px;
+    }
+    img.text {
+        height: 35%;
+    }
+    img:last-child {
+        transform: scale(-1, 1)
+    }
+}
+
+@media screen and (max-width: 1000px){
+    section.main-block-yusdc {
+        img {
+            margin-top: -110px;
+        }
+    }
+}
+
+@media screen and (max-width: 800px){
+    section.main-block-yusdc {
+        height: 50rem;
+        justify-content: center;
+        padding-bottom: 10rem;
+        background-image: url(https://stellaranchoruk.xyz/images/yUSDC_header_mobile.png);
+        img:not(.text) {
+            height: 160%;
+            margin-top: 2rem;
+        }
+        img.text {
+            height: 27%;
+            margin-top: -31rem;
+            margin-left: -20rem;
+        }
+        img:last-child {
+            display: none;
+        }
+    }
+}
+
+@media screen and (max-width: 470px){
+    section.main-block-yusdc {
+        justify-content: flex-start;
+        height: 35rem;
+    }
+}
+
+section.main-block-eurc {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 25vw;
+    background-color: #FAFAFB;
+    padding-top: 11rem;
+    overflow: hidden;
+    background-image: url(https://stellaranchoruk.xyz/images/eurc_header.png);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin-top: 80px;
+
+    img {
+        height: 100%;
+        margin-top: -150px;
+    }
+    img.text {
+        height: 35%;
+    }
+    img:last-child {
+        transform: scale(-1, 1)
+    }
+}
+
+@media screen and (max-width: 1000px){
+    section.main-block-eurc {
+        img {
+            margin-top: -110px;
+        }
+    }
+}
+
+@media screen and (max-width: 800px){
+    section.main-block-eurc {
+        height: 50rem;
+        justify-content: center;
+        padding-bottom: 10rem;
+        background-image: url(https://stellaranchoruk.xyz/images/eurc_header_mobile.png);
+        img:not(.text) {
+            height: 160%;
+            margin-top: 2rem;
+        }
+        img.text {
+            height: 27%;
+            margin-top: -31rem;
+            margin-left: -20rem;
+        }
+        img:last-child {
+            display: none;
+        }
+    }
+}
+
+@media screen and (max-width: 470px){
+    section.main-block-eurc {
+        justify-content: flex-start;
+        height: 35rem;
+    }
+}
+
+
+section.main-block-krwc {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 25vw;
+    background-color: #FAFAFB;
+    padding-top: 11rem;
+    overflow: hidden;
+    background-image: url(https://stellaranchoruk.xyz/images/krwc_header.png);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin-top: 80px;
+
+    img {
+        height: 100%;
+        margin-top: -150px;
+    }
+    img.text {
+        height: 35%;
+    }
+    img:last-child {
+        transform: scale(-1, 1)
+    }
+}
+
+@media screen and (max-width: 1000px){
+    section.main-block-krwc {
+        img {
+            margin-top: -110px;
+        }
+    }
+}
+
+@media screen and (max-width: 800px){
+    section.main-block-krwc {
+        height: 50rem;
+        justify-content: center;
+        padding-bottom: 10rem;
+        background-image: url(https://stellaranchoruk.xyz/images/krwc_header_mobile.png);
+        img:not(.text) {
+            height: 160%;
+            margin-top: 2rem;
+        }
+        img.text {
+            height: 27%;
+            margin-top: -31rem;
+            margin-left: -20rem;
+        }
+        img:last-child {
+            display: none;
+        }
+    }
+}
+
+@media screen and (max-width: 470px){
+    section.main-block-krwc {
+        justify-content: flex-start;
+        height: 35rem;
+    }
+}
+
 
 section.conditions {
   position: relative;
@@ -1473,12 +1748,12 @@ section.account-eligibility {
 section.wallets-and-exchanges {
   position: relative;
   display: grid;
-  padding: 8rem 10rem 11.6rem;
+  padding: 6rem 6rem 6rem;
   font-family: Roboto;
   font-style: normal;
   font-weight: 400;
   letter-spacing: 0;
-  grid-template-areas: 'a b' 'c d';
+  grid-template-areas: 'a b';
   grid-column-gap: 6rem;
   grid-row-gap: 8rem;
   grid-template-columns: 1fr 1fr;
@@ -1487,12 +1762,8 @@ section.wallets-and-exchanges {
   section.wallets-and-exchanges .text.wallets {
     grid-area: a;
     justify-self: flex-end; }
-  section.wallets-and-exchanges .icons.wallets {
-    grid-area: b; }
-  section.wallets-and-exchanges .icons.exchanges {
-    grid-area: c; }
   section.wallets-and-exchanges .text.exchanges {
-    grid-area: d; }
+    grid-area: b; }
   section.wallets-and-exchanges .text {
     max-width: 36.6rem;
     font-size: 1.6rem;
@@ -1547,10 +1818,10 @@ section.wallets-and-exchanges {
       height: 10rem; } }
   @media screen and (max-width: 800px) {
     section.wallets-and-exchanges {
-      grid-template-areas: 'a' 'b' 'd' 'c';
+      grid-template-areas: 'a' 'b';
       grid-row-gap: 3.8rem;
       grid-template-columns: 1fr;
-      padding: 2.1rem 1.6rem 1.6rem; }
+      padding: 2.1rem 5.6rem 1.6rem; }
       section.wallets-and-exchanges .icons .icon-container {
         height: 13rem; }
       section.wallets-and-exchanges .text {
