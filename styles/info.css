@@ -254,7 +254,7 @@ header.page-header {
     opacity: 1; } }
 
 footer {
-  margin-top: 16rem;
+  margin-top: 0rem;
   display: flex;
   justify-content: center;
   flex: auto;
