@@ -831,52 +831,34 @@ section.main-block {
     background-size: 100%;
     background-repeat: no-repeat;
     margin-top: 80px;
-
-    img {
-        height: 100%;
-        margin-top: -150px;
-    }
-    img.text {
-        height: 35%;
-    }
-    img:last-child {
-        transform: scale(-1, 1)
-    }
 }
 
-@media screen and (max-width: 1000px){
-    section.main-block {
-        img {
-            margin-top: -110px;
-        }
-    }
-}
 
 @media screen and (max-width: 800px){
     section.main-block {
-        height: 50rem;
+        height: 46rem;
         justify-content: center;
         padding-bottom: 10rem;
         background-image: url(https://stellaranchoruk.xyz/images/header_image_mobile.png);
-        img:not(.text) {
-            height: 160%;
-            margin-top: 2rem;
-        }
-        img.text {
-            height: 27%;
-            margin-top: -31rem;
-            margin-left: -20rem;
-        }
-        img:last-child {
-            display: none;
-        }
+    }
+}
+
+@media screen and (max-width: 600px){
+    section.main-block {
+        height: 35rem;
     }
 }
 
 @media screen and (max-width: 470px){
     section.main-block {
         justify-content: flex-start;
-        height: 35rem;
+        height: 27rem;
+    }
+}
+
+@media screen and (max-width: 370px){
+    section.main-block {
+        height: 22rem;
     }
 }
 
@@ -940,52 +922,34 @@ section.main-block-yusdc {
     background-size: 100%;
     background-repeat: no-repeat;
     margin-top: 80px;
-
-    img {
-        height: 100%;
-        margin-top: -150px;
-    }
-    img.text {
-        height: 35%;
-    }
-    img:last-child {
-        transform: scale(-1, 1)
-    }
 }
 
-@media screen and (max-width: 1000px){
-    section.main-block-yusdc {
-        img {
-            margin-top: -110px;
-        }
-    }
-}
 
 @media screen and (max-width: 800px){
     section.main-block-yusdc {
-        height: 50rem;
+        height: 46rem;
         justify-content: center;
         padding-bottom: 10rem;
         background-image: url(https://stellaranchoruk.xyz/images/yUSDC_header_mobile.png);
-        img:not(.text) {
-            height: 160%;
-            margin-top: 2rem;
-        }
-        img.text {
-            height: 27%;
-            margin-top: -31rem;
-            margin-left: -20rem;
-        }
-        img:last-child {
-            display: none;
-        }
+    }
+}
+
+@media screen and (max-width: 600px){
+    section.main-block-yusdc {
+        height: 35rem;
     }
 }
 
 @media screen and (max-width: 470px){
     section.main-block-yusdc {
         justify-content: flex-start;
-        height: 35rem;
+        height: 27rem;
+    }
+}
+
+@media screen and (max-width: 370px){
+    section.main-block-yusdc {
+        height: 22rem;
     }
 }
 
@@ -1003,52 +967,34 @@ section.main-block-eurc {
     background-size: 100%;
     background-repeat: no-repeat;
     margin-top: 80px;
-
-    img {
-        height: 100%;
-        margin-top: -150px;
-    }
-    img.text {
-        height: 35%;
-    }
-    img:last-child {
-        transform: scale(-1, 1)
-    }
 }
 
-@media screen and (max-width: 1000px){
-    section.main-block-eurc {
-        img {
-            margin-top: -110px;
-        }
-    }
-}
 
 @media screen and (max-width: 800px){
     section.main-block-eurc {
-        height: 50rem;
+        height: 46rem;
         justify-content: center;
         padding-bottom: 10rem;
         background-image: url(https://stellaranchoruk.xyz/images/eurc_header_mobile.png);
-        img:not(.text) {
-            height: 160%;
-            margin-top: 2rem;
-        }
-        img.text {
-            height: 27%;
-            margin-top: -31rem;
-            margin-left: -20rem;
-        }
-        img:last-child {
-            display: none;
-        }
+    }
+}
+
+@media screen and (max-width: 600px){
+    section.main-block-eurc {
+        height: 35rem;
     }
 }
 
 @media screen and (max-width: 470px){
     section.main-block-eurc {
         justify-content: flex-start;
-        height: 35rem;
+        height: 27rem;
+    }
+}
+
+@media screen and (max-width: 370px){
+    section.main-block-eurc {
+        height: 22rem;
     }
 }
 
@@ -1067,52 +1013,34 @@ section.main-block-krwc {
     background-size: 100%;
     background-repeat: no-repeat;
     margin-top: 80px;
-
-    img {
-        height: 100%;
-        margin-top: -150px;
-    }
-    img.text {
-        height: 35%;
-    }
-    img:last-child {
-        transform: scale(-1, 1)
-    }
 }
 
-@media screen and (max-width: 1000px){
-    section.main-block-krwc {
-        img {
-            margin-top: -110px;
-        }
-    }
-}
 
 @media screen and (max-width: 800px){
     section.main-block-krwc {
-        height: 50rem;
+        height: 46rem;
         justify-content: center;
         padding-bottom: 10rem;
         background-image: url(https://stellaranchoruk.xyz/images/krwc_header_mobile.png);
-        img:not(.text) {
-            height: 160%;
-            margin-top: 2rem;
-        }
-        img.text {
-            height: 27%;
-            margin-top: -31rem;
-            margin-left: -20rem;
-        }
-        img:last-child {
-            display: none;
-        }
+    }
+}
+
+@media screen and (max-width: 600px){
+    section.main-block-krwc {
+        height: 35rem;
     }
 }
 
 @media screen and (max-width: 470px){
     section.main-block-krwc {
         justify-content: flex-start;
-        height: 35rem;
+        height: 27rem;
+    }
+}
+
+@media screen and (max-width: 370px){
+    section.main-block-krwc {
+        height: 22rem;
     }
 }
 
