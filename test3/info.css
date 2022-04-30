@@ -894,44 +894,15 @@ section.main-block-gbpc {
     background-size: 100%;
     background-repeat: no-repeat;
     margin-top: 80px;
-
-    img {
-        height: 100%;
-        margin-top: -150px;
-    }
-    img.text {
-        height: 35%;
-    }
-    img:last-child {
-        transform: scale(-1, 1)
-    }
 }
 
-@media screen and (max-width: 1000px){
-    section.main-block-gbpc {
-        img {
-            margin-top: -110px;
-        }
-    }
-}
 
 @media screen and (max-width: 800px){
     section.main-block-gbpc {
         height: 50rem;
         justify-content: center;
         padding-bottom: 10rem;
-        img:not(.text) {
-            height: 160%;
-            margin-top: 2rem;
-        }
-        img.text {
-            height: 27%;
-            margin-top: -31rem;
-            margin-left: -20rem;
-        }
-        img:last-child {
-            display: none;
-        }
+        background-image: url(https://stellaranchoruk.xyz/images/gbpc_header_mobile.png);
     }
 }
 
