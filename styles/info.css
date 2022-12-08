@@ -124,7 +124,7 @@ header.page-header {
   header.page-header .relative {
     position: relative; }
   header.page-header img {
-    height: 1.75rem;
+    height: 3rem;
     margin-right: 1rem; }
   header.page-header .menu {
     display: flex;
