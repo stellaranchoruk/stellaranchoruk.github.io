@@ -1,4 +1,4 @@
-# StellarAnchorUK <stellaranchoruk.xyz>
+# Mirrasets <mirrasets.com>
 VERSION="2.2.0"
 NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
 ACCOUNTS=[
@@ -10,13 +10,13 @@ ACCOUNTS=[
 "GCV5FAHGGXBDOUKST2GLBZMIGGEJSM4LAQKBGF2Z33W3DYWFGQAR6EUR"]
 
 [DOCUMENTATION]
-ORG_NAME="Stellar Anchor UK"
-ORG_DBA="Stellar Anchor UK"
-ORG_URL="https://stellaranchoruk.xyz"
-ORG_LOGO="https://i.imgur.com/vX2TTYX.png"
+ORG_NAME="Mirrasets"
+ORG_DBA="Mirrasets"
+ORG_URL="https://mirrasets.com"
+ORG_LOGO="https://mirrasets.com/images/mirrasets_logo.png"
 ORG_OFFICIAL_EMAIL="gbpcstellar@gmail.com"
 ORG_TWITTER="https://twitter.com/StellarAnchorUK"
-ORG_DESCRIPTION="Stellar Anchor UK mirrors real world assets on the Stellar network. We currently provide the pegged stablecoins GBPC, KRWC, and EURC, allowing users of Stellar to hold a representation of the Great British Pound, South Korean Won, and the Euro within the ecosystem. Currently, holders of GBPC, KRWC, and EURC can exchange their tokens back to USDC through the Stellar DEX."
+ORG_DESCRIPTION="Mirrasets mirrors real world assets on the Stellar network. We currently provide the pegged stablecoins GBPC, KRWC, and EURC, allowing users of Stellar to hold a representation of the Great British Pound, South Korean Won, and the Euro within the ecosystem. Currently, holders of GBPC, KRWC, and EURC can exchange their tokens back to USDC through the Stellar DEX."
 [[PRINCIPALS]]
 email="gbpcstellar@gmail.com"
 
@@ -30,8 +30,8 @@ anchor_asset_type="fiat"
 anchor_asset="GBP"
 redemption_instructions="Redeemable through the GBPC/USDC trading pair on the SDEX."
 name="GBP Coin"
-desc="GBPC is a mirror representation of the Great British Pound on the Stellar network. Using the Stellar DEX, we keep GBPC pegged to the same value as the current market rates of real world GBP & USD. GBPC allows users of Stellar to hold a representation on the Great British Pound within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued GBPC through the SDEX. A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://stellaranchoruk.xyz"
-image="https://i.imgur.com/vX2TTYX.png"
+desc="GBPC is a mirror representation of the Great British Pound on the Stellar network. Using the Stellar DEX, we keep GBPC pegged to the same value as the current market rates of real world GBP & USD. GBPC allows users of Stellar to hold a representation on the Great British Pound within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued GBPC through the SDEX. A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://mirrasets.com"
+image="https://mirrasets.com/images/tokens/GBPC.png"
 
 [[CURRENCIES]]
 code="KRWC"
@@ -43,8 +43,8 @@ anchor_asset_type="fiat"
 anchor_asset="KRW"
 redemption_instructions="Redeemable through the KRWC/yUSDC trading pair on the SDEX."
 name="KRW Coin"
-desc="KRWC is a mirror representation of the South Korean Won on the Stellar network. Using the Stellar DEX, we keep KRWC pegged to the same value as the current market rates of real world KRW & USD. KRWC allows users of Stellar to hold a representation on the South Korean Won within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued KRWC through the SDEX. A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://stellaranchoruk.xyz"
-image="https://stellaranchoruk.xyz/images/tokens/KRWC.png"
+desc="KRWC is a mirror representation of the South Korean Won on the Stellar network. Using the Stellar DEX, we keep KRWC pegged to the same value as the current market rates of real world KRW & USD. KRWC allows users of Stellar to hold a representation on the South Korean Won within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued KRWC through the SDEX. A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://mirrasets.com"
+image="https://mirrasets.com/images/tokens/KRWC.png"
 
 [[CURRENCIES]]
 code="EURC"
@@ -56,5 +56,5 @@ anchor_asset_type="fiat"
 anchor_asset="EUR"
 redemption_instructions="Redeemable through the EURC/yUSDC trading pair on the SDEX."
 name="EUR Coin"
-desc="EURC is a mirror representation of the Euro on the Stellar network. Using the Stellar DEX, we keep EURC pegged to the same value as the current market rates of real world EUR & USD. EURC allows users of Stellar to hold a representation on the Euro within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued EURC through the SDEX. A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://stellaranchoruk.xyz"
-image="https://stellaranchoruk.xyz/images/tokens/EURC.png"
+desc="EURC is a mirror representation of the Euro on the Stellar network. Using the Stellar DEX, we keep EURC pegged to the same value as the current market rates of real world EUR & USD. EURC allows users of Stellar to hold a representation on the Euro within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued EURC through the SDEX. A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://mirrasets.com"
+image="https://mirrasets.com/images/tokens/EURC.png"
