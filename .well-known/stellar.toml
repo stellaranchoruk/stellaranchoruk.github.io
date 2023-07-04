@@ -14,7 +14,7 @@ ORG_NAME="Mirrasets"
 ORG_DBA="Mirrasets"
 ORG_URL="https://mirrasets.com"
 ORG_LOGO="https://mirrasets.com/images/mirrasets_logo.png"
-ORG_OFFICIAL_EMAIL="gbpcstellar@gmail.com"
+ORG_OFFICIAL_EMAIL="support@mirrasets.com"
 ORG_TWITTER="https://twitter.com/mirrasets"
 ORG_DESCRIPTION="Mirrasets mirrors real world assets on the Stellar network. We currently provide the pegged stablecoins GBPC, KRWC, and EURC, allowing users of Stellar to hold a representation of the Great British Pound, South Korean Won, and the Euro within the ecosystem. Currently, holders of GBPC, KRWC, and EURC can exchange their tokens back to USDC through the Stellar DEX."
 [[PRINCIPALS]]
