@@ -7,7 +7,9 @@ ACCOUNTS=[
 "GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC",
 "GC7QJZNPG7FZT2C4QV7V2NJ7EGNMC4KYS2IZUSO3ZPBUNKSUMLSJZKRW",
 "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC",
-"GCV5FAHGGXBDOUKST2GLBZMIGGEJSM4LAQKBGF2Z33W3DYWFGQAR6EUR"]
+"GCV5FAHGGXBDOUKST2GLBZMIGGEJSM4LAQKBGF2Z33W3DYWFGQAR6EUR",
+"GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC",
+"GCUBSJRDDDYD74MLTKL4TZVVDAJZVZFVFL52MDF6SDNBXJMWBA5RMUSD"]
 
 [DOCUMENTATION]
 ORG_NAME="Mirrasets"
@@ -58,3 +60,16 @@ redemption_instructions="Redeemable through the EURC/yUSDC trading pair on the S
 name="Euro Mirror"
 desc="EURC is a mirror representation of the Euro on the Stellar network. Using the Stellar DEX, we keep EURC pegged to the same value as the current market rates of real world EUR & USD. EURC allows users of Stellar to hold a representation on the Euro within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued EURC through the SDEX. A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices. Visit us at https://mirrasets.com"
 image="https://mirrasets.com/images/tokens/EURC.png"
+
+[[CURRENCIES]]
+code="USDC"
+issuer="GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC"
+status="live"
+display_decimals=7
+is_asset_anchored=false
+anchor_asset_type="fiat"
+anchor_asset="USD"
+redemption_instructions="Redeemable through the USDC/USDC trading pair on the SDEX."
+name="British Pound Mirror"
+desc="USDC is a mirror representation of the United States Dollar on the Stellar network. Using the Stellar DEX, we keep USDC pegged to the same value as the current market rates of real world USD. USDC allows users of Stellar to hold a representation on the United States Dollar within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued USDC through the SDEX. Visit us at https://mirrasets.com"
+image="https://mirrasets.com/images/tokens/USDC.png"
