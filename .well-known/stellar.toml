@@ -70,6 +70,6 @@ is_asset_anchored=false
 anchor_asset_type="fiat"
 anchor_asset="USD"
 redemption_instructions="Redeemable through the USDC/USDC trading pair on the SDEX."
-name="British Pound Mirror"
+name="US Dollar Mirror"
 desc="USDC is a mirror representation of the United States Dollar on the Stellar network. Using the Stellar DEX, we keep USDC pegged to the same value as the current market rates of real world USD. USDC allows users of Stellar to hold a representation on the United States Dollar within the ecosystem. Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallet on the network. We ensure to always have enough USDC in reserve to buy back all issued USDC through the SDEX. Visit us at https://mirrasets.com"
 image="https://mirrasets.com/images/tokens/USDC.png"
