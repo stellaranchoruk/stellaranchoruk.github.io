@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Real world assets, mirrored on Stellar | Mirrasets</title>
-
     <base href="">
     <link rel="icon" type="image/png" href="favicon.ico">
     <link rel="canonical" href="/">
@@ -33,6 +32,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
     <link rel="stylesheet" href="https://mirrasets.com/styles/info.css">
+
+    <!-- Override Twitter timeline width on mobile -->
+    <style>
+      @media screen and (max-width: 800px) {
+        .twitter-timeline {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="main-content" id="main-content">
@@ -84,18 +93,20 @@
         <div class="text wallets">
           <h4>What We Do</h4>
           <div>
-            <p>Mirrasets mirrors real world assets on the Stellar network. We currently provide the pegged stablecoins GBPC, KRWC & EURC, allowing users of Stellar to hold representations of the Great British Pound, South Korean Won, and Euro within the ecosystem.</p>
+            <p>Mirrasets mirrors real world assets on the Stellar network. We currently provide the pegged stablecoins GBPC, KRWC &amp; EURC, allowing users of Stellar to hold representations of the Great British Pound, South Korean Won, and Euro within the ecosystem.</p>
             <p><br></p>
             <p>Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallets on the network. We ensure to always have enough USDC in reserve to buy back all tokens that we issue.</p>
           </div>
         </div>
     
         <div class="text exchanges">
-          <a class="twitter-timeline" data-width="400" data-height="550" data-theme="light" href="https://twitter.com/Mirrasets?ref_src=twsrc%5Etfw">Tweets by Mirrasets</a>
+          <a class="twitter-timeline" data-width="400" data-height="550" data-theme="light" href="https://twitter.com/Mirrasets?ref_src=twsrc%5Etfw">
+            Tweets by Mirrasets
+          </a>
           <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
         </div>
       </section>
-    
+      
       <footer>
         <div class="centered-block content">
           <div class="copyright-line">
@@ -107,8 +118,7 @@
       </footer>
     </div>
     
-    <!-- Removed AQUA token popup section -->
-    
+    <!-- External Scripts -->
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="https://mirrasets.com/scripts/info.js"></script>
     <!-- Inline script: Toggle "menu-opened" on header for mobile menu -->
