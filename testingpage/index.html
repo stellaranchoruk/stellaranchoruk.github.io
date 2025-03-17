@@ -36,25 +36,31 @@
 
     <!-- Inline CSS tweaks -->
     <style>
-      /* For mobile, adjust Twitter timeline */
+      /* Mobile adjustments for Twitter timeline and social links */
       @media screen and (max-width: 800px) {
         .twitter-timeline {
           width: 100% !important;
           max-width: 100% !important;
         }
-        /* Adjust social links to display in a row on mobile */
         header.page-header .social-links {
           flex-direction: row !important;
           align-items: center;
           gap: 1rem;
         }
-        /* Remove any extra top margin from email link */
         header.page-header .social-links a.email-link {
           margin-top: 0 !important;
         }
+        /* Show mobile inline links and hide desktop dropdown */
+        .desktop-only { display: none !important; }
+        .mobile-assets { display: inline-block; }
       }
-      
-      /* Dropdown Menu Styles (only used on web but available on mobile too) */
+      @media screen and (min-width: 801px) {
+        /* On desktop, hide the inline version and show the dropdown */
+        .mobile-assets { display: none !important; }
+        .desktop-only { display: inline-block; }
+      }
+
+      /* Dropdown Menu Styles (for desktop) */
       nav .dropdown {
         position: relative;
         display: inline-block;
@@ -67,7 +73,6 @@
         font-weight: bold;
         transition: color 0.15s;
       }
-      /* Down arrow added in HTML */
       nav .dropdown .dropdown-menu {
         display: none;
         position: absolute;
@@ -82,12 +87,10 @@
         font-size: 1.4rem;
         transition: background 0.15s, color 0.15s;
       }
-      /* On hover: yellow background with grey text */
       nav .dropdown .dropdown-menu a:hover {
         background-color: #f0cb78;
         color: #4a4a4a;
       }
-      /* Desktop: show dropdown on hover */
       nav .dropdown:hover .dropdown-menu {
         display: block;
       }
@@ -96,7 +99,6 @@
       header.page-header .social-links {
         display: flex !important;
       }
-      /* Hide any default "Stay in touch" text */
       header.page-header .social-links .stay-in-touch {
         display: none;
       }
@@ -122,7 +124,9 @@
           <div class="relative">
             <nav>
               <a href="https://mirrasets.com/" target="_self" style="font-weight:bold;">Home</a>
-              <div class="dropdown">
+
+              <!-- Desktop dropdown for mirrored assets -->
+              <div class="dropdown desktop-only">
                 <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
                 <div class="dropdown-menu">
                   <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
@@ -130,6 +134,14 @@
                   <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
                 </div>
               </div>
+
+              <!-- Mobile inline links for mirrored assets -->
+              <div class="mobile-assets">
+                <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
+                <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
+                <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
+              </div>
+
               <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" style="font-weight:bold;">AQUA Voting</a>
               <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
             </nav>
@@ -212,7 +224,7 @@
             header.classList.toggle("menu-opened");
           });
         }
-        // Mobile dropdown toggle for "Our Mirrored Assets"
+        // Mobile dropdown toggle for "Our Mirrored Assets" (desktop version only)
         const dropdownToggle = document.querySelector("nav .dropdown .dropdown-toggle");
         if (dropdownToggle) {
           dropdownToggle.addEventListener("click", function (e) {
@@ -222,7 +234,7 @@
             menu.style.display = (menu.style.display === "block") ? "none" : "block";
           });
         }
-        // Close dropdown if clicking outside
+        // Close dropdown if clicking outside (desktop)
         document.addEventListener("click", function (e) {
           const dropdownMenu = document.querySelector("nav .dropdown .dropdown-menu");
           if (dropdownMenu && !dropdownMenu.contains(e.target) && !dropdownToggle.contains(e.target)) {
