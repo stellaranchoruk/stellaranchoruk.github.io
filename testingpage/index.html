@@ -42,20 +42,27 @@
           width: 100% !important;
           max-width: 100% !important;
         }
-        header.page-header .social-links {
-          flex-direction: row !important;
+        /* Ensure nav displays as a single row with proper spacing */
+        nav {
+          display: flex;
+          flex-wrap: wrap;
           align-items: center;
-          gap: 1rem;
+          justify-content: center;
         }
-        header.page-header .social-links a.email-link {
-          margin-top: 0 !important;
+        nav a, nav .mobile-assets a {
+          display: inline-block;
+          margin: 0 1rem;
+          font-size: 1.4rem;
+          text-decoration: none;
+          color: #f0cb78;
         }
-        /* Show mobile inline links and hide desktop dropdown */
+        /* Hide the desktop dropdown on mobile */
         .desktop-only { display: none !important; }
-        .mobile-assets { display: inline-block; }
+        /* Mobile inline assets: display inline */
+        .mobile-assets { display: inline; }
       }
       @media screen and (min-width: 801px) {
-        /* On desktop, hide the inline version and show the dropdown */
+        /* On desktop, hide the inline mobile links and show the dropdown */
         .mobile-assets { display: none !important; }
         .desktop-only { display: inline-block; }
       }
@@ -99,6 +106,7 @@
       header.page-header .social-links {
         display: flex !important;
       }
+      /* Hide default "Stay in touch" text */
       header.page-header .social-links .stay-in-touch {
         display: none;
       }
@@ -124,7 +132,6 @@
           <div class="relative">
             <nav>
               <a href="https://mirrasets.com/" target="_self" style="font-weight:bold;">Home</a>
-
               <!-- Desktop dropdown for mirrored assets -->
               <div class="dropdown desktop-only">
                 <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
@@ -134,14 +141,12 @@
                   <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
                 </div>
               </div>
-
               <!-- Mobile inline links for mirrored assets -->
               <div class="mobile-assets">
                 <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
                 <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
                 <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
               </div>
-
               <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" style="font-weight:bold;">AQUA Voting</a>
               <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
             </nav>
@@ -213,7 +218,7 @@
     <!-- External Scripts -->
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="https://mirrasets.com/scripts/info.js"></script>
-    <!-- Inline script: Toggle mobile menu and dropdown -->
+    <!-- Inline script: Toggle mobile menu and desktop dropdown -->
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         // Mobile menu toggle
@@ -224,7 +229,7 @@
             header.classList.toggle("menu-opened");
           });
         }
-        // Mobile dropdown toggle for "Our Mirrored Assets" (desktop version only)
+        // Desktop dropdown toggle for "Our Mirrored Assets" (if needed)
         const dropdownToggle = document.querySelector("nav .dropdown .dropdown-toggle");
         if (dropdownToggle) {
           dropdownToggle.addEventListener("click", function (e) {
@@ -234,7 +239,7 @@
             menu.style.display = (menu.style.display === "block") ? "none" : "block";
           });
         }
-        // Close dropdown if clicking outside (desktop)
+        // Close dropdown if clicking outside (for desktop)
         document.addEventListener("click", function (e) {
           const dropdownMenu = document.querySelector("nav .dropdown .dropdown-menu");
           if (dropdownMenu && !dropdownMenu.contains(e.target) && !dropdownToggle.contains(e.target)) {
