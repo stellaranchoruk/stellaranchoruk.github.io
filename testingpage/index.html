@@ -33,9 +33,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
     <link rel="stylesheet" href="https://mirrasets.com/styles/info.css">
     
-    <!-- Inline styles for mobile tweaks and dropdown adjustments -->
+    <!-- Inline CSS tweaks -->
     <style>
-      /* Responsive Twitter timeline and mobile social links */
+      /* Hide dropdown on mobile */
       @media screen and (max-width: 800px) {
         .twitter-timeline {
           width: 100% !important;
@@ -48,14 +48,13 @@
         header.page-header .social-links a.email-link {
           margin-top: 0.5rem;
         }
-        /* Ensure dropdown toggle uses same font size and bold as "Home" */
-        nav .dropdown .dropdown-toggle {
-          font-size: 1.4rem;
-          font-weight: bold;
+        /* Hide the dropdown on mobile */
+        nav .dropdown {
+          display: none;
         }
       }
       
-      /* Dropdown Menu Styles */
+      /* Dropdown Menu Styles (only used on web) */
       nav .dropdown {
         position: relative;
         display: inline-block;
@@ -68,7 +67,7 @@
         font-weight: bold;
         transition: color 0.15s;
       }
-      /* Down arrow added in the HTML */
+      /* Down arrow added in HTML */
       nav .dropdown .dropdown-menu {
         display: none;
         position: absolute;
@@ -97,7 +96,7 @@
       header.page-header .social-links {
         display: flex !important;
       }
-      /* Hide original "Stay in touch" text */
+      /* Hide any default "Stay in touch" text */
       header.page-header .social-links .stay-in-touch {
         display: none;
       }
@@ -124,7 +123,6 @@
             <nav>
               <a href="https://mirrasets.com/" target="_self" style="font-weight:bold;">Home</a>
               <div class="dropdown">
-                <!-- Dropdown toggle with down arrow -->
                 <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
                 <div class="dropdown-menu">
                   <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
@@ -144,10 +142,24 @@
               </svg>
             </a>
             <a class="email-link" href="mailto:support@mirrasets.com">
-              <svg width="16" height="13" viewBox="0 0 16 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 2.5h14a.5.5 0 01.5.5v7a.5.5 0 01-.5.5H1a.5.5 0 01-.5-.5v-7a.5.5 0 01.5-.5z" stroke="#f0cb78" fill="none"/>
-                <path d="M1 2.5l7 5 7-5" stroke="#f0cb78" fill="none"/>
+              <!-- Option 1: Simple envelope icon (active)
+              <svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="3" width="18" height="10" rx="2" stroke="#f0cb78" stroke-width="2" fill="none"/>
+                <path d="M1 3l9 7 9-7" stroke="#f0cb78" stroke-width="2" fill="none"/>
+              </svg> -->
+              <!-- 
+              Option 2: -->
+              <svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 4h16a2 2 0 012 2v4a2 2 0 01-2 2H2a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="#f0cb78" stroke-width="2" fill="none"/>
+                <path d="M2 4l8 6 8-6" stroke="#f0cb78" stroke-width="2" fill="none"/>
               </svg>
+              <!-- 
+              Option 3 (filled style):
+              <svg width="20" height="16" viewBox="0 0 20 16" fill="#f0cb78" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 4h18v8H1V4z" stroke="#f0cb78" stroke-width="2"/>
+                <path d="M1 4l9 6 9-6" stroke="#ffffff" stroke-width="2"/>
+              </svg>
+              -->
             </a>
           </div>
         </div>
@@ -200,7 +212,7 @@
             header.classList.toggle('menu-opened');
           });
         }
-        // Mobile dropdown toggle for "Our Mirrored Assets"
+        // Mobile dropdown toggle for "Our Mirrored Assets" - note: hidden on mobile by CSS
         const dropdownToggle = document.querySelector('nav .dropdown .dropdown-toggle');
         if (dropdownToggle) {
           dropdownToggle.addEventListener('click', function(e) {
