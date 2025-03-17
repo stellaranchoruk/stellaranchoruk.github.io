@@ -33,7 +33,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
     <link rel="stylesheet" href="https://mirrasets.com/styles/info.css">
 
-    <!-- Override Twitter timeline width on mobile -->
+    <!-- Inline styles for responsive Twitter timeline and dropdown menu -->
     <style>
       @media screen and (max-width: 800px) {
         .twitter-timeline {
@@ -41,13 +41,48 @@
           max-width: 100% !important;
         }
       }
-      /* Override social links to show on all devices */
+      /* Ensure social links display on all devices */
       header.page-header .social-links {
         display: flex !important;
       }
       header.page-header .social-links .stay-in-touch {
         display: block !important;
       }
+      /* Dropdown styles */
+      nav .dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      nav .dropdown .dropdown-toggle {
+        cursor: pointer;
+        padding: 0 1rem;
+        color: #f0cb78;
+        font-size: 1.4rem;
+        transition: color 0.15s;
+      }
+      nav .dropdown .dropdown-menu {
+        display: none;
+        position: absolute;
+        background-color: #4a4a4a;
+        min-width: 150px;
+        z-index: 100;
+      }
+      nav .dropdown .dropdown-menu a {
+        color: #f0cb78;
+        padding: 10px;
+        text-decoration: none;
+        display: block;
+        font-size: 1.4rem;
+        transition: background 0.15s;
+      }
+      nav .dropdown .dropdown-menu a:hover {
+        background-color: #872AB0;
+      }
+      /* Show dropdown on hover on desktop */
+      nav .dropdown:hover .dropdown-menu {
+        display: block;
+      }
+      /* Optionally, for mobile you might want a click toggle instead */
     </style>
   </head>
   <body>
@@ -70,10 +105,14 @@
           <div class="relative">
             <nav>
               <a href="https://mirrasets.com/" target="_self">Home</a>
-              <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
-              <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
-              <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
-              <!-- <a href="https://mirrasets.com/yusdc/" target="_self">yUSDC</a>-->
+              <div class="dropdown">
+                <a href="#" class="dropdown-toggle">Our Mirrored Assets</a>
+                <div class="dropdown-menu">
+                  <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
+                  <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
+                  <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
+                </div>
+              </div>
               <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank">AQUA Voting</a>
               <a href="https://aqua.network/rewards/" target="_blank">AQUA Rewards</a>
             </nav>
