@@ -7,15 +7,36 @@
     <base href="" />
     <link rel="icon" type="image/png" href="favicon.ico" />
     <link rel="canonical" href="/" />
-    <!-- Other meta tags omitted for brevity -->
+    <meta property="og:site_name" content="Mirrasets" />
+    <meta property="og:title" content="Real world assets, mirrored on Stellar" />
+    <meta property="og:url" content="https://mirrasets.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="Improve trading on Stellar with fiat pegged mirrorcoins" />
+    <meta property="og:image" content="https://mirrasets.com/images/open_graph2.png" />
+    <meta property="og:image:width" content="1388" />
+    <meta property="og:image:height" content="694" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Mirrasets - Real world assets, mirrored on Stellar." />
+    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
+    <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
+    <meta name="twitter:url" content="https://mirrasets.com/" />
+    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
+    <meta itemprop="name" content="Mirrasets" />
+    <meta itemprop="url" content="/" />
+    <meta itemprop="description" content="Real world assets, mirrored on Stellar" />
+    <meta itemprop="thumbnailUrl" content="https://mirrasets.com/images/header_image_mobile.png" format="1000w" />
+    <link rel="image_src" href="https://mirrasets.com/images/header_image_mobile.png" format="1000w" />
+    <meta itemprop="image" content="https://mirrasets.com/images/header_image_mobile.png" format="1000w" />
+    <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
     <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes" />
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
     <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
 
-    <!-- Inline CSS for Navigation tweaks -->
+    <!-- Inline CSS tweaks for navigation -->
     <style>
-      /* Base nav styles */
+      /* Base nav styling */
       header.page-header nav {
         display: flex;
         align-items: center;
@@ -30,53 +51,65 @@
         text-decoration: none;
         color: #f0cb78;
       }
-      /* Desktop dropdown for Our Mirrored Assets */
-      .desktop-only {
+
+      /* Desktop version: dropdown for mirrored assets */
+      .desktop-assets {
+        display: inline-block;
+      }
+      .desktop-assets .dropdown {
         position: relative;
         display: inline-block;
       }
-      .desktop-only .dropdown-toggle {
+      .desktop-assets .dropdown .dropdown-toggle {
         cursor: pointer;
         font-weight: bold;
       }
-      .desktop-only .dropdown-menu {
+      .desktop-assets .dropdown .dropdown-menu {
         display: none;
         position: absolute;
         top: 100%;
         left: 0;
-        background-color: #333333;  /* Slightly darker grey */
+        background-color: #333333; /* Darker grey background */
         min-width: 150px;
         z-index: 100;
       }
-      .desktop-only .dropdown-menu a {
+      .desktop-assets .dropdown .dropdown-menu a {
         display: block;
         padding: 5px 10px;
-        color: #f0cb78;
         font-size: 1.4rem;
+        color: #f0cb78;
         transition: background 0.15s, color 0.15s;
       }
-      .desktop-only .dropdown-menu a:hover {
+      .desktop-assets .dropdown .dropdown-menu a:hover {
         background-color: #f0cb78;
         color: #4a4a4a;
       }
-      .desktop-only:hover .dropdown-menu {
+      .desktop-assets .dropdown:hover .dropdown-menu {
         display: block;
       }
-      /* Mobile inline assets */
-      .mobile-assets a {
-        display: inline-block;
+
+      /* Mobile version: show inline assets */
+      .mobile-assets {
+        display: none;
       }
-      /* Media Queries */
+
+      /* Media queries */
       @media screen and (max-width: 800px) {
-        .desktop-only { display: none !important; }
+        /* Hide desktop dropdown, show mobile inline assets */
+        .desktop-assets { display: none !important; }
         .mobile-assets { display: inline-block; }
-        /* Force nav items to be in one row */
+        /* Force all nav items inline */
         header.page-header nav {
           flex-wrap: nowrap;
         }
+        header.page-header nav a,
+        header.page-header nav .mobile-assets a {
+          display: inline-block;
+          margin: 0 10px;
+        }
       }
       @media screen and (min-width: 801px) {
-        .desktop-only { display: inline-block; }
+        .desktop-assets { display: inline-block; }
         .mobile-assets { display: none !important; }
       }
     </style>
@@ -85,6 +118,7 @@
     <div class="main-content" id="main-content">
       <header class="page-header">
         <a class="main-link" href="/"><img src="/icons/sauk-logo.png" alt="Mirrasets Logo" /></a>
+    
         <div class="menu-toggle">
           <svg class="menu-icon" width="15" height="8" viewBox="0 0 15 8" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2 1H15" stroke="#4a4a4a" />
@@ -95,41 +129,51 @@
             <path d="M11.6055 11.6064L0.998867 0.999844" stroke="#4a4a4a" />
           </svg>
         </div>
+    
         <div class="menu">
           <div class="relative">
             <nav>
               <a href="https://mirrasets.com/" target="_self" style="font-weight:bold;">Home</a>
-              <!-- Desktop dropdown for assets -->
-              <div class="dropdown desktop-only">
-                <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
-                <div class="dropdown-menu">
-                  <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
-                  <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
-                  <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
+              
+              <!-- Desktop dropdown version -->
+              <div class="desktop-assets">
+                <div class="dropdown">
+                  <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
+                  <div class="dropdown-menu">
+                    <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
+                    <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
+                    <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
+                  </div>
                 </div>
               </div>
-              <!-- Mobile inline assets -->
+    
+              <!-- Mobile inline version -->
               <div class="mobile-assets">
                 <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
                 <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
                 <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
               </div>
-              <a href="https://vote.aqua.network/?base=GBPC:..." target="_blank" style="font-weight:bold;">AQUA Voting</a>
+    
+              <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" style="font-weight:bold;">AQUA Voting</a>
               <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
             </nav>
           </div>
+    
           <div class="social-links">
+            <!-- X/Twitter Icon using provided SVG with yellow fill -->
             <a href="https://x.com/mirrasets" target="_blank">
               <svg width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M8.333 5.929L13.546 0H12.31L7.783 5.147 4.17 0H0l5.466 7.784L0 14h1.235l4.778-5.436L9.831 14H14M1.68.911h1.897l8.733 12.223h-1.897" fill="#f0cb78"/>
               </svg>
             </a>
-            <a href="https://discord.gg/DjBhVqmwup" target="_blank">
+            <!-- Discord Icon -->
+            <a class="discord-link" href="https://discord.gg/DjBhVqmwup" target="_blank">
               <svg width="18" height="12" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M15.643 1.449S14.353.183 11.425 0v.4s1.606-.087 3.594 1.727C13.52 1.127 11.378.499 9 .499s-4.519.627-6.02 1.628C4.97.313 6.576.4 6.576.4V0C3.647.183 2.357 1.449 2.357 1.449.126 4.112 0 9.939 0 9.939c2.102 2.348 4.743 2.049 4.743 2.049l.97-1.299c-1.251-.314-2.145-1.034-2.682-1.594 1.498.98 3.618 1.594 5.969 1.594 2.351 0 4.47-.613 5.969-1.594-.537.56-1.43 1.28-2.682 1.594l.97 1.299s2.641.3 4.743-2.048c0 0-.126-5.828-2.357-8.491zM6.198 8.29A1.515 1.515 0 014.67 6.788c0-.83.683-1.504 1.527-1.504.843 0 1.527.673 1.527 1.504 0 .83-.684 1.503-1.527 1.503zm5.604 0a1.515 1.515 0 01-1.527-1.503c0-.83.684-1.504 1.527-1.504.844 0 1.527.673 1.527 1.504 0 .83-.683 1.503-1.527 1.503z" fill="#f0cb78"/>
               </svg>
             </a>
-            <a class="email-link" href="mailto:support@mirrasets.com">
+            <!-- Email Icon using provided SVG with yellow fill -->
+            <a class="email-link" href="mailto:support@mirrasets.com" target="_blank">
               <svg width="16" height="11" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M10.81 5.323l5.143 3.251v-6.64l-5.143 3.39zM.7 1.935v6.64l5.142-3.252L.7 1.935zM15 0H1.65a.942.942 0 00-.924.811l7.599 5.007L15.925.811A.942.942 0 0015 0zM9.944 5.894l-1.35.888a.476.476 0 01-.524 0l-1.349-.89L.735 9.68a.94.94 0 00.923.804h13.349a.94.94 0 00.923-.804L9.944 5.894z" fill="#f0cb78"></path>
               </svg>
@@ -138,22 +182,27 @@
         </div>
       </header>
       
+      <!-- Main content block -->
       <section class="main-block">
-        <!-- Main block content goes here -->
+        <!-- (Content here) -->
       </section>
       
+      <!-- Wallets & Exchanges section -->
       <section class="wallets-and-exchanges centered-block">
         <div class="text wallets">
           <h4>What We Do</h4>
           <div>
             <p>
               Mirrasets mirrors real world assets on the Stellar network.
-              We currently provide the pegged stablecoins GBPC, KRWC &amp; EURC, allowing users of Stellar to hold representations of the Great British Pound, South Korean Won, and Euro within the ecosystem.
+              We currently provide the pegged stablecoins GBPC, KRWC &amp; EURC,
+              allowing users of Stellar to hold representations of the Great British Pound,
+              South Korean Won, and Euro within the ecosystem.
             </p>
             <p><br /></p>
             <p>
-              Each token is backed by a USDC reserve, which is verifiable by viewing our issuing wallets on the network.
-              We ensure to always have enough USDC in reserve to buy back all tokens that we issue.
+              Each token is backed by a USDC reserve, which is verifiable by
+              viewing our issuing wallets on the network. We ensure to always have enough
+              USDC in reserve to buy back all tokens that we issue.
             </p>
           </div>
         </div>
@@ -174,6 +223,7 @@
       </footer>
     </div>
     
+    <!-- External Scripts -->
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="https://mirrasets.com/scripts/info.js"></script>
     <script>
