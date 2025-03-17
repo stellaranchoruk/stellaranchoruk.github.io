@@ -11,63 +11,24 @@
     <meta property="og:title" content="Real world assets, mirrored on Stellar" />
     <meta property="og:url" content="https://mirrasets.com/" />
     <meta property="og:type" content="website" />
-    <meta
-      property="og:description"
-      content="Improve trading on Stellar with fiat pegged mirrorcoins"
-    />
-    <meta
-      property="og:image"
-      content="https://mirrasets.com/images/open_graph2.png"
-    />
+    <meta property="og:description" content="Improve trading on Stellar with fiat pegged mirrorcoins" />
+    <meta property="og:image" content="https://mirrasets.com/images/open_graph2.png" />
     <meta property="og:image:width" content="1388" />
     <meta property="og:image:height" content="694" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta
-      name="twitter:title"
-      content="Mirrasets - Real world assets, mirrored on Stellar."
-    />
-    <meta
-      name="twitter:image"
-      content="https://mirrasets.com/images/open_graph2.png"
-    />
-    <meta
-      name="twitter:description"
-      content="Improve trading on Stellar with fiat pegged mirrorcoins."
-    />
+    <meta name="twitter:title" content="Mirrasets - Real world assets, mirrored on Stellar." />
+    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
+    <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
     <meta name="twitter:url" content="https://mirrasets.com/" />
-    <meta
-      name="twitter:image"
-      content="https://mirrasets.com/images/open_graph2.png"
-    />
+    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
     <meta itemprop="name" content="Mirrasets" />
     <meta itemprop="url" content="/" />
-    <meta
-      itemprop="description"
-      content="Real world assets, mirrored on Stellar"
-    />
-    <meta
-      itemprop="thumbnailUrl"
-      content="https://mirrasets.com/images/header_image_mobile.png"
-      format=1000w
-    />
-    <link
-      rel="image_src"
-      href="https://mirrasets.com/images/header_image_mobile.png"
-      format=1000w
-    />
-    <meta
-      itemprop="image"
-      content="https://mirrasets.com/images/header_image_mobile.png"
-      format=1000w
-    />
-    <meta
-      name="description"
-      content="Mirrasets - Real world assets, mirrored on Stellar."
-    />
-    <meta
-      name="viewport"
-      content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes"
-    />
+    <meta itemprop="description" content="Real world assets, mirrored on Stellar" />
+    <meta itemprop="thumbnailUrl" content="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
+    <link rel="image_src" href="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
+    <meta itemprop="image" content="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
+    <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
+    <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes" />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
@@ -75,23 +36,25 @@
 
     <!-- Inline CSS tweaks -->
     <style>
-      /* For mobile, adjust Twitter timeline and social links layout */
+      /* For mobile, adjust Twitter timeline */
       @media screen and (max-width: 800px) {
         .twitter-timeline {
           width: 100% !important;
           max-width: 100% !important;
         }
+        /* Adjust social links to display in a row on mobile */
         header.page-header .social-links {
-          flex-direction: column;
+          flex-direction: row !important;
           align-items: center;
+          gap: 1rem;
         }
+        /* Remove any extra top margin from email link */
         header.page-header .social-links a.email-link {
-          margin-top: 0.5rem;
+          margin-top: 0 !important;
         }
-        /* On mobile, let the dropdown remain but it will toggle on click */
       }
-
-      /* Dropdown Menu Styles (only used on web but active on mobile too) */
+      
+      /* Dropdown Menu Styles (only used on web but available on mobile too) */
       nav .dropdown {
         position: relative;
         display: inline-block;
@@ -108,7 +71,7 @@
       nav .dropdown .dropdown-menu {
         display: none;
         position: absolute;
-        background-color: #4a4a4a;
+        background-color: #333333;  /* Slightly darker grey */
         min-width: 150px;
         z-index: 100;
       }
@@ -145,25 +108,11 @@
         <a class="main-link" href="/"><img src="/icons/sauk-logo.png" alt="Mirrasets Logo" /></a>
 
         <div class="menu-toggle">
-          <svg
-            class="menu-icon"
-            width="15"
-            height="8"
-            viewBox="0 0 15 8"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
+          <svg class="menu-icon" width="15" height="8" viewBox="0 0 15 8" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2 1H15" stroke="#4a4a4a" />
             <path d="M15 7H0" stroke="#4a4a4a" />
           </svg>
-          <svg
-            class="close"
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
+          <svg class="close" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M11.6055 1L0.998867 11.6066" stroke="#4a4a4a" />
             <path d="M11.6055 11.6064L0.998867 0.999844" stroke="#4a4a4a" />
           </svg>
@@ -181,64 +130,33 @@
                   <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
                 </div>
               </div>
-              <a
-                href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/"
-                target="_blank"
-                style="font-weight:bold;"
-                >AQUA Voting</a
-              >
-              <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;"
-                >AQUA Rewards</a
-              >
+              <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" style="font-weight:bold;">AQUA Voting</a>
+              <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
             </nav>
           </div>
 
           <div class="social-links">
             <a href="https://twitter.com/mirrasets" target="_blank">
-              <svg
-                width="16"
-                height="13"
-                viewBox="0 0 16 13"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M15.6747 1.48975C15.0918 1.74239 14.4707 1.90986 13.8232 1.99117C14.4893 1.59816 14.9978 0.98058 15.2368 0.236191C14.6157 0.602093 13.9299 0.860548 13.1991 1.00478C12.6093 0.384294 11.7688 0 10.8518 0C9.07273 0 7.64046 1.42683 7.64046 3.17599C7.64046 3.42767 7.66201 3.66967 7.71491 3.90005C5.04335 3.77131 2.6794 2.50614 1.09135 0.578862C0.814107 1.05415 0.651481 1.59816 0.651481 2.1838C0.651481 3.28344 1.22459 4.25821 2.07886 4.82255C1.56258 4.81287 1.05609 4.66477 0.62699 4.43148C0.62699 4.44116 0.62699 4.45375 0.62699 4.46633C0.62699 6.00932 1.74088 7.29094 3.20157 7.58618C2.93999 7.65685 2.65491 7.69073 2.35905 7.69073C2.15332 7.69073 1.94563 7.67911 1.75067 7.63652C2.16703 8.89394 3.34852 9.81838 4.75337 9.84839C3.66005 10.6934 2.27186 11.2026 0.769042 11.2026C0.50551 11.2026 0.252755 11.191 0 11.1591C1.42346 12.0661 3.11046 12.5839 4.92971 12.5839C10.843 12.5839 14.0759 7.74397 14.0759 3.54867C14.0759 3.40831 14.071 3.27279 14.0642 3.13824C14.7019 2.69103 15.2378 2.13249 15.6747 1.48975Z"
-                  fill="#f0cb78"
-                />
+              <!-- New Twitter Icon Option 2 with our yellow -->
+              <svg width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8.333 5.929L13.546 0H12.31L7.783 5.147 4.17 0H0l5.466 7.784L0 14h1.235l4.778-5.436L9.831 14H14M1.68.911h1.897l8.733 12.223h-1.897" fill="#f0cb78"/>
               </svg>
             </a>
             <a class="email-link" href="mailto:support@mirrasets.com">
               <!-- Email Icon Option 2 -->
-              <svg
-                width="20"
-                height="16"
-                viewBox="0 0 20 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M2 4h16a2 2 0 012 2v4a2 2 0 01-2 2H2a2 2 0 01-2-2V6a2 2 0 012-2z"
-                  stroke="#f0cb78"
-                  stroke-width="2"
-                  fill="none"
-                />
-                <path
-                  d="M2 4l8 6 8-6"
-                  stroke="#f0cb78"
-                  stroke-width="2"
-                  fill="none"
-                />
+              <svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 4h16a2 2 0 012 2v4a2 2 0 01-2 2H2a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="#f0cb78" stroke-width="2" fill="none"/>
+                <path d="M2 4l8 6 8-6" stroke="#f0cb78" stroke-width="2" fill="none"/>
               </svg>
             </a>
           </div>
         </div>
       </header>
-
+      
       <section class="main-block">
         <!-- Main block content goes here -->
       </section>
-
+      
       <section class="wallets-and-exchanges centered-block">
         <div class="text wallets">
           <h4>What We Do</h4>
@@ -247,8 +165,7 @@
               Mirrasets mirrors real world assets on the Stellar network.
               We currently provide the pegged stablecoins GBPC, KRWC &amp;
               EURC, allowing users of Stellar to hold representations of the
-              Great British Pound, South Korean Won, and Euro within the
-              ecosystem.
+              Great British Pound, South Korean Won, and Euro within the ecosystem.
             </p>
             <p><br /></p>
             <p>
@@ -258,24 +175,15 @@
             </p>
           </div>
         </div>
-
+    
         <div class="text exchanges">
-          <a
-            class="twitter-timeline"
-            data-width="400"
-            data-height="550"
-            data-theme="light"
-            href="https://twitter.com/Mirrasets?ref_src=twsrc%5Etfw"
-            >Tweets by Mirrasets</a
-          >
-          <script
-            async
-            src="https://platform.twitter.com/widgets.js"
-            charset="utf-8"
-          ></script>
+          <a class="twitter-timeline" data-width="400" data-height="550" data-theme="light" href="https://twitter.com/Mirrasets?ref_src=twsrc%5Etfw">
+            Tweets by Mirrasets
+          </a>
+          <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
         </div>
       </section>
-
+      
       <footer>
         <div class="centered-block content">
           <div class="copyright-line">
@@ -284,12 +192,9 @@
         </div>
       </footer>
     </div>
-
+    
     <!-- External Scripts -->
-    <script
-      data-cfasync="false"
-      src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"
-    ></script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="https://mirrasets.com/scripts/info.js"></script>
     <!-- Inline script: Toggle mobile menu and dropdown -->
     <script>
@@ -303,26 +208,19 @@
           });
         }
         // Mobile dropdown toggle for "Our Mirrored Assets"
-        const dropdownToggle = document.querySelector(
-          "nav .dropdown .dropdown-toggle"
-        );
+        const dropdownToggle = document.querySelector("nav .dropdown .dropdown-toggle");
         if (dropdownToggle) {
           dropdownToggle.addEventListener("click", function (e) {
             e.preventDefault();
             e.stopPropagation();
             const menu = this.nextElementSibling;
-            menu.style.display =
-              menu.style.display === "block" ? "none" : "block";
+            menu.style.display = (menu.style.display === "block") ? "none" : "block";
           });
         }
         // Close dropdown if clicking outside
         document.addEventListener("click", function (e) {
           const dropdownMenu = document.querySelector("nav .dropdown .dropdown-menu");
-          if (
-            dropdownMenu &&
-            !dropdownMenu.contains(e.target) &&
-            !dropdownToggle.contains(e.target)
-          ) {
+          if (dropdownMenu && !dropdownMenu.contains(e.target) && !dropdownToggle.contains(e.target)) {
             dropdownMenu.style.display = "none";
           }
         });
