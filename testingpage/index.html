@@ -65,7 +65,7 @@
           </svg>
         </div>
 
-        <!-- Navigation Menu Container (reverted to div as per original) -->
+        <!-- Navigation Menu Container (using a div as in the original) -->
         <div class="menu">
           <div class="relative">
             <nav>
@@ -133,7 +133,6 @@
             AQUA is used to
             <a href="https://vote.aqua.network/?sort=top" target="_blank">vote for AQUA rewards</a>
             on GBPC markets, or can be partially sold to ensure USDC reserves allow us to keep our buyback ability above the circulating GBPC.
-            When USDC reserves are in surplus, we sometimes buy AQUA tokens to increase votes for GBPC pairs.
           </p>
           <p>
             To find out the current circulating GBPC supply,
@@ -149,14 +148,14 @@
       <section class="wallets-and-exchanges centered-block">
         <div class="text wallets">
           <iframe
-            onLoad="var c=this; window.addEventListener('message', function({data,source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
             src="https://stellar.expert/widget/public/asset/summary/GBPC-GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
             style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
           ></iframe>
         </div>
         <div class="text exchanges">
           <iframe
-            onLoad="var c=this; window.addEventListener('message', function({data,source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
             src="https://stellar.expert/widget/public/account/balances/GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
             style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
           ></iframe>
@@ -190,7 +189,7 @@
               <div class="description">Liquid AQUA USD Value</div>
             </div>
             <div>
-              <div class="count">♒︎ 214,500,000</div>
+              <div class="count">♒︎ 120,000,306</div>
               <div class="description">AQUA locked in ICE</div>
             </div>
           </div>
@@ -202,7 +201,7 @@
         <div class="centered-block content">
           <div class="copyright-line">
             <div class="copyright">
-              © 2025 mirrasets.com
+              © 2023 mirrasets.com
             </div>
           </div>
         </div>
@@ -212,5 +211,17 @@
     <!-- External JavaScript -->
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="https://mirrasets.com/scripts/info.js"></script>
+    <!-- Inline script: Toggle "menu-opened" on header for mobile menu -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.querySelector('.menu-toggle');
+        const header = document.querySelector('header.page-header');
+        if (menuToggle && header) {
+          menuToggle.addEventListener('click', function() {
+            header.classList.toggle('menu-opened');
+          });
+        }
+      });
+    </script>
   </body>
 </html>
