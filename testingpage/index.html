@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
-    
+
     <title>Real world assets, mirrored on Stellar | Mirrasets</title>
     <base href="" />
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="https://mirrasets.com/favicon.ico" />
     <link rel="canonical" href="/" />
@@ -26,7 +26,7 @@
     <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
     <meta name="twitter:url" content="https://mirrasets.com/" />
     <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
-    
+
     <!-- Schema.org / Microdata -->
     <meta itemprop="name" content="Stellar Anchor UK" />
     <meta itemprop="url" content="/" />
@@ -47,10 +47,9 @@
   </head>
   <body>
     <div class="main-content" id="main-content">
-      <!-- Updated Header -->
+      <!-- Updated Header (same as in your GBPC/EURC/KRWC pages) -->
       <header class="page-header">
         <a class="main-link" href="/"><img src="/icons/sauk-logo.png" alt="Mirrasets Logo" /></a>
-
         <div class="menu-toggle">
           <svg class="menu-icon" width="15" height="8" viewBox="0 0 15 8" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2 1H15" stroke="#4a4a4a" />
@@ -61,7 +60,6 @@
             <path d="M11.6055 11.6064L0.998867 0.999844" stroke="#4a4a4a" />
           </svg>
         </div>
-
         <div class="menu">
           <div class="relative">
             <nav>
@@ -78,7 +76,6 @@
               <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
             </nav>
           </div>
-
           <div class="social-links">
             <a href="https://x.com/mirrasets" target="_blank">
               <svg width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -99,83 +96,52 @@
         </div>
       </header>
 
-      <!-- Main Block for KRWC -->
-      <section class="main-block-krwc">
-        <!-- (Optional) KRWC-specific banner or hero content can go here -->
-      </section>
-
-      <!-- Wallets and Exchanges Section -->
-      <section class="wallets-and-exchanges centered-block">
-        <div class="text wallets">
-          <h4>What is KRWC?</h4>
-          <p>
-            KRWC is a mirror representation of the South Korean Won on the Stellar network.
-            Using the Stellar DEX, we keep KRWC pegged to the same value as the current market rates of real world KRW &amp; USD.
-          </p>
-          <p><br /></p>
-          <p>
-            Users of KRWC can redeem their tokens for USDC anytime through the Stellar DEX.
-            USDC used to purchase KRWC are placed back into buy orders of KRWC or the KRWC AMMs, ensuring sufficient USDC reserves for repurchase.
-            A minimum spread of 1.25% is set by the issuing wallet on buy &amp; sell offers, updated regularly to reflect market prices.
-          </p>
-          <p><br /></p>
-          <p>
-            We mainly support the KRWC/USDC market to ensure users can always sell KRWC back to USDC, which ensures that KRWC stays stable and redeemable on the SDEX.
-          </p>
-        </div>
-        <div class="text exchanges">
-          <h4>Supply</h4>
-          <p>
-            We ensure to always keep the KRWC buyback ability above the circulating KRWC.
-            You can check for yourself by seeing how much USDC our issuing wallet holds.
-          </p>
-          <p><br /></p>
-          <p>
-            Issuing wallet -
-            <a href="https://stellar.expert/explorer/public/account/GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC" target="_blank">
-              GA4J......KRWC
-            </a>
-          </p>
-          <p><br /></p>
-          <p>
-            We also collect AQUA when we participate in
-            <a href="http://aqua.network/rewards" target="_blank">AQUA rewards</a>.
-            AQUA is used to 
-            <a href="https://vote.aqua.network/?sort=top" target="_blank">vote for AQUA rewards</a>
-            for KRWC markets, or can be partially sold to ensure USDC reserves allow us to keep our buyback ability above the circulating KRWC.
-            When USDC reserves are in surplus, we sometimes buy AQUA tokens to increase votes for KRWC pairs.
-          </p>
-          <p><br /></p>
-          <p>
-            To find out the current circulating KRWC supply,
-            <a href="https://stellar.expert/explorer/public/asset/KRWC-GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC" target="_blank">
-              click here
-            </a>
-            and look for the figure next to "Total supply".
-          </p>
+      <!-- GBPC Stats Section -->
+      <section class="current-stats" id="gbpc-stats">
+        <div class="centered-block">
+          <div class="title">GBPC Stats</div>
+          <div class="date">March 17, 2025</div>
+          <div class="table">
+            <div>
+              <div class="count">£61,019</div>
+              <div class="description">Circulating GBPC</div>
+            </div>
+            <div>
+              <div class="count">£61,981</div>
+              <div class="description">GBPC Buyback Ability</div>
+            </div>
+            <div>
+              <div class="count">$78,135</div>
+              <div class="description">USD Reserves</div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- Embedded Iframes for Stats -->
-      <section class="wallets-and-exchanges centered-block">
-        <div class="text wallets">
-          <iframe
-            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
-            src="https://stellar.expert/widget/public/asset/summary/KRWC-GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC"
-            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
-          ></iframe>
-        </div>
-        <div class="text exchanges">
-          <iframe
-            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
-            src="https://stellar.expert/widget/public/account/balances/GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC"
-            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
-          ></iframe>
+      <!-- EURC Stats Section -->
+      <section class="current-stats" id="eurc-stats">
+        <div class="centered-block">
+          <div class="title">EURC Stats</div>
+          <div class="date">May 8, 2024</div>
+          <div class="table">
+            <div>
+              <div class="count">€81</div>
+              <div class="description">Circulating EURC</div>
+            </div>
+            <div>
+              <div class="count">€3,032</div>
+              <div class="description">EURC Buyback Ability</div>
+            </div>
+            <div>
+              <div class="count">$3,243</div>
+              <div class="description">USD Reserves</div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- Current Stats Section -->
-      <section class="current-stats">
+      <!-- KRWC Stats Section -->
+      <section class="current-stats" id="krwc-stats">
         <div class="centered-block">
           <div class="title">KRWC Stats</div>
           <div class="date">May 8, 2024</div>
@@ -192,16 +158,26 @@
               <div class="count">$28,095</div>
               <div class="description">USD Reserves</div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AQUA Stats Section -->
+      <section class="current-stats" id="aqua-stats">
+        <div class="centered-block">
+          <div class="title">AQUA Stats</div>
+          <div class="date">May 8, 2024</div>
+          <div class="table">
             <div>
-              <div class="count">♒︎ 45,994,806</div>
+              <div class="count">♒︎ 45,000,000</div>
               <div class="description">AQUA Liquid Reserve</div>
             </div>
             <div>
-              <div class="count">$43,005</div>
+              <div class="count">$35,100</div>
               <div class="description">Liquid AQUA USD Value</div>
             </div>
             <div>
-              <div class="count">♒︎ 120,000,306</div>
+              <div class="count">♒︎ 214,500,000</div>
               <div class="description">AQUA locked in ICE</div>
             </div>
           </div>
