@@ -65,6 +65,52 @@ html, body {
 a {
   text-decoration: none !important; }
 
+/* Hero / Header Image Section */
+.hero {
+  /* This padding pushes the hero image down so it isn’t hidden under the fixed header */
+  padding-top: 80px; /* Adjust if your header height is different */
+  width: 100%;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.hero img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Last Updated Section styled like a stats block */
+.last-updated {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.last-updated h3 {
+  font-size: 1.6em;
+  color: #333;
+  margin: 0;
+}
+
+/* If your header is fixed, ensure the main content has enough top margin.
+   If the header is no longer fixed, you can remove this rule. */
+.main-content {
+  /* Uncomment the following line if you need extra top margin for fixed header */
+  /* margin-top: 80px; */
+}
+
+/* Centered Block - used by various sections for consistent alignment */
+.centered-block {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+
 .main-content {
   height: 100%;
   position: relative;
