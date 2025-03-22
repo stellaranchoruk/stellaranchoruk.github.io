@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+    
     <title>Real world assets, mirrored on Stellar | Mirrasets</title>
     <base href="" />
-
+    
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="https://mirrasets.com/favicon.ico" />
     <link rel="canonical" href="/" />
@@ -22,9 +23,19 @@
     <meta property="og:image:height" content="694" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Mirrasets - Real world assets, mirrored on Stellar." />
-    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
     <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
     <meta name="twitter:url" content="https://mirrasets.com/" />
+    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
+    
+    <!-- Schema.org / Microdata -->
+    <meta itemprop="name" content="Stellar Anchor UK" />
+    <meta itemprop="url" content="/" />
+    <meta itemprop="description" content="Real world assets, mirrored on Stellar" />
+    <meta itemprop="thumbnailUrl" content="assets/img/logo.png" />
+    <link rel="image_src" href="assets/img/logo.png" />
+    <meta itemprop="image" content="assets/img/logo.png" />
+
+    <!-- Site Description -->
     <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
 
     <!-- External CSS -->
@@ -90,44 +101,70 @@
 
       <!-- Main Block for EURC -->
       <section class="main-block-eurc">
-        <div class="centered-block">
-          <div class="text wallets">
-            <h4>What is EURC?</h4>
-            <p>
-              EURC is a mirror representation of the Euro on the Stellar network. Using the Stellar DEX, we keep EURC pegged to the same value as the current market rates of real world EUR &amp; USD.
-            </p>
-            <p>
-              Users of EURC can redeem their tokens for USDC anytime through the Stellar DEX. USDC used to purchase EURC are placed back into buy orders or EURC AMMs, ensuring sufficient USDC reserves for repurchase. A minimum spread of 1.25% is set by the issuing wallet on buy &amp; sell offers, updated regularly to reflect market prices.
-            </p>
-            <p>
-              We mainly support the EURC/USDC market to ensure EURC remains stable and fully redeemable on the SDEX.
-            </p>
-          </div>
-          <div class="text exchanges">
-            <h4>Supply</h4>
-            <p>
-              We maintain the EURC buyback ability above the circulating supply. Check the USDC balance of our issuing wallet to verify.
-            </p>
-            <p>
-              Issuing wallet: <a href="https://stellar.expert/explorer/public/account/GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC" target="_blank">GAP2......EURC</a>
-            </p>
-            <p>
-              We also collect AQUA when participating in <a href="http://aqua.network/rewards" target="_blank">AQUA rewards</a>. AQUA is used to <a href="https://vote.aqua.network/?sort=top" target="_blank">vote for further AQUA rewards</a> for EURC markets or partially sold to maintain USDC reserves. In surplus, we may purchase AQUA tokens to boost votes for EURC pairs.
-            </p>
-            <p>
-              To view the current circulating EURC supply, <a href="https://stellar.expert/explorer/public/asset/EURC-GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC" target="_blank">click here</a> and check the "Total supply" figure.
-            </p>
-          </div>
+        <!-- (Optional) Additional EURC-specific banner or hero content can go here -->
+      </section>
+
+      <!-- Wallets and Exchanges Section -->
+      <section class="wallets-and-exchanges centered-block">
+        <div class="text wallets">
+          <h4>What is EURC?</h4>
+          <p>
+            EURC is a mirror representation of the Euro on the Stellar network.
+            Using the Stellar DEX, we keep EURC pegged to the same value as the current market rates of real world EUR &amp; USD.
+          </p>
+          <p>
+            Users of EURC can redeem their tokens for USDC anytime through the Stellar DEX.
+            USDC used to purchase EURC are placed back into buy orders or EURC AMMs, ensuring sufficient USDC reserves for repurchase.
+            A minimum spread of 1.25% is set by the issuing wallet on buy &amp; sell offers, updated regularly to reflect market prices.
+          </p>
+          <p>
+            We mainly support the EURC/USDC market to ensure EURC remains stable and fully redeemable on the SDEX.
+          </p>
+        </div>
+
+        <div class="text exchanges">
+          <h4>Supply</h4>
+          <p>
+            We maintain the EURC buyback ability above the circulating supply.
+            Check the USDC balance of our issuing wallet to verify.
+          </p>
+          <p>
+            Issuing wallet: 
+            <a href="https://stellar.expert/explorer/public/account/GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC" target="_blank">
+              GAP2......EURC
+            </a>
+          </p>
+          <p>
+            We also collect AQUA when participating in 
+            <a href="http://aqua.network/rewards" target="_blank">AQUA rewards</a>.
+            AQUA is used to 
+            <a href="https://vote.aqua.network/?sort=top" target="_blank">vote for further AQUA rewards</a>
+            for EURC markets, or partially sold to maintain USDC reserves. In surplus, we may purchase AQUA tokens to boost votes for EURC pairs.
+          </p>
+          <p>
+            To view the current circulating EURC supply, 
+            <a href="https://stellar.expert/explorer/public/asset/EURC-GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC" target="_blank">
+              click here
+            </a> and check the "Total supply" figure.
+          </p>
         </div>
       </section>
 
       <!-- Embedded Iframes for Stats -->
       <section class="wallets-and-exchanges centered-block">
         <div class="text wallets">
-          <iframe onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);" src="https://stellar.expert/widget/public/asset/summary/EURC-GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC" style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"></iframe>
+          <iframe
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            src="https://stellar.expert/widget/public/asset/summary/EURC-GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC"
+            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
+          ></iframe>
         </div>
         <div class="text exchanges">
-          <iframe onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);" src="https://stellar.expert/widget/public/account/balances/GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC" style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"></iframe>
+          <iframe
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            src="https://stellar.expert/widget/public/account/balances/GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC"
+            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
+          ></iframe>
         </div>
       </section>
 
