@@ -3,10 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+    
     <title>Real world assets, mirrored on Stellar | Mirrasets</title>
     <base href="" />
-    <link rel="icon" type="image/png" href="favicon.ico" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="https://mirrasets.com/favicon.ico" />
     <link rel="canonical" href="/" />
+
+    <!-- Open Graph / Social Meta -->
     <meta property="og:site_name" content="Mirrasets" />
     <meta property="og:title" content="Real world assets, mirrored on Stellar" />
     <meta property="og:url" content="https://mirrasets.com/" />
@@ -17,93 +23,31 @@
     <meta property="og:image:height" content="694" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Mirrasets - Real world assets, mirrored on Stellar." />
-    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
     <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
     <meta name="twitter:url" content="https://mirrasets.com/" />
     <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
-    <meta itemprop="name" content="Mirrasets" />
+    
+    <!-- Schema.org / Microdata -->
+    <meta itemprop="name" content="Stellar Anchor UK" />
     <meta itemprop="url" content="/" />
     <meta itemprop="description" content="Real world assets, mirrored on Stellar" />
-    <meta itemprop="thumbnailUrl" content="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
-    <link rel="image_src" href="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
-    <meta itemprop="image" content="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
-    <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
-    <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes" />
+    <meta itemprop="thumbnailUrl" content="assets/img/logo.png" />
+    <link rel="image_src" href="assets/img/logo.png" />
+    <meta itemprop="image" content="assets/img/logo.png" />
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+    <!-- Site Description -->
+    <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
+
+    <!-- External CSS -->
     <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
 
-    <!-- Inline CSS tweaks -->
-    <style>
-      /* For mobile, adjust Twitter timeline */
-      @media screen and (max-width: 800px) {
-        .twitter-timeline {
-          width: 100% !important;
-          max-width: 100% !important;
-        }
-        /* Adjust social links to display in a row on mobile */
-        header.page-header .social-links {
-          flex-direction: row !important;
-          align-items: center;
-          gap: 1rem;
-        }
-        /* Remove any extra top margin from email link */
-        header.page-header .social-links a.email-link {
-          margin-top: 0 !important;
-        }
-      }
-      
-      /* Dropdown Menu Styles (only used on web but available on mobile too) */
-      nav .dropdown {
-        position: relative;
-        display: inline-block;
-      }
-      nav .dropdown .dropdown-toggle {
-        cursor: pointer;
-        padding: 0 1rem;
-        color: #f0cb78;
-        font-size: 1.4rem;
-        font-weight: bold;
-        transition: color 0.15s;
-      }
-      /* Down arrow added in HTML */
-      nav .dropdown .dropdown-menu {
-        display: none;
-        position: absolute;
-        background-color: #333333;  /* Slightly darker grey */
-        min-width: 150px;
-        z-index: 100;
-      }
-      nav .dropdown .dropdown-menu a {
-        color: #f0cb78;
-        padding: 10px;
-        display: block;
-        font-size: 1.4rem;
-        transition: background 0.15s, color 0.15s;
-      }
-      /* On hover: yellow background with grey text */
-      nav .dropdown .dropdown-menu a:hover {
-        background-color: #f0cb78;
-        color: #4a4a4a;
-      }
-      /* Desktop: show dropdown on hover */
-      nav .dropdown:hover .dropdown-menu {
-        display: block;
-      }
-
-      /* Always show social links */
-      header.page-header .social-links {
-        display: flex !important;
-      }
-      /* Hide any default "Stay in touch" text */
-      header.page-header .social-links .stay-in-touch {
-        display: none;
-      }
-    </style>
+    <!-- External Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
   </head>
   <body>
     <div class="main-content" id="main-content">
+      <!-- Updated Header -->
       <header class="page-header">
         <a class="main-link" href="/"><img src="/icons/sauk-logo.png" alt="Mirrasets Logo" /></a>
 
@@ -136,99 +80,154 @@
           </div>
 
           <div class="social-links">
-            <!-- Updated Twitter link (now X) with new icon -->
             <a href="https://x.com/mirrasets" target="_blank">
               <svg width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M8.333 5.929L13.546 0H12.31L7.783 5.147 4.17 0H0l5.466 7.784L0 14h1.235l4.778-5.436L9.831 14H14M1.68.911h1.897l8.733 12.223h-1.897" fill="#f0cb78"/>
               </svg>
             </a>
-            <!-- New Discord link -->
             <a class="discord-link" href="https://discord.gg/DjBhVqmwup" target="_blank">
               <svg width="18" height="12" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M15.643 1.449S14.353.183 11.425 0v.4s1.606-.087 3.594 1.727C13.52 1.127 11.378.499 9 .499s-4.519.627-6.02 1.628C4.97.313 6.576.4 6.576.4V0C3.647.183 2.357 1.449 2.357 1.449.126 4.112 0 9.939 0 9.939c2.102 2.348 4.743 2.049 4.743 2.049l.97-1.299c-1.251-.314-2.145-1.034-2.682-1.594 1.498.98 3.618 1.594 5.969 1.594 2.351 0 4.47-.613 5.969-1.594-.537.56-1.43 1.28-2.682 1.594l.97 1.299s2.641.3 4.743-2.048c0 0-.126-5.828-2.357-8.491zM6.198 8.29A1.515 1.515 0 014.67 6.788c0-.83.683-1.504 1.527-1.504.843 0 1.527.673 1.527 1.504 0 .83-.684 1.503-1.527 1.503zm5.604 0a1.515 1.515 0 01-1.527-1.503c0-.83.684-1.504 1.527-1.504.844 0 1.527.673 1.527 1.504 0 .83-.683 1.503-1.527 1.503z" fill="#f0cb78"/>
               </svg>
             </a>
-            <!-- Existing Email link -->
             <a class="email-link" href="mailto:support@mirrasets.com">
               <svg width="16" height="11" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10.81 5.323l5.143 3.251v-6.64l-5.143 3.39zM.7 1.935v6.64l5.142-3.252L.7 1.935zM15 0H1.65a.942.942 0 00-.924.811l7.599 5.007L15.925.811A.942.942 0 0015 0zM9.944 5.894l-1.35.888a.476.476 0 01-.524 0l-1.349-.89L.735 9.68a.94.94 0 00.923.804h13.349a.94.94 0 00.923-.804L9.944 5.894z" fill="#f0cb78"></path>
+                <path d="M10.81 5.323l5.143 3.251v-6.64l-5.143 3.39zM.7 1.935v6.64l5.142-3.252L.7 1.935zM15 0H1.65a.942.942 0 00-.924.811l7.599 5.007L15.925.811A.942.942 0 0015 0zM9.944 5.894l-1.35.888a.476.476 0 01-.524 0l-1.349-.89L.735 9.68a.94.94 0 00.923.804h13.349a.94.94 0 00.923-.804L9.944 5.894z" fill="#f0cb78"/>
               </svg>
             </a>
           </div>
         </div>
       </header>
-      
-      <section class="main-block">
-        <!-- Main block content goes here -->
+
+      <!-- Main Block for GBPC -->
+      <section class="main-block-gbpc">
+        <!-- Main content specific to GBPC can be placed here -->
       </section>
-      
+
+      <!-- Wallets and Exchanges Section -->
       <section class="wallets-and-exchanges centered-block">
         <div class="text wallets">
-          <h4>What We Do</h4>
-          <div>
-            <p>
-              Mirrasets mirrors real world assets on the Stellar network.
-              We currently provide the pegged stablecoins GBPC, KRWC &amp;
-              EURC, allowing users of Stellar to hold representations of the
-              Great British Pound, South Korean Won, and Euro within the ecosystem.
-            </p>
-            <p><br /></p>
-            <p>
-              Each token is backed by a USDC reserve, which is verifiable by
-              viewing our issuing wallets on the network. We ensure to always
-              have enough USDC in reserve to buy back all tokens that we issue.
-            </p>
-          </div>
+          <h4>What is GBPC?</h4>
+          <p>
+            GBPC is a mirror representation of the Great British Pound on the Stellar network.
+            Using the Stellar DEX, we keep GBPC pegged to the same value as the current market rates of real world GBP & USD.
+          </p>
+          <p>
+            Users of GBPC can redeem their tokens for USDC anytime through the Stellar DEX.
+            USDC used to purchase GBPC are placed back into buy orders or the GBPC AMMs, meaning there are always enough USDC reserves to repurchase GBPC.
+            A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices.
+          </p>
+          <p>
+            We mainly support the GBPC/USDC market to ensure users can always sell GBPC back to USDC, which ensures that GBPC stays stable and redeemable through the SDEX at all times.
+          </p>
         </div>
-    
+
         <div class="text exchanges">
-          <a class="twitter-timeline" data-width="400" data-height="550" data-theme="light" href="https://twitter.com/Mirrasets?ref_src=twsrc%5Etfw">
-            Tweets by Mirrasets
-          </a>
-          <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+          <h4>Supply</h4>
+          <p>
+            We ensure to always keep the GBPC buyback ability above the circulating GBPC.
+            Check for yourself by seeing how much USDC our issuing wallet holds.
+          </p>
+          <p>
+            Issuing wallet -
+            <a href="https://stellar.expert/explorer/public/account/GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC" target="_blank">
+              GDXF......GBPC
+            </a>
+          </p>
+          <p>
+            We also collect AQUA when we participate in
+            <a href="http://aqua.network/rewards" target="_blank">AQUA rewards</a>.
+            AQUA is used to
+            <a href="https://vote.aqua.network/?sort=top" target="_blank">vote for AQUA rewards</a>
+            on GBPC markets, or can be partially sold to ensure USDC reserves allow us to keep our buyback ability above the circulating GBPC.
+          </p>
+          <p>
+            To find out the current circulating GBPC supply,
+            <a href="https://stellar.expert/explorer/public/asset/GBPC-GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC" target="_blank">
+              click here
+            </a>.
+            Look for the figure next to "Total supply".
+          </p>
         </div>
       </section>
-      
+
+      <!-- Embedded Iframes for Stats -->
+      <section class="wallets-and-exchanges centered-block">
+        <div class="text wallets">
+          <iframe
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            src="https://stellar.expert/widget/public/asset/summary/GBPC-GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
+          ></iframe>
+        </div>
+        <div class="text exchanges">
+          <iframe
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            src="https://stellar.expert/widget/public/account/balances/GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
+          ></iframe>
+        </div>
+      </section>
+
+      <!-- Current Stats Section -->
+      <section class="current-stats">
+        <div class="centered-block">
+          <div class="title">GBPC Stats</div>
+          <div class="date">March 17, 2025</div>
+          <div class="table">
+            <div>
+              <div class="count">£61,019</div>
+              <div class="description">Public Circulating GBPC</div>
+            </div>
+            <div>
+              <div class="count">£61,981</div>
+              <div class="description">GBPC Buyback Ability</div>
+            </div>
+            <div>
+              <div class="count">$78,135</div>
+              <div class="description">USD Reserves</div>
+            </div>
+            <div>
+              <div class="count">♒︎ 45,000,000</div>
+              <div class="description">AQUA Liquid Reserve</div>
+            </div>
+            <div>
+              <div class="count">$35,100</div>
+              <div class="description">Liquid AQUA USD Value</div>
+            </div>
+            <div>
+              <div class="count">♒︎ 214,500,000</div>
+              <div class="description">AQUA locked in ICE</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
       <footer>
         <div class="centered-block content">
           <div class="copyright-line">
-            <div class="copyright">© 2023 mirrasets.com</div>
+            <div class="copyright">
+              © 2025 mirrasets.com
+            </div>
           </div>
         </div>
       </footer>
     </div>
-    
-    <!-- External Scripts -->
+
+    <!-- External JavaScript -->
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="https://mirrasets.com/scripts/info.js"></script>
-    <!-- Inline script: Toggle mobile menu and dropdown -->
+    <!-- Inline script: Toggle mobile menu -->
     <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        // Mobile menu toggle
-        const menuToggle = document.querySelector(".menu-toggle");
-        const header = document.querySelector("header.page-header");
+      document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.querySelector('.menu-toggle');
+        const header = document.querySelector('header.page-header');
         if (menuToggle && header) {
-          menuToggle.addEventListener("click", function () {
-            header.classList.toggle("menu-opened");
+          menuToggle.addEventListener('click', function() {
+            header.classList.toggle('menu-opened');
           });
         }
-        // Mobile dropdown toggle for "Our Mirrored Assets"
-        const dropdownToggle = document.querySelector("nav .dropdown .dropdown-toggle");
-        if (dropdownToggle) {
-          dropdownToggle.addEventListener("click", function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const menu = this.nextElementSibling;
-            menu.style.display = (menu.style.display === "block") ? "none" : "block";
-          });
-        }
-        // Close dropdown if clicking outside
-        document.addEventListener("click", function (e) {
-          const dropdownMenu = document.querySelector("nav .dropdown .dropdown-menu");
-          if (dropdownMenu && !dropdownMenu.contains(e.target) && !dropdownToggle.contains(e.target)) {
-            dropdownMenu.style.display = "none";
-          }
-        });
       });
     </script>
   </body>
