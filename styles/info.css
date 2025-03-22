@@ -110,7 +110,6 @@ div.spinner {
 
 /* Hero Section */
 .hero {
-  position: relative;
   width: 100%;
   overflow: hidden;
   margin-bottom: 20px;
@@ -122,9 +121,9 @@ div.spinner {
   display: block;
 }
 
-/* Last Updated Section (styled like current-stats) */
+/* Last Updated Section (styled like current-stats blocks) */
 .last-updated {
-  background-color: #ffffff; /* Match current-stats background */
+  background-color: #ffffff;
   border: 1px solid #e0e0e0;
   padding: 20px;
   margin-bottom: 20px;
@@ -136,6 +135,12 @@ div.spinner {
   font-size: 1.6em;
   color: #333;
   margin: 0;
+}
+
+/* Ensure the main content isn’t hidden behind a fixed header (if applicable) */
+.main-content {
+  /* If your header is fixed, adjust the top margin as needed */
+  margin-top: 80px;
 }
 
 /* Centered Block */
