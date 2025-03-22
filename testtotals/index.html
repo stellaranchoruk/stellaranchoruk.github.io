@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+    
+    <title>Real world assets, mirrored on Stellar | Mirrasets</title>
+    <base href="" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://mirrasets.com/favicon.ico" />
+    <link rel="canonical" href="/" />
+
+    <!-- Open Graph / Social Meta -->
+    <meta property="og:site_name" content="Mirrasets" />
+    <meta property="og:title" content="Real world assets, mirrored on Stellar" />
+    <meta property="og:url" content="https://mirrasets.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="Improve trading on Stellar with fiat pegged mirrorcoins" />
+    <meta property="og:image" content="https://mirrasets.com/images/open_graph2.png" />
+    <meta property="og:image:width" content="1388" />
+    <meta property="og:image:height" content="694" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Mirrasets - Real world assets, mirrored on Stellar." />
+    <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
+    <meta name="twitter:url" content="https://mirrasets.com/" />
+    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
+    
+    <!-- Schema.org / Microdata -->
+    <meta itemprop="name" content="Stellar Anchor UK" />
+    <meta itemprop="url" content="/" />
+    <meta itemprop="description" content="Real world assets, mirrored on Stellar" />
+    <meta itemprop="thumbnailUrl" content="assets/img/logo.png" />
+    <link rel="image_src" href="assets/img/logo.png" />
+    <meta itemprop="image" content="assets/img/logo.png" />
+
+    <!-- Site Description -->
+    <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
+
+    <!-- External Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+  </head>
+  <body>
+    <div class="main-content" id="main-content">
+      <!-- Header -->
+      <header class="page-header">
+        <a class="main-link" href="/">
+          <img src="/icons/sauk-logo.png" alt="Mirrasets Logo" />
+        </a>
+
+        <!-- Mobile Menu Toggle -->
+        <div class="menu-toggle">
+          <svg class="menu-icon" width="15" height="8" viewBox="0 0 15 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 1H15" stroke="#4a4a4a" />
+            <path d="M15 7H0" stroke="#4a4a4a" />
+          </svg>
+          <svg class="close" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.6055 1L0.998867 11.6066" stroke="#4a4a4a" />
+            <path d="M11.6055 11.6064L0.998867 0.999844" stroke="#4a4a4a" />
+          </svg>
+        </div>
+
+        <!-- Navigation Menu Container (using a div as in the original) -->
+        <div class="menu">
+          <div class="relative">
+            <nav>
+              <a href="https://mirrasets.com/" target="_self">Home</a>
+              <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
+              <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
+              <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
+              <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank">AQUA Voting</a>
+              <a href="https://aqua.network/rewards/" target="_blank">AQUA Rewards</a>
+            </nav>
+          </div>
+
+          <!-- Social Links -->
+          <div class="social-links">
+            <a href="https://twitter.com/stellaranchoruk" target="_blank">
+              <svg width="16" height="13" viewBox="0 0 16 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15.6747 1.48975C15.0918 1.74239 14.4707 1.90986 13.8232 1.99117C14.4893 1.59816 14.9978 0.98058 15.2368 0.236191C14.6157 0.602093 13.9299 0.860548 13.1991 1.00478C12.6093 0.384294 11.7688 0 10.8518 0C9.07273 0 7.64046 1.42683 7.64046 3.17599C7.64046 3.42767 7.66201 3.66967 7.71491 3.90005C5.04335 3.77131 2.6794 2.50614 1.09135 0.578862C0.814107 1.05415 0.651481 1.59816 0.651481 2.1838C0.651481 3.28344 1.22459 4.25821 2.07886 4.82255C1.56258 4.81287 1.05609 4.66477 0.62699 4.43148C0.62699 4.44116 0.62699 4.45375 0.62699 4.46633C0.62699 6.00932 1.74088 7.29094 3.20157 7.58618C2.93999 7.65685 2.65491 7.69073 2.35905 7.69073C2.15332 7.69073 1.94563 7.67911 1.75067 7.63652C2.16703 8.89394 3.34852 9.81838 4.75337 9.84839C3.66005 10.6934 2.27186 11.2026 0.769042 11.2026C0.50551 11.2026 0.252755 11.191 0 11.1591C1.42346 12.0661 3.11046 12.5839 4.92971 12.5839C10.843 12.5839 14.0759 7.74397 14.0759 3.54867C14.0759 3.40831 14.071 3.27279 14.0642 3.13824C14.7019 2.69103 15.2378 2.13249 15.6747 1.48975Z" fill="#f0cb78"/>
+              </svg>
+            </a>
+            <div class="stay-in-touch">
+              Stay in touch <div class="line"></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Block -->
+      <section class="main-block-gbpc">
+        <!-- Main content specific to GBPC can be placed here -->
+      </section>
+
+      <!-- Wallets and Exchanges Section -->
+      <section class="wallets-and-exchanges centered-block">
+        <div class="text wallets">
+          <h4>What is GBPC?</h4>
+          <p>
+            GBPC is a mirror representation of the Great British Pound on the Stellar network.
+            Using the Stellar DEX, we keep GBPC pegged to the same value as the current market rates of real world GBP & USD.
+          </p>
+          <p>
+            Users of GBPC can redeem their tokens for USDC anytime through the Stellar DEX.
+            USDC used to purchase GBPC are placed back into buy orders or the GBPC AMMs, meaning there are always enough USDC reserves to repurchase GBPC.
+            A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices.
+          </p>
+          <p>
+            We mainly support the GBPC/USDC market to ensure users can always sell GBPC back to USDC, which ensures that GBPC stays stable and redeemable through the SDEX at all times.
+          </p>
+        </div>
+
+        <div class="text exchanges">
+          <h4>Supply</h4>
+          <p>
+            We ensure to always keep the GBPC buyback ability above the circulating GBPC.
+            Check for yourself by seeing how much USDC our issuing wallet holds.
+          </p>
+          <p>
+            Issuing wallet -
+            <a href="https://stellar.expert/explorer/public/account/GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC" target="_blank">
+              GDXF6......GBPC
+            </a>
+          </p>
+          <p>
+            We also collect AQUA when we participate in
+            <a href="http://aqua.network/rewards" target="_blank">AQUA rewards</a>.
+            AQUA is used to
+            <a href="https://vote.aqua.network/?sort=top" target="_blank">vote for AQUA rewards</a>
+            on GBPC markets, or can be partially sold to ensure USDC reserves allow us to keep our buyback ability above the circulating GBPC.
+          </p>
+          <p>
+            To find out the current circulating GBPC supply,
+            <a href="https://stellar.expert/explorer/public/asset/GBPC-GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC" target="_blank">
+              click here
+            </a>.
+            Look for the figure next to "Total supply".
+          </p>
+        </div>
+      </section>
+
+      <!-- Embedded Iframes for Stats -->
+      <section class="wallets-and-exchanges centered-block">
+        <div class="text wallets">
+          <iframe
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            src="https://stellar.expert/widget/public/asset/summary/GBPC-GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
+          ></iframe>
+        </div>
+        <div class="text exchanges">
+          <iframe
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            src="https://stellar.expert/widget/public/account/balances/GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
+          ></iframe>
+        </div>
+      </section>
+
+      <!-- Current Stats Section -->
+      <section class="current-stats">
+        <div class="centered-block">
+          <div class="title">GBPC Stats</div>
+          <div class="date">March 17, 2025</div>
+          <div class="table">
+            <div>
+              <div class="count">£61,019</div>
+              <div class="description">Public Circulating GBPC</div>
+            </div>
+            <div>
+              <div class="count">£61,981</div>
+              <div class="description">GBPC Buyback Ability</div>
+            </div>
+            <div>
+              <div class="count">$78,135</div>
+              <div class="description">USD Reserves</div>
+            </div>
+            <div>
+              <div class="count">♒︎ 45,000,000</div>
+              <div class="description">AQUA Liquid Reserve</div>
+            </div>
+            <div>
+              <div class="count">$35,100</div>
+              <div class="description">Liquid AQUA USD Value</div>
+            </div>
+            <div>
+              <div class="count">♒︎ 214,500,000</div>
+              <div class="description">AQUA locked in ICE</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer>
+        <div class="centered-block content">
+          <div class="copyright-line">
+            <div class="copyright">
+              © 2025 mirrasets.com
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- External JavaScript -->
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+    <script src="https://mirrasets.com/scripts/info.js"></script>
+    <!-- Inline script: Toggle "menu-opened" on header for mobile menu -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.querySelector('.menu-toggle');
+        const header = document.querySelector('header.page-header');
+        if (menuToggle && header) {
+          menuToggle.addEventListener('click', function() {
+            header.classList.toggle('menu-opened');
+          });
+        }
+      });
+    </script>
+    
+    <!-- New Script: Update Public Circulating GBPC with live total supply -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        const horizonUrl = "https://horizon.stellar.org/assets?asset_code=AQUAm25&asset_issuer=GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC&cursor=&limit=10&order=asc";
+        
+        fetch(horizonUrl)
+          .then(response => response.json())
+          .then(data => {
+            if (data && data._embedded && data._embedded.records && data._embedded.records.length > 0) {
+              const record = data._embedded.records[0];
+              
+              // Parse numeric fields (defaulting to 0 if missing)
+              const claimable = parseFloat(record.claimable_balances_amount || "0");
+              const liquidity = parseFloat(record.liquidity_pools_amount || "0");
+              const contracts = parseFloat(record.contracts_amount || "0");
+              const archived = parseFloat(record.archived_contracts_amount || "0");
+              
+              const balances = record.balances || {};
+              const authorized = parseFloat(balances.authorized || "0");
+              const maintain = parseFloat(balances.authorized_to_maintain_liabilities || "0");
+              const unauthorized = parseFloat(balances.unauthorized || "0");
+              
+              // Calculate total supply by summing the values
+              const totalSupply = claimable + liquidity + contracts + archived + authorized + maintain + unauthorized;
+              
+              // Format the number with a pound symbol and commas
+              const formattedTotal = "£" + totalSupply.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+              
+              // Update the first count element (Public Circulating GBPC)
+              const countElem = document.querySelector("section.current-stats .table > div:first-child .count");
+              if (countElem) {
+                countElem.textContent = formattedTotal;
+              }
+            } else {
+              console.error("No records found in the Horizon API response.");
+            }
+          })
+          .catch(error => {
+            console.error("Error fetching Horizon API data:", error);
+          });
+      });
+    </script>
+  </body>
+</html>
