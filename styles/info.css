@@ -185,6 +185,71 @@ header.page-header {
       margin: 0 2px 0 0; }
 
 @media screen and (max-width: 800px) {
+        .twitter-timeline {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+        /* Adjust social links to display in a row on mobile */
+        header.page-header .social-links {
+          flex-direction: row !important;
+          align-items: center;
+          gap: 1rem;
+        }
+        /* Remove any extra top margin from email link */
+        header.page-header .social-links a.email-link {
+          margin-top: 0 !important;
+        }
+      }
+      
+      /* Dropdown Menu Styles (only used on web but available on mobile too) */
+      nav .dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      nav .dropdown .dropdown-toggle {
+        cursor: pointer;
+        padding: 0 1rem;
+        color: #f0cb78;
+        font-size: 1.4rem;
+        font-weight: bold;
+        transition: color 0.15s;
+      }
+      /* Down arrow added in HTML */
+      nav .dropdown .dropdown-menu {
+        display: none;
+        position: absolute;
+        background-color: #333333;  /* Slightly darker grey */
+        min-width: 150px;
+        z-index: 100;
+      }
+      nav .dropdown .dropdown-menu a {
+        color: #f0cb78;
+        padding: 10px;
+        display: block;
+        font-size: 1.4rem;
+        transition: background 0.15s, color 0.15s;
+        text-align: center; /* Center the text */
+      }
+      /* On hover: yellow background with grey text */
+      nav .dropdown .dropdown-menu a:hover {
+        background-color: #f0cb78;
+        color: #4a4a4a;
+      }
+      /* Desktop: show dropdown on hover */
+      nav .dropdown:hover .dropdown-menu {
+        display: block;
+      }
+
+      /* Always show social links */
+      header.page-header .social-links {
+        display: flex !important;
+      }
+      /* Hide any default "Stay in touch" text */
+      header.page-header .social-links .stay-in-touch {
+        display: none;
+      }
+
+@media screen and (max-width: 800px) {
   header.page-header {
     background-color: transparent;
     height: 8rem;
