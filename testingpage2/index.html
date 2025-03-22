@@ -99,21 +99,85 @@
         </div>
       </header>
 
-<!-- Global Last Updated Section -->
-      <section class="last-updated">
-        <div class="centered-block">
-          <h3>Last Updated: May 8, 2024</h3>
+      <!-- Main Block for GBPC -->
+      <section class="main-block-gbpc">
+        <!-- Main content specific to GBPC can be placed here -->
+      </section>
+
+      <!-- Wallets and Exchanges Section -->
+      <section class="wallets-and-exchanges centered-block">
+        <div class="text wallets">
+          <h4>What is GBPC?</h4>
+          <p>
+            GBPC is a mirror representation of the Great British Pound on the Stellar network.
+            Using the Stellar DEX, we keep GBPC pegged to the same value as the current market rates of real world GBP & USD.
+          </p>
+          <p>
+            Users of GBPC can redeem their tokens for USDC anytime through the Stellar DEX.
+            USDC used to purchase GBPC are placed back into buy orders or the GBPC AMMs, meaning there are always enough USDC reserves to repurchase GBPC.
+            A minimum spread of 1.25% is set by the issuing wallet on buy & sell offers, with offers updated regularly to reflect other market prices.
+          </p>
+          <p>
+            We mainly support the GBPC/USDC market to ensure users can always sell GBPC back to USDC, which ensures that GBPC stays stable and redeemable through the SDEX at all times.
+          </p>
+        </div>
+
+        <div class="text exchanges">
+          <h4>Supply</h4>
+          <p>
+            We ensure to always keep the GBPC buyback ability above the circulating GBPC.
+            Check for yourself by seeing how much USDC our issuing wallet holds.
+          </p>
+          <p>
+            Issuing wallet -
+            <a href="https://stellar.expert/explorer/public/account/GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC" target="_blank">
+              GDXF......GBPC
+            </a>
+          </p>
+          <p>
+            We also collect AQUA when we participate in
+            <a href="http://aqua.network/rewards" target="_blank">AQUA rewards</a>.
+            AQUA is used to
+            <a href="https://vote.aqua.network/?sort=top" target="_blank">vote for AQUA rewards</a>
+            on GBPC markets, or can be partially sold to ensure USDC reserves allow us to keep our buyback ability above the circulating GBPC.
+          </p>
+          <p>
+            To find out the current circulating GBPC supply,
+            <a href="https://stellar.expert/explorer/public/asset/GBPC-GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC" target="_blank">
+              click here
+            </a>.
+            Look for the figure next to "Total supply".
+          </p>
         </div>
       </section>
-      
-      <!-- GBPC Stats Section -->
-      <section class="current-stats" id="gbpc-stats">
+
+      <!-- Embedded Iframes for Stats -->
+      <section class="wallets-and-exchanges centered-block">
+        <div class="text wallets">
+          <iframe
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            src="https://stellar.expert/widget/public/asset/summary/GBPC-GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
+          ></iframe>
+        </div>
+        <div class="text exchanges">
+          <iframe
+            onLoad="var c=this; window.addEventListener('message', function({data, source}) { if(c && source===c.contentWindow && data.widget===c.src) c.style.height=data.height+'px'; }, false);"
+            src="https://stellar.expert/widget/public/account/balances/GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+            style="border:none; overflow:hidden; max-width:100%; min-width:300px; max-height:100%; min-height:477px; width:366px"
+          ></iframe>
+        </div>
+      </section>
+
+      <!-- Current Stats Section -->
+      <section class="current-stats">
         <div class="centered-block">
           <div class="title">GBPC Stats</div>
+          <div class="date">March 17, 2025</div>
           <div class="table">
             <div>
               <div class="count">£61,019</div>
-              <div class="description">Circulating GBPC</div>
+              <div class="description">Public Circulating GBPC</div>
             </div>
             <div>
               <div class="count">£61,981</div>
@@ -123,57 +187,6 @@
               <div class="count">$78,135</div>
               <div class="description">USD Reserves</div>
             </div>
-          </div>
-        </div>
-      </section>
-      
-      <!-- EURC Stats Section -->
-      <section class="current-stats" id="eurc-stats">
-        <div class="centered-block">
-          <div class="title">EURC Stats</div>
-          <div class="table">
-            <div>
-              <div class="count">€81</div>
-              <div class="description">Circulating EURC</div>
-            </div>
-            <div>
-              <div class="count">€3,032</div>
-              <div class="description">EURC Buyback Ability</div>
-            </div>
-            <div>
-              <div class="count">$3,243</div>
-              <div class="description">USD Reserves</div>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      <!-- KRWC Stats Section -->
-      <section class="current-stats" id="krwc-stats">
-        <div class="centered-block">
-          <div class="title">KRWC Stats</div>
-          <div class="table">
-            <div>
-              <div class="count">₩29,705,309</div>
-              <div class="description">Circulating KRWC</div>
-            </div>
-            <div>
-              <div class="count">₩38,545,038</div>
-              <div class="description">KRWC Buyback Ability</div>
-            </div>
-            <div>
-              <div class="count">$28,095</div>
-              <div class="description">USD Reserves</div>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      <!-- AQUA Stats Section -->
-      <section class="current-stats" id="aqua-stats">
-        <div class="centered-block">
-          <div class="title">AQUA Stats</div>
-          <div class="table">
             <div>
               <div class="count">♒︎ 45,000,000</div>
               <div class="description">AQUA Liquid Reserve</div>
@@ -189,7 +202,7 @@
           </div>
         </div>
       </section>
-      
+
       <!-- Footer -->
       <footer>
         <div class="centered-block content">
