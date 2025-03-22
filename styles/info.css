@@ -108,47 +108,6 @@ div.spinner {
   100% {
     transform: rotate(360deg); } }
 
-/* Hero Section */
-.hero {
-  width: 100%;
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-.hero .hero-image img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-/* Last Updated Section (styled like current-stats blocks) */
-.last-updated {
-  background-color: #ffffff;
-  border: 1px solid #e0e0e0;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.05);
-  text-align: center;
-}
-
-.last-updated h3 {
-  font-size: 1.6em;
-  color: #333;
-  margin: 0;
-}
-
-/* Ensure the main content isn’t hidden behind a fixed header (if applicable) */
-.main-content {
-  /* If your header is fixed, adjust the top margin as needed */
-  margin-top: 80px;
-}
-
-/* Centered Block */
-.centered-block {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 15px;
-}
 
 header.page-header {
   position: fixed;
