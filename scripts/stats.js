@@ -1,19 +1,18 @@
 console.log("stats.js loaded");
 
 function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symbol, accountID) {
-  // Fetch the offer data to obtain the dynamic exchange rate.
+  // Fetch offer data for dynamic exchange rate.
   const offerUrl = offerEndpoint + "?ts=" + Date.now();
   fetch(offerUrl)
     .then(response => response.json())
     .then(offerData => {
       console.log(`Fetched ${assetCode} offer data:`, offerData);
-      // Assume the offer JSON contains a "price" field representing the USD<>[Asset] rate.
       const price = parseFloat(offerData.price || "0");
       // Reverse the price to get the [Asset]<>USD rate.
       const dynamicExchangeRate = price !== 0 ? 1 / price : 0;
       console.log(`Computed ${assetCode} exchange rate (reversed):`, dynamicExchangeRate);
       
-      // Fetch the asset stats to compute circulating supply.
+      // Fetch asset stats for circulating supply.
       const assetUrl = `https://horizon.stellar.org/assets?asset_code=${assetCode}&asset_issuer=${assetIssuer}&cursor=&limit=10&order=asc` + "&ts=" + Date.now();
       return fetch(assetUrl)
         .then(response => response.json())
@@ -21,7 +20,6 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
           console.log(`Fetched ${assetCode} asset stats:`, data);
           if (data && data._embedded && data._embedded.records && data._embedded.records.length > 0) {
             const record = data._embedded.records[0];
-            // Extract numeric fields (defaulting to 0 if missing)
             const claimable = parseFloat(record.claimable_balances_amount || "0");
             const liquidity = parseFloat(record.liquidity_pools_amount || "0");
             const contracts = parseFloat(record.contracts_amount || "0");
@@ -30,10 +28,9 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
             const authorized = parseFloat(balances.authorized || "0");
             const maintain = parseFloat(balances.authorized_to_maintain_liabilities || "0");
             const unauthorized = parseFloat(balances.unauthorized || "0");
-            // Circulating supply is the sum of these fields.
             const circulating = claimable + liquidity + contracts + archived + authorized + maintain + unauthorized;
             
-            // Fetch the account info to obtain USD reserves (USDC balance).
+            // Fetch account info to get USD reserves (USDC balance).
             const accountUrl = "https://horizon.stellar.org/accounts/" + accountID + "?ts=" + Date.now();
             return fetch(accountUrl)
               .then(response => response.json())
@@ -74,7 +71,6 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0
                 });
-                // Buyback uses the asset symbol.
                 const formattedBuyback = symbol + dynamicBuyback.toLocaleString(undefined, {
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0
@@ -94,10 +90,8 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                 document.querySelector(selectors.usdReservesSelector).textContent = formattedUSDReserves;
                 document.querySelector(selectors.buybackSelector).textContent = formattedBuyback;
                 
-                // Update Net USD Reserves element (formerly USD +/-).
                 const netUSDElem = document.querySelector(selectors.usdPlusMinusSelector);
                 netUSDElem.textContent = formattedNetUSDReserves;
-                // Set color: green if positive, red if negative.
                 if (netUSDReserves > 0) {
                   netUSDElem.style.color = "#2E7D32"; // dark green
                 } else if (netUSDReserves < 0) {
@@ -106,7 +100,6 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                   netUSDElem.style.color = "";
                 }
                 
-                // Update Collateralization Ratio element and color it.
                 const collateralElem = document.querySelector(selectors.collateralRatioSelector);
                 collateralElem.textContent = formattedCollateralRatio;
                 if (collateralRatio > 100) {
@@ -159,7 +152,7 @@ document.addEventListener("DOMContentLoaded", function() {
       circulatingSelector: "#gbpc-stats .table > div:nth-child(2) .count",
       usdReservesSelector: "#gbpc-stats .table > div:nth-child(3) .count",
       buybackSelector: "#gbpc-stats .table > div:nth-child(4) .count",
-      usdPlusMinusSelector: "#gbpc-stats .table > div:nth-child(5) .count", // now labeled Net USD Reserves
+      usdPlusMinusSelector: "#gbpc-stats .table > div:nth-child(5) .count",
       collateralRatioSelector: "#gbpc-stats .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1679115430", // GBPC offer endpoint
@@ -176,7 +169,7 @@ document.addEventListener("DOMContentLoaded", function() {
       circulatingSelector: "#eurc-stats .table > div:nth-child(2) .count",
       usdReservesSelector: "#eurc-stats .table > div:nth-child(3) .count",
       buybackSelector: "#eurc-stats .table > div:nth-child(4) .count",
-      usdPlusMinusSelector: "#eurc-stats .table > div:nth-child(5) .count", // Net USD Reserves
+      usdPlusMinusSelector: "#eurc-stats .table > div:nth-child(5) .count",
       collateralRatioSelector: "#eurc-stats .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1679202929", // EURC offer endpoint
@@ -193,12 +186,29 @@ document.addEventListener("DOMContentLoaded", function() {
       circulatingSelector: "#krwc-stats .table > div:nth-child(2) .count",
       usdReservesSelector: "#krwc-stats .table > div:nth-child(3) .count",
       buybackSelector: "#krwc-stats .table > div:nth-child(4) .count",
-      usdPlusMinusSelector: "#krwc-stats .table > div:nth-child(5) .count", // Net USD Reserves
+      usdPlusMinusSelector: "#krwc-stats .table > div:nth-child(5) .count",
       collateralRatioSelector: "#krwc-stats .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1679204939", // KRWC offer endpoint
     "₩",
     "GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC"  // KRWC account ID
+  );
+  
+  // Update USDC Stats
+  updateAssetStats(
+    "USDC",
+    "GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC",
+    {
+      exchangeRateSelector: "#usdc-stats .table > div:nth-child(1) .count",
+      circulatingSelector: "#usdc-stats .table > div:nth-child(2) .count",
+      usdReservesSelector: "#usdc-stats .table > div:nth-child(3) .count",
+      buybackSelector: "#usdc-stats .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#usdc-stats .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#usdc-stats .table > div:nth-child(6) .count"
+    },
+    "https://horizon.stellar.org/offers/1688920720", // USDC offer endpoint
+    "$",
+    "GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC"  // USDC account ID
   );
   
   // Update the Last Updated date.
