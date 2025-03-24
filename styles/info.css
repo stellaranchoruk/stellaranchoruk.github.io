@@ -933,7 +933,7 @@ section.main-block-gbpc {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    height: 25vw;
+    height: 23vw;
     background-color: #FAFAFB;
     padding-top: 11rem;
     overflow: hidden;
@@ -979,7 +979,7 @@ section.main-block-yusdc {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    height: 25vw;
+    height: 23vw;
     background-color: #FAFAFB;
     padding-top: 11rem;
     overflow: hidden;
@@ -1024,7 +1024,7 @@ section.main-block-eurc {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    height: 25vw;
+    height: 23vw;
     background-color: #FAFAFB;
     padding-top: 11rem;
     overflow: hidden;
@@ -1070,7 +1070,7 @@ section.main-block-krwc {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    height: 25vw;
+    height: 23vw;
     background-color: #FAFAFB;
     padding-top: 11rem;
     overflow: hidden;
@@ -1264,7 +1264,7 @@ section.current-stats {
   font-family: Montserrat;
   letter-spacing: 0;
   padding: 2rem 0;
-  margin-top: 1rem; }
+  margin-top: 0.5rem; }
   section.current-stats a {
     margin: 4rem 0 1rem;
     display: flex;
@@ -1305,7 +1305,7 @@ section.current-stats {
 
 @media screen and (max-width: 1000px) {
   section.current-stats {
-    margin-bottom: 8rem; }
+    margin-bottom: 0rem; }
     section.current-stats .title {
       margin-bottom: 0.8rem;
       font-size: 2.9rem;
