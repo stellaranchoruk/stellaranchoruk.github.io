@@ -1,10 +1,8 @@
 console.log("stats.js loaded");
 
-// Function to update an asset's circulating supply
-function updateAssetStat(assetCode, assetIssuer, countSelector, symbol) {
-  // Construct the Horizon endpoint URL for the given asset.
+function updateAssetStats(assetCode, assetIssuer, selectors, symbol, exchangeRate, usdReserves, buybackAbility) {
+  // Construct the Horizon endpoint URL for the asset.
   const endpoint = `https://horizon.stellar.org/assets?asset_code=${assetCode}&asset_issuer=${assetIssuer}&cursor=&limit=10&order=asc`;
-  // Append a timestamp parameter to avoid caching.
   const endpointWithTimestamp = endpoint + "&ts=" + Date.now();
   
   fetch(endpointWithTimestamp)
@@ -24,21 +22,38 @@ function updateAssetStat(assetCode, assetIssuer, countSelector, symbol) {
         const maintain = parseFloat(balances.authorized_to_maintain_liabilities || "0");
         const unauthorized = parseFloat(balances.unauthorized || "0");
         
-        // Calculate total supply by summing all parts
-        const totalSupply = claimable + liquidity + contracts + archived + authorized + maintain + unauthorized;
-        console.log(`Computed ${assetCode} totalSupply:`, totalSupply);
+        // Calculate circulating supply (dynamic from Horizon)
+        const circulating = claimable + liquidity + contracts + archived + authorized + maintain + unauthorized;
         
-        // Format the number with the specified symbol and no decimals
-        const formattedTotal = symbol + totalSupply.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        // Compute USD +/- as: USD Reserves - (circulating * exchangeRate)
+        const usdPlusMinus = usdReserves - (circulating * exchangeRate);
+        // Compute Collateralization Ratio as: (USD Reserves / (circulating * exchangeRate)) * 100%
+        const collateralRatio = (circulating * exchangeRate > 0) ? (usdReserves / (circulating * exchangeRate)) * 100 : 0;
         
-        // Update the corresponding DOM element
-        const countElem = document.querySelector(countSelector);
-        if (countElem) {
-          countElem.textContent = formattedTotal;
-          console.log(`Updated ${assetCode} count to:`, formattedTotal);
-        } else {
-          console.error(`Could not find the element for ${assetCode} using selector: ${countSelector}`);
-        }
+        // Format values:
+        const formattedExchangeRate = exchangeRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedCirculating = symbol + circulating.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        const formattedUSDReserves = "$" + usdReserves.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        const formattedBuyback = symbol + buybackAbility.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        const formattedUSDPlusMinus = "$" + usdPlusMinus.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        const formattedCollateralRatio = collateralRatio.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + "%";
+        
+        // Update DOM elements
+        document.querySelector(selectors.exchangeRateSelector).textContent = formattedExchangeRate;
+        document.querySelector(selectors.circulatingSelector).textContent = formattedCirculating;
+        document.querySelector(selectors.usdReservesSelector).textContent = formattedUSDReserves;
+        document.querySelector(selectors.buybackSelector).textContent = formattedBuyback;
+        document.querySelector(selectors.usdPlusMinusSelector).textContent = formattedUSDPlusMinus;
+        document.querySelector(selectors.collateralRatioSelector).textContent = formattedCollateralRatio;
+        
+        console.log(`Updated ${assetCode} stats:`, {
+          exchangeRate: formattedExchangeRate,
+          circulating: formattedCirculating,
+          usdReserves: formattedUSDReserves,
+          buyback: formattedBuyback,
+          usdPlusMinus: formattedUSDPlusMinus,
+          collateralRatio: formattedCollateralRatio
+        });
       } else {
         console.error(`No records found in the ${assetCode} Horizon API response.`);
       }
@@ -48,11 +63,10 @@ function updateAssetStat(assetCode, assetIssuer, countSelector, symbol) {
     });
 }
 
-// Function to update the Last Updated date
 function updateLastUpdatedDate() {
   const today = new Date();
   const day = String(today.getDate()).padStart(2, '0');
-  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+  const month = String(today.getMonth() + 1).padStart(2, '0');
   const year = today.getFullYear();
   const formattedDate = `${day}/${month}/${year}`;
   const lastUpdatedElem = document.querySelector("#last-updated .description");
@@ -65,24 +79,58 @@ function updateLastUpdatedDate() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  // Update asset stats
-  updateAssetStat(
+  // Update GBPC Stats
+  updateAssetStats(
     "GBPC",
     "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
-    "#gbpc-stats .table > div:first-child .count",
-    "£"
+    {
+      exchangeRateSelector: "#gbpc-stats .table > div:nth-child(1) .count",
+      circulatingSelector: "#gbpc-stats .table > div:nth-child(2) .count",
+      usdReservesSelector: "#gbpc-stats .table > div:nth-child(3) .count",
+      buybackSelector: "#gbpc-stats .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#gbpc-stats .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#gbpc-stats .table > div:nth-child(6) .count"
+    },
+    "£",
+    1.25,    // GBPC exchange rate (static placeholder)
+    78135,   // GBPC USD Reserves (static placeholder)
+    61981    // GBPC Buyback Ability (static placeholder)
   );
-  updateAssetStat(
+  
+  // Update EURC Stats
+  updateAssetStats(
     "EURC",
     "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC",
-    "#eurc-stats .table > div:first-child .count",
-    "€"
+    {
+      exchangeRateSelector: "#eurc-stats .table > div:nth-child(1) .count",
+      circulatingSelector: "#eurc-stats .table > div:nth-child(2) .count",
+      usdReservesSelector: "#eurc-stats .table > div:nth-child(3) .count",
+      buybackSelector: "#eurc-stats .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#eurc-stats .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#eurc-stats .table > div:nth-child(6) .count"
+    },
+    "€",
+    1.10,    // EURC exchange rate (static placeholder)
+    3243,    // EURC USD Reserves (static placeholder)
+    3032     // EURC Buyback Ability (static placeholder)
   );
-  updateAssetStat(
+  
+  // Update KRWC Stats
+  updateAssetStats(
     "KRWC",
     "GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC",
-    "#krwc-stats .table > div:first-child .count",
-    "₩"
+    {
+      exchangeRateSelector: "#krwc-stats .table > div:nth-child(1) .count",
+      circulatingSelector: "#krwc-stats .table > div:nth-child(2) .count",
+      usdReservesSelector: "#krwc-stats .table > div:nth-child(3) .count",
+      buybackSelector: "#krwc-stats .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#krwc-stats .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#krwc-stats .table > div:nth-child(6) .count"
+    },
+    "₩",
+    0.00095,  // KRWC exchange rate (static placeholder)
+    28095,    // KRWC USD Reserves (static placeholder)
+    38545038  // KRWC Buyback Ability (static placeholder)
   );
   
   // Update the Last Updated date
