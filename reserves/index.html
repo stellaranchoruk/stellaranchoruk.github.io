@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+    
+    <title>Real world assets, mirrored on Stellar | Mirrasets</title>
+    <base href="" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="https://mirrasets.com/favicon.ico" />
+    <link rel="canonical" href="/" />
+
+    <!-- Open Graph / Social Meta -->
+    <meta property="og:site_name" content="Mirrasets" />
+    <meta property="og:title" content="Real world assets, mirrored on Stellar" />
+    <meta property="og:url" content="https://mirrasets.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="Improve trading on Stellar with fiat pegged mirrorcoins" />
+    <meta property="og:image" content="https://mirrasets.com/images/open_graph2.png" />
+    <meta property="og:image:width" content="1388" />
+    <meta property="og:image:height" content="694" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Mirrasets - Real world assets, mirrored on Stellar." />
+    <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
+    <meta name="twitter:url" content="https://mirrasets.com/" />
+    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
+    
+    <!-- Schema.org / Microdata -->
+    <meta itemprop="name" content="Stellar Anchor UK" />
+    <meta itemprop="url" content="/" />
+    <meta itemprop="description" content="Real world assets, mirrored on Stellar" />
+    <meta itemprop="thumbnailUrl" content="assets/img/logo.png" />
+    <link rel="image_src" href="assets/img/logo.png" />
+    <meta itemprop="image" content="assets/img/logo.png" />
+
+    <!-- Site Description -->
+    <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
+
+    <!-- External Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+  </head>
+  <body>
+    <div class="main-content" id="main-content">
+      <!-- Updated Header -->
+      <header class="page-header">
+        <a class="main-link" href="/"><img src="/icons/sauk-logo.png" alt="Mirrasets Logo" /></a>
+
+        <div class="menu-toggle">
+          <svg class="menu-icon" width="15" height="8" viewBox="0 0 15 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 1H15" stroke="#4a4a4a" />
+            <path d="M15 7H0" stroke="#4a4a4a" />
+          </svg>
+          <svg class="close" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.6055 1L0.998867 11.6066" stroke="#4a4a4a" />
+            <path d="M11.6055 11.6064L0.998867 0.999844" stroke="#4a4a4a" />
+          </svg>
+        </div>
+
+        <div class="menu">
+          <div class="relative">
+            <nav>
+              <a href="https://mirrasets.com/" target="_self" style="font-weight:bold;">Home</a>
+              <div class="dropdown">
+                <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
+                <div class="dropdown-menu">
+                  <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
+                  <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
+                  <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
+                </div>
+              </div>
+              <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" style="font-weight:bold;">AQUA Voting</a>
+              <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
+            </nav>
+          </div>
+
+          <div class="social-links">
+            <a href="https://x.com/mirrasets" target="_blank">
+              <svg width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8.333 5.929L13.546 0H12.31L7.783 5.147 4.17 0H0l5.466 7.784L0 14h1.235l4.778-5.436L9.831 14H14M1.68.911h1.897l8.733 12.223h-1.897" fill="#f0cb78"/>
+              </svg>
+            </a>
+            <a class="discord-link" href="https://discord.gg/DjBhVqmwup" target="_blank">
+              <svg width="18" height="12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15.643 1.449S14.353.183 11.425 0v.4s1.606-.087 3.594 1.727C13.52 1.127 11.378.499 9 .499s-4.519.627-6.02 1.628C4.97.313 6.576.4 6.576.4V0C3.647.183 2.357 1.449 2.357 1.449.126 4.112 0 9.939 0 9.939c2.102 2.348 4.743 2.049 4.743 2.049l.97-1.299c-1.251-.314-2.145-1.034-2.682-1.594 1.498.98 3.618 1.594 5.969 1.594 2.351 0 4.47-.613 5.969-1.594-.537.56-1.43 1.28-2.682 1.594l.97 1.299s2.641.3 4.743-2.048c0 0-.126-5.828-2.357-8.491zM6.198 8.29A1.515 1.515 0 014.67 6.788c0-.83.683-1.504 1.527-1.504.843 0 1.527.673 1.527 1.504 0 .83-.684 1.503-1.527 1.503zm5.604 0a1.515 1.515 0 01-1.527-1.503c0-.83.684-1.504 1.527-1.504.844 0 1.527.673 1.527 1.504 0 .83-.683 1.503-1.527 1.503z" fill="#f0cb78"/>
+              </svg>
+            </a>
+            <a class="email-link" href="mailto:support@mirrasets.com">
+              <svg width="16" height="11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10.81 5.323l5.143 3.251v-6.64l-5.143 3.39zM.7 1.935v6.64l5.142-3.252L.7 1.935zM15 0H1.65a.942.942 0 00-.924.811l7.599 5.007L15.925.811A.942.942 0 0015 0zM9.944 5.894l-1.35.888a.476.476 0 01-.524 0l-1.349-.89L.735 9.68a.94.94 0 00.923.804h13.349a.94.94 0 00.923-.804L9.944 5.894z" fill="#f0cb78"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Block for GBPC -->
+      <section class="main-block-gbpc">
+        <!-- Main content specific to GBPC can be placed here -->
+      </section>
+
+      <!-- Last Updated Stats Section -->
+      <section class="current-stats" id="last-updated">
+        <div class="centered-block">
+          <div class="count">Last Updated</div>
+          <div class="description">23/03/2025</div>
+        </div>
+      </section>
+      
+      <!-- GBPC Stats Section -->
+      <section class="current-stats" id="gbpc-stats">
+        <div class="centered-block">
+          <div class="title">GBPC Stats</div>
+          <div class="table">
+            <div>
+              <div class="count">£61,019</div>
+              <div class="description">Circulating GBPC</div>
+            </div>
+            <div>
+              <div class="count">£61,981</div>
+              <div class="description">GBPC Buyback Ability</div>
+            </div>
+            <div>
+              <div class="count">$78,135</div>
+              <div class="description">USD Reserves</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- EURC Stats Section -->
+      <section class="current-stats" id="eurc-stats">
+        <div class="centered-block">
+          <div class="title">EURC Stats</div>
+          <div class="table">
+            <div>
+              <div class="count">€81</div>
+              <div class="description">Circulating EURC</div>
+            </div>
+            <div>
+              <div class="count">€3,032</div>
+              <div class="description">EURC Buyback Ability</div>
+            </div>
+            <div>
+              <div class="count">$3,243</div>
+              <div class="description">USD Reserves</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- KRWC Stats Section -->
+      <section class="current-stats" id="krwc-stats">
+        <div class="centered-block">
+          <div class="title">KRWC Stats</div>
+          <div class="table">
+            <div>
+              <div class="count">₩29,705,309</div>
+              <div class="description">Circulating KRWC</div>
+            </div>
+            <div>
+              <div class="count">₩38,545,038</div>
+              <div class="description">KRWC Buyback Ability</div>
+            </div>
+            <div>
+              <div class="count">$28,095</div>
+              <div class="description">USD Reserves</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- AQUA Stats Section -->
+      <section class="current-stats" id="aqua-stats">
+        <div class="centered-block">
+          <div class="title">AQUA Stats</div>
+          <div class="table">
+            <div>
+              <div class="count">♒︎ 45,000,000</div>
+              <div class="description">AQUA Liquid Reserve</div>
+            </div>
+            <div>
+              <div class="count">$35,100</div>
+              <div class="description">Liquid AQUA USD Value</div>
+            </div>
+            <div>
+              <div class="count">♒︎ 214,500,000</div>
+              <div class="description">AQUA locked in ICE</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Footer -->
+      <footer>
+        <div class="centered-block content">
+          <div class="copyright-line">
+            <div class="copyright">
+              © 2025 mirrasets.com
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- External JavaScript -->
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+    <script src="https://mirrasets.com/scripts/info.js"></script>
+    <!-- Inline script: Toggle mobile menu -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.querySelector('.menu-toggle');
+        const header = document.querySelector('header.page-header');
+        if (menuToggle && header) {
+          menuToggle.addEventListener('click', function() {
+            header.classList.toggle('menu-opened');
+          });
+        }
+      });
+    </script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // Append a cache-busting parameter to avoid cached responses.
+    const gbpcEndpoint = "https://lab.stellar.org/endpoints/assets?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&endpoints$params$asset_issuer=GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC&asset_code=GBPC;;" + "?ts=" + Date.now();
+    
+    fetch(gbpcEndpoint)
+      .then(response => response.json())
+      .then(data => {
+        console.log("Fetched GBPC data:", data);
+        // Check if the expected data structure exists
+        if (data && data._embedded && data._embedded.records && data._embedded.records.length > 0) {
+          const record = data._embedded.records[0];
+          
+          // Parse numeric fields (defaulting to 0 if missing)
+          const claimable = parseFloat(record.claimable_balances_amount || "0");
+          const liquidity = parseFloat(record.liquidity_pools_amount || "0");
+          const contracts = parseFloat(record.contracts_amount || "0");
+          const archived = parseFloat(record.archived_contracts_amount || "0");
+          const balances = record.balances || {};
+          const authorized = parseFloat(balances.authorized || "0");
+          const maintain = parseFloat(balances.authorized_to_maintain_liabilities || "0");
+          const unauthorized = parseFloat(balances.unauthorized || "0");
+          
+          // Calculate total supply
+          const totalSupply = claimable + liquidity + contracts + archived + authorized + maintain + unauthorized;
+          console.log("Computed totalSupply:", totalSupply);
+          
+          // Format the number with a pound symbol and commas
+          const formattedTotal = "£" + totalSupply.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+          
+          // Update the "Circulating GBPC" count in the GBPC Stats section
+          const countElem = document.querySelector("#gbpc-stats .table > div:first-child .count");
+          if (countElem) {
+            countElem.textContent = formattedTotal;
+            console.log("Updated Circulating GBPC to:", formattedTotal);
+          } else {
+            console.error("Could not find the GBPC count element to update.");
+          }
+        } else {
+          console.error("No records found in the GBPC Horizon API response.");
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching GBPC data:", error);
+      });
+  });
+</script>
+    
+  </body>
+</html>
