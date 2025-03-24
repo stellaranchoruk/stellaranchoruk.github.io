@@ -1,5 +1,6 @@
 console.log("stats.js loaded");
 
+// Function to update an asset's circulating supply
 function updateAssetStat(assetCode, assetIssuer, countSelector, symbol) {
   // Construct the Horizon endpoint URL for the given asset.
   const endpoint = `https://horizon.stellar.org/assets?asset_code=${assetCode}&asset_issuer=${assetIssuer}&cursor=&limit=10&order=asc`;
@@ -47,24 +48,36 @@ function updateAssetStat(assetCode, assetIssuer, countSelector, symbol) {
     });
 }
 
+// Function to update the Last Updated date
+function updateLastUpdatedDate() {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+  const year = today.getFullYear();
+  const formattedDate = `${day}/${month}/${year}`;
+  const lastUpdatedElem = document.querySelector("#last-updated .description");
+  if (lastUpdatedElem) {
+    lastUpdatedElem.textContent = formattedDate;
+    console.log("Updated Last Updated date to:", formattedDate);
+  } else {
+    console.error("Could not find the Last Updated element.");
+  }
+}
+
 document.addEventListener("DOMContentLoaded", function() {
-  // Update GBPC Stats
+  // Update asset stats
   updateAssetStat(
     "GBPC",
     "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
     "#gbpc-stats .table > div:first-child .count",
     "£"
   );
-  
-  // Update EURC Stats with the provided issuer address.
   updateAssetStat(
     "EURC",
     "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC",
     "#eurc-stats .table > div:first-child .count",
     "€"
   );
-  
-  // Update KRWC Stats with the provided issuer address.
   updateAssetStat(
     "KRWC",
     "GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC",
@@ -72,4 +85,6 @@ document.addEventListener("DOMContentLoaded", function() {
     "₩"
   );
   
+  // Update the Last Updated date
+  updateLastUpdatedDate();
 });
