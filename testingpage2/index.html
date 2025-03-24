@@ -226,12 +226,14 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", function() {
-    // Updated GBPC Horizon endpoint (ensure it’s correct and CORS is allowed)
-    const gbpcEndpoint = "https://lab.stellar.org/endpoints/assets?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&endpoints$params$asset_issuer=GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC&asset_code=GBPC;;";
+    // Append a cache-busting parameter to avoid cached responses.
+    const gbpcEndpoint = "https://lab.stellar.org/endpoints/assets?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&endpoints$params$asset_issuer=GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC&asset_code=GBPC;;" + "?ts=" + Date.now();
     
     fetch(gbpcEndpoint)
       .then(response => response.json())
       .then(data => {
+        console.log("Fetched GBPC data:", data);
+        // Check if the expected data structure exists
         if (data && data._embedded && data._embedded.records && data._embedded.records.length > 0) {
           const record = data._embedded.records[0];
           
@@ -245,16 +247,20 @@
           const maintain = parseFloat(balances.authorized_to_maintain_liabilities || "0");
           const unauthorized = parseFloat(balances.unauthorized || "0");
           
-          // Calculate total supply by summing the values
+          // Calculate total supply
           const totalSupply = claimable + liquidity + contracts + archived + authorized + maintain + unauthorized;
+          console.log("Computed totalSupply:", totalSupply);
           
           // Format the number with a pound symbol and commas
           const formattedTotal = "£" + totalSupply.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
           
-          // Update the "Circulating GBPC" count in the GBPC Stats Section
+          // Update the "Circulating GBPC" count in the GBPC Stats section
           const countElem = document.querySelector("#gbpc-stats .table > div:first-child .count");
           if (countElem) {
             countElem.textContent = formattedTotal;
+            console.log("Updated Circulating GBPC to:", formattedTotal);
+          } else {
+            console.error("Could not find the GBPC count element to update.");
           }
         } else {
           console.error("No records found in the GBPC Horizon API response.");
