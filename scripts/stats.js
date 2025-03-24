@@ -7,13 +7,13 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
     .then(response => response.json())
     .then(offerData => {
       console.log(`Fetched ${assetCode} offer data:`, offerData);
-      // Assume the offer JSON has a "price" field (as a string) which is the USD<>[Asset] rate.
+      // Assume the offer JSON has a "price" field (as a string) representing the USD<>[Asset] rate.
       const price = parseFloat(offerData.price || "0");
-      // Reverse the price to get [Asset] <> USD.
+      // Reverse the price to get the [Asset]<>USD rate.
       const dynamicExchangeRate = price !== 0 ? 1 / price : 0;
       console.log(`Computed ${assetCode} exchange rate (reversed):`, dynamicExchangeRate);
       
-      // Now fetch the asset stats (to compute circulating supply).
+      // Next, fetch the asset stats to compute circulating supply.
       const assetUrl = `https://horizon.stellar.org/assets?asset_code=${assetCode}&asset_issuer=${assetIssuer}&cursor=&limit=10&order=asc` + "&ts=" + Date.now();
       return fetch(assetUrl)
         .then(response => response.json())
@@ -41,30 +41,50 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                 console.log(`Fetched ${assetCode} account data:`, accountData);
                 let usdReserves = 0;
                 if (accountData && accountData.balances && Array.isArray(accountData.balances)) {
-                  // Loop through balances to find the USDC balance.
                   for (const bal of accountData.balances) {
-                    if (bal.asset_code === "USDC" && bal.asset_issuer === "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN") {
+                    if (bal.asset_code === "USDC" &&
+                        bal.asset_issuer === "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN") {
                       usdReserves = parseFloat(bal.balance);
                       break;
                     }
                   }
                 }
                 
-                // Compute dynamic buyback ability as USD Reserves divided by circulating supply.
-                const dynamicBuyback = circulating > 0 ? usdReserves / circulating : 0;
-                // Compute USD +/- = USD Reserves - (circulating * dynamicExchangeRate)
+                // Compute Buyback Ability = USD Reserves ÷ dynamicExchangeRate.
+                const dynamicBuyback = dynamicExchangeRate > 0 ? usdReserves / dynamicExchangeRate : 0;
+                // Compute USD +/- = USD Reserves - (circulating × dynamicExchangeRate)
                 const usdPlusMinus = usdReserves - (circulating * dynamicExchangeRate);
-                // Compute Collateralization Ratio = (USD Reserves / (circulating * dynamicExchangeRate)) * 100%
-                const collateralRatio = (circulating * dynamicExchangeRate > 0) ? (usdReserves / (circulating * dynamicExchangeRate)) * 100 : 0;
+                // Compute Collateralization Ratio = (USD Reserves / (circulating × dynamicExchangeRate)) × 100%
+                const collateralRatio = (circulating * dynamicExchangeRate > 0)
+                  ? (usdReserves / (circulating * dynamicExchangeRate)) * 100
+                  : 0;
                 
                 // Format values.
-                const formattedExchangeRate = dynamicExchangeRate.toLocaleString(undefined, { minimumFractionDigits: 7, maximumFractionDigits: 7 });
-                const formattedCirculating = symbol + circulating.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                const formattedUSDReserves = "$" + usdReserves.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                // BUYBACK: Now computed dynamically (in USD per unit)
-                const formattedBuyback = "$" + dynamicBuyback.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                const formattedUSDPlusMinus = "$" + usdPlusMinus.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                const formattedCollateralRatio = collateralRatio.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + "%";
+                const formattedExchangeRate = dynamicExchangeRate.toLocaleString(undefined, {
+                  minimumFractionDigits: 7,
+                  maximumFractionDigits: 7
+                });
+                const formattedCirculating = symbol + circulating.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                });
+                const formattedUSDReserves = "$" + usdReserves.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                });
+                // Buyback now uses the asset symbol.
+                const formattedBuyback = symbol + dynamicBuyback.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                });
+                const formattedUSDPlusMinus = "$" + usdPlusMinus.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                });
+                const formattedCollateralRatio = collateralRatio.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                }) + "%";
                 
                 // Update DOM elements using the provided selectors.
                 document.querySelector(selectors.exchangeRateSelector).textContent = formattedExchangeRate;
