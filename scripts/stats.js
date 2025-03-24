@@ -50,7 +50,7 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                   }
                 }
                 
-                // Compute Buyback Ability = USD Reserves ÷ dynamicExchangeRate.
+                // Compute Buyback Ability = USD Reserves / dynamicExchangeRate.
                 const dynamicBuyback = dynamicExchangeRate > 0 ? usdReserves / dynamicExchangeRate : 0;
                 // Compute USD +/- = USD Reserves - (circulating × dynamicExchangeRate)
                 const usdPlusMinus = usdReserves - (circulating * dynamicExchangeRate);
@@ -59,7 +59,7 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                   ? (usdReserves / (circulating * dynamicExchangeRate)) * 100
                   : 0;
                 
-                // Format values.
+                // Format values:
                 const formattedExchangeRate = dynamicExchangeRate.toLocaleString(undefined, {
                   minimumFractionDigits: 7,
                   maximumFractionDigits: 7
@@ -72,7 +72,7 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0
                 });
-                // Buyback now uses the asset symbol.
+                // Buyback ability now uses the asset symbol.
                 const formattedBuyback = symbol + dynamicBuyback.toLocaleString(undefined, {
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0
@@ -90,9 +90,29 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                 document.querySelector(selectors.exchangeRateSelector).textContent = formattedExchangeRate;
                 document.querySelector(selectors.circulatingSelector).textContent = formattedCirculating;
                 document.querySelector(selectors.usdReservesSelector).textContent = formattedUSDReserves;
+                
+                // For USD+/- element, update text and set color:
+                const usdPlusMinusElem = document.querySelector(selectors.usdPlusMinusSelector);
+                usdPlusMinusElem.textContent = formattedUSDPlusMinus;
+                if (usdPlusMinus > 0) {
+                  usdPlusMinusElem.style.color = "#2E7D32"; // dark green
+                } else if (usdPlusMinus < 0) {
+                  usdPlusMinusElem.style.color = "#C62828"; // dark red
+                } else {
+                  usdPlusMinusElem.style.color = ""; // default
+                }
+                
+                // For Buyback Ability, use the asset symbol:
                 document.querySelector(selectors.buybackSelector).textContent = formattedBuyback;
-                document.querySelector(selectors.usdPlusMinusSelector).textContent = formattedUSDPlusMinus;
-                document.querySelector(selectors.collateralRatioSelector).textContent = formattedCollateralRatio;
+                
+                // For Collateralization Ratio, update text and set color:
+                const collateralRatioElem = document.querySelector(selectors.collateralRatioSelector);
+                collateralRatioElem.textContent = formattedCollateralRatio;
+                if (collateralRatio > 100) {
+                  collateralRatioElem.style.color = "#2E7D32"; // dark green
+                } else {
+                  collateralRatioElem.style.color = "#C62828"; // dark red
+                }
                 
                 console.log(`Updated ${assetCode} stats:`, {
                   exchangeRate: formattedExchangeRate,
@@ -116,7 +136,7 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
 function updateLastUpdatedDate() {
   const today = new Date();
   const day = String(today.getDate()).padStart(2, '0');
-  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // months are 0-indexed
   const year = today.getFullYear();
   const formattedDate = `${day}/${month}/${year}`;
   const lastUpdatedElem = document.querySelector("#last-updated .description");
