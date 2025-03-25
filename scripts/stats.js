@@ -1,6 +1,6 @@
 console.log("stats.js loaded");
 
-function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symbol, accountID) {
+function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symbol, accountID, reserveAsset = { asset_code: "USDC", asset_issuer: "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN" }) {
   // Fetch offer data for dynamic exchange rate.
   const offerUrl = offerEndpoint + "?ts=" + Date.now();
   fetch(offerUrl)
@@ -30,32 +30,32 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
             const unauthorized = parseFloat(balances.unauthorized || "0");
             const circulating = claimable + liquidity + contracts + archived + authorized + maintain + unauthorized;
             
-            // Fetch account info to get USD reserves (USDC balance).
+            // Fetch account info to get reserve balance.
             const accountUrl = "https://horizon.stellar.org/accounts/" + accountID + "?ts=" + Date.now();
             return fetch(accountUrl)
               .then(response => response.json())
               .then(accountData => {
                 console.log(`Fetched ${assetCode} account data:`, accountData);
-                let usdReserves = 0;
+                let reserves = 0;
                 if (accountData && accountData.balances && Array.isArray(accountData.balances)) {
                   for (const bal of accountData.balances) {
                     if (
-                      bal.asset_code === "USDC" &&
-                      bal.asset_issuer === "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+                      bal.asset_code === reserveAsset.asset_code &&
+                      bal.asset_issuer === reserveAsset.asset_issuer
                     ) {
-                      usdReserves = parseFloat(bal.balance);
+                      reserves = parseFloat(bal.balance);
                       break;
                     }
                   }
                 }
                 
-                // Calculate Buyback Ability = USD Reserves ÷ dynamicExchangeRate.
-                const dynamicBuyback = dynamicExchangeRate > 0 ? usdReserves / dynamicExchangeRate : 0;
-                // Calculate Net USD Reserves = USD Reserves - (circulating × dynamicExchangeRate).
-                const netUSDReserves = usdReserves - (circulating * dynamicExchangeRate);
-                // Calculate Collateralization Ratio = (USD Reserves ÷ (circulating × dynamicExchangeRate)) × 100%.
+                // Calculate Buyback Ability = Reserves ÷ dynamicExchangeRate.
+                const dynamicBuyback = dynamicExchangeRate > 0 ? reserves / dynamicExchangeRate : 0;
+                // Calculate Net Reserves = Reserves - (circulating × dynamicExchangeRate).
+                const netReserves = reserves - (circulating * dynamicExchangeRate);
+                // Calculate Collateralization Ratio = (Reserves ÷ (circulating × dynamicExchangeRate)) × 100%.
                 const collateralRatio = (circulating * dynamicExchangeRate > 0)
-                  ? (usdReserves / (circulating * dynamicExchangeRate)) * 100
+                  ? (reserves / (circulating * dynamicExchangeRate)) * 100
                   : 0;
                 
                 // Format values.
@@ -67,18 +67,40 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0
                 });
-                const formattedUSDReserves = "$" + usdReserves.toLocaleString(undefined, {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0
-                });
+                
+                // Use different prefixes for reserves based on asset.
+                let formattedReserves;
+                if (assetCode === "AQUAm25") {
+                  formattedReserves = "AQUA " + reserves.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  });
+                } else {
+                  formattedReserves = "$" + reserves.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  });
+                }
+                
+                // Buyback ability is always prefixed with the passed symbol.
                 const formattedBuyback = symbol + dynamicBuyback.toLocaleString(undefined, {
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0
                 });
-                const formattedNetUSDReserves = "$" + netUSDReserves.toLocaleString(undefined, {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0
-                });
+                
+                let formattedNetReserves;
+                if (assetCode === "AQUAm25") {
+                  formattedNetReserves = "AQUA " + netReserves.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  });
+                } else {
+                  formattedNetReserves = "$" + netReserves.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  });
+                }
+                
                 const formattedCollateralRatio = collateralRatio.toLocaleString(undefined, {
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0
@@ -87,17 +109,17 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                 // Update DOM elements.
                 document.querySelector(selectors.exchangeRateSelector).textContent = formattedExchangeRate;
                 document.querySelector(selectors.circulatingSelector).textContent = formattedCirculating;
-                document.querySelector(selectors.usdReservesSelector).textContent = formattedUSDReserves;
+                document.querySelector(selectors.usdReservesSelector).textContent = formattedReserves;
                 document.querySelector(selectors.buybackSelector).textContent = formattedBuyback;
                 
-                const netUSDElem = document.querySelector(selectors.usdPlusMinusSelector);
-                netUSDElem.textContent = formattedNetUSDReserves;
-                if (netUSDReserves > 0) {
-                  netUSDElem.style.color = "#2E7D32"; // dark green
-                } else if (netUSDReserves < 0) {
-                  netUSDElem.style.color = "#C62828"; // dark red
+                const netElem = document.querySelector(selectors.usdPlusMinusSelector);
+                netElem.textContent = formattedNetReserves;
+                if (netReserves > 0) {
+                  netElem.style.color = "#2E7D32"; // dark green
+                } else if (netReserves < 0) {
+                  netElem.style.color = "#C62828"; // dark red
                 } else {
-                  netUSDElem.style.color = "";
+                  netElem.style.color = "";
                 }
                 
                 const collateralElem = document.querySelector(selectors.collateralRatioSelector);
@@ -111,9 +133,9 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                 console.log(`Updated ${assetCode} stats:`, {
                   exchangeRate: formattedExchangeRate,
                   circulating: formattedCirculating,
-                  usdReserves: formattedUSDReserves,
+                  reserves: formattedReserves,
                   buyback: formattedBuyback,
-                  netUSDReserves: formattedNetUSDReserves,
+                  netReserves: formattedNetReserves,
                   collateralRatio: formattedCollateralRatio
                 });
               });
@@ -160,7 +182,7 @@ document.addEventListener("DOMContentLoaded", function() {
     },
     "https://horizon.stellar.org/offers/1679115430", // GBPC offer endpoint
     "£",
-    "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"  // GBPC account ID
+    "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
   );
   
   // Update EURC Stats
@@ -177,7 +199,7 @@ document.addEventListener("DOMContentLoaded", function() {
     },
     "https://horizon.stellar.org/offers/1679202929", // EURC offer endpoint
     "€",
-    "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC"  // EURC account ID
+    "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC"
   );
   
   // Update KRWC Stats
@@ -194,7 +216,7 @@ document.addEventListener("DOMContentLoaded", function() {
     },
     "https://horizon.stellar.org/offers/1679204939", // KRWC offer endpoint
     "₩",
-    "GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC"  // KRWC account ID
+    "GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC"
   );
   
   // Update USDC Stats
@@ -211,7 +233,25 @@ document.addEventListener("DOMContentLoaded", function() {
     },
     "https://horizon.stellar.org/offers/1688920720", // USDC offer endpoint
     "$",
-    "GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC"  // USDC account ID
+    "GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC"
+  );
+  
+  // Update AQUAm25 Stats
+  updateAssetStats(
+    "AQUAm25",
+    "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
+    {
+      exchangeRateSelector: "#aquam25-stats .table > div:nth-child(1) .count",
+      circulatingSelector: "#aquam25-stats .table > div:nth-child(2) .count",
+      usdReservesSelector: "#aquam25-stats .table > div:nth-child(3) .count",
+      buybackSelector: "#aquam25-stats .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#aquam25-stats .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#aquam25-stats .table > div:nth-child(6) .count"
+    },
+    "https://horizon.stellar.org/offers/1700570904", // AQUAm25 offer endpoint
+    "♒︎",
+    "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
+    { asset_code: "AQUA", asset_issuer: "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA" }
   );
   
   // Update the Last Updated date.
