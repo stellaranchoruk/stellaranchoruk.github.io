@@ -167,6 +167,57 @@ function updateLastUpdatedDate() {
   }
 }
 
+function updateLiquidAquaUSDValue() {
+  const orderBookUrl = "https://horizon.stellar.org/order_book?selling_asset_type=credit_alphanum4&selling_asset_code=AQUA&selling_asset_issuer=GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA&buying_asset_type=credit_alphanum4&buying_asset_code=USDC&buying_asset_issuer=GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+  fetch(orderBookUrl)
+    .then(response => response.json())
+    .then(data => {
+      if (data && data.bids && data.asks && data.bids.length > 0 && data.asks.length > 0) {
+        // Get the price from the first bid and first ask:
+        const bidPrice = parseFloat(data.bids[0].price);
+        const askPrice = parseFloat(data.asks[0].price);
+        // Calculate the midpoint price:
+        const currentPrice = (bidPrice + askPrice) / 2;
+        console.log("Current AQUA price (midpoint):", currentPrice);
+        
+        // Retrieve the AQUA Liquid Reserve value.
+        const liquidReserveElem = document.querySelector("#aqua-stats .table > div:nth-child(1) .count");
+        if (liquidReserveElem) {
+          // Remove the "♒︎" symbol, commas, and spaces.
+          let liquidReserveText = liquidReserveElem.textContent.replace(/♒︎|\s|,/g, "");
+          const liquidReserve = parseFloat(liquidReserveText);
+          if (isNaN(liquidReserve)) {
+            console.error("Liquid Reserve value is not a number:", liquidReserveText);
+            return;
+          }
+          // Multiply the reserve by the current price.
+          const liquidAquaUsdValue = liquidReserve * currentPrice;
+          // Format as USD currency (no decimals).
+          const formattedUSDValue = "$" + liquidAquaUsdValue.toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          });
+          
+          // Update the "Liquid AQUA USD Value" element.
+          const liquidAquaValueElem = document.querySelector("#aqua-stats .table > div:nth-child(2) .count");
+          if (liquidAquaValueElem) {
+            liquidAquaValueElem.textContent = formattedUSDValue;
+            console.log("Updated Liquid AQUA USD Value:", formattedUSDValue);
+          } else {
+            console.error("Liquid AQUA USD Value element not found");
+          }
+        } else {
+          console.error("Liquid Reserve element not found");
+        }
+      } else {
+        console.error("Order book data incomplete", data);
+      }
+    })
+    .catch(error => {
+      console.error("Error fetching order book data:", error);
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function() {
   // Update GBPC Stats
   updateAssetStats(
@@ -256,4 +307,7 @@ document.addEventListener("DOMContentLoaded", function() {
   
   // Update the Last Updated date.
   updateLastUpdatedDate();
+  
+  // Update Liquid AQUA USD Value in AQUA Stats Section.
+  updateLiquidAquaUSDValue();
 });
