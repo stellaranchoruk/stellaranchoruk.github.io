@@ -135,34 +135,7 @@
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="https://mirrasets.com/scripts/info.js"></script>
     <!-- Inline script: Toggle mobile menu and dropdown -->
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        // Mobile menu toggle
-        const menuToggle = document.querySelector(".menu-toggle");
-        const header = document.querySelector("header.page-header");
-        if (menuToggle && header) {
-          menuToggle.addEventListener("click", function () {
-            header.classList.toggle("menu-opened");
-          });
-        }
-        // Mobile dropdown toggle for "Our Mirrored Assets"
-        const dropdownToggle = document.querySelector("nav .dropdown .dropdown-toggle");
-        if (dropdownToggle) {
-          dropdownToggle.addEventListener("click", function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const menu = this.nextElementSibling;
-            menu.style.display = (menu.style.display === "block") ? "none" : "block";
-          });
-        }
-        // Close dropdown if clicking outside
-        document.addEventListener("click", function (e) {
-          const dropdownMenu = document.querySelector("nav .dropdown .dropdown-menu");
-          if (dropdownMenu && !dropdownMenu.contains(e.target) && !dropdownToggle.contains(e.target)) {
-            dropdownMenu.style.display = "none";
-          }
-        });
-      });
-    </script>
+    <script src="https://mirrasets.com/scripts/mobile-menu.js"></script>
+
   </body>
 </html>
