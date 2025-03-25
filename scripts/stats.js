@@ -132,11 +132,14 @@ function updateLastUpdatedDate() {
   const day = String(today.getDate()).padStart(2, '0');
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const year = today.getFullYear();
-  const formattedDate = `${day}/${month}/${year}`;
+  const hours = String(today.getHours()).padStart(2, '0');
+  const minutes = String(today.getMinutes()).padStart(2, '0');
+  const formattedDateTime = `${day}/${month}/${year} ${hours}:${minutes}`;
+  
   const lastUpdatedElem = document.querySelector("#last-updated .description");
   if (lastUpdatedElem) {
-    lastUpdatedElem.textContent = formattedDate;
-    console.log("Updated Last Updated date to:", formattedDate);
+    lastUpdatedElem.textContent = formattedDateTime;
+    console.log("Updated Last Updated date/time to:", formattedDateTime);
   } else {
     console.error("Could not find the Last Updated element.");
   }
