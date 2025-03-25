@@ -249,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function() {
       collateralRatioSelector: "#aquam25-stats .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1700570904", // AQUAm25 offer endpoint
-    "♒︎",
+    "♒︎ ",
     "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
     { asset_code: "AQUA", asset_issuer: "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA" }
   );
