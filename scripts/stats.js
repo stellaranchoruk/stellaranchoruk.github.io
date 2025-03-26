@@ -218,6 +218,127 @@ function updateLiquidAquaUSDValue() {
     });
 }
 
+/**
+ * updateLiquidAquaReserve() fetches the pool page from aqua.network,
+ * extracts:
+ *  - the pool share for the specific member (48,000,000),
+ *  - the Total Share (66,898,254),
+ *  - Total AQUA (29,972,608),
+ *  - and Total AQUAm25 (36,973,974).
+ *
+ * It then computes the ratio:
+ *    ratio = poolShare / totalShare
+ *
+ * Then calculates:
+ *    aquaPortion = Total AQUA * ratio
+ *    aquaM25Portion = Total AQUAm25 * ratio
+ *
+ * And finally:
+ *    liquidAquaReserve = aquaPortion + aquaM25Portion
+ *
+ * This value is formatted and then placed into the AQUA Liquid Reserve element
+ * in the AQUA Stats section.
+ */
+function updateLiquidAquaReserve() {
+  const poolUrl = "https://aqua.network/pools/CCPQAGAPB6J4WSO4A3SBRROTMYPS4YNBRSNHVNLV4GBPSBL7IOBIQL4Y/";
+  fetch(poolUrl)
+    .then(response => response.text())
+    .then(htmlText => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, "text/html");
+      
+      // Extract the pool share for the specific member using its account identifier.
+      let poolShareText = null;
+      const poolDivs = doc.querySelectorAll("div.sc-hWqaJQ.ueDvH");
+      poolDivs.forEach(div => {
+        const a = div.querySelector("a[href*='GDGEWZMI']");
+        if(a) {
+          // Assume the relevant span is the one without a class (or the last span in the div)
+          const spans = div.querySelectorAll("span");
+          if (spans.length > 0) {
+            // The first token of the text should be the pool share number (e.g. "48,000,000")
+            poolShareText = spans[spans.length - 1].textContent.split(" ")[0];
+          }
+        }
+      });
+      if(!poolShareText) {
+        console.error("Pool share number not found");
+        return;
+      }
+      const poolShare = parseFloat(poolShareText.replace(/,/g, ""));
+      
+      // Extract Total Share.
+      let totalShareText = null;
+      const totalShareDiv = Array.from(doc.querySelectorAll("div.sc-buUSia.ctcgZI")).find(div => div.textContent.includes("Total share:"));
+      if(totalShareDiv) {
+        const spans = totalShareDiv.querySelectorAll("span");
+        if(spans.length >= 2) {
+          totalShareText = spans[1].textContent;
+        }
+      }
+      if(!totalShareText) {
+        console.error("Total share not found");
+        return;
+      }
+      const totalShare = parseFloat(totalShareText.replace(/,/g, ""));
+      
+      // Extract Total AQUA.
+      let totalAquaText = null;
+      const totalAquaDiv = Array.from(doc.querySelectorAll("div.sc-buUSia.ctcgZI")).find(div => div.textContent.includes("Total AQUA:"));
+      if(totalAquaDiv) {
+        const spans = totalAquaDiv.querySelectorAll("span");
+        if(spans.length >= 2) {
+          totalAquaText = spans[1].textContent.split(" ")[0];
+        }
+      }
+      if(!totalAquaText) {
+        console.error("Total AQUA not found");
+        return;
+      }
+      const totalAqua = parseFloat(totalAquaText.replace(/,/g, ""));
+      
+      // Extract Total AQUAm25.
+      let totalAquaM25Text = null;
+      const totalAquaM25Div = Array.from(doc.querySelectorAll("div.sc-buUSia.ctcgZI")).find(div => div.textContent.includes("Total AQUAm25:"));
+      if(totalAquaM25Div) {
+        const spans = totalAquaM25Div.querySelectorAll("span");
+        if(spans.length >= 2) {
+          totalAquaM25Text = spans[1].textContent.split(" ")[0];
+        }
+      }
+      if(!totalAquaM25Text) {
+        console.error("Total AQUAm25 not found");
+        return;
+      }
+      const totalAquaM25 = parseFloat(totalAquaM25Text.replace(/,/g, ""));
+      
+      // Calculate pool share ratio.
+      const ratio = poolShare / totalShare;
+      
+      // Compute portions.
+      const aquaPortion = totalAqua * ratio;
+      const aquaM25Portion = totalAquaM25 * ratio;
+      
+      // Total Liquid AQUA Reserve.
+      const liquidAquaReserve = aquaPortion + aquaM25Portion;
+      
+      const formattedLiquidAquaReserve = "♒︎ " + liquidAquaReserve.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      
+      // Update the AQUA Liquid Reserve element in the AQUA Stats section.
+      const aquaLiquidReserveElem = document.querySelector("#aqua-stats .table > div:nth-child(1) .count");
+      if(aquaLiquidReserveElem) {
+        aquaLiquidReserveElem.textContent = formattedLiquidAquaReserve;
+        console.log("Updated AQUA Liquid Reserve:", formattedLiquidAquaReserve);
+      } else {
+        console.error("AQUA Liquid Reserve element not found");
+      }
+      
+    })
+    .catch(error => {
+      console.error("Error fetching pool data:", error);
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function() {
   // Update GBPC Stats
   updateAssetStats(
@@ -310,4 +431,7 @@ document.addEventListener("DOMContentLoaded", function() {
   
   // Update Liquid AQUA USD Value in AQUA Stats Section.
   updateLiquidAquaUSDValue();
+  
+  // Update AQUA Liquid Reserve using pool share calculations.
+  updateLiquidAquaReserve();
 });
