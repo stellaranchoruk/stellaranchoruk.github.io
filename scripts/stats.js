@@ -71,7 +71,7 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                 // Use different prefixes for reserves based on asset.
                 let formattedReserves;
                 if (assetCode === "AQUAm25") {
-                  formattedReserves = "AQUA " + reserves.toLocaleString(undefined, {
+                  formattedReserves = "♒︎ " + reserves.toLocaleString(undefined, {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0
                   });
@@ -90,7 +90,7 @@ function updateAssetStats(assetCode, assetIssuer, selectors, offerEndpoint, symb
                 
                 let formattedNetReserves;
                 if (assetCode === "AQUAm25") {
-                  formattedNetReserves = "AQUA " + netReserves.toLocaleString(undefined, {
+                  formattedNetReserves = "♒︎ " + netReserves.toLocaleString(undefined, {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0
                   });
