@@ -199,7 +199,7 @@ function updateLiquidAquaUSDValue() {
           });
           
           // Update the "Liquid AQUA USD Value" element.
-          const liquidAquaValueElem = document.querySelector("#aqua-stats .table > div:nth-child(2) .count");
+          const liquidAquaValueElem = document.querySelector("#additional-aqua-reserves .table > div:nth-child(2) .count");
           if (liquidAquaValueElem) {
             liquidAquaValueElem.textContent = formattedUSDValue;
             console.log("Updated Liquid AQUA USD Value:", formattedUSDValue);
