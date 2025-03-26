@@ -181,7 +181,7 @@ function updateLiquidAquaUSDValue() {
         console.log("Current AQUA price (midpoint):", currentPrice);
         
         // Retrieve the AQUA Liquid Reserve value.
-        const liquidReserveElem = document.querySelector("#aqua-stats .table > div:nth-child(1) .count");
+        const liquidReserveElem = document.querySelector("#additional-aqua-reserves .table > div:nth-child(1) .count");
         if (liquidReserveElem) {
           // Remove the "♒︎" symbol, commas, and spaces.
           let liquidReserveText = liquidReserveElem.textContent.replace(/♒︎|\s|,/g, "");
@@ -224,12 +224,12 @@ document.addEventListener("DOMContentLoaded", function() {
     "GBPC",
     "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
     {
-      exchangeRateSelector: "#gbpc-stats .table > div:nth-child(1) .count",
-      circulatingSelector: "#gbpc-stats .table > div:nth-child(2) .count",
-      usdReservesSelector: "#gbpc-stats .table > div:nth-child(3) .count",
-      buybackSelector: "#gbpc-stats .table > div:nth-child(4) .count",
-      usdPlusMinusSelector: "#gbpc-stats .table > div:nth-child(5) .count",
-      collateralRatioSelector: "#gbpc-stats .table > div:nth-child(6) .count"
+      exchangeRateSelector: "#gbpc-reserves .table > div:nth-child(1) .count",
+      circulatingSelector: "#gbpc-reserves .table > div:nth-child(2) .count",
+      usdReservesSelector: "#gbpc-reserves .table > div:nth-child(3) .count",
+      buybackSelector: "#gbpc-reserves .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#gbpc-reserves .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#gbpc-reserves .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1679115430", // GBPC offer endpoint
     "£",
@@ -241,12 +241,12 @@ document.addEventListener("DOMContentLoaded", function() {
     "EURC",
     "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC",
     {
-      exchangeRateSelector: "#eurc-stats .table > div:nth-child(1) .count",
-      circulatingSelector: "#eurc-stats .table > div:nth-child(2) .count",
-      usdReservesSelector: "#eurc-stats .table > div:nth-child(3) .count",
-      buybackSelector: "#eurc-stats .table > div:nth-child(4) .count",
-      usdPlusMinusSelector: "#eurc-stats .table > div:nth-child(5) .count",
-      collateralRatioSelector: "#eurc-stats .table > div:nth-child(6) .count"
+      exchangeRateSelector: "#eurc-reserves .table > div:nth-child(1) .count",
+      circulatingSelector: "#eurc-reserves .table > div:nth-child(2) .count",
+      usdReservesSelector: "#eurc-reserves .table > div:nth-child(3) .count",
+      buybackSelector: "#eurc-reserves .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#eurc-reserves .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#eurc-reserves .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1679202929", // EURC offer endpoint
     "€",
@@ -258,12 +258,12 @@ document.addEventListener("DOMContentLoaded", function() {
     "KRWC",
     "GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC",
     {
-      exchangeRateSelector: "#krwc-stats .table > div:nth-child(1) .count",
-      circulatingSelector: "#krwc-stats .table > div:nth-child(2) .count",
-      usdReservesSelector: "#krwc-stats .table > div:nth-child(3) .count",
-      buybackSelector: "#krwc-stats .table > div:nth-child(4) .count",
-      usdPlusMinusSelector: "#krwc-stats .table > div:nth-child(5) .count",
-      collateralRatioSelector: "#krwc-stats .table > div:nth-child(6) .count"
+      exchangeRateSelector: "#krwc-reserves .table > div:nth-child(1) .count",
+      circulatingSelector: "#krwc-reserves .table > div:nth-child(2) .count",
+      usdReservesSelector: "#krwc-reserves .table > div:nth-child(3) .count",
+      buybackSelector: "#krwc-reserves .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#krwc-reserves .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#krwc-reserves .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1679204939", // KRWC offer endpoint
     "₩",
@@ -275,12 +275,12 @@ document.addEventListener("DOMContentLoaded", function() {
     "USDC",
     "GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC",
     {
-      exchangeRateSelector: "#usdc-stats .table > div:nth-child(1) .count",
-      circulatingSelector: "#usdc-stats .table > div:nth-child(2) .count",
-      usdReservesSelector: "#usdc-stats .table > div:nth-child(3) .count",
-      buybackSelector: "#usdc-stats .table > div:nth-child(4) .count",
-      usdPlusMinusSelector: "#usdc-stats .table > div:nth-child(5) .count",
-      collateralRatioSelector: "#usdc-stats .table > div:nth-child(6) .count"
+      exchangeRateSelector: "#usdc-reserves .table > div:nth-child(1) .count",
+      circulatingSelector: "#usdc-reserves .table > div:nth-child(2) .count",
+      usdReservesSelector: "#usdc-reserves .table > div:nth-child(3) .count",
+      buybackSelector: "#usdc-reserves .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#usdc-reserves .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#usdc-reserves .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1688920720", // USDC offer endpoint
     "$",
@@ -292,12 +292,12 @@ document.addEventListener("DOMContentLoaded", function() {
     "AQUAm25",
     "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
     {
-      exchangeRateSelector: "#aquam25-stats .table > div:nth-child(1) .count",
-      circulatingSelector: "#aquam25-stats .table > div:nth-child(2) .count",
-      usdReservesSelector: "#aquam25-stats .table > div:nth-child(3) .count",
-      buybackSelector: "#aquam25-stats .table > div:nth-child(4) .count",
-      usdPlusMinusSelector: "#aquam25-stats .table > div:nth-child(5) .count",
-      collateralRatioSelector: "#aquam25-stats .table > div:nth-child(6) .count"
+      exchangeRateSelector: "#aquam25-reserves .table > div:nth-child(1) .count",
+      circulatingSelector: "#aquam25-reserves .table > div:nth-child(2) .count",
+      usdReservesSelector: "#aquam25-reserves .table > div:nth-child(3) .count",
+      buybackSelector: "#aquam25-reserves .table > div:nth-child(4) .count",
+      usdPlusMinusSelector: "#aquam25-reserves .table > div:nth-child(5) .count",
+      collateralRatioSelector: "#aquam25-reserves .table > div:nth-child(6) .count"
     },
     "https://horizon.stellar.org/offers/1700570904", // AQUAm25 offer endpoint
     "♒︎ ",
