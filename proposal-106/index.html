@@ -51,13 +51,11 @@
     const wrapperEl = document.getElementById('tableWrapper');
     const totalEl = document.getElementById('totalVotes');
 
-    // Animate loading dots
     const dotInterval = setInterval(() => {
       dotCount = (dotCount + 1) % 4;
       dotsEl.textContent = '.'.repeat(dotCount);
     }, 500);
 
-    // Fetch all market vote snapshots with pagination
     async function fetchAllMarkets() {
       let results = [];
       let url = API_BASE;
@@ -70,7 +68,6 @@
       return results;
     }
 
-    // Fetch trustlines of a market key to determine asset pairs
     async function fetchTrustlines(key) {
       try {
         const res = await fetch(HORIZON_BASE + key);
@@ -87,7 +84,6 @@
       }
     }
 
-    // Calculate static boost multiplier
     function calcStatic(assets) {
       let boost = 1;
       if (assets.includes('AQUA')) boost += 0.5;
@@ -96,12 +92,10 @@
       return boost;
     }
 
-    // Exponential dampening curve
     function calcDynamic(bribe, maxBoost) {
       return 1 + maxBoost * Math.exp(-bribe / (R_MARKET_CAP / 5));
     }
 
-    // Build table row for each market
     function createRow(item) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -110,7 +104,7 @@
         <td>${item.staticAdj.toFixed(2)}</td>
         <td><input type="number" value="0" min="0" /></td>
         <td>${item.staticBoost.toFixed(2)}</td>
-        <td>${item.originalVotes.toFixed(2)}</td>
+        <td>${item.staticAdj.toFixed(2)}</td>
         <td>0%</td>`;
       const input = tr.querySelector('input');
       const dynCell = tr.cells[4];
@@ -126,7 +120,6 @@
             : item.staticBoost;
           damp = item.originalVotes * dyn;
         } else {
-          // Negative votes: no boost, show original
           dyn = item.staticBoost;
           damp = item.originalVotes;
         }
@@ -138,24 +131,20 @@
       return tr;
     }
 
-    // Update vote share and total, summing raw dampened values for total
     function updateShares() {
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
       const rawDamp = rows.map(r => parseFloat(r.cells[5].textContent));
-      // For share, only positives qualify
       const positives = rawDamp.map(v => (v > 0 ? v : 0));
       const totalPositive = positives.reduce((sum, v) => sum + v, 0) || 0;
       rows.forEach((r, i) => {
         const share = positives[i] > 0 ? ((positives[i] / totalPositive) * 100).toFixed(2) + '%' : '0%';
         r.cells[6].textContent = share;
       });
-      // Total sum of dampened values, including negatives
       const totalRaw = rawDamp.reduce((sum, v) => sum + v, 0);
       totalEl.textContent = `Total Votes: ${totalRaw.toFixed(2)}`;
       totalEl.style.display = 'block';
     }
 
-    // Initialize the table
     async function init() {
       const markets = await fetchAllMarkets();
       const assetsArr = await Promise.all(markets.map(m => fetchTrustlines(m.market_key)));
