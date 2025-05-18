@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Aquarius Vote Booster Simulator</title>
   <style>
-    table { border-collapse: collapse; width: 100%; }
+    body { font-family: sans-serif; }
+    #loading { font-size: 1.2em; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     th { background-color: #f2f2f2; }
     input[type="number"] { width: 80px; }
@@ -14,7 +16,8 @@
 <body>
   <h2>Aquarius Vote Booster Simulator</h2>
   <p>Enter bribes in the column below to see the effect on boosts and vote shares.</p>
-  <table id="votesTable">
+  <div id="loading">Loading data<span id="dots"></span></div>
+  <table id="votesTable" style="display:none;">
     <thead>
       <tr>
         <th>Market</th>
@@ -32,6 +35,16 @@
     const API_BASE = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
     const HORIZON_BASE = 'https://horizon.stellar.org/accounts/';
     const R_MARKET_CAP = 700000;
+    let dotCount = 0;
+    const dotsEl = document.getElementById('dots');
+    const loadingEl = document.getElementById('loading');
+    const tableEl = document.getElementById('votesTable');
+
+    // Animate loading ellipsis
+    const dotInterval = setInterval(() => {
+      dotCount = (dotCount + 1) % 4;
+      dotsEl.textContent = '.'.repeat(dotCount);
+    }, 500);
 
     async function fetchAllMarkets() {
       let results = [];
@@ -51,21 +64,15 @@
         const data = await res.json();
         const balances = data.balances;
         const hasNative = balances.some(b => b.asset_type === 'native');
-        const nonNative = balances
-          .filter(b => b.asset_type !== 'native')
-          .map(b => b.asset_code);
-        // Determine market assets
+        const nonNative = balances.filter(b => b.asset_type !== 'native').map(b => b.asset_code);
         let assets = [];
         if (nonNative.length >= 2) {
           assets = nonNative;
         } else if (nonNative.length === 1 && hasNative) {
           assets = [nonNative[0], 'XLM'];
-        } else if (nonNative.length === 2 && !hasNative) {
-          assets = nonNative;
         } else if (hasNative && nonNative.length === 0) {
           assets = ['XLM'];
         } else {
-          // fallback: list all codes
           assets = nonNative.concat(hasNative ? ['XLM'] : []);
         }
         return assets;
@@ -78,7 +85,8 @@
     function calculateStaticBoost(assets) {
       let boost = 1;
       if (assets.includes('AQUA')) boost += 0.5;
-      if (assets.includes('XLM') || assets.includes('USDC')) boost += 0.3 * (assets.includes('XLM') + assets.includes('USDC'));
+      if (assets.includes('XLM')) boost += 0.3;
+      if (assets.includes('USDC')) boost += 0.3;
       return boost;
     }
 
@@ -127,17 +135,25 @@
 
     async function init() {
       const markets = await fetchAllMarkets();
+      // Parallel fetch of trustlines
+      const assetsArray = await Promise.all(markets.map(m => fetchTrustlines(m.market_key)));
       const tbody = document.querySelector('#votesTable tbody');
-      for (let m of markets) {
-        const assets = await fetchTrustlines(m.market_key);
+      const fragment = document.createDocumentFragment();
+      markets.forEach((m, i) => {
+        const assets = assetsArray[i];
         const marketName = assets.join(' / ');
         const votes = parseFloat(m.votes_value);
         const staticBoost = calculateStaticBoost(assets);
         const staticBoostedVotes = votes * staticBoost;
         const item = { market: marketName, votes, staticBoost, staticBoostedVotes };
-        tbody.appendChild(createRow(item));
-      }
+        fragment.appendChild(createRow(item));
+      });
+      tbody.appendChild(fragment);
       updateShares();
+      // Hide loading, show table
+      clearInterval(dotInterval);
+      loadingEl.style.display = 'none';
+      tableEl.style.display = '';
     }
 
     init();
