@@ -104,16 +104,15 @@
     // Build table row for each market
     function createRow(item) {
       const tr = document.createElement('tr');
-      // Determine initial dampened display: show staticAdj if votes positive, else show originalVotes
       const initialDamp = item.originalVotes > 0 ? item.staticAdj : item.originalVotes;
       tr.innerHTML = `
         <td>${item.market}</td>
         <td>${item.originalVotes.toFixed(2)}</td>
         <td>${item.staticAdj.toFixed(2)}</td>
         <td><input type="number" value="0" min="0" /></td>
-        <td>${item.staticBoost.toFixed(2)}</td>
+        <td>${item.staticBoost.toFixed(5)}</td>
         <td>${initialDamp.toFixed(2)}</td>
-        <td>0%</td>`;
+        <td>0.00000%</td>`;
       const input = tr.querySelector('input');
       const dynCell = tr.cells[4];
       const dampCell = tr.cells[5];
@@ -131,7 +130,7 @@
           dyn = item.staticBoost;
           damp = item.originalVotes;
         }
-        dynCell.textContent = dyn.toFixed(2);
+        dynCell.textContent = dyn.toFixed(5);
         dampCell.textContent = damp.toFixed(2);
         updateShares();
       });
@@ -146,7 +145,7 @@
       const positives = rawDamp.map(v => (v > 0 ? v : 0));
       const totalPositive = positives.reduce((sum, v) => sum + v, 0) || 0;
       rows.forEach((r, i) => {
-        const share = positives[i] > 0 ? ((positives[i] / totalPositive) * 100).toFixed(2) + '%' : '0%';
+        const share = positives[i] > 0 ? ((positives[i] / totalPositive) * 100).toFixed(5) + '%' : '0.00000%';
         r.cells[6].textContent = share;
       });
       const totalRaw = rawDamp.reduce((sum, v) => sum + v, 0);
