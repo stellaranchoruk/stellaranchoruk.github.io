@@ -126,16 +126,18 @@
 
     function updateShares() {
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
-      const values = rows.map(r => parseFloat(r.cells[5].textContent));
-      const total = values.reduce((sum, v) => sum + v, 0) || 1;
+      // Gather dampened values, ignore negatives
+      const dampenedValues = rows.map(r => parseFloat(r.cells[5].textContent))
+                                  .map(v => v > 0 ? v : 0);
+      const total = dampenedValues.reduce((sum, v) => sum + v, 0) || 1;
       rows.forEach((r, i) => {
-        r.cells[6].textContent = ((values[i] / total) * 100).toFixed(2) + '%';
+        const val = dampenedValues[i];
+        r.cells[6].textContent = val > 0 ? ((val / total) * 100).toFixed(2) + '%' : '0%';
       });
     }
 
     async function init() {
       const markets = await fetchAllMarkets();
-      // Parallel fetch of trustlines
       const assetsArray = await Promise.all(markets.map(m => fetchTrustlines(m.market_key)));
       const tbody = document.querySelector('#votesTable tbody');
       const fragment = document.createDocumentFragment();
