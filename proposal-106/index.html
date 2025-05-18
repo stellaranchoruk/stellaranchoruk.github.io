@@ -138,17 +138,20 @@
       return tr;
     }
 
-    // Update vote share and total, ignoring negatives for share & total
+    // Update vote share and total, summing raw dampened values for total
     function updateShares() {
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
       const rawDamp = rows.map(r => parseFloat(r.cells[5].textContent));
+      // For share, only positives qualify
       const positives = rawDamp.map(v => (v > 0 ? v : 0));
-      const total = positives.reduce((sum, v) => sum + v, 0) || 0;
+      const totalPositive = positives.reduce((sum, v) => sum + v, 0) || 0;
       rows.forEach((r, i) => {
-        const share = positives[i] > 0 ? ((positives[i] / total) * 100).toFixed(2) + '%' : '0%';
+        const share = positives[i] > 0 ? ((positives[i] / totalPositive) * 100).toFixed(2) + '%' : '0%';
         r.cells[6].textContent = share;
       });
-      totalEl.textContent = `Total Votes: ${total.toFixed(2)}`;
+      // Total sum of dampened values, including negatives
+      const totalRaw = rawDamp.reduce((sum, v) => sum + v, 0);
+      totalEl.textContent = `Total Votes: ${totalRaw.toFixed(2)}`;
       totalEl.style.display = 'block';
     }
 
