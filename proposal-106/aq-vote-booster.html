@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aquarius Vote Booster Simulator</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    input[type="number"] { width: 80px; }
+  </style>
+</head>
+<body>
+  <h2>Aquarius Vote Booster Simulator</h2>
+  <p>Enter bribes in the column below to see the effect on boosts and vote shares.</p>
+  <table id="votesTable">
+    <thead>
+      <tr>
+        <th>Market</th>
+        <th>Votes</th>
+        <th>Static Adj Votes</th>
+        <th>Bribes</th>
+        <th>Dynamic Boost</th>
+        <th>Dampened Adj Votes</th>
+        <th>Vote Share</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    const API_BASE = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
+    const HORIZON_BASE = 'https://horizon.stellar.org/accounts/';
+    const R_MARKET_CAP = 700000;
+
+    async function fetchAllMarkets() {
+      let results = [];
+      let url = API_BASE;
+      while (url) {
+        const res = await fetch(url);
+        const data = await res.json();
+        results = results.concat(data.results);
+        url = data.next;
+      }
+      return results;
+    }
+
+    async function fetchTrustlines(marketKey) {
+      const res = await fetch(HORIZON_BASE + marketKey);
+      const data = await res.json();
+      const nonNative = data.balances.filter(b => b.asset_type !== 'native');
+      return nonNative.map(b => b.asset_code);
+    }
+
+    function calculateStaticBoost(assets) {
+      let boost = 1;
+      if (assets.includes('AQUA')) boost += 0.5;
+      if (assets.includes('XLM')) boost += 0.3;
+      if (assets.includes('USDC')) boost += 0.3;
+      return boost;
+    }
+
+    function calculateDynamicBoost(bribe, maxBoost) {
+      return 1 + maxBoost * Math.exp(-bribe / (R_MARKET_CAP / 5));
+    }
+
+    function createRow(item) {
+      const tr = document.createElement('tr');
+      const market = document.createElement('td'); market.textContent = item.market;
+      const votes = document.createElement('td'); votes.textContent = item.votes.toFixed(2);
+      const staticAdj = document.createElement('td'); staticAdj.textContent = item.staticBoostedVotes.toFixed(2);
+      const bribeTd = document.createElement('td');
+      const input = document.createElement('input'); input.type = 'number'; input.value = 0; input.min = 0;
+      bribeTd.appendChild(input);
+      const dynBoostTd = document.createElement('td'); dynBoostTd.textContent = item.staticBoost.toFixed(2);
+      const dampenedTd = document.createElement('td'); dampenedTd.textContent = item.staticBoostedVotes.toFixed(2);
+      const shareTd = document.createElement('td'); shareTd.textContent = '0%';
+      tr.append(market, votes, staticAdj, bribeTd, dynBoostTd, dampenedTd, shareTd);
+
+      input.addEventListener('input', () => {
+        const bribe = parseFloat(input.value) || 0;
+        let dynBoost;
+        if (item.staticBoost === 1.3 || item.staticBoost === 1.5) {
+          const maxBoost = item.staticBoost - 1;
+          dynBoost = calculateDynamicBoost(bribe, maxBoost);
+        } else {
+          dynBoost = item.staticBoost;
+        }
+        dynBoostTd.textContent = dynBoost.toFixed(2);
+        const dampenedVotes = item.votes * dynBoost;
+        dampenedTd.textContent = dampenedVotes.toFixed(2);
+        updateShares();
+      });
+
+      return tr;
+    }
+
+    function updateShares() {
+      const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
+      const dampenedVotesArr = rows.map(row => parseFloat(row.cells[5].textContent));
+      const total = dampenedVotesArr.reduce((a, b) => a + b, 0);
+      rows.forEach((row, i) => {
+        const share = (dampenedVotesArr[i] / total) * 100;
+        row.cells[6].textContent = share.toFixed(2) + '%';
+      });
+    }
+
+    async function init() {
+      const markets = await fetchAllMarkets();
+      const items = [];
+      for (let m of markets) {
+        const assets = await fetchTrustlines(m.market_key);
+        const marketName = assets.length > 1 ? assets.join(' / ') : assets[0] + ' / XLM';
+        const votes = parseFloat(m.votes_value);
+        const staticBoost = calculateStaticBoost(assets.length ? assets : ['XLM']);
+        const staticBoostedVotes = votes * staticBoost;
+        items.push({ market: marketName, votes, staticBoost, staticBoostedVotes });
+      }
+      const tbody = document.querySelector('#votesTable tbody');
+      items.forEach(item => tbody.appendChild(createRow(item)));
+      updateShares();
+    }
+
+    init();
+  </script>
+</body>
+</html>
