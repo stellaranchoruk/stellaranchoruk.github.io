@@ -24,7 +24,7 @@
   <h2>Aquarius Vote Booster Simulator</h2>
   <p>Enter bribes in the column below to see the effect on boosts and vote shares.</p>
   <div id="loading">Loading data<span id="dots"></span></div>
-  <div class="table-container" style="display:none;" id="tableWrapper">
+  <div class="table-container" id="tableWrapper" style="display:none;">
     <table id="votesTable">
       <thead>
         <tr>
@@ -40,7 +40,6 @@
       <tbody></tbody>
     </table>
   </div>
-  <!-- Total dampened votes display -->
   <div id="totalVotes" style="display:none;">Total Votes: 0</div>
   <script>
     const API_BASE = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
@@ -52,13 +51,13 @@
     const wrapperEl = document.getElementById('tableWrapper');
     const totalEl = document.getElementById('totalVotes');
 
-    // Loading dots animation
+    // Animate loading dots
     const dotInterval = setInterval(() => {
       dotCount = (dotCount + 1) % 4;
       dotsEl.textContent = '.'.repeat(dotCount);
     }, 500);
 
-    // Fetch all market vote snapshots with pagination
+    // Fetch all markets with pagination
     async function fetchAllMarkets() {
       let results = [];
       let url = API_BASE;
@@ -71,7 +70,7 @@
       return results;
     }
 
-    // Fetch trustlines of a market key to determine asset pairs
+    // Determine asset pairs from trustlines
     async function fetchTrustlines(key) {
       try {
         const res = await fetch(HORIZON_BASE + key);
@@ -83,13 +82,12 @@
         if (nonNative.length === 1 && hasNative) return [nonNative[0], 'XLM'];
         if (hasNative && nonNative.length === 0) return ['XLM'];
         return nonNative.concat(hasNative ? ['XLM'] : []);
-      } catch (err) {
-        console.error(`Error loading trustlines for ${key}:`, err);
+      } catch {
         return ['XLM'];
       }
     }
 
-    // Calculate static boost multiplier
+    // Static boost calculation
     function calcStatic(assets) {
       let boost = 1;
       if (assets.includes('AQUA')) boost += 0.5;
@@ -98,12 +96,12 @@
       return boost;
     }
 
-    // Exponential dampening curve
+    // Exponential dampening
     function calcDynamic(bribe, maxBoost) {
       return 1 + maxBoost * Math.exp(-bribe / (R_MARKET_CAP / 5));
     }
 
-    // Build table row for each market
+    // Create a table row for a market
     function createRow(item) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -117,44 +115,48 @@
       const input = tr.querySelector('input');
       const dynCell = tr.cells[4];
       const dampCell = tr.cells[5];
+
       input.addEventListener('input', () => {
         const bribe = parseFloat(input.value) || 0;
         let dyn = item.staticBoost;
-        if (item.staticBoost === 1.3 || item.staticBoost === 1.5) dyn = calcDynamic(bribe, item.staticBoost - 1);
+        if ((item.staticBoost === 1.3 || item.staticBoost === 1.5) && item.baseVotes > 0) {
+          dyn = calcDynamic(bribe, item.staticBoost - 1);
+        }
         dynCell.textContent = dyn.toFixed(2);
-        const damp = item.votes * dyn;
+        const damp = item.baseVotes * dyn;
         dampCell.textContent = damp.toFixed(2);
         updateShares();
       });
+
       return tr;
     }
 
-    // Update vote share using absolute values and display total
+    // Update shares and total, ignoring negative votes
     function updateShares() {
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
-      const rawValues = rows.map(r => parseFloat(r.cells[5].textContent));
-      const absValues = rawValues.map(v => Math.abs(v));
-      const total = absValues.reduce((sum, v) => sum + v, 0) || 0;
+      const values = rows.map(r => parseFloat(r.cells[5].textContent));
+      const positive = values.map(v => (v > 0 ? v : 0));
+      const total = positive.reduce((sum, v) => sum + v, 0) || 0;
       rows.forEach((r, i) => {
-        const share = ((absValues[i] / total) * 100).toFixed(2) + '%';
+        const share = positive[i] > 0 ? ((positive[i] / total) * 100).toFixed(2) + '%' : '0%';
         r.cells[6].textContent = share;
       });
       totalEl.textContent = `Total Votes: ${total.toFixed(2)}`;
       totalEl.style.display = 'block';
     }
 
-    // Initialize table
+    // Initialize the table
     async function init() {
       const markets = await fetchAllMarkets();
-      const assetsArray = await Promise.all(markets.map(m => fetchTrustlines(m.market_key)));
+      const assetsArr = await Promise.all(markets.map(m => fetchTrustlines(m.market_key)));
       const fragment = document.createDocumentFragment();
       markets.forEach((m, i) => {
-        const assets = assetsArray[i];
-        const marketName = assets.join(' / ');
+        const market = assetsArr[i].join(' / ');
         const votes = parseFloat(m.votes_value);
-        const staticBoost = calcStatic(assets);
-        const staticAdj = votes * staticBoost;
-        fragment.appendChild(createRow({ market: marketName, votes, staticBoost, staticAdj }));
+        const baseVotes = votes > 0 ? votes : 0;
+        const staticBoost = calcStatic(assetsArr[i]);
+        const staticAdj = baseVotes * staticBoost;
+        fragment.appendChild(createRow({ market, votes, baseVotes, staticBoost, staticAdj }));
       });
       document.querySelector('#votesTable tbody').appendChild(fragment);
       updateShares();
