@@ -12,6 +12,7 @@
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     th { background-color: #f2f2f2; }
     input[type="number"] { width: 80px; }
+    #totalVotes { margin-top: 20px; font-weight: bold; }
     @media (max-width: 600px) {
       th, td { padding: 6px; font-size: 0.9em; }
       input[type="number"] { width: 60px; }
@@ -39,6 +40,8 @@
       <tbody></tbody>
     </table>
   </div>
+  <!-- Total dampened votes display -->
+  <div id="totalVotes" style="display:none;">Total Votes: 0</div>
   <script>
     const API_BASE = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
     const HORIZON_BASE = 'https://horizon.stellar.org/accounts/';
@@ -47,6 +50,7 @@
     const dotsEl = document.getElementById('dots');
     const loadingEl = document.getElementById('loading');
     const wrapperEl = document.getElementById('tableWrapper');
+    const totalEl = document.getElementById('totalVotes');
 
     // Loading dots animation
     const dotInterval = setInterval(() => {
@@ -74,9 +78,7 @@
         const data = await res.json();
         const balances = data.balances;
         const hasNative = balances.some(b => b.asset_type === 'native');
-        const nonNative = balances
-          .filter(b => b.asset_type !== 'native')
-          .map(b => b.asset_code);
+        const nonNative = balances.filter(b => b.asset_type !== 'native').map(b => b.asset_code);
         if (nonNative.length >= 2) return nonNative;
         if (nonNative.length === 1 && hasNative) return [nonNative[0], 'XLM'];
         if (hasNative && nonNative.length === 0) return ['XLM'];
@@ -118,9 +120,7 @@
       input.addEventListener('input', () => {
         const bribe = parseFloat(input.value) || 0;
         let dyn = item.staticBoost;
-        if (item.staticBoost === 1.3 || item.staticBoost === 1.5) {
-          dyn = calcDynamic(bribe, item.staticBoost - 1);
-        }
+        if (item.staticBoost === 1.3 || item.staticBoost === 1.5) dyn = calcDynamic(bribe, item.staticBoost - 1);
         dynCell.textContent = dyn.toFixed(2);
         const damp = item.votes * dyn;
         dampCell.textContent = damp.toFixed(2);
@@ -129,24 +129,24 @@
       return tr;
     }
 
-    // Update vote share using absolute values for dampened votes
+    // Update vote share using absolute values and display total
     function updateShares() {
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
       const rawValues = rows.map(r => parseFloat(r.cells[5].textContent));
       const absValues = rawValues.map(v => Math.abs(v));
-      const total = absValues.reduce((sum, v) => sum + v, 0) || 1;
+      const total = absValues.reduce((sum, v) => sum + v, 0) || 0;
       rows.forEach((r, i) => {
         const share = ((absValues[i] / total) * 100).toFixed(2) + '%';
         r.cells[6].textContent = share;
       });
+      totalEl.textContent = `Total Votes: ${total.toFixed(2)}`;
+      totalEl.style.display = 'block';
     }
 
     // Initialize table
     async function init() {
       const markets = await fetchAllMarkets();
-      const assetsArray = await Promise.all(
-        markets.map(m => fetchTrustlines(m.market_key))
-      );
+      const assetsArray = await Promise.all(markets.map(m => fetchTrustlines(m.market_key)));
       const fragment = document.createDocumentFragment();
       markets.forEach((m, i) => {
         const assets = assetsArray[i];
@@ -154,9 +154,7 @@
         const votes = parseFloat(m.votes_value);
         const staticBoost = calcStatic(assets);
         const staticAdj = votes * staticBoost;
-        fragment.appendChild(
-          createRow({ market: marketName, votes, staticBoost, staticAdj })
-        );
+        fragment.appendChild(createRow({ market: marketName, votes, staticBoost, staticAdj }));
       });
       document.querySelector('#votesTable tbody').appendChild(fragment);
       updateShares();
