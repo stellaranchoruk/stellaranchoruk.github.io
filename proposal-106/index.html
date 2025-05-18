@@ -57,7 +57,7 @@
       dotsEl.textContent = '.'.repeat(dotCount);
     }, 500);
 
-    // Fetch all markets with pagination
+    // Fetch all market vote snapshots with pagination
     async function fetchAllMarkets() {
       let results = [];
       let url = API_BASE;
@@ -70,7 +70,7 @@
       return results;
     }
 
-    // Determine asset pairs from trustlines
+    // Fetch trustlines of a market key to determine asset pairs
     async function fetchTrustlines(key) {
       try {
         const res = await fetch(HORIZON_BASE + key);
@@ -87,7 +87,7 @@
       }
     }
 
-    // Static boost calculation
+    // Calculate static boost multiplier
     function calcStatic(assets) {
       let boost = 1;
       if (assets.includes('AQUA')) boost += 0.5;
@@ -96,34 +96,41 @@
       return boost;
     }
 
-    // Exponential dampening
+    // Exponential dampening curve
     function calcDynamic(bribe, maxBoost) {
       return 1 + maxBoost * Math.exp(-bribe / (R_MARKET_CAP / 5));
     }
 
-    // Create a table row for a market
+    // Build table row for each market
     function createRow(item) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${item.market}</td>
-        <td>${item.votes.toFixed(2)}</td>
+        <td>${item.originalVotes.toFixed(2)}</td>
         <td>${item.staticAdj.toFixed(2)}</td>
         <td><input type="number" value="0" min="0" /></td>
         <td>${item.staticBoost.toFixed(2)}</td>
-        <td>${item.staticAdj.toFixed(2)}</td>
+        <td>${item.originalVotes.toFixed(2)}</td>
         <td>0%</td>`;
       const input = tr.querySelector('input');
       const dynCell = tr.cells[4];
       const dampCell = tr.cells[5];
 
       input.addEventListener('input', () => {
-        const bribe = parseFloat(input.value) || 0;
         let dyn = item.staticBoost;
-        if ((item.staticBoost === 1.3 || item.staticBoost === 1.5) && item.baseVotes > 0) {
-          dyn = calcDynamic(bribe, item.staticBoost - 1);
+        let damp;
+        if (item.originalVotes > 0) {
+          const bribe = parseFloat(input.value) || 0;
+          dyn = (item.staticBoost === 1.3 || item.staticBoost === 1.5)
+            ? calcDynamic(bribe, item.staticBoost - 1)
+            : item.staticBoost;
+          damp = item.originalVotes * dyn;
+        } else {
+          // Negative votes: no boost, show original
+          dyn = item.staticBoost;
+          damp = item.originalVotes;
         }
         dynCell.textContent = dyn.toFixed(2);
-        const damp = item.baseVotes * dyn;
         dampCell.textContent = damp.toFixed(2);
         updateShares();
       });
@@ -131,14 +138,14 @@
       return tr;
     }
 
-    // Update shares and total, ignoring negative votes
+    // Update vote share and total, ignoring negatives for share & total
     function updateShares() {
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
-      const values = rows.map(r => parseFloat(r.cells[5].textContent));
-      const positive = values.map(v => (v > 0 ? v : 0));
-      const total = positive.reduce((sum, v) => sum + v, 0) || 0;
+      const rawDamp = rows.map(r => parseFloat(r.cells[5].textContent));
+      const positives = rawDamp.map(v => (v > 0 ? v : 0));
+      const total = positives.reduce((sum, v) => sum + v, 0) || 0;
       rows.forEach((r, i) => {
-        const share = positive[i] > 0 ? ((positive[i] / total) * 100).toFixed(2) + '%' : '0%';
+        const share = positives[i] > 0 ? ((positives[i] / total) * 100).toFixed(2) + '%' : '0%';
         r.cells[6].textContent = share;
       });
       totalEl.textContent = `Total Votes: ${total.toFixed(2)}`;
@@ -151,12 +158,12 @@
       const assetsArr = await Promise.all(markets.map(m => fetchTrustlines(m.market_key)));
       const fragment = document.createDocumentFragment();
       markets.forEach((m, i) => {
+        const originalVotes = parseFloat(m.votes_value);
         const market = assetsArr[i].join(' / ');
-        const votes = parseFloat(m.votes_value);
-        const baseVotes = votes > 0 ? votes : 0;
         const staticBoost = calcStatic(assetsArr[i]);
+        const baseVotes = originalVotes > 0 ? originalVotes : 0;
         const staticAdj = baseVotes * staticBoost;
-        fragment.appendChild(createRow({ market, votes, baseVotes, staticBoost, staticAdj }));
+        fragment.appendChild(createRow({ market, originalVotes, staticBoost, staticAdj }));
       });
       document.querySelector('#votesTable tbody').appendChild(fragment);
       updateShares();
