@@ -243,89 +243,104 @@
 
     // share & totals
     function updateShares(){
-      const rows=Array.from(document.querySelectorAll('#votesTable tbody tr'));
-      const raw=rows.map(r=>parseNum(r.cells[5].textContent));
-      const pos=raw.map(v=>v>0?v:0);
-      const sumPos=pos.reduce((a,b)=>a+b,0);
-      const downICE=parseNum(document.getElementById('apiDownICE').textContent);
-      const denom=Math.max(0,sumPos-downICE);
-      let quals=[];
-      rows.forEach((r,i)=>{
-        const pct=denom>0?(pos[i]/denom)*100:0;
-        r.cells[6].textContent=pct.toFixed(5)+'%';
-        if(pct>=0.5) quals.push({row:r,pct});
+      const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
+
+      // NEW: compute vote share directly from Dampened Adj Votes column
+      const dampVals  = rows.map(r => parseNum(r.cells[5].textContent));
+      const totalDamp = dampVals.reduce((sum, v) => sum + v, 0);
+      rows.forEach((r, i) => {
+        const pct = totalDamp !== 0
+          ? (dampVals[i] / totalDamp) * 100
+          : 0;
+        r.cells[6].textContent = pct.toFixed(5) + '%';
       });
-      const totQ=quals.reduce((a,q)=>a+q.pct,0)||1;
-      quals.forEach(q=>{
-        q.row.cells[7].textContent=((q.pct/totQ)*100).toFixed(5)+'%';
+
+      // then same Vote Share Adjust & AQUA Rewards logic...
+      let qualifiers = [];
+      rows.forEach(r => {
+        const pct = parseNum(r.cells[6].textContent);
+        if (pct >= 0.5) qualifiers.push({ row: r, pct });
       });
-      let rt=parseNum(document.getElementById('rTotal').value);
-      quals.forEach(q=>{
-        const ap=parseNum(q.row.cells[7].textContent);
-        q.row.cells[8].textContent=fmt((rt*ap)/100,2);
+
+      const totQ = qualifiers.reduce((a, q) => a + q.pct, 0) || 1;
+      qualifiers.forEach(q => {
+        q.row.cells[7].textContent = ((q.pct / totQ) * 100).toFixed(5) + '%';
       });
+
+      let rt = parseNum(document.getElementById('rTotal').value);
+      qualifiers.forEach(q => {
+        const ap = parseNum(q.row.cells[7].textContent);
+        q.row.cells[8].textContent = fmt((rt * ap) / 100, 2);
+      });
+
       // footer totals
-      const sumVotes=rows.map(r=>parseNum(r.cells[1].textContent)).reduce((a,b)=>a+b,0);
-      // now sum ALL dampened values for total (including negatives)
-      const sumDamp=rows.reduce((sum,r)=>sum+parseNum(r.cells[5].textContent),0);
-      const sumSH=rows.reduce((a,r)=>a+parseNum(r.cells[6].textContent),0);
-      const sumAdj=quals.reduce((a,q)=>a+parseNum(q.row.cells[7].textContent),0);
-      const sumR=quals.reduce((a,q)=>a+parseNum(q.row.cells[8].textContent),0);
+      const sumVotes = rows
+        .map(r => parseNum(r.cells[1].textContent))
+        .reduce((a, b) => a + b, 0);
+      const sumStatic = rows
+        .map(r => parseNum(r.cells[2].textContent))
+        .reduce((a, b) => a + b, 0);
+      const sumDamp = dampVals.reduce((a, b) => a + b, 0);
+      const sumShare = rows
+        .reduce((a, r) => a + parseNum(r.cells[6].textContent), 0);
+      const sumAdj = qualifiers
+        .reduce((a, q) => a + parseNum(q.row.cells[7].textContent), 0);
+      const sumR = qualifiers
+        .reduce((a, q) => a + parseNum(q.row.cells[8].textContent), 0);
 
-      document.getElementById('totalVotesFooterVotes').textContent=fmt(sumVotes,2);
-      document.getElementById('totalStaticFooter').textContent=fmt(
-        rows.reduce((s,r)=>s+parseNum(r.cells[2].textContent),0),2);
-      document.getElementById('totalDampFooter').textContent=fmt(sumDamp,2);
-      document.getElementById('totalShareFooter').textContent=sumSH.toFixed(5)+'%';
-      document.getElementById('totalShareAdjustFooter').textContent=sumAdj.toFixed(5)+'%';
-      document.getElementById('totalRewardsFooter').textContent=fmt(sumR,2);
+      document.getElementById('totalVotesFooterVotes').textContent    = fmt(sumVotes, 2);
+      document.getElementById('totalStaticFooter').textContent       = fmt(sumStatic, 2);
+      document.getElementById('totalDampFooter').textContent         = fmt(sumDamp, 2);
+      document.getElementById('totalShareFooter').textContent        = sumShare.toFixed(5) + '%';
+      document.getElementById('totalShareAdjustFooter').textContent  = sumAdj.toFixed(5) + '%';
+      document.getElementById('totalRewardsFooter').textContent      = fmt(sumR, 2);
 
-      totalEl.textContent=`Total Votes: ${fmt(sumVotes,2)}`;
-      totalEl.style.display='block';
+      totalEl.textContent = `Total Votes: ${fmt(sumVotes,2)}`;
+      totalEl.style.display = 'block';
     }
 
-    // API totals fetch
+    // API totals fetch (unchanged)...
     async function fetchApiTotals(){
       let a=0,u=0,d=0, url=API;
       while(url){
-        const js=await(await fetch(url)).json();
+        const js = await (await fetch(url)).json();
         (js.results||[]).forEach(item=>{
           (item.extra?.upvote_assets||[]).forEach(x=>{
             const v=parseNum(x.votes_sum);
-            if(x.asset.startsWith('AQUA:')) a+=v;
-            if(x.asset.startsWith('upvoteICE:')) u+=v;
+            if(x.asset.startsWith('AQUA:'))        a+=v;
+            else if(x.asset.startsWith('upvoteICE:')) u+=v;
           });
           (item.extra?.downvote_assets||[]).forEach(x=>{
             const v=parseNum(x.votes_sum);
             if(x.asset.startsWith('downvoteICE:')) d+=v;
           });
         });
-        url=js.next;
+        url = js.next;
       }
-      document.getElementById('apiAqua').textContent=fmt(a,2);
-      document.getElementById('apiUpICE').textContent=fmt(u,2);
-      document.getElementById('apiDownICE').textContent=fmt(d,2);
-      document.getElementById('apiTotal').textContent=fmt(a+u+d,2);
-      apiBlock.style.display='block';
+      document.getElementById('apiAqua').textContent    = fmt(a,2);
+      document.getElementById('apiUpICE').textContent   = fmt(u,2);
+      document.getElementById('apiDownICE').textContent = fmt(d,2);
+      document.getElementById('apiTotal').textContent   = fmt(a+u+d,2);
+      apiBlock.style.display = 'block';
     }
 
-    // init
     async function init(){
       updateChart();
-      const mkts=await fetchMarkets();
-      const ats=await Promise.all(mkts.map(m=>fetchTrustlines(m.market_key)));
-      const frag=document.createDocumentFragment();
+      const mkts = await fetchMarkets();
+      const ats  = await Promise.all(mkts.map(m=>fetchTrustlines(m.market_key)));
+      const frag = document.createDocumentFragment();
       mkts.forEach((m,i)=>{
-        const o=parseNum(m.votes_value), s=calcStatic(ats[i]);
-        frag.appendChild(createRow({market:ats[i].join(' / '),original:o,staticBoost:s}));
+        const o = parseNum(m.votes_value), s=calcStatic(ats[i]);
+        frag.appendChild(createRow({market: ats[i].join(' / '), original: o, staticBoost: s}));
       });
       document.querySelector('#votesTable tbody').appendChild(frag);
       updateShares();
       clearInterval(intv);
-      loadEl.style.display='none';
-      wrapEl.style.display='block';
+      loadEl.style.display = 'none';
+      wrapEl.style.display = 'block';
       await fetchApiTotals();
     }
+
     init();
   </script>
 </body>
