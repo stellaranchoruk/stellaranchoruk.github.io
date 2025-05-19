@@ -14,7 +14,7 @@
     .control input { padding: 4px; width: 100px; }
     .chart-container { max-width: 600px; margin-top: 20px; }
     .table-container { overflow-x: auto; margin-top: 40px; }
-    table { border-collapse: collapse; width: 100%; min-width: 800px; }
+    table { border-collapse: collapse; width: 100%; min-width: 900px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     th { background-color: #f2f2f2; }
     input[type=number] { width: 80px; }
@@ -78,6 +78,8 @@
           <th>Dynamic Boost</th>
           <th>Dampened Adj Votes</th>
           <th>Vote Share</th>
+          <th>Vote Share Adjust</th>
+          <th>AQUA Rewards</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -90,6 +92,8 @@
           <td></td>
           <td id="totalDampCol">0.00</td>
           <td id="totalShareCol">0.00000%</td>
+          <td id="totalAdjustCol">0.00000%</td>
+          <td id="totalRewardsCol">0.00</td>
         </tr>
       </tfoot>
     </table>
@@ -195,10 +199,15 @@
         <td><input type="number" value="0" min="0"></td>
         <td>${initDyn.toFixed(5)}</td>
         <td>${initDamp.toFixed(2)}</td>
-        <td>0.00000%</td>`;
+        <td>0.00000%</td>
+        <td>0.00000%</td>
+        <td>0.00</td>`;
       const inp = tr.querySelector('input');
       const dynCell = tr.cells[4];
       const dampCell = tr.cells[5];
+      const shareCell = tr.cells[6];
+      const adjustCell = tr.cells[7];
+      const rewardCell = tr.cells[8];
       inp.addEventListener('input', () => {
         const br = +inp.value || 0;
         let dyn;
@@ -214,20 +223,41 @@
     }
     function updateShares() {
       const rows = [...document.querySelectorAll('#votesTable tbody tr')];
+      // raw dampened votes
       const raw = rows.map(r=>+r.cells[5].textContent);
-      const pos = raw.map(v=>v>0?v:Math.abs(v));
-      const sumPos = pos.reduce((s,v)=>s+v,0)||0;
-      rows.forEach((r,i)=>r.cells[6].textContent=pos[i]>0?((pos[i]/sumPos)*100).toFixed(5)+'%':'0.00000%');
-      // Totals
-      const totalVotesCol = rows.map(r=>Math.abs(+r.cells[1].textContent)).reduce((s,v)=>s+v,0);
-      const totalDampCol = rows.map(r=>Math.abs(+r.cells[5].textContent)).reduce((s,v)=>s+v,0);
-      const totalShareCol = rows.reduce((s,r)=>s+parseFloat(r.cells[6].textContent)||0,0);
-      document.getElementById('totalVotesCol').textContent = totalVotesCol.toFixed(2);
-      document.getElementById('totalDampCol').textContent = totalDampCol.toFixed(2);
-      document.getElementById('totalShareCol').textContent = totalShareCol.toFixed(5) + '%';
-      // Hide loading, show table
-      totalEl.textContent = `Total Votes: ${totalDampCol.toFixed(2)}`;
-      totalEl.style.display = 'block';
+      // positive for share calculation
+      const pos = raw.map(v=>v>0?v:0);
+      const sumPos = pos.reduce((s,v)=>s+v,0) || 1;
+      // compute vote share
+      const shares = pos.map(v => v>0 ? v / sumPos : 0);
+      // compute adjusted share: only shares >=0.005
+      const qualifiers = shares.map(v => v >= 0.005);
+      const sumQual = shares.reduce((s,v,i) => qualifiers[i] ? s + v : s, 0) || 1;
+      const adjShares = shares.map((v,i) => qualifiers[i] ? v / sumQual : 0);
+      // rMarketCap for rewards
+      let rMarketCap = parseFloat(document.getElementById('rMarketCap').value);
+      if (isNaN(rMarketCap) || rMarketCap < 0) rMarketCap = 0;
+      // fill cells
+      rows.forEach((r,i) => {
+        r.cells[6].textContent = (shares[i]*100).toFixed(5) + '%';
+        r.cells[7].textContent = (adjShares[i]*100).toFixed(5) + '%';
+        r.cells[8].textContent = (adjShares[i] * rMarketCap).toFixed(2);
+      });
+      // totals
+      const totalVotes = rows.map(r=>Math.abs(+r.cells[1].textContent)).reduce((s,v)=>s+v,0);
+      const totalDamp = rows.map(r=>Math.abs(+r.cells[5].textContent)).reduce((s,v)=>s+v,0);
+      const totalShare = shares.reduce((s,v)=>s+v,0) * 100;
+      const totalAdj = adjShares.reduce((s,v)=>s+v,0) * 100;
+      const totalRewards = adjShares.reduce((s,v)=>s+v,0) * rMarketCap;
+      document.getElementById('totalVotesCol').textContent = totalVotes.toFixed(2);
+      document.getElementById('totalDampCol').textContent = totalDamp.toFixed(2);
+      document.getElementById('totalShareCol').textContent = totalShare.toFixed(5) + '%';
+      document.getElementById('totalAdjustCol').textContent = totalAdj.toFixed(5) + '%';
+      document.getElementById('totalRewardsCol').textContent = totalRewards.toFixed(2);
+      // hide loader, show table
+      clearInterval(interval);
+      loadingEl.style.display = 'none';
+      wrapperEl.style.display = 'block';
     }
     async function init(){
       updateChart();
@@ -235,15 +265,12 @@
       const assets = await Promise.all(mkts.map(m=>fetchTrustlines(m.market_key)));
       const frag = document.createDocumentFragment();
       mkts.forEach((m,i)=>{
-        const orig=+m.votes_value;
-        const st=calcStatic(assets[i]);
+        const orig = +m.votes_value;
+        const st = calcStatic(assets[i]);
         frag.appendChild(createRow({market:assets[i].join(' / '),original:orig,staticBoost:st}));
       });
       document.querySelector('#votesTable tbody').appendChild(frag);
       updateShares();
-      clearInterval(interval);
-      loadingEl.style.display='none';
-      wrapperEl.style.display='block';
     }
     init();
   </script>
