@@ -264,12 +264,14 @@
         const ap=parseNum(q.row.cells[7].textContent);
         q.row.cells[8].textContent=fmt((rt*ap)/100,2);
       });
-      // footer
+      // footer totals
       const sumVotes=rows.map(r=>parseNum(r.cells[1].textContent)).reduce((a,b)=>a+b,0);
-      const sumDamp=pos.reduce((a,b)=>a+b,0);
+      // now sum ALL dampened values for total (including negatives)
+      const sumDamp=rows.reduce((sum,r)=>sum+parseNum(r.cells[5].textContent),0);
       const sumSH=rows.reduce((a,r)=>a+parseNum(r.cells[6].textContent),0);
       const sumAdj=quals.reduce((a,q)=>a+parseNum(q.row.cells[7].textContent),0);
       const sumR=quals.reduce((a,q)=>a+parseNum(q.row.cells[8].textContent),0);
+
       document.getElementById('totalVotesFooterVotes').textContent=fmt(sumVotes,2);
       document.getElementById('totalStaticFooter').textContent=fmt(
         rows.reduce((s,r)=>s+parseNum(r.cells[2].textContent),0),2);
@@ -277,6 +279,7 @@
       document.getElementById('totalShareFooter').textContent=sumSH.toFixed(5)+'%';
       document.getElementById('totalShareAdjustFooter').textContent=sumAdj.toFixed(5)+'%';
       document.getElementById('totalRewardsFooter').textContent=fmt(sumR,2);
+
       totalEl.textContent=`Total Votes: ${fmt(sumVotes,2)}`;
       totalEl.style.display='block';
     }
