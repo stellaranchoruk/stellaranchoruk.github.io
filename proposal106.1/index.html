@@ -30,6 +30,7 @@
       text-align: center;
       z-index: 10;
     }
+    #apiTotals { margin-top: 40px; }
     @media (max-width: 600px) {
       .controls { flex-direction: column; }
       .control input { width: 80px; }
@@ -99,7 +100,18 @@
     </table>
   </div>
 
-  <div id="totalVotes" style="display:none;">Total Votes: 0</div>
+  <div id="apiTotals" style="display:none;">
+    <h3>API Vote Totals</h3>
+    <table>
+      <thead><tr><th>Asset</th><th>Total Votes</th></tr></thead>
+      <tbody>
+        <tr><td>AQUA Votes</td><td id="aquaTotal">0</td></tr>
+        <tr><td>upvoteICE Votes</td><td id="upTotal">0</td></tr>
+        <tr><td>downvoteICE Votes</td><td id="downTotal">0</td></tr>
+        <tr><td><strong>Total Votes</strong></td><td id="allTotal">0</td></tr>
+      </tbody>
+    </table>
+  </div>
 
   <script>
     // Formatting helper
@@ -109,7 +121,7 @@
         : num.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
     }
 
-    // Chart setup...
+    // Chart.js setup
     const ctx = document.getElementById('curveChart').getContext('2d');
     let curveChart;
     function computeCurve(maxBoost, rMarketCap, divisor) {
@@ -133,18 +145,25 @@
       let pCap = parseFloat(document.getElementById('pCap').value);
       if (isNaN(pCap) || pCap < 0) pCap = 10;
       const rMarketCap = rTotal * pCap / 100;
-      document.getElementById('rMarketCap').value = fmt(rMarketCap,2);
+      document.getElementById('rMarketCap').value = fmt(rMarketCap, 2);
 
       const dataA = computeCurve(0.3, rMarketCap, divisor);
       const dataB = computeCurve(0.5, rMarketCap, divisor);
       if (!curveChart) {
         curveChart = new Chart(ctx, {
           type: 'line',
-          data: { datasets: [
-            { label: 'MaxBoost 0.3', data: dataA, borderColor: 'blue', fill: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' } },
-            { label: 'MaxBoost 0.5', data: dataB, borderColor: 'red', fill: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' } }
-          ] },
-          options: { scales: { x: { type: 'linear', title: { display: true, text: 'Bribe' } }, y: { title: { display: true, text: 'Boost' } } } }
+          data: {
+            datasets: [
+              { label: 'MaxBoost 0.3', data: dataA, borderColor: 'blue', fill: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' } },
+              { label: 'MaxBoost 0.5', data: dataB, borderColor: 'red', fill: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' } }
+            ]
+          },
+          options: {
+            scales: {
+              x: { type: 'linear', title: { display: true, text: 'Bribe' } },
+              y: { title: { display: true, text: 'Boost' } }
+            }
+          }
         });
       } else {
         curveChart.data.datasets[0].data = dataA;
@@ -152,22 +171,29 @@
         curveChart.update();
       }
     }
-    ['divisor','rTotal','pCap'].forEach(id => document.getElementById(id).addEventListener('input', updateChart));
+    ['divisor', 'rTotal', 'pCap'].forEach(id =>
+      document.getElementById(id).addEventListener('input', updateChart)
+    );
 
-    // Loading & table logic
-    const API = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
+    // Loading & data logic
+    const API_BASE = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
+    const API_DETAIL = 'https://voting-tracker.aqua.network/api/voting-snapshot/';
     const HORIZON = 'https://horizon.stellar.org/accounts/';
     let dot = 0;
     const dotsEl = document.getElementById('dots');
     const loadingEl = document.getElementById('loading');
     const wrapperEl = document.getElementById('tableWrapper');
     const totalEl = document.getElementById('totalVotes');
-    const interval = setInterval(() => { dot = (dot + 1) % 4; dotsEl.textContent = '.'.repeat(dot); }, 500);
+    const interval = setInterval(() => {
+      dot = (dot + 1) % 4;
+      dotsEl.textContent = '.'.repeat(dot);
+    }, 500);
 
     async function fetchMarkets() {
-      let arr = [], url = API;
+      let arr = [], url = API_BASE;
       while (url) {
-        const res = await fetch(url), data = await res.json();
+        const res = await fetch(url);
+        const data = await res.json();
         arr.push(...data.results);
         url = data.next;
       }
@@ -175,7 +201,8 @@
     }
     async function fetchTrustlines(key) {
       try {
-        const res = await fetch(HORIZON + key), data = await res.json();
+        const res = await fetch(HORIZON + key);
+        const data = await res.json();
         const bal = data.balances;
         const hasX = bal.some(b => b.asset_type === 'native');
         const nonX = bal.filter(b => b.asset_type !== 'native').map(b => b.asset_code);
@@ -187,7 +214,34 @@
         return ['XLM'];
       }
     }
-    function calcStatic(a) { let b = 1; if (a.includes('AQUA')) b += 0.5; if (a.includes('XLM')) b += 0.3; if (a.includes('USDC')) b += 0.3; return b; }
+    async function fetchDetailTotals(markets) {
+      let aqua=0, up=0, down=0;
+      await Promise.all(markets.map(async m=>{
+        try {
+          const res = await fetch(API_DETAIL + m.market_key + '/');
+          const d = await res.json();
+          d.upvote_assets.forEach(a => {
+            if (a.asset.startsWith('AQUA:')) aqua += parseFloat(a.votes_sum);
+            else if (a.asset.startsWith('upvoteICE:')) up += parseFloat(a.votes_sum);
+          });
+          d.downvote_assets.forEach(a => { down += parseFloat(a.votes_sum); });
+        } catch {}
+      }));
+      const total = aqua + up + down;
+      document.getElementById('aquaTotal').textContent = fmt(aqua,2);
+      document.getElementById('upTotal').textContent = fmt(up,2);
+      document.getElementById('downTotal').textContent = fmt(down,2);
+      document.getElementById('allTotal').textContent = fmt(total,2);
+      document.getElementById('apiTotals').style.display = 'block';
+    }
+
+    function calcStatic(a) {
+      let b = 1;
+      if (a.includes('AQUA')) b += 0.5;
+      if (a.includes('XLM')) b += 0.3;
+      if (a.includes('USDC')) b += 0.3;
+      return b;
+    }
     function calcDynamic(bribe, maxBoost) {
       let divisor = parseFloat(document.getElementById('divisor').value);
       if (isNaN(divisor) || divisor <= 0) divisor = 5;
@@ -208,13 +262,11 @@
         <td>${fmt(initDamp,2)}</td>
         <td>0.00000%</td>
         <td>0.00000%</td>
-        <td>0.00</td>`;
+        <td>0.00</td>
+      `;
       const inp = tr.querySelector('input');
       const dynCell = tr.cells[4];
       const dampCell = tr.cells[5];
-      const shareCell = tr.cells[6];
-      const adjustCell = tr.cells[7];
-      const rewardCell = tr.cells[8];
       inp.addEventListener('input', () => {
         const br = +inp.value || 0;
         let dyn;
@@ -230,49 +282,47 @@
     }
     function updateShares() {
       const rows = [...document.querySelectorAll('#votesTable tbody tr')];
-      const rTotalInput = parseFloat(document.getElementById('rTotal').value);
-      const rTotalVal = isNaN(rTotalInput) || rTotalInput < 0 ? 0 : rTotalInput;
-      // raw votes and dampened
-      const votesArr = rows.map(r=>Math.abs(+r.cells[1].textContent.replace(/,/g,'')));
-      const dampArr = rows.map(r=> +r.cells[5].textContent.replace(/,/g,''));
-      const pos = dampArr.map(v=>v>0?v:0);
-      const sumPos = pos.reduce((s,v)=>s+v,0) || 1;
-      const shares = pos.map(v=>v/sumPos);
-      const qualifiers = shares.map(v=>v>=0.005);
-      const sumQual = shares.reduce((s,v,i)=>qualifiers[i]?s+v:s,0) || 1;
-      const adjShares = shares.map((v,i)=>qualifiers[i]?v/sumQual:0);
-      rows.forEach((r,i)=>{
+      const rTotalVal = parseFloat(document.getElementById('rTotal').value) || 0;
+      const votesArr = rows.map(r => Math.abs(+r.cells[1].textContent.replace(/,/g,'')));
+      const dampArr = rows.map(r => +r.cells[5].textContent.replace(/,/g,''));
+      const pos = dampArr.map(v => v>0?v:0);
+      const sumPos = pos.reduce((s,v) => s+v,0) || 1;
+      const shares = pos.map(v => v/sumPos);
+      const qualifiers = shares.map(v => v>=0.005);
+      const sumQual = shares.reduce((s,v,i) => qualifiers[i]?s+v:s,0) || 1;
+      const adjShares = shares.map((v,i) => qualifiers[i]?v/sumQual:0);
+      rows.forEach((r,i) => {
         r.cells[6].textContent = fmt(shares[i]*100,5) + '%';
         r.cells[7].textContent = fmt(adjShares[i]*100,5) + '%';
         r.cells[8].textContent = fmt(adjShares[i]*rTotalVal,2);
       });
-      // totals
-      const totalVotes = votesArr.reduce((s,v)=>s+v,0);
-      const totalDamp = dampArr.map(v=>Math.abs(v)).reduce((s,v)=>s+v,0);
-      const totalShare = shares.reduce((s,v)=>s+v,0)*100;
-      const totalAdj = adjShares.reduce((s,v)=>s+v,0)*100;
-      const totalRewards = adjShares.reduce((s,v)=>s+v,0)*rTotalVal;
+      const totalVotes = votesArr.reduce((s,v) => s+v,0);
+      const totalDamp = dampArr.map(v => Math.abs(v)).reduce((s,v) => s+v,0);
+      const totalShare = shares.reduce((s,v) => s+v,0)*100;
+      const totalAdj = adjShares.reduce((s,v) => s+v,0)*100;
+      const totalRewards = adjShares.reduce((s,v) => s+v,0)*rTotalVal;
       document.getElementById('totalVotesCol').textContent = fmt(totalVotes,2);
       document.getElementById('totalDampCol').textContent = fmt(totalDamp,2);
       document.getElementById('totalShareCol').textContent = fmt(totalShare,5) + '%';
       document.getElementById('totalAdjustCol').textContent = fmt(totalAdj,5) + '%';
       document.getElementById('totalRewardsCol').textContent = fmt(totalRewards,2);
       clearInterval(interval);
-      loadingEl.style.display='none';
-      wrapperEl.style.display='block';
+      loadingEl.style.display = 'none';
+      wrapperEl.style.display = 'block';
     }
-    async function init(){
+    async function init() {
       updateChart();
       const mkts = await fetchMarkets();
-      const assets = await Promise.all(mkts.map(m=>fetchTrustlines(m.market_key)));
+      const assets = await Promise.all(mkts.map(m => fetchTrustlines(m.market_key)));
       const frag = document.createDocumentFragment();
-      mkts.forEach((m,i)=>{
+      mkts.forEach((m,i) => {
         const orig = +m.votes_value;
         const st = calcStatic(assets[i]);
-        frag.appendChild(createRow({market:assets[i].join(' / '),original:orig,staticBoost:st}));
+        frag.appendChild(createRow({market: assets[i].join(' / '), original: orig, staticBoost: st}));
       });
       document.querySelector('#votesTable tbody').appendChild(frag);
       updateShares();
+      fetchDetailTotals(mkts);
     }
     init();
   </script>
