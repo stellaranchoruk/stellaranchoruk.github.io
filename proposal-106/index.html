@@ -23,7 +23,7 @@
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     th { background-color: #f2f2f2; }
     input[type=number] { width: 80px; }
-    #totalVotes { margin-top: 20px; font-weight: bold; }
+    #apiTotalsContainer { margin-top: 40px; }
     @media (max-width: 600px) {
       .controls { flex-direction: column; }
       .control input { width: 80px; }
@@ -93,9 +93,7 @@
     </table>
   </div>
 
-  <div id="totalVotes" style="display:none;">Total Votes: 0</div>
-
-  <!-- use table-container to enable horizontal scroll on mobile -->
+  <!-- API totals table -->
   <div id="apiTotalsContainer" class="table-container" style="display:none;">
     <h3>API Vote Totals</h3>
     <table id="apiTotalsTable">
@@ -182,7 +180,6 @@
     const dotsEl    = document.getElementById('dots');
     const loadEl    = document.getElementById('loading');
     const wrapEl    = document.getElementById('tableWrapper');
-    const totalEl   = document.getElementById('totalVotes');
     const apiBlock  = document.getElementById('apiTotalsContainer');
     const intv      = setInterval(()=>{
       dot=(dot+1)%4;
@@ -313,9 +310,6 @@
       document.getElementById('totalShareFooter').textContent        = sumShare.toFixed(5) + '%';
       document.getElementById('totalShareAdjustFooter').textContent  = sumAdj.toFixed(5) + '%';
       document.getElementById('totalRewardsFooter').textContent      = fmt(sumR, 2);
-
-      totalEl.textContent = `Total Votes: ${fmt(sumVotes,2)}`;
-      totalEl.style.display = 'block';
     }
 
     // API totals fetch (unchanged)...
