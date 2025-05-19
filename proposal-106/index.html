@@ -159,8 +159,20 @@
         curveChart.update();
       }
     }
-    ['divisor','rTotal','pCap'].forEach(id=>
-      document.getElementById(id).addEventListener('input', updateChart)
+
+    // Recalculate all rows when controls change
+    function recalcAll() {
+      document
+        .querySelectorAll('#votesTable tbody tr input')
+        .forEach(inp => inp.dispatchEvent(new Event('input')));
+    }
+
+    // Attach control listeners to update both chart and table
+    ['divisor','rTotal','pCap'].forEach(id =>
+      document.getElementById(id).addEventListener('input', () => {
+        updateChart();
+        recalcAll();
+      })
     );
 
     // DOM refs & loading
