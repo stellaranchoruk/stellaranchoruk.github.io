@@ -86,14 +86,14 @@
       <tfoot>
         <tr>
           <td><strong>Total</strong></td>
-          <td id="totalVotesCol">0.00</td>
+          <td id="totalVotesCol">0</td>
           <td></td>
           <td></td>
           <td></td>
-          <td id="totalDampCol">0.00</td>
+          <td id="totalDampCol">0</td>
           <td id="totalShareCol">0.00000%</td>
           <td id="totalAdjustCol">0.00000%</td>
-          <td id="totalRewardsCol">0.00</td>
+          <td id="totalRewardsCol">0</td>
         </tr>
       </tfoot>
     </table>
@@ -102,7 +102,14 @@
   <div id="totalVotes" style="display:none;">Total Votes: 0</div>
 
   <script>
-    // Chart setup
+    // Formatting helper
+    function fmt(num, dec=2) {
+      return isNaN(num)
+        ? '0'
+        : num.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    }
+
+    // Chart setup...
     const ctx = document.getElementById('curveChart').getContext('2d');
     let curveChart;
     function computeCurve(maxBoost, rMarketCap, divisor) {
@@ -126,7 +133,7 @@
       let pCap = parseFloat(document.getElementById('pCap').value);
       if (isNaN(pCap) || pCap < 0) pCap = 10;
       const rMarketCap = rTotal * pCap / 100;
-      document.getElementById('rMarketCap').value = rMarketCap.toFixed(2);
+      document.getElementById('rMarketCap').value = fmt(rMarketCap,2);
 
       const dataA = computeCurve(0.3, rMarketCap, divisor);
       const dataB = computeCurve(0.5, rMarketCap, divisor);
@@ -194,11 +201,11 @@
       const initDamp = item.original > 0 ? item.original * item.staticBoost : item.original;
       tr.innerHTML = `
         <td>${item.market}</td>
-        <td>${item.original.toFixed(2)}</td>
-        <td>${(item.original>0?item.original*item.staticBoost:0).toFixed(2)}</td>
+        <td>${fmt(Math.abs(item.original),2)}</td>
+        <td>${fmt(item.original>0?item.original*item.staticBoost:0,2)}</td>
         <td><input type="number" value="0" min="0"></td>
-        <td>${initDyn.toFixed(5)}</td>
-        <td>${initDamp.toFixed(2)}</td>
+        <td>${fmt(initDyn,5)}</td>
+        <td>${fmt(initDamp,2)}</td>
         <td>0.00000%</td>
         <td>0.00000%</td>
         <td>0.00</td>`;
@@ -214,50 +221,45 @@
         if (item.staticBoost > 1.5) dyn = item.staticBoost;
         else if (item.original > 0) dyn = calcDynamic(br, item.staticBoost - 1);
         else dyn = item.staticBoost;
-        dynCell.textContent = dyn.toFixed(5);
+        dynCell.textContent = fmt(dyn,5);
         const damp = item.original > 0 ? item.original * dyn : item.original;
-        dampCell.textContent = damp.toFixed(2);
+        dampCell.textContent = fmt(damp,2);
         updateShares();
       });
       return tr;
     }
     function updateShares() {
       const rows = [...document.querySelectorAll('#votesTable tbody tr')];
-      // raw dampened votes
-      const raw = rows.map(r=>+r.cells[5].textContent);
-      // positive for share calculation
-      const pos = raw.map(v=>v>0?v:0);
+      const rTotalInput = parseFloat(document.getElementById('rTotal').value);
+      const rTotalVal = isNaN(rTotalInput) || rTotalInput < 0 ? 0 : rTotalInput;
+      // raw votes and dampened
+      const votesArr = rows.map(r=>Math.abs(+r.cells[1].textContent.replace(/,/g,'')));
+      const dampArr = rows.map(r=> +r.cells[5].textContent.replace(/,/g,''));
+      const pos = dampArr.map(v=>v>0?v:0);
       const sumPos = pos.reduce((s,v)=>s+v,0) || 1;
-      // compute vote share
-      const shares = pos.map(v => v>0 ? v / sumPos : 0);
-      // compute adjusted share: only shares >=0.005
-      const qualifiers = shares.map(v => v >= 0.005);
-      const sumQual = shares.reduce((s,v,i) => qualifiers[i] ? s + v : s, 0) || 1;
-      const adjShares = shares.map((v,i) => qualifiers[i] ? v / sumQual : 0);
-      // rMarketCap for rewards
-      let rMarketCap = parseFloat(document.getElementById('rMarketCap').value);
-      if (isNaN(rMarketCap) || rMarketCap < 0) rMarketCap = 0;
-      // fill cells
-      rows.forEach((r,i) => {
-        r.cells[6].textContent = (shares[i]*100).toFixed(5) + '%';
-        r.cells[7].textContent = (adjShares[i]*100).toFixed(5) + '%';
-        r.cells[8].textContent = (adjShares[i] * rMarketCap).toFixed(2);
+      const shares = pos.map(v=>v/sumPos);
+      const qualifiers = shares.map(v=>v>=0.005);
+      const sumQual = shares.reduce((s,v,i)=>qualifiers[i]?s+v:s,0) || 1;
+      const adjShares = shares.map((v,i)=>qualifiers[i]?v/sumQual:0);
+      rows.forEach((r,i)=>{
+        r.cells[6].textContent = fmt(shares[i]*100,5) + '%';
+        r.cells[7].textContent = fmt(adjShares[i]*100,5) + '%';
+        r.cells[8].textContent = fmt(adjShares[i]*rTotalVal,2);
       });
       // totals
-      const totalVotes = rows.map(r=>Math.abs(+r.cells[1].textContent)).reduce((s,v)=>s+v,0);
-      const totalDamp = rows.map(r=>Math.abs(+r.cells[5].textContent)).reduce((s,v)=>s+v,0);
-      const totalShare = shares.reduce((s,v)=>s+v,0) * 100;
-      const totalAdj = adjShares.reduce((s,v)=>s+v,0) * 100;
-      const totalRewards = adjShares.reduce((s,v)=>s+v,0) * rMarketCap;
-      document.getElementById('totalVotesCol').textContent = totalVotes.toFixed(2);
-      document.getElementById('totalDampCol').textContent = totalDamp.toFixed(2);
-      document.getElementById('totalShareCol').textContent = totalShare.toFixed(5) + '%';
-      document.getElementById('totalAdjustCol').textContent = totalAdj.toFixed(5) + '%';
-      document.getElementById('totalRewardsCol').textContent = totalRewards.toFixed(2);
-      // hide loader, show table
+      const totalVotes = votesArr.reduce((s,v)=>s+v,0);
+      const totalDamp = dampArr.map(v=>Math.abs(v)).reduce((s,v)=>s+v,0);
+      const totalShare = shares.reduce((s,v)=>s+v,0)*100;
+      const totalAdj = adjShares.reduce((s,v)=>s+v,0)*100;
+      const totalRewards = adjShares.reduce((s,v)=>s+v,0)*rTotalVal;
+      document.getElementById('totalVotesCol').textContent = fmt(totalVotes,2);
+      document.getElementById('totalDampCol').textContent = fmt(totalDamp,2);
+      document.getElementById('totalShareCol').textContent = fmt(totalShare,5) + '%';
+      document.getElementById('totalAdjustCol').textContent = fmt(totalAdj,5) + '%';
+      document.getElementById('totalRewardsCol').textContent = fmt(totalRewards,2);
       clearInterval(interval);
-      loadingEl.style.display = 'none';
-      wrapperEl.style.display = 'block';
+      loadingEl.style.display='none';
+      wrapperEl.style.display='block';
     }
     async function init(){
       updateChart();
