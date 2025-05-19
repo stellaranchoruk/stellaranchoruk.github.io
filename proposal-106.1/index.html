@@ -113,7 +113,7 @@
     }
     ['divisor','rTotal','pCap'].forEach(id => document.getElementById(id).addEventListener('input', updateChart));
 
-    // Loading animation & table logic
+    // Loading animation
     const API = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
     const HORIZON = 'https://horizon.stellar.org/accounts/';
     let dot = 0;
@@ -125,31 +125,21 @@
 
     async function fetchMarkets() {
       let arr = [], url = API;
-      while (url) {
-        const res = await fetch(url), data = await res.json();
-        arr.push(...data.results);
-        url = data.next;
-      }
+      while (url) { const res = await fetch(url), data = await res.json(); arr.push(...data.results); url = data.next; }
       return arr;
     }
     async function fetchTrustlines(key) {
-      try {
-        const res = await fetch(HORIZON + key), data = await res.json();
+      try { const res = await fetch(HORIZON + key), data = await res.json();
         const bal = data.balances;
-        const hasX = bal.some(b => b.asset_type === 'native');
-        const nonX = bal.filter(b => b.asset_type !== 'native').map(b => b.asset_code);
-        if (nonX.length >= 2) return nonX;
-        if (nonX.length === 1 && hasX) return [nonX[0], 'XLM'];
+        const hasX = bal.some(b=>b.asset_type==='native');
+        const nonX = bal.filter(b=>b.asset_type!=='native').map(b=>b.asset_code);
+        if (nonX.length>=2) return nonX;
+        if (nonX.length===1 && hasX) return [nonX[0],'XLM'];
         if (hasX && !nonX.length) return ['XLM'];
-        return [...nonX, ...(hasX ? ['XLM'] : [])];
-      } catch {
-        return ['XLM'];
-      }
+        return [...nonX, ...(hasX?['XLM']:[])];
+      } catch { return ['XLM']; }
     }
-    function calcStatic(a) {
-      let b = 1; if (a.includes('AQUA')) b += 0.5; if (a.includes('XLM')) b += 0.3; if (a.includes('USDC')) b += 0.3;
-      return b;
-    }
+    function calcStatic(a){ let b=1; if(a.includes('AQUA')) b+=0.5; if(a.includes('XLM')) b+=0.3; if(a.includes('USDC')) b+=0.3; return b; }
     function calcDynamic(bribe, maxBoost) {
       const divisor = +document.getElementById('divisor').value || 5;
       const rMarketCap = +document.getElementById('rMarketCap').value || 0;
@@ -162,7 +152,7 @@
       tr.innerHTML = `
         <td>${item.market}</td>
         <td>${item.original.toFixed(2)}</td>
-        <td>${(item.original > 0 ? item.original * item.staticBoost : 0).toFixed(2)}</td>
+        <td>${(item.original>0?item.original*item.staticBoost:0).toFixed(2)}</td>
         <td><input type="number" value="0" min="0"></td>
         <td>${initDyn.toFixed(5)}</td>
         <td>${initDamp.toFixed(2)}</td>
@@ -173,7 +163,6 @@
       inp.addEventListener('input', () => {
         const br = +inp.value || 0;
         let dyn;
-        // exempt 1.6 & 1.8 (staticBoost > 1.5)
         if (item.staticBoost > 1.5) {
           dyn = item.staticBoost;
         } else if (item.original > 0) {
@@ -191,37 +180,30 @@
     }
     function updateShares() {
       const rows = [...document.querySelectorAll('#votesTable tbody tr')];
-      const raw = rows.map(r => +r.cells[5].textContent);
-      const pos = raw.map(v => v > 0 ? v : 0);
-      const sumPos = pos.reduce((s, v) => s + v, 0) || 0;
-      rows.forEach((r, i) => {
-        r.cells[6].textContent = pos[i] > 0
-          ? ((pos[i] / sumPos) * 100).toFixed(5) + '%'
-          : '0.00000%';
-      });
-      const totalRaw = raw.reduce((s, v) => s + v, 0);
+      const raw = rows.map(r=>+r.cells[5].textContent);
+      const pos = raw.map(v=>v>0?v:0);
+      const sumPos = pos.reduce((s,v)=>s+v,0)||0;
+      rows.forEach((r,i)=>r.cells[6].textContent=pos[i]>0?((pos[i]/sumPos)*100).toFixed(5)+'%':'0.00000%');
+      const totalRaw = raw.reduce((s,v)=>s+v,0);
       totalEl.textContent = `Total Votes: ${totalRaw.toFixed(2)}`;
-      totalEl.style.display = 'block';
+      totalEl.style.display='block';
     }
-    async function init() {
+    async function init(){
       updateChart();
       const mkts = await fetchMarkets();
-      const assets = await Promise.all(mkts.map(m => fetchTrustlines(m.market_key)));
+      const assets = await Promise.all(mkts.map(m=>fetchTrustlines(m.market_key)));
       const frag = document.createDocumentFragment();
-      mkts.forEach((m, i) => {
-        const orig = +m.votes_value;
-        const st = calcStatic(assets[i]);
-        frag.appendChild(createRow({
-          market: assets[i].join(' / '),
-          original: orig,
-          staticBoost: st
-        }));
+      mkts.forEach((m,i)=>{
+        const orig=+m.votes_value;
+        const st=calcStatic(assets[i]);
+        const sa=orig>0?orig*st:0;
+        frag.appendChild(createRow({market:assets[i].join(' / '),original:orig,staticBoost:st,staticAdj:sa}));
       });
       document.querySelector('#votesTable tbody').appendChild(frag);
       updateShares();
       clearInterval(interval);
-      loadingEl.style.display = 'none';
-      wrapperEl.style.display = 'block';
+      loadingEl.style.display='none';
+      wrapperEl.style.display='block';
     }
     init();
   </script>
