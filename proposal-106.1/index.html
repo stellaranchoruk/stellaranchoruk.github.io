@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aquarius Vote Booster Simulator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 10px; }
+    #loading { font-size: 1.2em; margin: 20px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 20px; }
+    .control { display: flex; flex-direction: column; font-size: 0.9em; }
+    .control label { margin-bottom: 4px; }
+    .control input { width: 100px; padding: 4px; }
+    .chart-container { width: 100%; max-width: 600px; margin-top: 20px; }
+    .table-container { overflow-x: auto; margin-top: 40px; }
+    table { border-collapse: collapse; width: 100%; min-width: 800px; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    input[type="number"] { width: 80px; }
+    #totalVotes { margin-top: 20px; font-weight: bold; }
+    @media (max-width: 600px) {
+      .controls { flex-direction: column; align-items: flex-start; }
+      .control input { width: 80px; }
+      table { min-width: 600px; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Aquarius Vote Booster Simulator</h2>
+  <p>Boost formula (fixed):</p>
+  <pre>Boost = 1 + MaxBoost × e<sup>–Bribe / (R_market_cap ÷ Divisor)</sup></pre>
+
+  <div class="controls">
+    <div class="control">
+      <label>Divisor</label>
+      <input type="number" id="divisor" value="5" min="1" />
+    </div>
+    <div class="control">
+      <label>R_total (AQUA/day)</label>
+      <input type="number" id="rTotal" value="7000000" min="0" />
+    </div>
+    <div class="control">
+      <label>P_cap (%)</label>
+      <input type="number" id="pCap" value="10" min="0" max="100" />
+    </div>
+    <div class="control">
+      <label>R_market_cap</label>
+      <input type="text" id="rMarketCap" value="700000" disabled />
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="curveChart"></canvas>
+  </div>
+
+  <div id="loading">Loading data<span id="dots"></span></div>
+
+  <div class="table-container" id="tableWrapper" style="display:none;">
+    <table id="votesTable">
+      <thead>
+        <tr>
+          <th>Market</th>
+          <th>Votes</th>
+          <th>Static Adj Votes</th>
+          <th>Bribes</th>
+          <th>Dynamic Boost</th>
+          <th>Dampened Adj Votes</th>
+          <th>Vote Share</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="totalVotes" style="display:none;">Total Votes: 0</div>
+
+  <script>
+    // Chart.js setup
+    const ctx = document.getElementById('curveChart').getContext('2d');
+    let curveChart;
+
+    function computeCurve(maxBoost, rMarketCap, divisor) {
+      const points = [];
+      const step = rMarketCap / 50;
+      for (let b = 0; b <= rMarketCap; b += step) {
+        const boost = 1 + maxBoost * Math.exp(-b / (rMarketCap / divisor));
+        points.push({ x: b, y: boost });
+      }
+      return points;
+    }
+
+    function updateChart() {
+      const divisor = parseFloat(document.getElementById('divisor').value) || 5;
+      const rTotal = parseFloat(document.getElementById('rTotal').value) || 0;
+      const pCap = parseFloat(document.getElementById('pCap').value) || 0;
+      const rMarketCap = rTotal * pCap / 100;
+      document.getElementById('rMarketCap').value = rMarketCap.toFixed(2);
+
+      const dataA = computeCurve(0.3, rMarketCap, divisor);
+      const dataB = computeCurve(0.5, rMarketCap, divisor);
+
+      if (!curveChart) {
+        curveChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            datasets: [
+              { label: 'MaxBoost 0.3', data: dataA, borderColor: 'blue', fill: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' } },
+              { label: 'MaxBoost 0.5', data: dataB, borderColor: 'red', fill: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' } }
+            ]
+          },
+          options: {
+            scales: {
+              x: { type: 'linear', title: { display: true, text: 'Bribe' } },
+              y: { title: { display: true, text: 'Boost' } }
+            }
+          }
+        });
+      } else {
+        curveChart.data.datasets[0].data = dataA;
+        curveChart.data.datasets[1].data = dataB;
+        curveChart.update();
+      }
+    }
+
+    ['divisor', 'rTotal', 'pCap'].forEach(id =>
+      document.getElementById(id).addEventListener('input', updateChart)
+    );
+
+    // Loading animation and existing table logic
+    const API_BASE = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
+    const HORIZON_BASE = 'https://horizon.stellar.org/accounts/';
+    const R_MARKET_CAP_DEFAULT = 700000;
+    let dotCount = 0;
+    const dotsEl = document.getElementById('dots');
+    const loadingEl = document.getElementById('loading');
+    const wrapperEl = document.getElementById('tableWrapper');
+    const totalEl = document.getElementById('totalVotes');
+    const dotInterval = setInterval(() => {
+      dotCount = (dotCount + 1) % 4;
+      dotsEl.textContent = '.'.repeat(dotCount);
+    }, 500);
+
+    async function fetchAllMarkets() {
+      let results = [];
+      let url = API_BASE;
+      while (url) {
+        const res = await fetch(url);
+        const data = await res.json();
+        results = results.concat(data.results);
+        url = data.next;
+      }
+      return results;
+    }
+
+    async function fetchTrustlines(key) {
+      try {
+        const res = await fetch(HORIZON_BASE + key);
+        const data = await res.json();
+        const bal = data.balances;
+        const hasNative = bal.some(b => b.asset_type === 'native');
+        const nonNative = bal.filter(b => b.asset_type !== 'native').map(b => b.asset_code);
+        if (nonNative.length >= 2) return nonNative;
+        if (nonNative.length === 1 && hasNative) return [nonNative[0], 'XLM'];
+        if (hasNative && nonNative.length === 0) return ['XLM'];
+        return nonNative.concat(hasNative ? ['XLM'] : []);
+      } catch {
+        return ['XLM'];
+      }
+    }
+
+    function calcStatic(assets) {
+      let boost = 1;
+      if (assets.includes('AQUA')) boost += 0.5;
+      if (assets.includes('XLM')) boost += 0.3;
+      if (assets.includes('USDC')) boost += 0.3;
+      return boost;
+    }
+
+    function calcDynamic(bribe, maxBoost, originalVotes) {
+      return originalVotes > 0
+        ? 1 + maxBoost * Math.exp(-bribe / (R_MARKET_CAP_DEFAULT / parseFloat(document.getElementById('divisor').value)))
+        : maxBoost;
+    }
+
+    function createRow(item) {
+      const tr = document.createElement('tr');
+      const initDamp = item.originalVotes > 0 ? item.staticAdj : item.originalVotes;
+      tr.innerHTML = `
+        <td>${item.market}</td>
+        <td>${item.originalVotes.toFixed(2)}</td>
+        <td>${item.staticAdj.toFixed(2)}</td>
+        <td><input type=\"number\" value=\"0\" min=\"0\" /></td>
+        <td>${item.staticBoost.toFixed(5)}</td>
+        <td>${initDamp.toFixed(2)}</td>
+        <td>0.00000%</td>`;
+      const inp = tr.querySelector('input');
+      const dynCell = tr.cells[4];
+      const dampCell = tr.cells[5];
+      inp.addEventListener('input', () => {
+        const br = parseFloat(inp.value) || 0;
+        const dynA = calcDynamic(br, item.staticBoost - 1, item.originalVotes) + (item.originalVotes > 0 ? 1 : 0);
+        dynCell.textContent = dynA.toFixed(5);
+        const damp = item.originalVotes > 0 ? item.originalVotes * dynA : item.originalVotes;
+        dampCell.textContent = damp.toFixed(2);
+        updateShares();
+      });
+      return tr;
+    }
+
+    function updateShares() {
+      const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
+      const rawDamp = rows.map(r => parseFloat(r.cells[5].textContent));
+      const positives = rawDamp.map(v => (v > 0 ? v : 0));
+      const totalPos = positives.reduce((s, v) => s + v, 0) || 0;
+      rows.forEach((r, i) => {
+        r.cells[6].textContent = positives[i] > 0
+          ? ((positives[i] / totalPos) * 100).toFixed(5) + '%'
+          : '0.00000%';
+      });
+      const totalRaw = rawDamp.reduce((s, v) => s + v, 0);
+      totalEl.textContent = `Total Votes: ${totalRaw.toFixed(2)}`;
+      totalEl.style.display = 'block';
+    }
+
+    async function init() {
+      updateChart();
+      const markets = await fetchAllMarkets();
+      const assetsArr = await Promise.all(markets.map(m => fetchTrustlines(m.market_key)));
+      const frag = document.createDocumentFragment();
+      markets.forEach((m, i) => {
+        const orig = parseFloat(m.votes_value);
+        const market = assetsArr[i].join(' / ');
+        const sb = calcStatic(assetsArr[i]);
+        const base = orig > 0 ? orig : 0;
+        const sa = base * sb;
+        frag.appendChild(createRow({ market, originalVotes: orig, staticBoost: sb, staticAdj: sa }));
+      });
+      document.querySelector('#votesTable tbody').appendChild(frag);
+      updateShares();
+      clearInterval(dotInterval);
+      loadingEl.style.display = 'none';
+      wrapperEl.style.display = 'block';
+    }
+
+    init();
+  </script>
+</body>
+</html>
