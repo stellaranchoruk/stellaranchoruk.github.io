@@ -8,6 +8,11 @@
   <style>
     body { font-family: sans-serif; margin: 10px; }
     pre { background: #f9f9f9; padding: 10px; }
+    /* allow the formula to wrap on narrow screens */
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
     .controls { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 20px; }
     .control { display: flex; flex-direction: column; }
     .control label { margin-bottom: 4px; font-size: 0.9em; }
@@ -19,7 +24,6 @@
     th { background-color: #f2f2f2; }
     input[type=number] { width: 80px; }
     #totalVotes { margin-top: 20px; font-weight: bold; }
-    #apiTotalsContainer { margin-top: 40px; }
     @media (max-width: 600px) {
       .controls { flex-direction: column; }
       .control input { width: 80px; }
@@ -91,7 +95,8 @@
 
   <div id="totalVotes" style="display:none;">Total Votes: 0</div>
 
-  <div id="apiTotalsContainer" style="display:none;">
+  <!-- use table-container to enable horizontal scroll on mobile -->
+  <div id="apiTotalsContainer" class="table-container" style="display:none;">
     <h3>API Vote Totals</h3>
     <table id="apiTotalsTable">
       <tbody>
@@ -245,7 +250,7 @@
     function updateShares(){
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
 
-      // NEW: compute vote share directly from Dampened Adj Votes column
+      // compute vote share from Dampened Adj Votes
       const dampVals  = rows.map(r => parseNum(r.cells[5].textContent));
       const totalDamp = dampVals.reduce((sum, v) => sum + v, 0);
       rows.forEach((r, i) => {
@@ -255,7 +260,7 @@
         r.cells[6].textContent = pct.toFixed(5) + '%';
       });
 
-      // then same Vote Share Adjust & AQUA Rewards logic...
+      // rest of Vote Share Adjust & AQUA Rewards logic...
       let qualifiers = [];
       rows.forEach(r => {
         const pct = parseNum(r.cells[6].textContent);
@@ -280,7 +285,9 @@
       const sumStatic = rows
         .map(r => parseNum(r.cells[2].textContent))
         .reduce((a, b) => a + b, 0);
-      const sumDamp = dampVals.reduce((a, b) => a + b, 0);
+      const sumDamp = rows
+        .map(r => parseNum(r.cells[5].textContent))
+        .reduce((a, b) => a + b, 0);
       const sumShare = rows
         .reduce((a, r) => a + parseNum(r.cells[6].textContent), 0);
       const sumAdj = qualifiers
