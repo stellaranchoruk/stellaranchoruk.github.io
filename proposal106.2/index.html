@@ -112,11 +112,18 @@
       });
     }
 
+    // ---- parsing helper to strip commas & % ----
+    function parseNum(str) {
+      return parseFloat(
+        String(str).replace(/,/g, '').replace('%','')
+      ) || 0;
+    }
+
     // ---- Chart.js curve logic ----
     const ctx = document.getElementById('curveChart').getContext('2d');
     let curveChart;
     function computeCurve(maxBoost, rMarketCap, divisor) {
-      if (isNaN(rMarketCap) || rMarketCap <= 0) {
+      if (!rMarketCap || !divisor) {
         return [{ x: 0, y: 1 + maxBoost }];
       }
       const pts = [];
@@ -128,12 +135,12 @@
       return pts;
     }
     function updateChart() {
-      let divisor = parseFloat(document.getElementById('divisor').value);
-      let rTotal  = parseFloat(document.getElementById('rTotal').value);
-      let pCap    = parseFloat(document.getElementById('pCap').value);
-      if (isNaN(divisor) || divisor <= 0) divisor = 5;
-      if (isNaN(rTotal) || rTotal < 0) rTotal = 0;
-      if (isNaN(pCap)   || pCap < 0)   pCap = 0;
+      let divisor = parseNum(document.getElementById('divisor').value);
+      let rTotal  = parseNum(document.getElementById('rTotal').value);
+      let pCap    = parseNum(document.getElementById('pCap').value);
+      if (!divisor) divisor = 5;
+      if (rTotal < 0) rTotal = 0;
+      if (pCap < 0)   pCap = 0;
       const rMarketCap = rTotal * pCap / 100;
       document.getElementById('rMarketCap').value = fmt(rMarketCap, 2);
 
@@ -167,8 +174,8 @@
     );
 
     // ---- loading and DOM refs ----
-    const API = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
-    const HORIZON = 'https://horizon.stellar.org/accounts/';
+    const API       = 'https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200';
+    const HORIZON   = 'https://horizon.stellar.org/accounts/';
     let dot = 0;
     const dotsEl     = document.getElementById('dots');
     const loadingEl  = document.getElementById('loading');
@@ -199,7 +206,7 @@
         const hasX = bal.some(b => b.asset_type === 'native');
         const nonX = bal.filter(b=>b.asset_type!=='native')
                         .map(b=>b.asset_code);
-        if (nonX.length >= 2)        return nonX;
+        if (nonX.length >= 2)         return nonX;
         if (nonX.length === 1 && hasX) return [ nonX[0], 'XLM' ];
         if (hasX)                     return ['XLM'];
         return nonX;
@@ -216,12 +223,14 @@
       if (assets.includes('USDC')) b += 0.3;
       return b;
     }
-    function calcDynamic(br, maxBoost) {
-      let divisor = parseFloat(document.getElementById('divisor').value);
-      let rMarket = parseFloat(document.getElementById('rMarketCap').value);
-      if (isNaN(divisor) || divisor <= 0) divisor = 5;
-      if (isNaN(rMarket) || rMarket <= 0) return 1 + maxBoost;
-      return 1 + maxBoost * Math.exp(-br / (rMarket / divisor));
+    // updated calcDynamic using parseNum
+    function calcDynamic(bribe, maxBoost) {
+      const divisor    = parseNum(document.getElementById('divisor').value);
+      const rMarketCap = parseNum(document.getElementById('rMarketCap').value);
+      if (!rMarketCap || !divisor) {
+        return 1 + maxBoost;
+      }
+      return 1 + maxBoost * Math.exp(-bribe / (rMarketCap / divisor));
     }
 
     // ---- row creation ----
@@ -230,7 +239,6 @@
       const base = item.original;
       const st   = item.staticBoost;
       const initDyn = st;
-      // initial damp: use static boost if positive, else raw
       const initDamp = base > 0 ? base * st : base;
       tr.innerHTML = `
         <td>${item.market}</td>
@@ -248,10 +256,10 @@
       const dampCell= tr.cells[5];
 
       inp.addEventListener('input', () => {
-        const br = parseFloat(inp.value) || 0;
+        const br = parseNum(inp.value);
         let dyn;
         if (st > 1.5) {
-          dyn = st; // exempt
+          dyn = st;
         } else if (base > 0) {
           dyn = calcDynamic(br, st - 1);
         } else {
@@ -269,46 +277,41 @@
     // ---- shares, adjusted shares, rewards, totals ----
     function updateShares() {
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
-      const raw  = rows.map(r => parseFloat(r.cells[5].textContent) || 0);
+      const raw  = rows.map(r => parseNum(r.cells[5].textContent));
       const pos  = raw.map(v => (v>0 ? v : 0));
       const sumPos        = pos.reduce((a,b)=>a+b,0) || 0;
-      // Vote Share % and find qualifiers ≥0.5%
       let qualifiers = [];
       rows.forEach((r,i) => {
         const pct = sumPos>0 ? (pos[i]/sumPos)*100 : 0;
-        const share = pct.toFixed(5)+'%';
-        r.cells[6].textContent = share;
+        r.cells[6].textContent = pct.toFixed(5)+'%';
         if (pct >= 0.5) qualifiers.push({ row: r, pct });
       });
-      // Adjusted shares: re-normalize qualifiers to 100%
       const totalQual = qualifiers.reduce((a,b)=>a+b.pct,0) || 1;
       qualifiers.forEach(q => {
         const adjPct = (q.pct/totalQual)*100;
         q.row.cells[7].textContent = adjPct.toFixed(5)+'%';
       });
-      // AQUA Rewards = R_total * (adjusted_pct/100)
-      let rTotal = parseFloat(document.getElementById('rTotal').value) || 0;
+      let rTotal = parseNum(document.getElementById('rTotal').value);
       qualifiers.forEach(q => {
-        const adjPct = parseFloat(q.row.cells[7].textContent) || 0;
+        const adjPct = parseNum(q.row.cells[7].textContent);
         q.row.cells[8].textContent = fmt(rTotal * adjPct/100, 2);
       });
-      // Footer totals
-      const absVotes = rows.map(r=>parseFloat(r.cells[1].textContent)||0);
+      // footer totals
+      const absVotes = rows.map(r=>parseNum(r.cells[1].textContent));
       const absDamp  = raw.map(v=>Math.abs(v));
       const sumVotes = absVotes.reduce((a,b)=>a+b,0);
       const sumDamp  = absDamp .reduce((a,b)=>a+b,0);
-      const sumShare = rows.reduce((a,r)=>a + (parseFloat(r.cells[6].textContent)||0),0);
-      const sumAdj   = qualifiers.reduce((a,q)=>a + (parseFloat(q.row.cells[7].textContent)||0),0);
-      const sumRwds  = qualifiers.reduce((a,q)=>a + (parseFloat(q.row.cells[8].textContent)||0),0);
-      document.getElementById('totalVotesFooterVotes').textContent    = fmt(sumVotes,2);
-      document.getElementById('totalStaticFooter').textContent       = fmt(
-        rows.reduce((s,r)=>s + (parseFloat(r.cells[2].textContent)||0),0),2
+      const sumShare = rows.reduce((a,r)=>a + parseNum(r.cells[6].textContent),0);
+      const sumAdj   = qualifiers.reduce((a,q)=>a + parseNum(q.row.cells[7].textContent),0);
+      const sumRwds  = qualifiers.reduce((a,q)=>a + parseNum(q.row.cells[8].textContent),0);
+      document.getElementById('totalVotesFooterVotes').textContent   = fmt(sumVotes,2);
+      document.getElementById('totalStaticFooter').textContent      = fmt(
+        rows.reduce((s,r)=>s + parseNum(r.cells[2].textContent),0),2
       );
-      document.getElementById('totalDampFooter').textContent         = fmt(sumDamp,2);
-      document.getElementById('totalShareFooter').textContent        = sumShare.toFixed(5)+'%';
-      document.getElementById('totalShareAdjustFooter').textContent  = sumAdj  .toFixed(5)+'%';
-      document.getElementById('totalRewardsFooter').textContent      = fmt(sumRwds,2);
-      // show main table
+      document.getElementById('totalDampFooter').textContent        = fmt(sumDamp,2);
+      document.getElementById('totalShareFooter').textContent       = sumShare.toFixed(5)+'%';
+      document.getElementById('totalShareAdjustFooter').textContent = sumAdj.toFixed(5)+'%';
+      document.getElementById('totalRewardsFooter').textContent     = fmt(sumRwds,2);
       totalEl.textContent = `Total Votes: ${fmt(sumVotes,2)}`;
       totalEl.style.display = 'block';
     }
@@ -323,25 +326,23 @@
         const res  = await fetch(url);
         const data = await res.json();
         (data.results || []).forEach(item => {
-          const upAssets   = item.extra?.upvote_assets   || [];
-          const downAssets = item.extra?.downvote_assets || [];
-          upAssets.forEach(a => {
-            const v = parseFloat(a.votes_sum) || 0;
-            if (a.asset.startsWith('AQUA:'))      aquaSum   += v;
-            else if (a.asset.startsWith('upvoteICE:')) upICEsum += v;
+          (item.extra?.upvote_assets || []).forEach(a => {
+            const v = parseNum(a.votes_sum);
+            if (a.asset.startsWith('AQUA:')) aquaSum += v;
+            if (a.asset.startsWith('upvoteICE:')) upICEsum += v;
           });
-          downAssets.forEach(a => {
-            const v = parseFloat(a.votes_sum) || 0;
+          (item.extra?.downvote_assets || []).forEach(a => {
+            const v = parseNum(a.votes_sum);
             if (a.asset.startsWith('downvoteICE:')) downICEsum += v;
           });
         });
         url = data.next;
       }
-      document.getElementById('apiAqua').textContent    = fmt(aquaSum,   2);
-      document.getElementById('apiUpICE').textContent   = fmt(upICEsum,  2);
+      document.getElementById('apiAqua').textContent    = fmt(aquaSum,2);
+      document.getElementById('apiUpICE').textContent   = fmt(upICEsum,2);
       document.getElementById('apiDownICE').textContent = fmt(downICEsum,2);
       document.getElementById('apiTotal').textContent   = fmt(
-        aquaSum + upICEsum + downICEsum, 2
+        aquaSum + upICEsum + downICEsum,2
       );
       apiBlock.style.display = 'block';
     }
@@ -351,10 +352,9 @@
       updateChart();
       const mkts   = await fetchMarkets();
       const assets = await Promise.all(mkts.map(m => fetchTrustlines(m.market_key)));
-
       const frag = document.createDocumentFragment();
       mkts.forEach((m,i) => {
-        const orig = parseFloat(m.votes_value) || 0;
+        const orig = parseNum(m.votes_value);
         const st   = calcStatic(assets[i]);
         frag.appendChild(createRow({
           market: assets[i].join(' / '),
@@ -367,8 +367,6 @@
       clearInterval(interval);
       loadingEl.style.display = 'none';
       wrapperEl.style.display = 'block';
-
-      // now fetch the API vote sums
       await fetchApiTotals();
     }
 
