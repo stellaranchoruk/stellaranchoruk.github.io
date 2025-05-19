@@ -120,7 +120,7 @@
     }
 
     // debounce helper
-    function debounce(fn, wait = 1500) {
+    function debounce(fn, wait = 800) {
       let timeout;
       return (...args) => {
         clearTimeout(timeout);
@@ -176,7 +176,7 @@
     const debouncedUpdate = debounce(() => {
       updateChart();
       recalcAll();
-    }, 1500);
+    }, 800);
     ['divisor','rTotal','pCap'].forEach(id =>
       document.getElementById(id).addEventListener('input', debouncedUpdate)
     );
@@ -297,7 +297,7 @@
       const sumVotes  = rows.map(r => parseNum(r.cells[1].textContent)).reduce((a,b)=>a+b,0);
       const sumStatic = rows.map(r => parseNum(r.cells[2].textContent)).reduce((a,b)=>a+b,0);
       const sumDamp   = rows.map(r => parseNum(r.cells[5].textContent)).reduce((a,b)=>a+b,0);
-      const sumShare  = rows.reduce((a,r)=>a+parseNum(r.cells[6].textContent),0);
+      const sumShare  = rows.map(r => parseNum(r.cells[6].textContent)).reduce((a,b)=>a+b,0);
       const sumAdj    = qualifiers.reduce((a,q)=>a+parseNum(q.row.cells[7].textContent),0);
       const sumR      = qualifiers.reduce((a,q)=>a+parseNum(q.row.cells[8].textContent),0);
 
@@ -328,7 +328,7 @@
         url = js.next;
       }
       document.getElementById('apiAqua').textContent    = fmt(a,2);
-      document.getElementById('apiUpICE').textContent = fmt(u,2);
+      document.getElementById('apiUpICE').textContent  = fmt(u,2);
       document.getElementById('apiDownICE').textContent = fmt(d,2);
       document.getElementById('apiTotal').textContent   = fmt(a+u+d,2);
       apiBlock.style.display = 'block';
