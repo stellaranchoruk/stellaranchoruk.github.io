@@ -80,8 +80,7 @@
           <th>Total</th>
           <th id="totalVotesFooterVotes">0</th>
           <th id="totalStaticFooter">0</th>
-          <th></th>
-          <th></th>
+          <th></th><th></th>
           <th id="totalDampFooter">0</th>
           <th id="totalShareFooter">0%</th>
           <th id="totalShareAdjustFooter">0%</th>
@@ -106,9 +105,9 @@
 
   <script>
     // Helpers
-    function fmt(n,d=2){ return n.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d}); }
-    function parseNum(s){ return parseFloat(String(s).replace(/,/g,'').replace('%',''))||0; }
-    function debounce(fn,wait=800){ let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),wait); }; }
+    function fmt(n,d=2){return n.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});}
+    function parseNum(s){return parseFloat(String(s).replace(/,/g,'').replace('%',''))||0;}
+    function debounce(fn,wait=800){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),wait);} }
 
     // DOM refs
     const divisor      = document.getElementById('divisor');
@@ -151,7 +150,7 @@
       }
     }
 
-    // Per-row recalc
+    // Recalc per-row
     function recalcAll(){
       document.querySelectorAll('#votesTable tbody tr').forEach(tr=>{
         const voteIn  = tr.querySelector('input.vote');
@@ -181,7 +180,7 @@
     },800);
     [divisor,rTotal,pCap].forEach(el=>el.addEventListener('input',debounced));
 
-    // Fetch utilities
+    // Fetch utils & static boost
     const API='https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200',
           HORIZON='https://horizon.stellar.org/accounts/';
     async function fetchMarkets(){
@@ -204,22 +203,18 @@
         return nonX;
       }catch{return ['XLM'];}
     }
-    function calcStatic(a){
-      let b=1;
-      if(a.includes('AQUA')) b+=0.5;
-      if(a.includes('XLM'))  b+=0.3;
-      if(a.includes('USDC')) b+=0.3;
-      return b;
+    function calcStatic(arr){
+      let b=1; if(arr.includes('AQUA')) b+=0.5; if(arr.includes('XLM')) b+=0.3; if(arr.includes('USDC')) b+=0.3; return b;
     }
 
     // Vote share & redistribution
     function updateShares(){
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
       const dampVals = rows.map(r=>parseNum(r.cells[5].textContent));
-      // ignore negatives
-      const posDamp = dampVals.map(v=>v>0?v:0);
-      const totalPos = posDamp.reduce((a,b)=>a+b,0)||1;
-      const rawShares = dampVals.map(v=> v>0? v/totalPos*100 : 0 );
+      const totalDamp = dampVals.reduce((a,b)=>a+b,0)||1;
+
+      // raw vote share includes negatives
+      const rawShares = dampVals.map(v=> v/totalDamp*100 );
       rows.forEach((r,i)=> r.cells[6].textContent = rawShares[i].toFixed(5)+'%' );
 
       const lostBelow = rawShares.reduce((s,p)=> p<0.5? s+p : s,0);
@@ -247,7 +242,7 @@
       // Footer totals
       const sumVotes  = rows.map(r=>parseNum(r.cells[1].querySelector('input').value)).reduce((a,b)=>a+b,0);
       const sumStatic = rows.map(r=>parseNum(r.cells[2].textContent)).reduce((a,b)=>a+b,0);
-      const sumDamp   = posDamp.reduce((a,b)=>a+b,0);
+      const sumDamp   = dampVals.reduce((a,b)=>a+b,0);
       const sumShare  = rawShares.reduce((a,b)=>a+b,0);
       const sumAdj    = quals.reduce((a,q)=>a+parseNum(q.row.cells[7].textContent),0);
       const sumR      = quals.reduce((a,q)=>a+parseNum(q.row.cells[8].textContent),0);
@@ -262,7 +257,7 @@
 
     // API totals
     async function fetchApiTotals(){
-      let a=0,u=0,d=0,url=API;
+      let a=0,u=0,d=0, url=API;
       while(url){
         const js=await(await fetch(url)).json();
         (js.results||[]).forEach(item=>{
@@ -287,7 +282,7 @@
 
     // Loading spinner
     const spinner = setInterval(()=>{
-      dotsEl.textContent = '.'.repeat((dotsEl.textContent.length+1)%4);
+      dotsEl.textContent='.'.repeat((dotsEl.textContent.length+1)%4);
     },500);
 
     // Init
@@ -297,10 +292,10 @@
       const assetsList = await Promise.all(mkts.map(m=>fetchTrustlines(m.market_key)));
       const tbody = document.querySelector('#votesTable tbody');
       mkts.forEach((m,i)=>{
-        const tr = document.createElement('tr');
-        const assets = assetsList[i].join(' / ');
-        const orig   = parseNum(m.votes_value);
-        const sb     = calcStatic(assetsList[i]);
+        const tr=document.createElement('tr');
+        const assets=assetsList[i].join(' / ');
+        const orig=parseNum(m.votes_value);
+        const sb=calcStatic(assetsList[i]);
         tr.staticBoost=sb;
         tr.innerHTML=`
           <td>${assets}</td>
