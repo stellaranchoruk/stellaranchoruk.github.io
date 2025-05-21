@@ -3,80 +3,143 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Aquarius Voting Landscape | Mirrasets</title>
+    <title>Real world assets, mirrored on Stellar | Mirrasets</title>
     <base href="" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="canonical" href="/" />
-
-    <!-- Open Graph & Twitter tags -->
     <meta property="og:site_name" content="Mirrasets" />
-    <meta property="og:title" content="Aquarius Voting Landscape" />
+    <meta property="og:title" content="Real world assets, mirrored on Stellar" />
     <meta property="og:url" content="https://mirrasets.com/" />
     <meta property="og:type" content="website" />
-    <meta property="og:description" content="Explore vote shares & rewards across top Aquarius markets." />
+    <meta property="og:description" content="Improve trading on Stellar with fiat pegged mirrorcoins" />
+    <meta property="og:image" content="https://mirrasets.com/images/open_graph2.png" />
+    <meta property="og:image:width" content="1388" />
+    <meta property="og:image:height" content="694" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Aquarius Voting Landscape | Mirrasets" />
-    <meta name="description" content="Adjust votes & bribes to see dynamic boost values, boosted votes, and reward distribution." />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+    <meta name="twitter:title" content="Mirrasets - Real world assets, mirrored on Stellar." />
+    <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
+    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
+    <meta name="twitter:url" content="https://mirrasets.com/" />
+    <meta itemprop="name" content="Mirrasets" />
+    <meta itemprop="url" content="/" />
+    <meta itemprop="description" content="Real world assets, mirrored on Stellar" />
+    <meta itemprop="thumbnailUrl" content="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
+    <link rel="image_src" href="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
+    <meta itemprop="image" content="https://mirrasets.com/images/header_image_mobile.png" format=1000w />
+    <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
+    <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes" />
 
-    <!-- CSS & Fonts -->
-    <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
-    <!-- Modernizr -->
+    <!-- Stellar SDK & Modernizr -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
   </head>
+
   <body>
     <div class="main-content" id="main-content">
       <header class="page-header">
-        <!-- header/nav unchanged -->
-      </header>
+        <a class="main-link" href="/">
+          <img src="/icons/sauk-logo.png" alt="Mirrasets Logo" />
+        </a>
 
-      <main class="centered-block p-8">
-        <h1 class="text-2xl font-semibold mb-4">Aquarius Community Voting</h1>
-        <p class="mb-6">Adjust votes or bribes to explore community outcomes across top markets.</p>
-
-        <!-- Controls -->
-        <section class="mb-8">
-          <div class="controls flex flex-wrap gap-6 mb-6">
-            <div class="control"><label for="divisor" class="block text-sm">Divisor</label><input type="number" id="divisor" value="5" min="1" class="border p-2 w-24" /></div>
-            <div class="control"><label for="rTotal" class="block text-sm">R_total (AQUA/day)</label><input type="number" id="rTotal" value="7000000" min="0" class="border p-2 w-32" /></div>
-            <div class="control"><label for="pCap" class="block text-sm">P_cap (%)</label><input type="number" id="pCap" value="10" min="0" max="100" class="border p-2 w-24" /></div>
-            <div class="control"><label for="rMarketCap" class="block text-sm">R_market_cap</label><input type="text" id="rMarketCap" disabled class="border p-2 w-32 bg-gray-100" /></div>
-          </div>
-        </section>
-
-        <!-- Votes Table -->
-        <div class="table-container overflow-x-auto">
-          <table id="votesTable" class="w-full border-collapse">
-            <thead>
-              <tr class="bg-gray-100">
-                <th class="p-2 border">Rank</th>
-                <th class="p-2 border">Market</th>
-                <th class="p-2 border">Bribes</th>
-                <th class="p-2 border">Votes</th>
-                <th class="p-2 border">Boost Value</th>
-                <th class="p-2 border">Boosted Votes</th>
-                <th class="p-2 border">Vote Share</th>
-                <th class="p-2 border">Adj Share</th>
-                <th class="p-2 border">Rewards</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-            <tfoot>
-              <tr class="font-bold">
-                <td class="p-2 border">-</td>
-                <td class="p-2 border">Total</td>
-                <td id="totalBribes" class="p-2 border">0</td>
-                <td id="totalVotes" class="p-2 border">0</td>
-                <td id="totalBoostValue" class="p-2 border">0.00000</td>
-                <td id="totalBoostedVotes" class="p-2 border">0</td>
-                <td id="totalShare" class="p-2 border">0%</td>
-                <td id="totalShareAdjust" class="p-2 border">0%</td>
-                <td id="totalRewards" class="p-2 border">0</td>
-              </tr>
-            </tfoot>
-          </table>
+        <div class="menu-toggle">
+          <svg class="menu-icon" width="15" height="8" viewBox="0 0 15 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 1H15" stroke="#4a4a4a" />
+            <path d="M15 7H0" stroke="#4a4a4a" />
+          </svg>
+          <svg class="close" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.6055 1L0.998867 11.6066" stroke="#4a4a4a" />
+            <path d="M11.6055 11.6064L0.998867 0.999844" stroke="#4a4a4a" />
+          </svg>
         </div>
-      </main>
+
+        <div class="menu">
+          <div class="relative">
+            <nav>
+              <a href="https://mirrasets.com/" target="_self" class="font-bold">Home</a>
+              <div class="dropdown">
+                <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
+                <div class="dropdown-menu">
+                  <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
+                  <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
+                  <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
+                </div>
+              </div>
+              <a href="https://mirrasets.com/reserves/" target="_self" class="font-bold">Reserves</a>
+              <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" class="font-bold">AQUA Voting</a>
+              <a href="https://aqua.network/rewards/" target="_blank" class="font-bold">AQUA Rewards</a>
+            </nav>
+          </div>
+
+          <div class="social-links">
+            <a href="https://x.com/mirrasets" target="_blank">[X]</a>
+            <a href="https://discord.gg/DjBhVqmwup" target="_blank">[Discord]</a>
+            <a href="mailto:support@mirrasets.com">[Email]</a>
+          </div>
+        </div>
+      </header>
+      
+      <section class="main-block">
+        <main class="centered-block p-8">
+          <h1 class="text-2xl font-semibold mb-4">Aquarius Community Voting</h1>
+          <p class="mb-6">Adjust votes or bribes to explore community outcomes across top markets.</p>
+
+          <!-- Controls -->
+          <div class="controls flex flex-wrap gap-6 mb-6">
+            <div class="control">
+              <label for="divisor" class="block text-sm">Divisor</label>
+              <input type="number" id="divisor" value="5" min="1" class="border p-2 w-24" />
+            </div>
+            <div class="control">
+              <label for="rTotal" class="block text-sm">R_total (AQUA/day)</label>
+              <input type="number" id="rTotal" value="7000000" min="0" class="border p-2 w-32" />
+            </div>
+            <div class="control">
+              <label for="pCap" class="block text-sm">P_cap (%)</label>
+              <input type="number" id="pCap" value="10" min="0" max="100" class="border p-2 w-24" />
+            </div>
+            <div class="control">
+              <label for="rMarketCap" class="block text-sm">R_market_cap</label>
+              <input type="text" id="rMarketCap" disabled class="border p-2 w-32 bg-gray-100" />
+            </div>
+          </div>
+
+          <!-- Votes Table -->
+          <div class="table-container overflow-x-auto">
+            <table id="votesTable" class="w-full border-collapse">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="p-2 border">Rank</th>
+                  <th class="p-2 border">Market</th>
+                  <th class="p-2 border">Bribes</th>
+                  <th class="p-2 border">Votes</th>
+                  <th class="p-2 border">Boost Value</th>
+                  <th class="p-2 border">Boosted Votes</th>
+                  <th class="p-2 border">Vote Share</th>
+                  <th class="p-2 border">Adj Share</th>
+                  <th class="p-2 border">Rewards</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr class="font-bold">
+                  <td class="p-2 border">-</td>
+                  <td class="p-2 border">Total</td>
+                  <td id="totalBribes" class="p-2 border">0</td>
+                  <td id="totalVotes" class="p-2 border">0</td>
+                  <td id="totalBoostValue" class="p-2 border">0.00000</td>
+                  <td id="totalBoostedVotes" class="p-2 border">0</td>
+                  <td id="totalShare" class="p-2 border">0%</td>
+                  <td id="totalShareAdjust" class="p-2 border">0%</td>
+                  <td id="totalRewards" class="p-2 border">0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </main>
+      </section>
 
       <footer class="centered-block p-4 text-center text-sm">© 2025 mirrasets.com</footer>
     </div>
@@ -89,16 +152,11 @@
       const TOTAL_REWARDS = 7000000;
       const AQUA_ISSUER = 'GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA';
       const USDC_ISSUER = 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
-
       function fmt(num, dec=2) {
-        return num.toLocaleString(undefined, {
-          minimumFractionDigits: dec,
-          maximumFractionDigits: dec
-        });
+        return num.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
       }
       function parseNum(str) { return parseFloat(String(str).replace(/,/g,'').replace('%',''))||0; }
-      function debounce(fn, wait=600){ let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); }; }
-
+      function debounce(fn, wait=600) { let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); }; }
       function calcStatic(balances) {
         const hasNative = balances.some(b=>b.asset_type==='native');
         const non = balances.filter(b=>b.asset_type!=='native');
@@ -109,21 +167,20 @@
             if(b.asset_code==='USDC'&&b.asset_issuer===USDC_ISSUER) boost+=0.3;
           });
         } else if(non.length===1) {
-          const b=non[0];
-          if(b.asset_code==='AQUA'&&b.asset_issuer===AQUA_ISSUER) boost+=0.5;
+          const b=non[0]; if(b.asset_code==='AQUA'&&b.asset_issuer===AQUA_ISSUER) boost+=0.5;
           if(b.asset_code==='USDC'&&b.asset_issuer===USDC_ISSUER) boost+=0.3;
           if(hasNative) boost+=0.3;
         } else if(hasNative) boost+=0.3;
         return boost;
       }
-
       function calcDynamic(br, maxB) {
         const div = parseNum(document.getElementById('divisor').value);
-        const rmc = parseNum(document.getElementById('rMarketCap').value);
+        const rt = parseNum(document.getElementById('rTotal').value);
+        const pc = parseNum(document.getElementById('pCap').value);
+        const rmc = rt * pc/100;
         if(!div||!rmc) return 1+maxB;
         return 1+maxB*Math.exp(-br/(rmc/div));
       }
-
       async function init() {
         const resp = await fetch('https://voting-tracker.aqua.network/api/voting-snapshot/top-volume/?limit=200');
         const {results: mkts} = await resp.json();
@@ -131,15 +188,12 @@
           .then(r=>r.json()).then(js=>js.balances||[]).catch(()=>[])));
         const tbody = document.querySelector('#votesTable tbody');
         mkts.forEach((m,i)=>{
-          const bal = balancesAll[i];
-          const non = bal.filter(b=>b.asset_type!=='native');
-          const label = non.length>=2?`${non[0].asset_code}/${non[1].asset_code}`
-                        : non.length===1?`${non[0].asset_code}/XLM`:'XLM';
+          const bal = balancesAll[i]; const non=bal.filter(b=>b.asset_type!=='native');
+          const label = non.length>=2?`${non[0].asset_code}/${non[1].asset_code}` : non.length===1?`${non[0].asset_code}/XLM`:'XLM';
           const votes = parseNum(m.votes_value);
           const sb = calcStatic(bal);
           const maxB = sb-1;
-
-          const tr = document.createElement('tr');
+          const tr=document.createElement('tr');
           tr.innerHTML = `
             <td class="p-2 border">${i+1}</td>
             <td class="p-2 border">${label}</td>
@@ -151,48 +205,36 @@
             <td class="p-2 border">0.00000%</td>
             <td class="p-2 border">0.00</td>`;
           tbody.appendChild(tr);
-
-          const brInp = tr.querySelector('.bribe');
-          const voteInp = tr.querySelector('.vote');
-          const boostCell = tr.cells[4], boostedCell = tr.cells[5];
-          brInp.addEventListener('input', debounce(updateRow));
-          voteInp.addEventListener('input', debounce(updateRow));
-
-          function updateRow() {
-            const b = parseNum(brInp.value);
-            const v = parseNum(voteInp.value);
-            const dyn = calcDynamic(b, maxB);
-            boostCell.textContent = dyn.toFixed(5);
-            boostedCell.textContent = fmt(v*dyn);
-            updateShares();
+          const brInp=tr.querySelector('.bribe'), voInp=tr.querySelector('.vote');
+          const boostCell=tr.cells[4], boostedCell=tr.cells[5];
+          brInp.addEventListener('input',debounce(update)); voInp.addEventListener('input',debounce(update));
+          function update() {
+            const b=parseNum(brInp.value), v=parseNum(voInp.value);
+            const dyn=calcDynamic(b,maxB);
+            boostCell.textContent=dyn.toFixed(5);
+            boostedCell.textContent=fmt(v*dyn);
+            updateAll();
           }
         });
-        updateShares();
+        updateAll();
       }
-
-      function updateShares() {
-        const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
-        const boosted = rows.map(r=>parseNum(r.cells[5].textContent));
-        const totalBoosted = boosted.reduce((a,b)=>a+b,0) || 1;
+      function updateAll() {
+        const rows=Array.from(document.querySelectorAll('#votesTable tbody tr'));
+        const boosts=rows.map(r=>parseNum(r.cells[5].textContent));
+        const totalBoosted=boosts.reduce((a,b)=>a+b,0)||1;
         rows.forEach((r,i)=>{
-          r.cells[6].textContent = ((boosted[i]/totalBoosted)*100).toFixed(5)+'%';
-          r.cells[7].textContent = ((boosted[i]/totalBoosted)*100).toFixed(5)+'%';
-          r.cells[8].textContent = fmt((TOTAL_REWARDS*boosted[i]/totalBoosted));
+          r.cells[6].textContent=(boosts[i]/totalBoosted*100).toFixed(5)+'%';
+          r.cells[7].textContent=(boosts[i]/totalBoosted*100).toFixed(5)+'%';
+          r.cells[8].textContent=fmt(TOTAL_REWARDS*boosts[i]/totalBoosted);
         });
-        document.getElementById('totalVotes').textContent = fmt(rows.reduce((sum,r)=>sum+parseNum(r.querySelector('.vote').value),0),0);
+        document.getElementById('totalBribes').textContent = fmt(rows.reduce((s,r)=>s+parseNum(r.querySelector('.bribe').value),0),0);
+        document.getElementById('totalVotes').textContent = fmt(rows.reduce((s,r)=>s+parseNum(r.querySelector('.vote').value),0),0);
         document.getElementById('totalBoostedVotes').textContent = fmt(totalBoosted);
-        document.getElementById('totalShare').textContent = ((totalBoosted/totalBoosted)*100).toFixed(2)+'%';
-        document.getElementById('totalShareAdjust').textContent = ((totalBoosted/totalBoosted)*100).toFixed(2)+'%';
+        document.getElementById('totalShare').textContent = (totalBoosted/totalBoosted*100).toFixed(2)+'%';
+        document.getElementById('totalShareAdjust').textContent = document.getElementById('totalShare').textContent;
         document.getElementById('totalRewards').textContent = fmt(TOTAL_REWARDS);
       }
-
-      ['divisor','rTotal','pCap'].forEach(id=>document.getElementById(id).addEventListener('input',debounce(()=>{
-        const rt=parseNum(document.getElementById('rTotal').value);
-        const pc = parseNum(document.getElementById('pCap').value);
-        document.getElementById('rMarketCap').value = fmt(rt*pc/100,2);
-        updateShares();
-      },600)));
-
+      ['divisor','rTotal','pCap'].forEach(id=>document.getElementById(id).addEventListener('input',debounce(updateAll)));
       window.addEventListener('DOMContentLoaded', init);
     </script>
   </body>
