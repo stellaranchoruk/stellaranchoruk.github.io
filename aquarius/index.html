@@ -139,35 +139,37 @@
     function recalcRow(tr){
       const sb = parseFloat(tr.dataset.static);
       const votes = parseNum(tr.querySelector('.votes').value);
-      // Vote Boost remains staticBoost
       tr.querySelector('.boost').textContent = sb.toFixed(1);
-      // Boosted Votes
-      const boosted = votes*sb; tr.querySelector('.boosted').textContent = fmt(boosted);
+      const boosted = votes*sb;
+      tr.querySelector('.boosted').textContent = fmt(boosted);
       updateShares();
     }
 
     function updateShares(){
+      const capVal = parseNum(pCap.value);
+      const floor = 0.5;
       const rows = Array.from(document.querySelectorAll('#votesTable tbody tr'));
       const boosted = rows.map(r=>parseNum(r.querySelector('.boosted').textContent));
       const totalD = boosted.reduce((a,b)=>a+b,0)||1;
       const rawShares = boosted.map(v=>v/totalD*100);
       rows.forEach((r,i)=> r.querySelector('.share').textContent = rawShares[i].toFixed(5)+'%');
 
-      // apply cap 0.5-10%
-      const raw = rawShares; const lossBelow = raw.filter(p=>p<0.5).reduce((s,p)=>s+p,0);
-      const excessAbove = raw.filter(p=>p>10).reduce((s,p)=>s+(p-10),0);
-      const qualifiers = rows.map((r,i)=>({row:r,raw:raw[i]})).filter(q=>q.raw>=0.5);
-      const uncapped = qualifiers.filter(q=>q.raw<=10);
-      const sumU = uncapped.reduce((s,q)=>s+Math.min(q.raw,10),0)||1;
+      // apply cap floor-cap and redistribute
+      const lossBelow = rawShares.filter(p=>p<floor).reduce((s,p)=>s+p,0);
+      const excessAbove = rawShares.filter(p=>p>capVal).reduce((s,p)=>s+(p-capVal),0);
+      const qualifiers = rows.map((r,i)=>({row:r,raw:rawShares[i]})).filter(q=>q.raw>=floor);
+      const uncapped = qualifiers.filter(q=>q.raw<=capVal);
+      const sumU = uncapped.reduce((s,q)=>s+Math.min(q.raw,capVal),0)||1;
       qualifiers.forEach(q=>{
         let adj;
-        if(q.raw>10) adj=10;
+        if(q.raw>capVal) adj = capVal;
         else adj = q.raw + (q.raw/sumU)*(lossBelow+excessAbove);
         q.row.querySelector('.shareAdj').textContent = adj.toFixed(5)+'%';
       });
-      const RT=parseNum(rTotal.value);
+
+      const RT = parseNum(rTotal.value);
       qualifiers.forEach(q=>{
-        const pct=parseNum(q.row.querySelector('.shareAdj').textContent);
+        const pct = parseNum(q.row.querySelector('.shareAdj').textContent);
         q.row.querySelector('.reward').textContent = fmt((RT*pct)/100);
       });
 
@@ -175,7 +177,7 @@
       const sumBr = rows.reduce((s,r)=>s+parseNum(r.querySelector('.bribe').value),0);
       const sumVo = rows.reduce((s,r)=>s+parseNum(r.querySelector('.votes').value),0);
       const sumBt = boosted.reduce((a,b)=>a+b,0);
-      const sumSh = raw.reduce((a,b)=>a+b,0);
+      const sumSh = rawShares.reduce((a,b)=>a+b,0);
       const sumAd = qualifiers.reduce((s,q)=>s+parseNum(q.row.querySelector('.shareAdj').textContent),0);
       const sumRe = qualifiers.reduce((s,q)=>s+parseNum(q.row.querySelector('.reward').textContent),0);
       document.getElementById('totalBribesFooter').textContent = fmt(sumBr);
@@ -186,7 +188,8 @@
       document.getElementById('totalRewardsFooter').textContent = fmt(sumRe);
     }
 
-    async function fetchApiTotals(){ let a=0,u=0,d=0,url=API;
+    async function fetchApiTotals(){
+      let a=0,u=0,d=0,url=API;
       while(url){ const js=await(await fetch(url)).json(); js.results.forEach(item=>{ item.extra?.upvote_assets.forEach(x=>{const v=parseNum(x.votes_sum); if(x.asset.startsWith('AQUA:'))a+=v;else if(x.asset.startsWith('upvoteICE:'))u+=v; }); item.extra?.downvote_assets.forEach(x=>{const v=parseNum(x.votes_sum); if(x.asset.startsWith('downvoteICE:'))d+=v; }); }); url=js.next; }
       document.getElementById('apiAqua').textContent=fmt(a);
       document.getElementById('apiUpICE').textContent=fmt(u);
@@ -199,8 +202,8 @@
       const assets = await Promise.all(mkts.map(m=>fetchTrustlines(m.market_key)));
       const tbody = document.querySelector('#votesTable tbody');
       mkts.forEach((m,i)=>{
-        const codeArr = assets[i];
-        const label = codeArr.length>1?`${codeArr[0]} / ${codeArr[1]}`:`${codeArr[0]}/XLM`;
+        const codes = assets[i];
+        const label = codes.length>1?`\${codes[0]} / \${codes[1]}`:`\${codes[0]}/XLM`;
         const original = parseNum(m.votes_value);
         const sb = calcStatic(assets[i]);
         tbody.appendChild(createRow({rank:i+1,market:label,original,staticBoost:sb}));
