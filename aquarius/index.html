@@ -132,7 +132,7 @@
         <td>${item.rank}</td>
         <td>${item.market}</td>
         <td><input type="number" value="0" min="0"></td>
-        <td><input type="number" value="${fmt(base,2)}" min="0"></td>
+        <td><input type="number" value="${base}" min="0"></td>
         <td>${st.toFixed(1)}</td>
         <td>${fmt(base * st,2)}</td>
         <td>0.00000%</td>
@@ -197,6 +197,7 @@
         frag.appendChild(createRow({ rank: i+1, market: assets[i].join(' / '), original: o, staticBoost: s }));
       });
       document.querySelector('#votesTable tbody').appendChild(frag);
+      recalcAll();
       updateShares();
       clearInterval(intv); loadingEl.style.display='none'; wrapEl.style.display='block';
       await fetchApiTotals();
