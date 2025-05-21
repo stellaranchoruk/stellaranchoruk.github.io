@@ -6,8 +6,6 @@
   <title>Aquarius Vote Booster Simulator</title>
   <style>
     body { font-family: sans-serif; margin: 10px; }
-    pre { background: #f9f9f9; padding: 10px; }
-    pre { white-space: pre-wrap; word-break: break-word; }
     .controls { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 20px; }
     .control { display: flex; flex-direction: column; }
     .control label { margin-bottom: 4px; font-size: 0.9em; }
@@ -42,7 +40,7 @@
     </div>
   </div>
 
-  <div class="table-container" id="tableWrapper" style="display:none;">
+  <div class="table-container" id="tableWrapper">
     <table id="votesTable">
       <thead>
         <tr>
@@ -74,7 +72,7 @@
     </table>
   </div>
 
-  <div id="apiTotalsContainer" class="table-container" style="display:none;">
+  <div id="apiTotalsContainer" class="table-container">
     <h3>API Vote Totals</h3>
     <table id="apiTotalsTable">
       <tbody>
@@ -106,7 +104,6 @@
       };
     }
 
-    const divisorInput = document.getElementById('divisor');
     const rTotalInput = document.getElementById('rTotal');
     const pCapInput = document.getElementById('pCap');
     const rMarketCapInput = document.getElementById('rMarketCap');
