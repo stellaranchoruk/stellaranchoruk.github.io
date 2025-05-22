@@ -203,8 +203,18 @@
       const tbody = document.querySelector('#votesTable tbody');
       mkts.forEach((m,i)=>{
         const codes = assets[i];
-        const label = codes.length>1?`\${codes[0]} / \${codes[1]}`:`\${codes[0]}/XLM`;
+        let label;
+        if (codes.length > 1) {
+          label = `${codes[0]} / ${codes[1]}`;
+        } else if (codes.length === 1) {
+          label = `${codes[0]}/XLM`;
+        } else {
+          label = 'XLM';
+        }
         const original = parseNum(m.votes_value);
+        const sb = calcStatic(assets[i]);
+        tbody.appendChild(createRow({ rank: i+1, market: label, original, staticBoost: sb }));
+      });
         const sb = calcStatic(assets[i]);
         tbody.appendChild(createRow({rank:i+1,market:label,original,staticBoost:sb}));
       });
