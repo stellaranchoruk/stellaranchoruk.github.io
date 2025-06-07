@@ -1,145 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Real world assets, mirrored on Stellar | Mirrasets</title>
-    <base href="" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Real world assets, mirrored on Stellar | Mirrasets</title>
+  <base href="" />
+  <link rel="icon" href="favicon.ico" />
 
-    <!-- Open Graph / Twitter tags -->
-    <meta property="og:site_name" content="Mirrasets" />
-    <meta property="og:title" content="Real world assets, mirrored on Stellar" />
-    <meta property="og:url" content="https://mirrasets.com/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:description" content="Improve trading on Stellar with fiat pegged mirrorcoins" />
-    <meta property="og:image" content="https://mirrasets.com/images/open_graph2.png" />
-    <meta property="og:image:width" content="1388" />
-    <meta property="og:image:height" content="694" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Mirrasets - Real world assets, mirrored on Stellar." />
-    <meta name="twitter:description" content="Improve trading on Stellar with fiat pegged mirrorcoins." />
-    <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
-    <meta name="description" content="Mirrasets - Real world assets, mirrored on Stellar." />
-    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+  <!-- Open Graph / Twitter -->
+  <meta property="og:site_name" content="Mirrasets" />
+  <meta property="og:title"     content="Real world assets, mirrored on Stellar" />
+  <meta property="og:url"       content="https://mirrasets.com/" />
+  <meta property="og:description" content="Improve trading on Stellar with fiat pegged mirrorcoins" />
+  <meta name="twitter:card"     content="summary_large_image" />
+  <meta name="description"      content="Mirrasets - Real world assets, mirrored on Stellar." />
+  <meta name="viewport"         content="width=device-width, initial-scale=1" />
 
-    <!-- Your existing CSS -->
-    <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
+  <!-- Your existing CSS -->
+  <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
 
-    <!-- Stellar Wallets Kit CSS -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.css"
-    />
-  </head>
+  <!-- Stellar Wallets Kit CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.css"
+  />
+</head>
 
-  <body>
-    <div class="main-content" id="main-content">
-      <!-- ================= Header ================= -->
-      <header class="page-header">
-        <a class="main-link" href="/"><img src="/icons/sauk-logo.png" alt="Mirrasets Logo" /></a>
+<body>
+  <div class="main-content" id="main-content">
+    <!-- ============== Header ============== -->
+    <header class="page-header">
+      <a class="main-link" href="/"><img src="/icons/sauk-logo.png" alt="Mirrasets Logo" /></a>
+      <!-- … your existing nav/menu here … -->
+    </header>
 
-        <div class="menu-toggle">
-          <!-- … your toggles … -->
+    <!-- ============== Hero ============== -->
+    <section class="main-block">
+      <img src="/images/header_image_mobile.png" alt="Mirrasets Hero" style="width:100%;height:auto;" />
+      <div class="hero-text">
+        <h1>Real world assets,<br/>mirrored on the Stellar network</h1>
+      </div>
+    </section>
+
+    <!-- ==== Wallet Connect Section ==== -->
+    <section class="wallet-login centered-block" style="text-align:center; padding:3rem 1rem;">
+      <h2>Connect your Stellar Wallet</h2>
+      <!-- We’ll render our own button here -->
+      <button id="connect-btn"
+              style="padding:0.75rem 1.5rem; font-size:1rem; border:none; background:#4a4a4a; color:#fff; border-radius:4px;">
+        Connect with Stellar
+      </button>
+    </section>
+
+    <!-- ============== What We Do & Tweets ============== -->
+    <section class="wallets-and-exchanges centered-block">
+      <div class="text wallets">
+        <h4>What We Do</h4>
+        <p>Mirrasets mirrors real world assets on the Stellar network. We currently provide the pegged stablecoins GBPC, KRWC & EURC…</p>
+        <p>Each token is backed by a verifiable USDC reserve on the Stellar ledger…</p>
+      </div>
+      <div class="text exchanges">
+        <a class="twitter-timeline"
+           data-width="400" data-height="550" data-theme="light"
+           href="https://twitter.com/Mirrasets?ref_src=twsrc%5Etfw">
+          Tweets by Mirrasets
+        </a>
+        <script async src="https://platform.twitter.com/widgets.js"></script>
+      </div>
+    </section>
+
+    <!-- ============== Footer ============== -->
+    <footer>
+      <div class="centered-block content">
+        <div class="copyright-line">
+          <div class="copyright">© 2025 mirrasets.com</div>
         </div>
+      </div>
+    </footer>
+  </div>
 
-        <div class="menu">
-          <nav>
-            <a href="/" style="font-weight:bold;">Home</a>
-            <div class="dropdown">
-              <a href="#" class="dropdown-toggle">Our Mirrored Assets ▾</a>
-              <div class="dropdown-menu">
-                <a href="/gbpc/">GBPC</a>
-                <a href="/eurc/">EURC</a>
-                <a href="/krwc/">KRWC</a>
-              </div>
-            </div>
-            <a href="/reserves/" style="font-weight:bold;">Reserves</a>
-            <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" style="font-weight:bold;">AQUA Voting</a>
-            <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
-          </nav>
-          <div class="social-links">
-            <a href="https://x.com/mirrasets" target="_blank">…X icon SVG…</a>
-            <a href="https://discord.gg/DjBhVqmwup" target="_blank">…Discord SVG…</a>
-            <a href="mailto:support@mirrasets.com">…Email SVG…</a>
-          </div>
-        </div>
-      </header>
+  <!-- Your existing scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+  <script data-cfasync="false"
+          src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js">
+  </script>
+  <script src="https://mirrasets.com/scripts/info.js"></script>
+  <script src="https://mirrasets.com/scripts/mobile-menu.js"></script>
 
-      <!-- ================ Hero ================ -->
-      <section class="main-block">
-        <img src="/images/header_image_mobile.png" alt="Mirrasets Hero" style="width:100%;height:auto;" />
-        <div class="hero-text">
-          <h1>Real world assets,<br />mirrored on the Stellar network</h1>
-        </div>
-      </section>
+  <!-- ==== Stellar Wallets Kit Initialization ==== -->
+  <script type="module">
+    import {
+      StellarWalletsKit,
+      WalletNetwork,
+      allowAllModules
+    } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
 
-      <!-- ================ Stellar Wallet Connect ================ -->
-      <section class="wallet-login centered-block" style="text-align:center; padding:3rem 1rem;">
-        <h2>Connect your Stellar Wallet</h2>
-        <div id="wallet-root"></div>
-      </section>
+    import {
+      WalletConnectModule,
+      WalletConnectAllowedMethods
+    } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/modules/walletconnect.module.esm.js';
 
-      <!-- =============== What We Do & Tweets =============== -->
-      <section class="wallets-and-exchanges centered-block">
-        <div class="text wallets">
-          <h4>What We Do</h4>
-          <p>Mirrasets mirrors real world assets on the Stellar network. We currently provide the pegged stablecoins GBPC, KRWC &amp; EURC…</p>
-          <p>Each token is backed by a verifiable USDC reserve on the Stellar ledger…</p>
-        </div>
-        <div class="text exchanges">
-          <a class="twitter-timeline" data-width="400" data-height="550" data-theme="light"
-             href="https://twitter.com/Mirrasets?ref_src=twsrc%5Etfw">
-            Tweets by Mirrasets
-          </a>
-          <script async src="https://platform.twitter.com/widgets.js"></script>
-        </div>
-      </section>
+    // 1) Instantiate the kit, include all the “built-in” modules plus WalletConnect
+    const kit = new StellarWalletsKit({
+      network: WalletNetwork.PUBLIC,        // change to TESTNET if you want
+      modules: [
+        ...allowAllModules(),               // Freighter, Albedo, Lobstr, xBull, etc.
+        new WalletConnectModule({
+          url:       window.location.origin,
+          projectId: 'YOUR_PROJECT_ID',      // ← replace this
+          method:    WalletConnectAllowedMethods.SIGN,
+          name:      'Mirrasets',
+          description: 'Connect your Stellar Wallet to Mirrasets',
+          icons:     [window.location.origin + '/icons/sauk-logo.png'],
+          network:   WalletNetwork.PUBLIC,
+        })
+      ]
+    });
 
-      <!-- ================= Footer ================= -->
-      <footer>
-        <div class="centered-block content">
-          <div class="copyright-line">
-            <div class="copyright">© 2025 mirrasets.com</div>
-          </div>
-        </div>
-      </footer>
-    </div>
-
-    <!-- =========== Your existing scripts =========== -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
-    <script data-cfasync="false"
-            src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js">
-    </script>
-    <script src="https://mirrasets.com/scripts/info.js"></script>
-    <script src="https://mirrasets.com/scripts/mobile-menu.js"></script>
-
-    <!-- ==== Stellar Wallets Kit Initialization ==== -->
-    <script type="module">
-      import {
-        StellarWalletsKit,
-        WalletNetwork,
-        allowAllModules
-      } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
-
-      // 1) Create the kit (using PUBLIC for live network)
-      const kit = new StellarWalletsKit({
-        network: WalletNetwork.PUBLIC,
-        modules: allowAllModules()  // Freighter, Albedo, Lobstr, WalletConnect, etc.
-      });
-
-      // 2) Drop in a “Connect” button
-      kit.createButton({
-        container: document.getElementById('wallet-root'),
-        buttonText: 'Connect with Stellar',
-        onConnect: ({ address, walletId }) => {
-          console.log('✅ Connected:', address, 'via', walletId);
-          // e.g. POST { publicKey: address } to your backend
+    // 2) Wire up our own button to open the modal
+    document.getElementById('connect-btn').addEventListener('click', () => {
+      kit.openModal({
+        modalTitle: 'Select a Stellar Wallet',
+        onWalletSelected: async (option) => {
+          // set the chosen wallet and grab the address
+          kit.setWallet(option.id);
+          const { address } = await kit.getAddress();
+          console.log('✅ Connected:', option.id, address);
+          // → send `address` to your backend to start a session!
         },
-        onDisconnect: () => {
-          console.log('👋 Disconnected');
+        onClosed: (err) => {
+          if (err) console.warn('Modal closed with error', err);
         }
       });
-    </script>
-  </body>
+    });
+  </script>
+</body>
 </html>
