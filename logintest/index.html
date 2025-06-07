@@ -1,55 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <!-- … all your existing <meta> and <link> tags … -->
+<!-- make sure your <head> includes the `<script type="module">` block from our ESM example -->
+<script type="module">
+  import {
+    StellarWalletsKit,
+    WalletNetwork,
+    allowAllModules,
+    XBULL_ID
+  } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
 
-  <!-- Stellar Wallets Kit stylesheet (optional, but may include base styles) -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.css"
-  />
-</head>
-<body>
-  <!-- … your existing header/nav … -->
+  const kit = new StellarWalletsKit({
+    network: WalletNetwork.TESTNET,
+    selectedWalletId: XBULL_ID,
+    modules: allowAllModules(),
+  });
 
-  <section class="wallet-login centered-block" style="text-align:center; padding:2rem 0;">
-    <h2>Connect your Stellar Wallet</h2>
-    <!-- this is where our kit button will appear -->
-    <div id="wallet-root"></div>
-  </section>
-
-  <!-- … the rest of your page … -->
-
-  <!-- 1) Load the ESM bundle from jsDelivr -->
-  <script type="module">
-    import {
-      StellarWalletsKit,
-      WalletNetwork,
-      allowAllModules,
-      XBULL_ID
-    } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
-
-    // 2) Instantiate the kit
-    const kit = new StellarWalletsKit({
-      network:       WalletNetwork.TESTNET,     // switch to PUBLIC for mainnet
-      selectedWalletId: XBULL_ID,               // defaults to xBull
-      modules:       allowAllModules(),         // “allowAllModules” pulls in Freighter, Albedo, Lobstr, WalletConnect, etc.
-    });
-
-    // 3) Render a “Connect” button into #wallet-root
-    kit.createButton({
-      container: document.getElementById('wallet-root'),
-      buttonText: 'Connect with Stellar',
-      onConnect: ({ address, walletId }) => {
-        console.log('✅ Connected:', address, 'via', walletId);
-        // → you’d POST { publicKey: address } to your backend here
-      },
-      onDisconnect: () => {
-        console.log('👋 Disconnected');
-      }
-    });
-  </script>
-
-  <!-- … any other scripts (mobile menu, analytics) … -->
-</body>
-</html>
+  kit.createButton({
+    container: document.getElementById('wallet-root'),
+    buttonText: 'Connect with Stellar',
+    onConnect: ({ address, walletId }) => {
+      console.log('✅ Connected:', address, 'via', walletId);
+    },
+    onDisconnect: () => {
+      console.log('👋 Disconnected');
+    }
+  });
+</script>
