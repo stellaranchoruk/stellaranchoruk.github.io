@@ -1,97 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Real world assets, mirrored on Stellar | Mirrasets Demo</title>
-    <base href="" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+<head>
+  <!-- … all your existing <meta> and <link> tags … -->
 
-    <!-- Mirrasets OG / Twitter metas… -->
-    <link rel="canonical" href="/" />
-    <meta property="og:site_name"        content="Mirrasets" />
-    <meta property="og:title"            content="Real world assets, mirrored on Stellar" />
-    <meta property="og:url"              content="https://mirrasets.com/" />
-    <meta property="og:description"      content="Improve trading on Stellar with fiat pegged mirrorcoins" />
-    <meta property="og:image"            content="https://mirrasets.com/images/open_graph2.png" />
-    <meta name="twitter:card"            content="summary_large_image" />
-    <meta name="twitter:title"           content="Mirrasets - Real world assets, mirrored on Stellar." />
-    <meta name="twitter:description"     content="Improve trading on Stellar with fiat pegged mirrorcoins." />
-    <meta name="twitter:image"           content="https://mirrasets.com/images/open_graph2.png" />
-    <meta name="description"             content="Mirrasets - Real world assets, mirrored on Stellar." />
-    <meta name="viewport"                content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes" />
+  <!-- Stellar Wallets Kit stylesheet (optional, but may include base styles) -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.css"
+  />
+</head>
+<body>
+  <!-- … your existing header/nav … -->
 
-    <!-- Stellar Wallet Kit CSS & UMD bundle -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/@stellar/walletkit@latest/dist/walletkit.css"
-    />
-    <script src="https://unpkg.com/@stellar/walletkit@latest/dist/walletkit.umd.js"></script>
+  <section class="wallet-login centered-block" style="text-align:center; padding:2rem 0;">
+    <h2>Connect your Stellar Wallet</h2>
+    <!-- this is where our kit button will appear -->
+    <div id="wallet-root"></div>
+  </section>
 
-    <!-- Your existing styles and scripts -->
-    <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.5/stellar-sdk.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
-  </head>
+  <!-- … the rest of your page … -->
 
-  <body>
-    <div class="main-content" id="main-content">
-      <header class="page-header">
-        <!-- … your existing header/nav … -->
-      </header>
+  <!-- 1) Load the ESM bundle from jsDelivr -->
+  <script type="module">
+    import {
+      StellarWalletsKit,
+      WalletNetwork,
+      allowAllModules,
+      XBULL_ID
+    } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
 
-      <section class="main-block">
-        <!-- … your existing main content … -->
-      </section>
+    // 2) Instantiate the kit
+    const kit = new StellarWalletsKit({
+      network:       WalletNetwork.TESTNET,     // switch to PUBLIC for mainnet
+      selectedWalletId: XBULL_ID,               // defaults to xBull
+      modules:       allowAllModules(),         // “allowAllModules” pulls in Freighter, Albedo, Lobstr, WalletConnect, etc.
+    });
 
-      <!-- === Stellar Wallet Kit Demo Section === -->
-      <section class="wallet-login centered-block" style="text-align:center; padding:2rem 0;">
-        <h2>Connect your Stellar Wallet</h2>
-        <!-- This is where the kit will render its “Connect” button -->
-        <div id="wallet-root"></div>
-      </section>
+    // 3) Render a “Connect” button into #wallet-root
+    kit.createButton({
+      container: document.getElementById('wallet-root'),
+      buttonText: 'Connect with Stellar',
+      onConnect: ({ address, walletId }) => {
+        console.log('✅ Connected:', address, 'via', walletId);
+        // → you’d POST { publicKey: address } to your backend here
+      },
+      onDisconnect: () => {
+        console.log('👋 Disconnected');
+      }
+    });
+  </script>
 
-      <section class="wallets-and-exchanges centered-block">
-        <!-- … your existing “What We Do” and Twitter feed … -->
-      </section>
-
-      <footer>
-        <!-- … your existing footer … -->
-      </footer>
-    </div>
-
-    <!-- Initialize Stellar Wallet Kit -->
-    <script>
-      (function () {
-        const { StellarWalletKit, networks } = window.WalletKit;
-
-        // Instantiate the kit pointing at our container
-        const walletKit = new StellarWalletKit({
-          network: networks.TESTNET,           // switch to PUBLIC for mainnet
-          selectorNode: document.getElementById('wallet-root'),
-          appName: 'Mirrasets Demo',           // appears in wallet UIs
-        });
-
-        // Handle user connecting
-        walletKit.on('connect', ({ publicKey, walletType }) => {
-          console.log('✅ Connected:', publicKey, 'via', walletType);
-          // e.g. send publicKey to your backend to create a session
-          // fetch('/api/session', { method:'POST', body: JSON.stringify({publicKey}) })
-        });
-
-        // Handle user disconnecting
-        walletKit.on('disconnect', () => {
-          console.log('👋 Disconnected');
-        });
-
-        // (Optional) expose the kit globally for debugging:
-        window._stellarKit = walletKit;
-      })();
-    </script>
-
-    <!-- Your other scripts: menu toggle, analytics, etc… -->
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
-    <script src="https://mirrasets.com/scripts/info.js"></script>
-    <script src="https://mirrasets.com/scripts/mobile-menu.js"></script>
-  </body>
+  <!-- … any other scripts (mobile menu, analytics) … -->
+</body>
 </html>
