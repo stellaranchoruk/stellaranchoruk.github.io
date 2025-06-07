@@ -3,43 +3,56 @@
 <head>
   <meta charset="UTF-8" />
   <title>Stellar Wallets Kit Minimal Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- 1) Core CSS for the kit -->
+  <!-- Stellar Wallets Kit CSS (v0.0.7) -->
   <link
     rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.css"
+    href="https://unpkg.com/@creit.tech/stellar-wallets-kit@0.0.7/dist/index.css"
   />
 
-  <!-- 2) UMD build of Stellar Wallets Kit -->
+  <!-- Stellar Wallets Kit UMD (v0.0.7) -->
   <script
-    src="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.umd.min.js"
+    src="https://unpkg.com/@creit.tech/stellar-wallets-kit@0.0.7/dist/index.umd.js"
     defer
   ></script>
 
   <style>
-    /* center the demo */
-    body { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:sans-serif; }
-    #wallet-root { margin-top:1rem; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      font-family: sans-serif;
+    }
+    #wallet-root {
+      margin-top: 1rem;
+    }
   </style>
 </head>
 <body>
   <h1>Stellar Wallets Kit Demo</h1>
-  <!-- 3) This is where our button will go -->
   <div id="wallet-root"></div>
 
-  <!-- 4) Initialize the kit and render the button -->
   <script>
+    // Wait for both DOM ready and the UMD script to load
     document.addEventListener('DOMContentLoaded', () => {
-      // The UMD bundle exposes `StellarWalletsKitLib`
-      const { StellarWalletsKit, WalletNetwork, allowAllModules } = StellarWalletsKitLib;
+      // The UMD build exposes a global called `StellarWalletsKitLib`
+      const {
+        StellarWalletsKit,
+        WalletNetwork,
+        allowAllModules
+      } = StellarWalletsKitLib;
 
-      // Create the kit pointing at PUBLIC (or TESTNET)
+      // 1) Instantiate against PUBLIC network
       const kit = new StellarWalletsKit({
         network: WalletNetwork.PUBLIC,
-        modules: allowAllModules()
+        modules: allowAllModules()  // Freighter, Albedo, Rabet, Lobstr, xBull, etc.
       });
 
-      // Render a "Connect with Stellar" button into #wallet-root
+      // 2) Render the button into #wallet-root
       kit.createButton({
         container: document.getElementById('wallet-root'),
         buttonText: 'Connect with Stellar',
