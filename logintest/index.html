@@ -1,70 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Stellar Wallets Kit Minimal Demo</title>
+  <meta charset="utf-8" />
+  <title>Stellar Wallets Kit Minimal ESM Demo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Stellar Wallets Kit CSS (v0.0.7) -->
+  <!-- 1) Core CSS for the kit (v1.7.5) -->
   <link
     rel="stylesheet"
-    href="https://unpkg.com/@creit.tech/stellar-wallets-kit@0.0.7/dist/index.css"
+    href="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@1.7.5/dist/index.css"
   />
-
-  <!-- Stellar Wallets Kit UMD (v0.0.7) -->
-  <script
-    src="https://unpkg.com/@creit.tech/stellar-wallets-kit@0.0.7/dist/index.umd.js"
-    defer
-  ></script>
-
-  <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      font-family: sans-serif;
-    }
-    #wallet-root {
-      margin-top: 1rem;
-    }
-  </style>
 </head>
-<body>
+<body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:sans-serif;">
+
   <h1>Stellar Wallets Kit Demo</h1>
-  <div id="wallet-root"></div>
+  <div id="wallet-root" style="margin-top:1rem;"></div>
 
-  <script>
-    // Wait for both DOM ready and the UMD script to load
-    document.addEventListener('DOMContentLoaded', () => {
-      // The UMD build exposes a global called `StellarWalletsKitLib`
-      const {
-        StellarWalletsKit,
-        WalletNetwork,
-        allowAllModules
-      } = StellarWalletsKitLib;
+  <!-- 2) ESM build of the kit -->
+  <script type="module">
+    import {
+      StellarWalletsKit,
+      WalletNetwork,
+      allowAllModules
+    } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@1.7.5/dist/index.esm.js';
 
-      // 1) Instantiate against PUBLIC network
-      const kit = new StellarWalletsKit({
-        network: WalletNetwork.PUBLIC,
-        modules: allowAllModules()  // Freighter, Albedo, Rabet, Lobstr, xBull, etc.
-      });
+    // 3) Instantiate the kit on PUBLIC
+    const kit = new StellarWalletsKit({
+      network: WalletNetwork.PUBLIC,
+      modules: allowAllModules()   // Freighter, Albedo, Rabet, Lobstr, xBull, etc.
+    });
 
-      // 2) Render the button into #wallet-root
-      kit.createButton({
-        container: document.getElementById('wallet-root'),
-        buttonText: 'Connect with Stellar',
-        onConnect: ({ address, walletId }) => {
-          console.log('✅ Connected:', address, 'via', walletId);
-          alert(`Connected!\n${walletId}: ${address}`);
-        },
-        onDisconnect: () => {
-          console.log('👋 Disconnected');
-          alert('Disconnected');
-        }
-      });
+    // 4) Render the “Connect” button
+    kit.createButton({
+      container: document.getElementById('wallet-root'),
+      buttonText: 'Connect with Stellar',
+      onConnect: ({ address, walletId }) => {
+        console.log('✅ Connected:', address, 'via', walletId);
+        alert(`Connected!\n${walletId}: ${address}`);
+      },
+      onDisconnect: () => {
+        console.log('👋 Disconnected');
+        alert('Disconnected');
+      }
     });
   </script>
 </body>
