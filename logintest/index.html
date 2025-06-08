@@ -14,21 +14,21 @@
   <button id="connect-btn">Connect with Freighter</button>
   <div id="public-key"></div>
 
-  <!-- 1) Load the UMD bundle (it’s CORS-safe) -->
-  <script src="https://unpkg.com/@creit.tech/stellar-wallets-kit@latest/dist/stellar-wallets-kit.umd.js"></script>
-  <script>
-    // 2) Grab the kit classes off the global
-    const { StellarWalletsKit, WalletNetwork, FreighterModule } = window.StellarWalletsKit;
+  <!-- Use JSDelivr ES-module build (CORS-safe) -->
+  <script type="module">
+    import {
+      StellarWalletsKit,
+      WalletNetwork,
+      FreighterModule
+    } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
 
-    // 3) Instantiate Freighter + Kit
     const freighter = new FreighterModule();
     const kit = new StellarWalletsKit({
-      network:    WalletNetwork.PUBLIC,
+      network: WalletNetwork.PUBLIC,
       selectedWalletId: freighter.productId,
-      modules:    [ freighter ],
+      modules: [freighter],
     });
 
-    // 4) Wire up the button to open the built-in modal
     document.getElementById('connect-btn').addEventListener('click', async () => {
       try {
         await kit.openModal({
@@ -36,10 +36,10 @@
           onWalletSelected: async (wallet) => {
             await kit.setWallet(wallet.id);
             const { address } = await kit.getAddress();
-            document.getElementById('public-key').textContent = 
+            document.getElementById('public-key').textContent =
               `Your public key: ${address}`;
           },
-          onClosed:   err => { if (err) console.error('Modal closed:', err); }
+          onClosed: err => { if (err) console.error('Modal closed:', err); }
         });
       } catch (e) {
         console.error('Failed to open modal:', e);
