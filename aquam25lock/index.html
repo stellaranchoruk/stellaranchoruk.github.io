@@ -11,6 +11,7 @@
         input, button, textarea { margin: 5px 0; padding: 8px; font-size: 1em; }
         textarea { width: 100%; }
         .section { margin-bottom: 20px; }
+        #lockInfo { font-weight: bold; white-space: pre-line; }
     </style>
 </head>
 <body>
@@ -29,14 +30,17 @@
         <button id="buildBtn">Build XDR</button>
     </div>
     <p>This will lock your AQUAm25 tokens for 3 years into a claimable balance.</p>
-    <textarea id="xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
+    <div class="section">
+        <p id="lockInfo"></p>
+        <textarea id="xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
+    </div>
 
     <script>
-        // Connect to the public (mainnet) Horizon server
+        // Use mainnet Horizon
         const server = new StellarSdk.Server('https://horizon.stellar.org');
         const AQUA_ASSET = new StellarSdk.Asset('AQUAm25', 'GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC');
-        // Tracker key must be a valid Stellar public key starting with 'G'
-        const TRACKER_KEY = 'GAGP7YB5E72C3A52MBQE4UOTRL3XFMPK34N7IJTHY6AE2WYXWAILJHOY';
+        // Temporary tracker key for testing
+        const TRACKER_KEY = 'GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP';
 
         async function fetchBalance() {
             const pubKey = document.getElementById('publicKey').value.trim();
@@ -57,14 +61,17 @@
             try {
                 const sourceAccount = await server.loadAccount(pubKey);
 
-                // Set the lock expiration to 3 years from now
-                const lockDate = new Date();
-                lockDate.setFullYear(lockDate.getFullYear() + 3);
-                const lockTimestamp = Math.floor(lockDate.getTime() / 1000).toString();
+                // Define lock start and end
+                const startDate = new Date();
+                const endDate = new Date(startDate);
+                endDate.setFullYear(endDate.getFullYear() + 3);
+                const lockTimestamp = Math.floor(endDate.getTime() / 1000).toString();
 
-                // Create two claimants:
-                // 1) The user: can claim after the lock period
-                // 2) Tracker: never able to claim (predicateNever)
+                // Display human-readable lock info
+                document.getElementById('lockInfo').innerText =
+                    `Lock start: ${startDate.toISOString()}\nLock end:   ${endDate.toISOString()}`;
+
+                // Create claimants: user after lock, tracker never
                 const claimants = [
                     new StellarSdk.Claimant(
                         pubKey,
@@ -74,7 +81,7 @@
                     ),
                     new StellarSdk.Claimant(
                         TRACKER_KEY,
-                        StellarSdk.Claimant.predicateNever()
+                        StellarSdk.Claimant.predicateBeforeAbsoluteTime('0')
                     )
                 ];
 
