@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lock AQUAm25 Tokens</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        input, button, textarea { margin: 5px 0; padding: 8px; font-size: 1em; }
+        textarea { width: 100%; }
+        .section { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Lock AQUAm25 Tokens for 3 Years</h1>
+    <div class="section">
+        <label for="publicKey">Public Key:</label><br>
+        <input id="publicKey" type="text" size="56" placeholder="Enter your Stellar public key" />
+        <button id="getBalanceBtn">Get AQUAm25 Balance</button>
+        <p>Balance: <span id="balance">-</span></p>
+    </div>
+    <div class="section">
+        <label for="amount">AQUAm25 Amount:</label><br>
+        <input id="amount" type="number" step="any" placeholder="Amount to lock" />
+    </div>
+    <div class="section">
+        <button id="buildBtn">Build XDR</button>
+    </div>
+    <p>This will lock your AQUAm25 tokens for 3 years into a claimable balance.</p>
+    <textarea id="xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
+
+    <script>
+        const server = new StellarSdk.Server('https://horizon.stellar.org');
+        const AQUA_ASSET = new StellarSdk.Asset('AQUAm25', 'GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC');
+        const TRACKER_KEY = 'identGAGP7YB5E72C3A52MBQE4UOTRL3XFMPK34N7IJTHY6AE2WYXWAILJHOY';
+
+        async function fetchBalance() {
+            const pubKey = document.getElementById('publicKey').value.trim();
+            document.getElementById('balance').innerText = 'Fetching...';
+            try {
+                const account = await server.loadAccount(pubKey);
+                const bal = account.balances.find(b => b.asset_code === 'AQUAm25' && b.asset_issuer === AQUA_ASSET.issuer);
+                document.getElementById('balance').innerText = bal ? bal.balance : '0';
+            } catch (err) {
+                console.error(err);
+                document.getElementById('balance').innerText = 'Error fetching balance';
+            }
+        }
+
+        async function buildXDR() {
+            const pubKey = document.getElementById('publicKey').value.trim();
+            const amount = document.getElementById('amount').value;
+            try {
+                const sourceAccount = await server.loadAccount(pubKey);
+
+                const lockDate = new Date();
+                lockDate.setFullYear(lockDate.getFullYear() + 3);
+                const lockTimestamp = Math.floor(lockDate.getTime() / 1000).toString();
+
+                const claimants = [
+                    new StellarSdk.Claimant(pubKey, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(lockTimestamp))),
+                    new StellarSdk.Claimant(TRACKER_KEY, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
+                ];
+
+                const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
+                    fee: StellarSdk.BASE_FEE,
+                    networkPassphrase: StellarSdk.Networks.PUBLIC
+                })
+                .addOperation(StellarSdk.Operation.createClaimableBalance({
+                    asset: AQUA_ASSET,
+                    amount: amount,
+                    claimants: claimants
+                }))
+                .setTimeout(180)
+                .build();
+
+                document.getElementById('xdr').value = tx.toXDR();
+            } catch (err) {
+                console.error(err);
+                alert('Error building XDR: ' + err.message);
+            }
+        }
+
+        document.getElementById('getBalanceBtn').addEventListener('click', fetchBalance);
+        document.getElementById('buildBtn').addEventListener('click', buildXDR);
+    </script>
+</body>
+</html>
