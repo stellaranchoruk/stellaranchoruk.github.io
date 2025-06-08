@@ -14,13 +14,13 @@
   <button id="connect-btn">Connect with Freighter</button>
   <div id="public-key"></div>
 
-  <!-- Use JSDelivr ES-module build (CORS-safe) -->
   <script type="module">
+    // Pull in the ESM build via Skypack (with proper CORS headers)
     import {
       StellarWalletsKit,
       WalletNetwork,
       FreighterModule
-    } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
+    } from 'https://cdn.skypack.dev/@creit.tech/stellar-wallets-kit@1.7.5';
 
     const freighter = new FreighterModule();
     const kit = new StellarWalletsKit({
