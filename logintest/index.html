@@ -1,55 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Stellar Wallet Kit Final Demo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- ✅ Correct CSS from unpkg CDN -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/@creit.tech/stellar-wallets-kit@1.7.5/dist/index.css"
-  />
+  <meta charset="UTF-8" />
+  <title>Mirrasets Stellar Wallet Demo</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    #public-key { margin-top: 1rem; word-break: break-all; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+  </style>
 </head>
-<body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:sans-serif;">
+<body>
+  <h1>Connect your Stellar Wallet</h1>
+  <button id="connect-btn">Connect with Freighter</button>
+  <div id="public-key"></div>
 
-  <h1>Stellar Wallets Kit Demo</h1>
-  <button id="connect-btn"
-          style="padding:.75rem 1.5rem;font-size:1rem;border:none;background:#4a4a4a;color:#fff;border-radius:4px;cursor:pointer;">
-    Connect with Stellar
-  </button>
+  <!-- Load the Kit from unpkg -->
+  <script type="module">
+    import {
+      StellarWalletsKit,
+      WalletNetwork,
+      FreighterModule
+    } from 'https://unpkg.com/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
 
-  <!-- ✅ Correct UMD script from unpkg CDN -->
-  <script
-    src="https://unpkg.com/@creit.tech/stellar-wallets-kit@1.7.5/dist/index.umd.min.js"
-    defer
-  ></script>
+    // Create one Freighter module instance
+    const freighter = new FreighterModule();
 
-  <script>
-    // Wait for UMD to load
-    document.addEventListener('DOMContentLoaded', () => {
-      const { StellarWalletsKit, WalletNetwork, allowAllModules } = window.StellarWalletsKitLib;
+    // Initialize the Kit on Mainnet, defaulting to FreighterModule.productId
+    const kit = new StellarWalletsKit({
+      network: WalletNetwork.PUBLIC,
+      selectedWalletId: freighter.productId,
+      modules: [ freighter ],
+    }); // :contentReference[oaicite:0]{index=0}
 
-      const kit = new StellarWalletsKit({
-        network: WalletNetwork.PUBLIC,
-        modules: allowAllModules()
-      });
-
-      document.getElementById('connect-btn').addEventListener('click', () => {
-        kit.openModal({
-          modalTitle: 'Select a Stellar Wallet',
-          notAvailableText: 'No Stellar wallets found. Please install Freighter or another supported wallet.',
-          onWalletSelected: async (opt) => {
-            await kit.setWallet(opt.id);
+    document.getElementById('connect-btn').addEventListener('click', async () => {
+      try {
+        await kit.openModal({
+          modalTitle: 'Connect your Stellar wallet',
+          onWalletSelected: async (wallet) => {
+            // Set the wallet (should already be freighter)
+            await kit.setWallet(wallet.id);
+            // Request the public key
             const { address } = await kit.getAddress();
-            console.log('✅ Connected:', opt.id, address);
-            alert(`Connected with ${opt.id}:\n${address}`);
+            document.getElementById('public-key').textContent =
+              `Your public key: ${address}`;
           },
           onClosed: (err) => {
-            if (err) alert('Wallet modal closed or errored');
+            if (err) console.error('Modal closed with error:', err);
           }
         });
-      });
+      } catch (e) {
+        console.error('Failed to open modal:', e);
+      }
     });
   </script>
 </body>
