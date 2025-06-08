@@ -32,9 +32,11 @@
     <textarea id="xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
 
     <script>
+        // Connect to the public (mainnet) Horizon server
         const server = new StellarSdk.Server('https://horizon.stellar.org');
         const AQUA_ASSET = new StellarSdk.Asset('AQUAm25', 'GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC');
-        const TRACKER_KEY = 'identGAGP7YB5E72C3A52MBQE4UOTRL3XFMPK34N7IJTHY6AE2WYXWAILJHOY';
+        // Tracker key must be a valid Stellar public key starting with 'G'
+        const TRACKER_KEY = 'GAGP7YB5E72C3A52MBQE4UOTRL3XFMPK34N7IJTHY6AE2WYXWAILJHOY';
 
         async function fetchBalance() {
             const pubKey = document.getElementById('publicKey').value.trim();
@@ -55,13 +57,25 @@
             try {
                 const sourceAccount = await server.loadAccount(pubKey);
 
+                // Set the lock expiration to 3 years from now
                 const lockDate = new Date();
                 lockDate.setFullYear(lockDate.getFullYear() + 3);
                 const lockTimestamp = Math.floor(lockDate.getTime() / 1000).toString();
 
+                // Create two claimants:
+                // 1) The user: can claim after the lock period
+                // 2) Tracker: never able to claim (predicateNever)
                 const claimants = [
-                    new StellarSdk.Claimant(pubKey, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(lockTimestamp))),
-                    new StellarSdk.Claimant(TRACKER_KEY, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
+                    new StellarSdk.Claimant(
+                        pubKey,
+                        StellarSdk.Claimant.predicateNot(
+                            StellarSdk.Claimant.predicateBeforeAbsoluteTime(lockTimestamp)
+                        )
+                    ),
+                    new StellarSdk.Claimant(
+                        TRACKER_KEY,
+                        StellarSdk.Claimant.predicateNever()
+                    )
                 ];
 
                 const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
