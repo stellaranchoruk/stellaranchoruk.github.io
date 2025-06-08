@@ -14,11 +14,17 @@
   <button id="connect-btn">Connect with Freighter</button>
   <div id="public-key"></div>
 
-  <!-- 1) Correct UMD bundle URL -->
-  <script src="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@1.7.5/dist/stellar-wallets-kit.umd.min.js"></script>
-  <!-- 2) Your inline code -->
+  <!-- 1) UMD bundle from unpkg (CORS-friendly) -->
+  <script src="https://unpkg.com/@creit.tech/stellar-wallets-kit@1.7.5/dist/stellar-wallets-kit.umd.js"></script>
+
+  <!-- 2) Your inline initialization and button logic -->
   <script>
-    const { StellarWalletsKit, WalletNetwork, FreighterModule } = window.StellarWalletsKit;
+    const {
+      StellarWalletsKit,
+      WalletNetwork,
+      FreighterModule
+    } = window.StellarWalletsKit;
+
     const freighter = new FreighterModule();
     const kit = new StellarWalletsKit({
       network: WalletNetwork.PUBLIC,
