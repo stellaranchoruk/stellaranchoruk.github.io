@@ -15,12 +15,12 @@
   <div id="public-key"></div>
 
   <script type="module">
-    // Pull in the ESM build via Skypack (with proper CORS headers)
+    // import a single bundled ESM from esm.sh (includes all deps)
     import {
       StellarWalletsKit,
       WalletNetwork,
       FreighterModule
-    } from 'https://cdn.skypack.dev/@creit.tech/stellar-wallets-kit@1.7.5';
+    } from 'https://esm.sh/@creit.tech/stellar-wallets-kit@1.7.5';
 
     const freighter = new FreighterModule();
     const kit = new StellarWalletsKit({
