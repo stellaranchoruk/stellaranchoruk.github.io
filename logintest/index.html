@@ -14,39 +14,32 @@
   <button id="connect-btn">Connect with Freighter</button>
   <div id="public-key"></div>
 
-  <!-- Load the Kit from unpkg -->
-  <script type="module">
-    import {
-      StellarWalletsKit,
-      WalletNetwork,
-      FreighterModule
-    } from 'https://unpkg.com/@creit.tech/stellar-wallets-kit@latest/dist/index.esm.js';
+  <!-- 1) Load the UMD bundle (it’s CORS-safe) -->
+  <script src="https://unpkg.com/@creit.tech/stellar-wallets-kit@latest/dist/stellar-wallets-kit.umd.js"></script>
+  <script>
+    // 2) Grab the kit classes off the global
+    const { StellarWalletsKit, WalletNetwork, FreighterModule } = window.StellarWalletsKit;
 
-    // Create one Freighter module instance
+    // 3) Instantiate Freighter + Kit
     const freighter = new FreighterModule();
-
-    // Initialize the Kit on Mainnet, defaulting to FreighterModule.productId
     const kit = new StellarWalletsKit({
-      network: WalletNetwork.PUBLIC,
+      network:    WalletNetwork.PUBLIC,
       selectedWalletId: freighter.productId,
-      modules: [ freighter ],
-    }); // :contentReference[oaicite:0]{index=0}
+      modules:    [ freighter ],
+    });
 
+    // 4) Wire up the button to open the built-in modal
     document.getElementById('connect-btn').addEventListener('click', async () => {
       try {
         await kit.openModal({
           modalTitle: 'Connect your Stellar wallet',
           onWalletSelected: async (wallet) => {
-            // Set the wallet (should already be freighter)
             await kit.setWallet(wallet.id);
-            // Request the public key
             const { address } = await kit.getAddress();
-            document.getElementById('public-key').textContent =
+            document.getElementById('public-key').textContent = 
               `Your public key: ${address}`;
           },
-          onClosed: (err) => {
-            if (err) console.error('Modal closed with error:', err);
-          }
+          onClosed:   err => { if (err) console.error('Modal closed:', err); }
         });
       } catch (e) {
         console.error('Failed to open modal:', e);
