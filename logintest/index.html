@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Stellar Wallets Kit Minimal ESM Demo</title>
+  <title>Stellar Wallets Kit Minimal Demo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- 1) Core CSS for the kit (v1.7.5) -->
+  <!-- 1) Core CSS (v1.7.5) -->
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@1.7.5/dist/index.css"
@@ -14,9 +14,14 @@
 <body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:sans-serif;">
 
   <h1>Stellar Wallets Kit Demo</h1>
-  <div id="wallet-root" style="margin-top:1rem;"></div>
+  <button
+    id="connect-btn"
+    style="padding:0.75rem 1.5rem; font-size:1rem; border:none; background:#4a4a4a; color:#fff; border-radius:4px; cursor:pointer;"
+  >
+    Connect with Stellar
+  </button>
 
-  <!-- 2) ESM build of the kit -->
+  <!-- 2) ESM build & initialization -->
   <script type="module">
     import {
       StellarWalletsKit,
@@ -24,24 +29,31 @@
       allowAllModules
     } from 'https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@1.7.5/dist/index.esm.js';
 
-    // 3) Instantiate the kit on PUBLIC
+    // 3) Instantiate the kit (PUBLIC network, all built-in modules)
     const kit = new StellarWalletsKit({
       network: WalletNetwork.PUBLIC,
-      modules: allowAllModules()   // Freighter, Albedo, Rabet, Lobstr, xBull, etc.
+      modules: allowAllModules()
     });
 
-    // 4) Render the “Connect” button
-    kit.createButton({
-      container: document.getElementById('wallet-root'),
-      buttonText: 'Connect with Stellar',
-      onConnect: ({ address, walletId }) => {
-        console.log('✅ Connected:', address, 'via', walletId);
-        alert(`Connected!\n${walletId}: ${address}`);
-      },
-      onDisconnect: () => {
-        console.log('👋 Disconnected');
-        alert('Disconnected');
-      }
+    // 4) Open the modal on button click, per the guide’s API
+    document.getElementById('connect-btn').addEventListener('click', () => {
+      kit.openModal({
+        modalTitle: 'Select a Stellar Wallet',
+        notAvailableText: 'No Stellar wallets found. Please install Freighter or another supported wallet.',
+        onWalletSelected: async (option) => {
+          // per guide: set the wallet, then get address
+          await kit.setWallet(option.id);
+          const { address } = await kit.getAddress();
+          console.log('✅ Connected:', option.id, address);
+          alert(`Connected!\n${option.id}: ${address}`);
+        },
+        onClosed: (err) => {
+          if (err) {
+            console.error('❌ Modal closed with error:', err);
+            alert('Wallet selector closed or error occurred');
+          }
+        }
+      });
     });
   </script>
 </body>
