@@ -1,53 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>Stellar Wallets Kit UMD Demo</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  
-  <!-- UMD bundle: exposes StellarWalletsKitLib -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/@creit.tech/stellar-wallets-kit@1.7.5/dist/index.umd.min.js"
-    defer
-  ></script>
-  <!-- (You can drop in the CSS if you find the correct path later) -->
+  <meta charset="utf-8" />
+  <title>Mirrasets | Real world assets mirrored on Stellar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- SEO / Social -->
+  <meta name="description" content="Improve trading on Stellar with fiat pegged mirrorcoins" />
+  <meta property="og:title" content="Real world assets, mirrored on Stellar" />
+  <meta property="og:image" content="https://mirrasets.com/images/open_graph2.png" />
+
+  <!-- Wallets Kit styling -->
+  <link rel="stylesheet" href="https://stellarwalletskit.dev/css/stellar-wallets-kit.css" />
+
+  <!-- Mirrasets styling -->
+  <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
 </head>
-<body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;">
 
-  <h1>Stellar Wallets Kit UMD Demo</h1>
-  <button id="connect-btn"
-          style="padding:.75rem 1.5rem;font-size:1rem;border:none;background:#4a4a4a;color:#fff;border-radius:4px;cursor:pointer;">
-    Connect with Stellar
-  </button>
+<body>
+  <header class="page-header">
+    <a class="main-link" href="/">
+      <img src="/icons/sauk-logo.png" alt="Mirrasets Logo" />
+    </a>
+    <!-- nav/menu omitted for clarity -->
+  </header>
 
+  <section class="main-block" style="text-align:center; padding:2rem;">
+    <h1>Real world assets<br />mirrored on the Stellar network</h1>
+    <p>Try connecting your wallet below:</p>
+    <button id="connect-btn" style="padding:12px 24px; font-size:16px; background:#4a4a4a; color:white; border:none; border-radius:6px; cursor:pointer;">
+      Connect with Stellar
+    </button>
+  </section>
+
+  <footer style="text-align:center; margin-top:3rem;">
+    <p>© 2025 mirrasets.com</p>
+  </footer>
+
+  <!-- Official Wallets Kit script -->
+  <script src="https://stellarwalletskit.dev/js/stellar-wallets-kit.umd.js"></script>
+
+  <!-- Initialization -->
   <script>
-    // Wait for the UMD bundle to load (defer ensures this runs after)
-    document.addEventListener('DOMContentLoaded', () => {
-      // Grab the Kit from the global
+    document.addEventListener("DOMContentLoaded", () => {
       const {
         StellarWalletsKit,
         WalletNetwork,
         allowAllModules
-      } = StellarWalletsKitLib;
+      } = window.StellarWalletsKitLib;
 
-      // Instantiate on PUBLIC network with every built-in module
       const kit = new StellarWalletsKit({
         network: WalletNetwork.PUBLIC,
         modules: allowAllModules()
       });
 
-      // Open the modal on button click
-      document.getElementById('connect-btn').addEventListener('click', () => {
+      document.getElementById("connect-btn").addEventListener("click", () => {
         kit.openModal({
-          modalTitle: 'Select a Stellar Wallet',
-          notAvailableText: 'No wallets found. Please install Freighter or another supported wallet.',
-          onWalletSelected: async (opt) => {
-            await kit.setWallet(opt.id);
+          modalTitle: "Select a Stellar Wallet",
+          notAvailableText: "No wallets found. Please install Freighter or another supported wallet.",
+          onWalletSelected: async (wallet) => {
+            await kit.setWallet(wallet.id);
             const { address } = await kit.getAddress();
-            alert(`Connected!\n${opt.id}: ${address}`);
+            console.log("✅ Connected:", wallet.id, address);
+            alert(`Connected with ${wallet.id}:\n${address}`);
           },
           onClosed: (err) => {
-            if (err) alert('Modal closed or no wallets available');
+            if (err) {
+              console.warn("Modal error:", err);
+              alert("Wallet modal closed or errored");
+            }
           }
         });
       });
