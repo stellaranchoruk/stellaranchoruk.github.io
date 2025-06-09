@@ -149,11 +149,13 @@
                 xdrEl.value = xdr;
                 copyBtn.disabled = false;
 
-                                // Build Stellar Lab URL: encode XDR but preserve '/', '+' and '='
+                // Build Stellar Lab URL: encode XDR, preserve '/', '+', '=', then double slashes
                 let encoded = encodeURIComponent(xdr)
                     .replace(/%2F/g, '/')
                     .replace(/%2B/g, '+')
                     .replace(/%3D/g, '=');
+                // Double each slash for Stellar Lab
+                encoded = encoded.replace(/\//g, '//');
                 const rawXdr = encoded + ';;';
                 labBtn.disabled = false;
                 labBtn.onclick = () => {
