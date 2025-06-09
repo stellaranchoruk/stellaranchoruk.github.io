@@ -7,40 +7,12 @@
     <title>Lock AQUAm25 Tokens</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"></script>
     <style>
-        /* Global box-sizing */
         *, *::before, *::after { box-sizing: border-box; }
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            display: flex;
-            justify-content: center;
-            background: #f9f9f9;
-        }
-        .container {
-            width: 100%;
-            max-width: 480px;
-            background: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        input, button, textarea, p, label, span {
-            width: 100%;
-        }
-        input, button, textarea {
-            margin: 8px 0;
-            padding: 10px;
-            font-size: 1em;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            background: #007bff;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-            text-align: center;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; display: flex; justify-content: center; background: #f9f9f9; }
+        .container { width: 100%; max-width: 480px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        input, button, textarea, p, label, span { width: 100%; }
+        input, button, textarea { margin: 8px 0; padding: 10px; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #007bff; color: #fff; border: none; cursor: pointer; text-align: center; }
         button:disabled { background: #888; cursor: not-allowed; }
         textarea { resize: vertical; font-family: monospace; }
         .section { margin-bottom: 20px; }
@@ -48,9 +20,7 @@
         .pct-buttons { display: flex; gap: 8px; margin-top: 4px; }
         .pct-buttons button { flex: 1; background: #e9ecef; color: #000; }
         .pct-buttons button:hover { background: #dee2e6; }
-        @media (min-width: 600px) {
-            body { margin: 40px; }
-        }
+        @media (min-width: 600px) { body { margin: 40px; } }
     </style>
 </head>
 <body>
@@ -74,6 +44,7 @@
         <div class="section">
             <button id="buildBtn">Build XDR</button>
             <button id="copyBtn" disabled>Copy XDR</button>
+            <button id="signBtn" disabled>Sign &amp; Submit</button>
         </div>
         <p>This will lock your AQUAm25 tokens for 3 years into a claimable balance.</p>
         <div class="section">
@@ -88,8 +59,10 @@
 
         const publicKeyInput = document.getElementById('publicKey');
         const balanceEl = document.getElementById('balance');
+        const amountInput = document.getElementById('amount');
         const buildBtn = document.getElementById('buildBtn');
         const copyBtn = document.getElementById('copyBtn');
+        const signBtn = document.getElementById('signBtn');
         const xdrEl = document.getElementById('xdr');
         const lockInfoEl = document.getElementById('lockInfo');
 
@@ -108,24 +81,22 @@
                 const bal = account.balances.find(b => b.asset_code === 'AQUAm25' && b.asset_issuer === AQUA_ASSET.issuer);
                 balanceEl.textContent = bal ? bal.balance : '0';
             } catch (err) {
-                console.error(err);
-                balanceEl.textContent = 'Error';
+                console.error(err); balanceEl.textContent = 'Error';
             }
         }
 
-        // Quick percent buttons
         document.querySelectorAll('.pct-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const bal = parseFloat(balanceEl.textContent) || 0;
                 const pct = parseFloat(btn.dataset.pct);
                 const val = (bal * pct / 100).toFixed(7).replace(/\.0+$/, '');
-                document.getElementById('amount').value = val;
+                amountInput.value = val;
             });
         });
 
         buildBtn.addEventListener('click', async () => {
             const pubKey = publicKeyInput.value.trim();
-            const amount = document.getElementById('amount').value;
+            const amount = amountInput.value;
             if (!pubKey || !amount) return alert('Please enter both public key and amount.');
             try {
                 const sourceAccount = await server.loadAccount(pubKey);
@@ -134,7 +105,6 @@
                 endDate.setUTCFullYear(endDate.getUTCFullYear() + 3);
                 endDate.setUTCHours(23,59,59,0);
                 const lockTimestamp = Math.floor(endDate.getTime() / 1000).toString();
-
                 const endDateStr = `${endDate.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'})}, ` +
                                    `${endDate.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'UTC'})}`;
                 lockInfoEl.textContent = `Lock start: ${startDate.toLocaleString()}\nLock end:   ${endDateStr}`;
@@ -144,26 +114,36 @@
                     new StellarSdk.Claimant(TRACKER_KEY, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
                 ];
 
-                const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
-                    fee: StellarSdk.BASE_FEE,
-                    networkPassphrase: StellarSdk.Networks.PUBLIC
-                })
-                .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount, claimants }))
-                .setTimeout(180).build();
+                const tx = new StellarSdk.TransactionBuilder(sourceAccount, { fee: StellarSdk.BASE_FEE, networkPassphrase: StellarSdk.Networks.PUBLIC })
+                    .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount, claimants }))
+                    .setTimeout(180).build();
 
-                xdrEl.value = tx.toXDR();
+                const xdr = tx.toXDR();
+                xdrEl.value = xdr;
                 copyBtn.disabled = false;
+                signBtn.disabled = false;
             } catch (err) {
-                console.error(err);
-                alert('Error building XDR: ' + err.message);
+                console.error(err); alert('Error building XDR: ' + err.message);
             }
         });
 
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(xdrEl.value).then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
+                copyBtn.textContent = 'Copied!'; setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
             });
+        });
+
+        signBtn.addEventListener('click', async () => {
+            if (!window.freighterApi) return alert('Freighter wallet not detected. Please install Freighter to sign transactions.');
+            try {
+                const xdr = xdrEl.value;
+                const { signedTransaction } = await window.freighterApi.signTransaction(xdr);
+                const tx = new StellarSdk.Transaction(signedTransaction, StellarSdk.Networks.PUBLIC);
+                const result = await server.submitTransaction(tx);
+                alert(`Transaction successful! Hash: ${result.hash}`);
+            } catch (err) {
+                console.error(err); alert('Error signing/submitting: ' + err.message);
+            }
         });
     </script>
 </body>
