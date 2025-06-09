@@ -67,7 +67,7 @@
         let refreshInterval;
         let buildDebounce;
 
-        // Stellar Lab URL parts
+        // Stellar Lab URL prefix
         const labPrefix =
             'https://lab.stellar.org/transaction/sign?' +
             '$=network$id=mainnet&' +
@@ -79,13 +79,18 @@
             'sign$activeView=overview&' +
             'importXdr=';
 
+        // Trigger balance fetch and XDR build on key change
         publicKeyInput.addEventListener('change', () => {
             clearInterval(refreshInterval);
             fetchBalance();
             refreshInterval = setInterval(fetchBalance, 10000);
             scheduleBuild();
         });
+
+        // Debounce build on amount input
         amountInput.addEventListener('input', scheduleBuild);
+
+        // Percent buttons
         document.querySelectorAll('.pct-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const bal = parseFloat(balanceEl.textContent) || 0;
@@ -104,7 +109,11 @@
 
         async function fetchBalance() {
             const pubKey = publicKeyInput.value.trim();
-            if (!pubKey) { balanceEl.textContent = '-'; clearInterval(refreshInterval); return; }
+            if (!pubKey) {
+                balanceEl.textContent = '-';
+                clearInterval(refreshInterval);
+                return;
+            }
             try {
                 const account = await server.loadAccount(pubKey);
                 const bal = account.balances.find(b => b.asset_code === 'AQUAm25' && b.asset_issuer === AQUA_ASSET.issuer);
@@ -124,31 +133,39 @@
                 const startDate = new Date();
                 const endDate = new Date(startDate);
                 endDate.setUTCFullYear(endDate.getUTCFullYear() + 3);
-                endDate.setUTCHours(23,59,59,0);
+                endDate.setUTCHours(23, 59, 59, 0);
                 const lockTimestamp = Math.floor(endDate.getTime() / 1000).toString();
-                const endDateStr = `${endDate.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'})}, ` +
-                                   `${endDate.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'UTC'})}`;
+                const endDateStr = `${endDate.toLocaleDateString(undefined, {day:'2-digit', month:'2-digit', year:'numeric', timeZone:'UTC'})}, ` +
+                                   `${endDate.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZone:'UTC'})}`;
                 lockInfoEl.textContent = `Lock start: ${startDate.toLocaleString()}\nLock end:   ${endDateStr}`;
 
                 const claimants = [
                     new StellarSdk.Claimant(pubKey, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(lockTimestamp))),
                     new StellarSdk.Claimant(TRACKER_KEY, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
                 ];
+
                 const tx = new StellarSdk.TransactionBuilder(sourceAccount, { fee: StellarSdk.BASE_FEE, networkPassphrase: StellarSdk.Networks.PUBLIC })
                     .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount, claimants }))
-                    .setTimeout(180).build();
+                    .setTimeout(180)
+                    .build();
+
                 const xdr = tx.toXDR();
                 xdrEl.value = xdr;
                 copyBtn.disabled = false;
-                // Build Stellar Lab link
-                const encoded = encodeURIComponent(xdr + ';;');
+
+                // Build Stellar Lab URL without encoding
+                const rawXdr = xdr + ';;';
                 labBtn.disabled = false;
-                labBtn.onclick = () => window.open(labPrefix + encoded + ';;&xdr$blob=' + encoded + ';;');
+                labBtn.onclick = () => {
+                    const url = labPrefix + rawXdr + '&xdr$blob=' + rawXdr;
+                    window.open(url);
+                };
             } catch (err) {
                 console.error(err);
             }
         }
 
+        // Copy XDR
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(xdrEl.value).then(() => {
                 copyBtn.textContent = 'Copied!';
