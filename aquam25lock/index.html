@@ -7,57 +7,105 @@
     <title>Lock AQUAm25 Tokens</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        input, button, textarea { margin: 5px 0; padding: 8px; font-size: 1em; }
-        textarea { width: 100%; }
-        .section { margin-bottom: 20px; }
-        #lockInfo { font-weight: bold; white-space: pre-line; }
+        /* Global box-sizing */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 480px;
+            padding: 0 10px;
+        }
+        input, button, textarea, p, label {
+            width: 100%;
+        }
+        input, button, textarea {
+            margin: 8px 0;
+            padding: 10px;
+            font-size: 1em;
+        }
+        textarea {
+            resize: vertical;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        button {
+            cursor: pointer;
+        }
+        #lockInfo {
+            font-weight: bold;
+            white-space: pre-line;
+        }
+        @media (min-width: 600px) {
+            body {
+                margin: 40px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Lock AQUAm25 Tokens for 3 Years</h1>
-    <div class="section">
-        <label for="publicKey">Public Key:</label><br>
-        <input id="publicKey" type="text" size="56" placeholder="Enter your Stellar public key" />
-        <button id="getBalanceBtn">Refresh Balance</button>
-        <p>Balance: <span id="balance">-</span></p>
+    <div class="container">
+        <h1>Lock AQUAm25 Tokens for 3 Years</h1>
+        <div class="section">
+            <label for="publicKey">Public Key:</label>
+            <input id="publicKey" type="text" placeholder="Enter your Stellar public key" />
+            <button id="refreshBtn">Refresh Balance</button>
+            <p>Balance: <span id="balance">-</span></p>
+        </div>
+        <div class="section">
+            <label for="amount">AQUAm25 Amount:</label>
+            <input id="amount" type="number" step="any" placeholder="Amount to lock" />
+        </div>
+        <div class="section">
+            <button id="buildBtn">Build XDR</button>
+            <button id="copyBtn" disabled>Copy XDR</button>
+        </div>
+        <p>This will lock your AQUAm25 tokens for 3 years into a claimable balance.</p>
+        <div class="section">
+            <p id="lockInfo"></p>
+            <textarea id="xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
+        </div>
     </div>
-    <div class="section">
-        <label for="amount">AQUAm25 Amount:</label><br>
-        <input id="amount" type="number" step="any" placeholder="Amount to lock" />
-    </div>
-    <div class="section">
-        <button id="buildBtn">Build XDR</button>
-        <button id="copyBtn" disabled>Copy XDR</button>
-    </div>
-    <p>This will lock your AQUAm25 tokens for 3 years into a claimable balance.</p>
-    <div class="section">
-        <p id="lockInfo"></p>
-        <textarea id="xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
-    </div>
-
     <script>
-        // Use mainnet Horizon
         const server = new StellarSdk.Server('https://horizon.stellar.org');
         const AQUA_ASSET = new StellarSdk.Asset('AQUAm25', 'GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC');
-        // Temporary tracker key for testing
         const TRACKER_KEY = 'GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP';
 
         const publicKeyInput = document.getElementById('publicKey');
         const balanceEl = document.getElementById('balance');
-        const getBalanceBtn = document.getElementById('getBalanceBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
         const buildBtn = document.getElementById('buildBtn');
         const copyBtn = document.getElementById('copyBtn');
         const xdrEl = document.getElementById('xdr');
         const lockInfoEl = document.getElementById('lockInfo');
 
-        // Fetch balance when public key changes or button clicked
-        publicKeyInput.addEventListener('change', fetchBalance);
-        getBalanceBtn.addEventListener('click', fetchBalance);
+        let refreshInterval;
+
+        publicKeyInput.addEventListener('change', () => {
+            clearInterval(refreshInterval);
+            fetchBalance();
+            // Auto-refresh every 10 seconds
+            refreshInterval = setInterval(fetchBalance, 10000);
+        });
+
+        refreshBtn.addEventListener('click', fetchBalance);
 
         async function fetchBalance() {
             const pubKey = publicKeyInput.value.trim();
-            if (!pubKey) return;
+            if (!pubKey) {
+                balanceEl.textContent = '-';
+                clearInterval(refreshInterval);
+                return;
+            }
             balanceEl.textContent = 'Fetching...';
             try {
                 const account = await server.loadAccount(pubKey);
@@ -69,34 +117,20 @@
             }
         }
 
-        buildBtn.addEventListener('click', buildXDR);
-        copyBtn.addEventListener('click', () => {
-            const xdrText = xdrEl.value;
-            if (!xdrText) return;
-            navigator.clipboard.writeText(xdrText).then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
-            });
-        });
-
-        async function buildXDR() {
+        buildBtn.addEventListener('click', async () => {
             const pubKey = publicKeyInput.value.trim();
             const amount = document.getElementById('amount').value;
             if (!pubKey || !amount) return alert('Please enter both public key and amount.');
             try {
                 const sourceAccount = await server.loadAccount(pubKey);
-
-                // Define lock start and end
                 const startDate = new Date();
                 const endDate = new Date(startDate);
                 endDate.setFullYear(endDate.getFullYear() + 3);
                 const lockTimestamp = Math.floor(endDate.getTime() / 1000).toString();
 
-                // Display human-friendly dates
                 lockInfoEl.textContent =
                     `Lock start: ${startDate.toLocaleString()}\nLock end:   ${endDate.toLocaleString()}`;
 
-                // Create claimants: user after lock, tracker never
                 const claimants = [
                     new StellarSdk.Claimant(
                         pubKey,
@@ -128,7 +162,16 @@
                 console.error(err);
                 alert('Error building XDR: ' + err.message);
             }
-        }
+        });
+
+        copyBtn.addEventListener('click', () => {
+            const xdrText = xdrEl.value;
+            if (!xdrText) return;
+            navigator.clipboard.writeText(xdrText).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
+            });
+        });
     </script>
 </body>
 </html>
