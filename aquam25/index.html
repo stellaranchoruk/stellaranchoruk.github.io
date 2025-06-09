@@ -6,17 +6,18 @@
   <title>AQUAm25 Locker Demo</title>
 </head>
 <body>
-  <!-- Trigger button for the locker modal -->
   <button id="lockBtn">Lock AQUAm25</button>
 
-  <!-- Initialize the AQUAm25 Locker module -->
+  <!-- 1) Stellar SDK UMD bundle -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"></script>
+
+  <!-- 2) Your tweaked module, which does: const StellarSdk = window.StellarSdk; -->
+  <script type="module" src="/scripts/aquam25-locker.js"></script>
+
+  <!-- 3) Kick it off -->
   <script type="module">
     import { initAquaLocker } from '/scripts/aquam25-locker.js';
-
-    // Pass in the selector of your trigger element
-    initAquaLocker({
-      triggerSelector: '#lockBtn'
-    });
+    initAquaLocker({ triggerSelector: '#lockBtn' });
   </script>
 </body>
 </html>
