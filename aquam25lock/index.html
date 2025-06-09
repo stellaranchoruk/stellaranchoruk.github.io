@@ -67,19 +67,31 @@
         let refreshInterval;
         let buildDebounce;
 
-        // Auto-refresh balance every 10s when key changes
         publicKeyInput.addEventListener('change', () => {
             clearInterval(refreshInterval);
             fetchBalance();
             refreshInterval = setInterval(fetchBalance, 10000);
             scheduleBuild();
         });
-
-        // Auto-build XDR after typing stops (700ms)
         amountInput.addEventListener('input', scheduleBuild);
+
+        document.querySelectorAll('.pct-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const bal = parseFloat(balanceEl.textContent) || 0;
+                const pct = parseFloat(btn.dataset.pct);
+                amountInput.value = (bal * pct / 100).toFixed(7).replace(/\.0+$/, '');
+                scheduleBuild();
+            });
+        });
+
         function scheduleBuild() {
+            // disable actions until build completes
+            copyBtn.disabled = true;
+            signBtn.disabled = true;
             clearTimeout(buildDebounce);
-            buildDebounce = setTimeout(buildXDR, 700);
+            buildDebounce = setTimeout(async () => {
+                await buildXDR();
+            }, 700);
         }
 
         async function fetchBalance() {
@@ -90,22 +102,11 @@
                 const bal = account.balances.find(b => b.asset_code === 'AQUAm25' && b.asset_issuer === AQUA_ASSET.issuer);
                 balanceEl.textContent = bal ? bal.balance : '0';
             } catch (err) {
-                console.error(err); balanceEl.textContent = 'Error';
+                console.error(err);
+                balanceEl.textContent = 'Error';
             }
         }
 
-        // Quick percent buttons
-        document.querySelectorAll('.pct-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const bal = parseFloat(balanceEl.textContent) || 0;
-                const pct = parseFloat(btn.dataset.pct);
-                const val = (bal * pct / 100).toFixed(7).replace(/\.0+$/, '');
-                amountInput.value = val;
-                scheduleBuild();
-            });
-        });
-
-        // Build XDR dynamically
         async function buildXDR() {
             const pubKey = publicKeyInput.value.trim();
             const amount = amountInput.value;
@@ -128,8 +129,7 @@
                 const tx = new StellarSdk.TransactionBuilder(sourceAccount, { fee: StellarSdk.BASE_FEE, networkPassphrase: StellarSdk.Networks.PUBLIC })
                     .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount, claimants }))
                     .setTimeout(180).build();
-                const xdr = tx.toXDR();
-                xdrEl.value = xdr;
+                xdrEl.value = tx.toXDR();
                 copyBtn.disabled = false;
                 signBtn.disabled = false;
             } catch (err) {
@@ -137,12 +137,13 @@
             }
         }
 
-        // Copy & Sign
         copyBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(xdrEl.value);
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
+            navigator.clipboard.writeText(xdrEl.value).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
+            });
         });
+
         signBtn.addEventListener('click', async () => {
             if (!window.freighterApi) return alert('Freighter not detected.');
             try {
@@ -151,7 +152,8 @@
                 const result = await server.submitTransaction(tx);
                 alert(`Success! Hash: ${result.hash}`);
             } catch (err) {
-                console.error(err); alert('Sign/submit error: ' + err.message);
+                console.error(err);
+                alert('Sign/submit error: ' + err.message);
             }
         });
     </script>
