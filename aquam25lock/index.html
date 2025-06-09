@@ -74,11 +74,10 @@
             'label=Mainnet&' +
             'horizonUrl=https:////horizon.stellar.org&' +
             'rpcUrl=https:////mainnet.sorobanrpc.com&' +
-            'passphrase=Public%20Global%20Stellar%20Network%20/%20September%202015;&' +
+            'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&' +
             'transaction$sign$activeView=overview&' +
             'importXdr=';
 
-        // Trigger balance fetch and XDR build on key change
         publicKeyInput.addEventListener('change', () => {
             clearInterval(refreshInterval);
             fetchBalance();
@@ -86,10 +85,8 @@
             scheduleBuild();
         });
 
-        // Debounce build on amount input
         amountInput.addEventListener('input', scheduleBuild);
 
-        // Percent buttons
         document.querySelectorAll('.pct-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const bal = parseFloat(balanceEl.textContent) || 0;
@@ -152,11 +149,11 @@
                 xdrEl.value = xdr;
                 copyBtn.disabled = false;
 
-                // Build Stellar Lab URL (no encoding)
+                // Build Stellar Lab URL (no encoding, no xdr$blob)
                 const rawXdr = xdr + ';;';
                 labBtn.disabled = false;
                 labBtn.onclick = () => {
-                    const url = labPrefix + rawXdr + '&xdr$blob=' + rawXdr;
+                    const url = labPrefix + rawXdr;
                     window.open(url);
                 };
             } catch (err) {
@@ -164,7 +161,6 @@
             }
         }
 
-        // Copy XDR
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(xdrEl.value).then(() => {
                 copyBtn.textContent = 'Copied!';
