@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AQUAm25 Locker Demo</title>
+</head>
+<body>
+  <!-- Trigger button for the locker modal -->
+  <button id="lockBtn">Lock AQUAm25</button>
+
+  <!-- Initialize the AQUAm25 Locker module -->
+  <script type="module">
+    import { initAquaLocker } from 'https://mirrasets.com/scripts/aquam25-locker.js';
+
+    // Pass in the selector of your trigger element
+    initAquaLocker({
+      triggerSelector: '#lockBtn'
+    });
+  </script>
+</body>
+</html>
