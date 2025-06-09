@@ -2,10 +2,10 @@
 // ES module for embedding AQUAm25 locking widget as a modal/dialog on any page.
 
 // Usage:
-// 1. Include this script as a module: <script type="module" src="/path/aquam25-locker.js"></script>
+// 1. Include this script as a module: <script type="module" src="https://mirrasets.com/scripts/aquam25-locker.js"></script>
 // 2. Add a button (or any element) with id or class you want, e.g. <button id="lockBtn">Lock AQUAm25</button>
 // 3. In your page script, call:
-//    import { initAquaLocker } from '/path/aquam25-locker.js';
+//    import { initAquaLocker } from 'https://mirrasets.com/scripts/aquam25-locker.js';
 //    initAquaLocker({ triggerSelector: '#lockBtn' });
 
 import StellarSdk from 'https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js';
