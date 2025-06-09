@@ -67,7 +67,7 @@
         let refreshInterval;
         let buildDebounce;
 
-        // Stellar Lab URL prefix
+        // Stellar Lab URL prefix (using transaction$sign)
         const labPrefix =
             'https://lab.stellar.org/transaction/sign?' +
             '$=network$id=mainnet&' +
@@ -75,8 +75,7 @@
             'horizonUrl=https:////horizon.stellar.org&' +
             'rpcUrl=https:////mainnet.sorobanrpc.com&' +
             'passphrase=Public%20Global%20Stellar%20Network%20/%20September%202015;&' +
-            'transaction$build$classic$operations@$operation_type=&params@;;;;;;&' +
-            'sign$activeView=overview&' +
+            'transaction$sign$activeView=overview&' +
             'importXdr=';
 
         // Trigger balance fetch and XDR build on key change
@@ -153,7 +152,7 @@
                 xdrEl.value = xdr;
                 copyBtn.disabled = false;
 
-                // Build Stellar Lab URL without encoding
+                // Build Stellar Lab URL (no encoding)
                 const rawXdr = xdr + ';;';
                 labBtn.disabled = false;
                 labBtn.onclick = () => {
