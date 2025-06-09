@@ -59,7 +59,6 @@
         <div class="section">
             <label for="publicKey">Public Key:</label>
             <input id="publicKey" type="text" placeholder="Enter your Stellar public key" />
-            <button id="refreshBtn">Refresh Balance</button>
             <p>Balance: <span id="balance">-</span></p>
         </div>
         <div class="section">
@@ -89,7 +88,6 @@
 
         const publicKeyInput = document.getElementById('publicKey');
         const balanceEl = document.getElementById('balance');
-        const refreshBtn = document.getElementById('refreshBtn');
         const buildBtn = document.getElementById('buildBtn');
         const copyBtn = document.getElementById('copyBtn');
         const xdrEl = document.getElementById('xdr');
@@ -101,7 +99,6 @@
             fetchBalance();
             refreshInterval = setInterval(fetchBalance, 10000);
         });
-        refreshBtn.addEventListener('click', fetchBalance);
 
         async function fetchBalance() {
             const pubKey = publicKeyInput.value.trim();
@@ -138,7 +135,6 @@
                 endDate.setUTCHours(23,59,59,0);
                 const lockTimestamp = Math.floor(endDate.getTime() / 1000).toString();
 
-                // Display local start, UTC end-of-day
                 const endDateStr = `${endDate.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'})}, ` +
                                    `${endDate.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'UTC'})}`;
                 lockInfoEl.textContent = `Lock start: ${startDate.toLocaleString()}\nLock end:   ${endDateStr}`;
