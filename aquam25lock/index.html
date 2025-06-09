@@ -8,47 +8,48 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"></script>
     <style>
         /* Global box-sizing */
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
-            padding: 0;
-            line-height: 1.4;
             display: flex;
             justify-content: center;
+            background: #f9f9f9;
         }
         .container {
             width: 100%;
             max-width: 480px;
-            padding: 0 10px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        input, button, textarea, p, label {
+        input, button, textarea, p, label, span {
             width: 100%;
         }
         input, button, textarea {
             margin: 8px 0;
             padding: 10px;
             font-size: 1em;
-        }
-        textarea {
-            resize: vertical;
-        }
-        .section {
-            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
         button {
+            background: #007bff;
+            color: #fff;
+            border: none;
             cursor: pointer;
+            text-align: center;
         }
-        #lockInfo {
-            font-weight: bold;
-            white-space: pre-line;
-        }
+        button:disabled { background: #888; cursor: not-allowed; }
+        textarea { resize: vertical; font-family: monospace; }
+        .section { margin-bottom: 20px; }
+        #lockInfo { font-weight: bold; white-space: pre-line; margin-bottom: 10px; }
+        .pct-buttons { display: flex; gap: 8px; margin-top: 4px; }
+        .pct-buttons button { flex: 1; background: #e9ecef; color: #000; }
+        .pct-buttons button:hover { background: #dee2e6; }
         @media (min-width: 600px) {
-            body {
-                margin: 40px;
-            }
+            body { margin: 40px; }
         }
     </style>
 </head>
@@ -64,6 +65,12 @@
         <div class="section">
             <label for="amount">AQUAm25 Amount:</label>
             <input id="amount" type="number" step="any" placeholder="Amount to lock" />
+            <div class="pct-buttons">
+                <button type="button" class="pct-btn" data-pct="25">25%</button>
+                <button type="button" class="pct-btn" data-pct="50">50%</button>
+                <button type="button" class="pct-btn" data-pct="75">75%</button>
+                <button type="button" class="pct-btn" data-pct="100">100%</button>
+            </div>
         </div>
         <div class="section">
             <button id="buildBtn">Build XDR</button>
@@ -89,24 +96,16 @@
         const lockInfoEl = document.getElementById('lockInfo');
 
         let refreshInterval;
-
         publicKeyInput.addEventListener('change', () => {
             clearInterval(refreshInterval);
             fetchBalance();
-            // Auto-refresh every 10 seconds
             refreshInterval = setInterval(fetchBalance, 10000);
         });
-
         refreshBtn.addEventListener('click', fetchBalance);
 
         async function fetchBalance() {
             const pubKey = publicKeyInput.value.trim();
-            if (!pubKey) {
-                balanceEl.textContent = '-';
-                clearInterval(refreshInterval);
-                return;
-            }
-            balanceEl.textContent = 'Fetching...';
+            if (!pubKey) { balanceEl.textContent = '-'; clearInterval(refreshInterval); return; }
             try {
                 const account = await server.loadAccount(pubKey);
                 const bal = account.balances.find(b => b.asset_code === 'AQUAm25' && b.asset_issuer === AQUA_ASSET.issuer);
@@ -117,6 +116,16 @@
             }
         }
 
+        // Quick percent buttons
+        document.querySelectorAll('.pct-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const bal = parseFloat(balanceEl.textContent) || 0;
+                const pct = parseFloat(btn.dataset.pct);
+                const val = (bal * pct / 100).toFixed(7).replace(/\.0+$/, '');
+                document.getElementById('amount').value = val;
+            });
+        });
+
         buildBtn.addEventListener('click', async () => {
             const pubKey = publicKeyInput.value.trim();
             const amount = document.getElementById('amount').value;
@@ -125,36 +134,26 @@
                 const sourceAccount = await server.loadAccount(pubKey);
                 const startDate = new Date();
                 const endDate = new Date(startDate);
-                endDate.setFullYear(endDate.getFullYear() + 3);
+                endDate.setUTCFullYear(endDate.getUTCFullYear() + 3);
+                endDate.setUTCHours(23,59,59,0);
                 const lockTimestamp = Math.floor(endDate.getTime() / 1000).toString();
 
-                lockInfoEl.textContent =
-                    `Lock start: ${startDate.toLocaleString()}\nLock end:   ${endDate.toLocaleString()}`;
+                // Display local start, UTC end-of-day
+                const endDateStr = `${endDate.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'})}, ` +
+                                   `${endDate.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'UTC'})}`;
+                lockInfoEl.textContent = `Lock start: ${startDate.toLocaleString()}\nLock end:   ${endDateStr}`;
 
                 const claimants = [
-                    new StellarSdk.Claimant(
-                        pubKey,
-                        StellarSdk.Claimant.predicateNot(
-                            StellarSdk.Claimant.predicateBeforeAbsoluteTime(lockTimestamp)
-                        )
-                    ),
-                    new StellarSdk.Claimant(
-                        TRACKER_KEY,
-                        StellarSdk.Claimant.predicateBeforeAbsoluteTime('0')
-                    )
+                    new StellarSdk.Claimant(pubKey, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(lockTimestamp))),
+                    new StellarSdk.Claimant(TRACKER_KEY, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
                 ];
 
                 const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
                     fee: StellarSdk.BASE_FEE,
                     networkPassphrase: StellarSdk.Networks.PUBLIC
                 })
-                .addOperation(StellarSdk.Operation.createClaimableBalance({
-                    asset: AQUA_ASSET,
-                    amount: amount,
-                    claimants: claimants
-                }))
-                .setTimeout(180)
-                .build();
+                .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount, claimants }))
+                .setTimeout(180).build();
 
                 xdrEl.value = tx.toXDR();
                 copyBtn.disabled = false;
@@ -165,9 +164,7 @@
         });
 
         copyBtn.addEventListener('click', () => {
-            const xdrText = xdrEl.value;
-            if (!xdrText) return;
-            navigator.clipboard.writeText(xdrText).then(() => {
+            navigator.clipboard.writeText(xdrEl.value).then(() => {
                 copyBtn.textContent = 'Copied!';
                 setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
             });
