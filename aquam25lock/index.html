@@ -42,7 +42,6 @@
             </div>
         </div>
         <div class="section">
-            <button id="buildBtn">Build XDR</button>
             <button id="copyBtn" disabled>Copy XDR</button>
             <button id="signBtn" disabled>Sign &amp; Submit</button>
         </div>
@@ -60,18 +59,28 @@
         const publicKeyInput = document.getElementById('publicKey');
         const balanceEl = document.getElementById('balance');
         const amountInput = document.getElementById('amount');
-        const buildBtn = document.getElementById('buildBtn');
         const copyBtn = document.getElementById('copyBtn');
         const signBtn = document.getElementById('signBtn');
         const xdrEl = document.getElementById('xdr');
         const lockInfoEl = document.getElementById('lockInfo');
 
         let refreshInterval;
+        let buildDebounce;
+
+        // Auto-refresh balance every 10s when key changes
         publicKeyInput.addEventListener('change', () => {
             clearInterval(refreshInterval);
             fetchBalance();
             refreshInterval = setInterval(fetchBalance, 10000);
+            scheduleBuild();
         });
+
+        // Auto-build XDR after typing stops (700ms)
+        amountInput.addEventListener('input', scheduleBuild);
+        function scheduleBuild() {
+            clearTimeout(buildDebounce);
+            buildDebounce = setTimeout(buildXDR, 700);
+        }
 
         async function fetchBalance() {
             const pubKey = publicKeyInput.value.trim();
@@ -85,19 +94,22 @@
             }
         }
 
+        // Quick percent buttons
         document.querySelectorAll('.pct-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const bal = parseFloat(balanceEl.textContent) || 0;
                 const pct = parseFloat(btn.dataset.pct);
                 const val = (bal * pct / 100).toFixed(7).replace(/\.0+$/, '');
                 amountInput.value = val;
+                scheduleBuild();
             });
         });
 
-        buildBtn.addEventListener('click', async () => {
+        // Build XDR dynamically
+        async function buildXDR() {
             const pubKey = publicKeyInput.value.trim();
             const amount = amountInput.value;
-            if (!pubKey || !amount) return alert('Please enter both public key and amount.');
+            if (!pubKey || !amount) return;
             try {
                 const sourceAccount = await server.loadAccount(pubKey);
                 const startDate = new Date();
@@ -113,36 +125,33 @@
                     new StellarSdk.Claimant(pubKey, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(lockTimestamp))),
                     new StellarSdk.Claimant(TRACKER_KEY, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
                 ];
-
                 const tx = new StellarSdk.TransactionBuilder(sourceAccount, { fee: StellarSdk.BASE_FEE, networkPassphrase: StellarSdk.Networks.PUBLIC })
                     .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount, claimants }))
                     .setTimeout(180).build();
-
                 const xdr = tx.toXDR();
                 xdrEl.value = xdr;
                 copyBtn.disabled = false;
                 signBtn.disabled = false;
             } catch (err) {
-                console.error(err); alert('Error building XDR: ' + err.message);
+                console.error(err);
             }
-        });
+        }
 
+        // Copy & Sign
         copyBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(xdrEl.value).then(() => {
-                copyBtn.textContent = 'Copied!'; setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
-            });
+            navigator.clipboard.writeText(xdrEl.value);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => copyBtn.textContent = 'Copy XDR', 2000);
         });
-
         signBtn.addEventListener('click', async () => {
-            if (!window.freighterApi) return alert('Freighter wallet not detected. Please install Freighter to sign transactions.');
+            if (!window.freighterApi) return alert('Freighter not detected.');
             try {
-                const xdr = xdrEl.value;
-                const { signedTransaction } = await window.freighterApi.signTransaction(xdr);
+                const { signedTransaction } = await window.freighterApi.signTransaction(xdrEl.value);
                 const tx = new StellarSdk.Transaction(signedTransaction, StellarSdk.Networks.PUBLIC);
                 const result = await server.submitTransaction(tx);
-                alert(`Transaction successful! Hash: ${result.hash}`);
+                alert(`Success! Hash: ${result.hash}`);
             } catch (err) {
-                console.error(err); alert('Error signing/submitting: ' + err.message);
+                console.error(err); alert('Sign/submit error: ' + err.message);
             }
         });
     </script>
