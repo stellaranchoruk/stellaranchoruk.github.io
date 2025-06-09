@@ -44,6 +44,7 @@
         <div class="section">
             <button id="copyBtn" disabled>Copy XDR</button>
             <button id="signBtn" disabled>Sign &amp; Submit</button>
+            <button id="labBtn" disabled>Sign with Stellar Lab</button>
         </div>
         <p>This will lock your AQUAm25 tokens for 3 years into a claimable balance.</p>
         <div class="section">
@@ -61,20 +62,36 @@
         const amountInput = document.getElementById('amount');
         const copyBtn = document.getElementById('copyBtn');
         const signBtn = document.getElementById('signBtn');
+        const labBtn = document.getElementById('labBtn');
         const xdrEl = document.getElementById('xdr');
         const lockInfoEl = document.getElementById('lockInfo');
 
+        // Debounce & interval handlers
         let refreshInterval;
         let buildDebounce;
 
+        // Prefix for Stellar Lab
+        const labPrefix =
+            'https://lab.stellar.org/transaction/sign?' +
+            '$=network$id=mainnet&' +
+            'label=Mainnet&' +
+            'horizonUrl=https://horizon.stellar.org&' +
+            'rpcUrl=https://mainnet.sorobanrpc.com&' +
+            'passphrase=Public%20Global%20Stellar%20Network%20/%20September%202015;&' +
+            'sign$activeView=overview&' +
+            'importXdr=';
+
+        // Auto-refresh balance and trigger build when key changes
         publicKeyInput.addEventListener('change', () => {
             clearInterval(refreshInterval);
             fetchBalance();
             refreshInterval = setInterval(fetchBalance, 10000);
             scheduleBuild();
         });
+        // Debounce build on amount input
         amountInput.addEventListener('input', scheduleBuild);
 
+        // Percent shortcuts
         document.querySelectorAll('.pct-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const bal = parseFloat(balanceEl.textContent) || 0;
@@ -85,13 +102,11 @@
         });
 
         function scheduleBuild() {
-            // disable actions until build completes
             copyBtn.disabled = true;
             signBtn.disabled = true;
+            labBtn.disabled = true;
             clearTimeout(buildDebounce);
-            buildDebounce = setTimeout(async () => {
-                await buildXDR();
-            }, 700);
+            buildDebounce = setTimeout(buildXDR, 700);
         }
 
         async function fetchBalance() {
@@ -129,14 +144,20 @@
                 const tx = new StellarSdk.TransactionBuilder(sourceAccount, { fee: StellarSdk.BASE_FEE, networkPassphrase: StellarSdk.Networks.PUBLIC })
                     .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount, claimants }))
                     .setTimeout(180).build();
-                xdrEl.value = tx.toXDR();
+                const xdr = tx.toXDR();
+                xdrEl.value = xdr;
                 copyBtn.disabled = false;
                 signBtn.disabled = false;
+                // Prepare Stellar Lab link
+                const encoded = encodeURIComponent(xdr + ';;');
+                labBtn.disabled = false;
+                labBtn.onclick = () => window.open(labPrefix + encoded + '&xdr$blob=' + encoded);
             } catch (err) {
                 console.error(err);
             }
         }
 
+        // Copy to clipboard
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(xdrEl.value).then(() => {
                 copyBtn.textContent = 'Copied!';
@@ -144,6 +165,7 @@
             });
         });
 
+        // Freighter sign & submit
         signBtn.addEventListener('click', async () => {
             if (!window.freighterApi) return alert('Freighter not detected.');
             try {
