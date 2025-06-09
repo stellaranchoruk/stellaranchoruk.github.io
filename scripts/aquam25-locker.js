@@ -8,7 +8,7 @@
 //    import { initAquaLocker } from 'https://mirrasets.com/scripts/aquam25-locker.js';
 //    initAquaLocker({ triggerSelector: '#lockBtn' });
 
-import StellarSdk from 'https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js';
+const StellarSdk = window.StellarSdk;
 
 export function initAquaLocker({
   triggerSelector,
