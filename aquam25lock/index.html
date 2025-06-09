@@ -140,7 +140,8 @@
                     new StellarSdk.Claimant(TRACKER_KEY, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
                 ];
 
-                const tx = new StellarSdk.TransactionBuilder(sourceAccount, { fee: StellarSdk.BASE_FEE, networkPassphrase: StellarSdk.Networks.PUBLIC })
+                // Use higher fee: 20000 stroops
+                const tx = new StellarSdk.TransactionBuilder(sourceAccount, { fee: 20000, networkPassphrase: StellarSdk.Networks.PUBLIC })
                     .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount, claimants }))
                     .setTimeout(180)
                     .build();
