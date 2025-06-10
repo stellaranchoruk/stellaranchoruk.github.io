@@ -26,14 +26,20 @@ export function initAquaLocker({
     const style = document.createElement('style');
     style.id = 'aqua-locker-css';
     style.textContent = `
+      *, *::before, *::after { box-sizing: border-box; }
       .aqua-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999; }
-      .aqua-container { width: 90%; max-width:480px; background:#fff; padding:20px; border-radius:8px; position: relative; }
+      .aqua-container { width: 90%; max-width:480px; background: #fff; padding: 15px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); position: relative; font-family: Arial, sans-serif; }
+      .aqua-container input, .aqua-container textarea { width:100%; margin:8px 0; padding:10px; font-size:1em; border:1px solid #ccc; border-radius:4px; }
+      .aqua-container button { width:100%; margin:8px 0; padding:10px; font-size:1em; background:#007bff; color:#fff; border:none; cursor:pointer; border-radius:4px; text-align:center; }
+      .aqua-container button:disabled { background:#888; cursor:not-allowed; }
+      .aqua-container textarea { resize:vertical; font-family:monospace; }
+      .aqua-container p, .aqua-container label, .aqua-container span { width:100%; margin:8px 0; }
       .aqua-close { position:absolute; top:10px; right:10px; cursor:pointer; font-size:1.2em; }
-      .aqua-container input, .aqua-container button, .aqua-container textarea, .aqua-container p, .aqua-container label { width:100%; margin:8px 0; }
-      .aqua-container button { padding:10px; background:#007bff; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-      .aqua-container button:disabled { background:#888; }
-      .aqua-pct-buttons { display:flex; gap:8px; }
-      .aqua-pct-buttons button { flex:1; background:#e9ecef; color:#000; }
+      .aqua-pct-buttons { display:flex; gap:8px; margin-top:4px; }
+      .aqua-pct-buttons button { flex:1; background:#e9ecef; color:#000; border:none; }
+      .aqua-pct-buttons button:hover { background:#dee2e6; }
+      .aqua-info { font-weight:bold; white-space:pre-line; margin-bottom:10px; }
+      @media (min-width: 600px) { .aqua-container { margin: 20px auto; } }
     `;
     document.head.appendChild(style);
   }
@@ -44,10 +50,12 @@ export function initAquaLocker({
   modal.innerHTML = `
     <div class="aqua-container">
       <span class="aqua-close">&times;</span>
-      <h2>Lock ${assetCode} Tokens (3 Years)</h2>
-      <label>Public Key:</label><input type="text" class="aqua-pubkey" placeholder="Your Stellar public key" />
+      <h2>Lock ${assetCode} Tokens for 3 Years</h2>
+      <label for="aqua-pubkey">Public Key:</label>
+      <input id="aqua-pubkey" class="aqua-pubkey" type="text" placeholder="Enter your Stellar public key" />
       <p>AQUAm25 Balance: <span class="aqua-balance">-</span></p>
-      <label>AQUAm25 Amount To Lock:</label><input type="number" step="any" class="aqua-amount" placeholder="Amount to lock" />
+      <label for="aqua-amount">AQUAm25 Amount:</label>
+      <input id="aqua-amount" class="aqua-amount" type="number" step="any" placeholder="Amount to lock" />
       <div class="aqua-pct-buttons">
         <button type="button" data-pct="25">25%</button>
         <button type="button" data-pct="50">50%</button>
@@ -58,16 +66,16 @@ export function initAquaLocker({
       <button class="aqua-sign" disabled>Sign with Stellar Lab</button>
       <button class="aqua-view" disabled>View XDR with Stellar Lab</button>
       <p class="aqua-info"></p>
-      <textarea class="aqua-xdr" readonly rows="6" placeholder="Transaction XDR..."></textarea>
+      <textarea class="aqua-xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
     </div>
   `;
   document.body.appendChild(modal);
 
   // Element references
   const closeBtn = modal.querySelector('.aqua-close');
-  const pubInput = modal.querySelector('.aqua-pubkey');
+  const pubInput = modal.querySelector('#aqua-pubkey');
   const balEl = modal.querySelector('.aqua-balance');
-  const amtInput = modal.querySelector('.aqua-amount');
+  const amtInput = modal.querySelector('#aqua-amount');
   const pctBtns = modal.querySelectorAll('.aqua-pct-buttons button');
   const copyBtn = modal.querySelector('.aqua-copy');
   const signBtn = modal.querySelector('.aqua-sign');
@@ -75,14 +83,32 @@ export function initAquaLocker({
   const infoEl = modal.querySelector('.aqua-info');
   const xdrEl = modal.querySelector('.aqua-xdr');
 
-  let refreshInt, buildDeb;
-  const labPrefix = 'https://lab.stellar.org/transaction/sign?...';
-  const viewPrefix = 'https://lab.stellar.org/xdr/view?...';
+  let refreshInt, buildDebounce;
 
+  // Stellar Lab URL prefixes (copied from original page)
+  const labPrefix =
+    'https://lab.stellar.org/transaction/sign?' +
+    '$=network$id=mainnet&' +
+    'label=Mainnet&' +
+    'horizonUrl=https:////horizon.stellar.org&' +
+    'rpcUrl=https:////mainnet.sorobanrpc.com&' +
+    'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&' +
+    'transaction$sign$activeView=overview&importXdr=';
+  const viewPrefix =
+    'https://lab.stellar.org/xdr/view?' +
+    '$=network$id=mainnet&' +
+    'label=Mainnet&' +
+    'horizonUrl=https:////horizon.stellar.org&' +
+    'rpcUrl=https:////mainnet.sorobanrpc.com&' +
+    'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
+
+  // Open modal
   function openModal() {
     modal.style.display = 'flex';
     pubInput.focus();
   }
+
+  // Close modal
   function closeModal() {
     modal.style.display = 'none';
     clearInterval(refreshInt);
@@ -91,67 +117,95 @@ export function initAquaLocker({
   document.querySelector(triggerSelector).addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
 
+  // Fetch balance on public key change and every 10s
   pubInput.addEventListener('change', () => {
     clearInterval(refreshInt);
-    fetchBal();
-    refreshInt = setInterval(fetchBal, 10000);
+    fetchBalance();
+    refreshInt = setInterval(fetchBalance, 10000);
     debounceBuild();
   });
+
+  // Amount input & pct buttons
   amtInput.addEventListener('input', debounceBuild);
   pctBtns.forEach(btn => btn.addEventListener('click', () => {
-    const bal= parseFloat(balEl.textContent)||0, pct= +btn.dataset.pct;
-    amtInput.value=(bal*pct/100).toFixed(7).replace(/\.0+$/, '');
+    const bal = parseFloat(balEl.textContent) || 0;
+    const pct = parseInt(btn.dataset.pct, 10) / 100;
+    amtInput.value = (bal * pct).toFixed(7).replace(/\.0+$/, '');
     debounceBuild();
   }));
 
-  async function fetchBal() {
-    const pk = pubInput.value.trim(); if(!pk){ balEl.textContent='-'; return; }
-    try{
-      const acct = await server.loadAccount(pk);
-      const b = acct.balances.find(b=>b.asset_code===assetCode&&b.asset_issuer===assetIssuer);
-      balEl.textContent = b?b.balance:'0';
-    }catch(e){ balEl.textContent='Error'; }
+  async function fetchBalance() {
+    const pk = pubInput.value.trim();
+    if (!pk) { balEl.textContent = '-'; return; }
+    try {
+      const account = await server.loadAccount(pk);
+      const balObj = account.balances.find(b => b.asset_code === assetCode && b.asset_issuer === assetIssuer);
+      balEl.textContent = balObj ? balObj.balance : '0';
+    } catch (err) {
+      console.error(err);
+      balEl.textContent = 'Error';
+    }
   }
 
   function debounceBuild() {
-    copyBtn.disabled=true; signBtn.disabled=true; viewBtn.disabled=true;
-    clearTimeout(buildDeb);
-    buildDeb = setTimeout(buildXDR, 700);
+    copyBtn.disabled = true;
+    signBtn.disabled = true;
+    viewBtn.disabled = true;
+    clearTimeout(buildDebounce);
+    buildDebounce = setTimeout(buildXDR, 700);
   }
 
   async function buildXDR() {
-    const pk=pubInput.value.trim(), amt=amtInput.value;
-    if(!pk||!amt) return;
-    try{
-      const src=await server.loadAccount(pk);
-      const now=new Date(), end=new Date(now);
-      end.setUTCFullYear(end.getUTCFullYear()+3);
-      end.setUTCHours(23,59,59,0);
-      infoEl.textContent = `Start: ${now}\nEnd: ${end.toUTCString()}`;
-      const ts = Math.floor(end.getTime()/1000).toString();
-      const claimants=[
-        new StellarSdk.Claimant(pk, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(ts))),
+    const pk = pubInput.value.trim();
+    const amt = amtInput.value.trim();
+    if (!pk || !amt) return;
+    try {
+      const sourceAcc = await server.loadAccount(pk);
+      const start = new Date();
+      const end = new Date(start);
+      end.setUTCFullYear(end.getUTCFullYear() + 3);
+      end.setUTCHours(23, 59, 59, 0);
+
+      infoEl.textContent = `Lock start: ${start.toLocaleString()}\nLock end:   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
+
+      const endTs = Math.floor(end.getTime() / 1000).toString();
+      const claimants = [
+        new StellarSdk.Claimant(pk, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(endTs))),
         new StellarSdk.Claimant(trackerKey, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
       ];
-      const tx=new StellarSdk.TransactionBuilder(src,{fee:20000,networkPassphrase})
-        .addOperation(StellarSdk.Operation.createClaimableBalance({asset:AQUA_ASSET,amount:amt,claimants}))
-        .setTimeout(180).build();
-      const xdr=tx.toXDR(); xdrEl.value=xdr;
-      copyBtn.disabled=false;
-      let enc=encodeURIComponent(xdr).replace(/%2F/g,'/').replace(/%2B/g,'+').replace(/%3D/g,'=').replace(/\//g,'//')+';;';
-      signBtn.disabled=false; viewBtn.disabled=false;
-      signBtn.onclick=()=>window.open(labPrefix+enc);
-      viewBtn.onclick=()=>window.open(viewPrefix+enc+'&xdr$blob='+enc);
-    }catch(e){ console.error(e); }
+
+      const tx = new StellarSdk.TransactionBuilder(sourceAcc, { fee: 20000, networkPassphrase })
+        .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount: amt, claimants }))
+        .setTimeout(180)
+        .build();
+
+      const xdr = tx.toXDR();
+      xdrEl.value = xdr;
+      copyBtn.disabled = false;
+
+      let encoded = encodeURIComponent(xdr)
+        .replace(/%2F/g, '/')
+        .replace(/%2B/g, '+')
+        .replace(/%3D/g, '=');
+      encoded = encoded.replace(/\//g, '//') + ';;';
+
+      signBtn.disabled = false;
+      viewBtn.disabled = false;
+      signBtn.onclick = () => window.open(labPrefix + encoded);
+      viewBtn.onclick = () => window.open(viewPrefix + encoded + '&xdr$blob=' + encoded);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  copyBtn.addEventListener('click',()=>{
-    navigator.clipboard.writeText(xdrEl.value).then(()=>{
-      copyBtn.textContent='Copied!';
-      setTimeout(()=>copyBtn.textContent='Copy XDR',2000);
-    });
+  // Copy to clipboard
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(xdrEl.value).then(() => {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy XDR'; }, 2000);
+    }).catch(console.error);
   });
 
-  // Initially hidden
+  // Hide modal initially
   modal.style.display = 'none';
 }
