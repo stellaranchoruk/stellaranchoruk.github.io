@@ -46,8 +46,8 @@ export function initAquaLocker({
       <span class="aqua-close">&times;</span>
       <h2>Lock ${assetCode} Tokens (3 Years)</h2>
       <label>Public Key:</label><input type="text" class="aqua-pubkey" placeholder="Your Stellar public key" />
-      <p>Balance: <span class="aqua-balance">-</span></p>
-      <label>Amount:</label><input type="number" step="any" class="aqua-amount" placeholder="Amount to lock" />
+      <p>AQUAm25 Balance: <span class="aqua-balance">-</span></p>
+      <label>AQUAm25 Amount To Lock:</label><input type="number" step="any" class="aqua-amount" placeholder="Amount to lock" />
       <div class="aqua-pct-buttons">
         <button type="button" data-pct="25">25%</button>
         <button type="button" data-pct="50">50%</button>
@@ -56,7 +56,7 @@ export function initAquaLocker({
       </div>
       <button class="aqua-copy" disabled>Copy XDR</button>
       <button class="aqua-sign" disabled>Sign with Stellar Lab</button>
-      <button class="aqua-view" disabled>View XDR</button>
+      <button class="aqua-view" disabled>View XDR with Stellar Lab</button>
       <p class="aqua-info"></p>
       <textarea class="aqua-xdr" readonly rows="6" placeholder="Transaction XDR..."></textarea>
     </div>
