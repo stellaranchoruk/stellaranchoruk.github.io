@@ -27,19 +27,96 @@ export function initAquaLocker({
     style.id = 'aqua-locker-css';
     style.textContent = `
       *, *::before, *::after { box-sizing: border-box; }
-      .aqua-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999; }
-      .aqua-container { width: 90%; max-width:480px; background: #fff; padding: 15px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); position: relative; font-family: Arial, sans-serif; }
-      .aqua-container input, .aqua-container textarea { width:100%; margin:8px 0; padding:10px; font-size:1em; border:1px solid #ccc; border-radius:4px; }
-      .aqua-container button { width:100%; margin:8px 0; padding:10px; font-size:1em; background:#007bff; color:#fff; border:none; cursor:pointer; border-radius:4px; text-align:center; }
-      .aqua-container button:disabled { background:#888; cursor:not-allowed; }
-      .aqua-container textarea { resize:vertical; font-family:monospace; }
-      .aqua-container p, .aqua-container label, .aqua-container span { width:100%; margin:8px 0; }
-      .aqua-close { position:absolute; top:10px; right:10px; cursor:pointer; font-size:1.2em; }
-      .aqua-pct-buttons { display:flex; gap:8px; margin-top:4px; }
-      .aqua-pct-buttons button { flex:1; background:#e9ecef; color:#000; border:none; }
-      .aqua-pct-buttons button:hover { background:#dee2e6; }
-      .aqua-info { font-weight:bold; white-space:pre-line; margin-bottom:10px; }
-      @media (min-width: 600px) { .aqua-container { margin: 20px auto; } }
+      .aqua-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+      .aqua-container {
+        position: relative;
+        overflow: visible;
+        width: 90%;
+        max-width: 480px;
+        background: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        font-family: Arial, sans-serif;
+      }
+      .aqua-close {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        cursor: pointer;
+        font-size: 1.2em;
+        z-index: 1001;
+      }
+      .aqua-container input,
+      .aqua-container textarea {
+        width: 100%;
+        margin: 8px 0;
+        padding: 10px;
+        font-size: 1em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .aqua-container button {
+        width: 100%;
+        margin: 8px 0;
+        padding: 10px;
+        font-size: 1em;
+        background: #007bff;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px;
+        text-align: center;
+      }
+      .aqua-container button:disabled {
+        background: #888;
+        cursor: not-allowed;
+      }
+      .aqua-container textarea {
+        resize: vertical;
+        font-family: monospace;
+      }
+      .aqua-container p,
+      .aqua-container label,
+      .aqua-container span {
+        width: 100%;
+        margin: 8px 0;
+      }
+      .aqua-pct-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .aqua-pct-buttons button {
+        flex: 1;
+        background: #e9ecef;
+        color: #000;
+        border: none;
+      }
+      .aqua-pct-buttons button:hover {
+        background: #dee2e6;
+      }
+      .aqua-info {
+        font-weight: bold;
+        white-space: pre-line;
+        margin-bottom: 10px;
+      }
+      @media (min-width: 600px) {
+        .aqua-container {
+          margin: 20px auto;
+        }
+      }
     `;
     document.head.appendChild(style);
   }
@@ -102,13 +179,11 @@ export function initAquaLocker({
     'rpcUrl=https:////mainnet.sorobanrpc.com&' +
     'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
 
-  // Open modal
+  // Open/close handlers
   function openModal() {
     modal.style.display = 'flex';
     pubInput.focus();
   }
-
-  // Close modal
   function closeModal() {
     modal.style.display = 'none';
     clearInterval(refreshInt);
@@ -117,7 +192,7 @@ export function initAquaLocker({
   document.querySelector(triggerSelector).addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
 
-  // Fetch balance on public key change and every 10s
+  // Balance fetching and periodic refresh
   pubInput.addEventListener('change', () => {
     clearInterval(refreshInt);
     fetchBalance();
@@ -125,7 +200,6 @@ export function initAquaLocker({
     debounceBuild();
   });
 
-  // Amount input & pct buttons
   amtInput.addEventListener('input', debounceBuild);
   pctBtns.forEach(btn => btn.addEventListener('click', () => {
     const bal = parseFloat(balEl.textContent) || 0;
