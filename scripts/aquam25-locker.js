@@ -65,6 +65,7 @@ export function initAquaLocker({
       <button class="aqua-copy" disabled>Copy XDR</button>
       <button class="aqua-sign" disabled>Sign with Stellar Lab</button>
       <button class="aqua-view" disabled>View XDR with Stellar Lab</button>
+      <p>This will lock your AQUAm25 tokens for 3 years into a claimable balance.</p>
       <p class="aqua-info"></p>
       <textarea class="aqua-xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
     </div>
