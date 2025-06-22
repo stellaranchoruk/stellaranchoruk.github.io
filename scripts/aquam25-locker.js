@@ -1,11 +1,9 @@
 // aquam25-locker.js
 // ES module for embedding AQUAm25 locking widget as a modal/dialog on any page.
-//
+
 // Usage:
-// 1. Include this script as a module:
-//    <script type="module" src="https://mirrasets.com/scripts/aquam25-locker.js"></script>
-// 2. Add a button (or any element) with an ID you choose, e.g.
-//    <button id="lockBtn">Lock AQUAm25</button>
+// 1. Include this script as a module: <script type="module" src="https://mirrasets.com/scripts/aquam25-locker.js"></script>
+// 2. Add a trigger button, e.g. <button id="lockBtn">Lock AQUAm25</button>
 // 3. In your page script, call:
 //    import { initAquaLocker } from 'https://mirrasets.com/scripts/aquam25-locker.js';
 //    initAquaLocker({ triggerSelector: '#lockBtn' });
@@ -30,76 +28,70 @@ export function initAquaLocker({
     style.textContent = `
       *, *::before, *::after { box-sizing: border-box; }
       .aqua-modal {
-        position: fixed; top:0; left:0;
-        width:100%; height:100%;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
         background: rgba(0,0,0,0.5);
-        display:flex; justify-content:center; align-items:center;
-        z-index:9999;
+        display: flex; justify-content: center; align-items: center;
+        z-index: 9999;
       }
       .aqua-container {
         position: relative;
-        width: 90%; max-width:480px;
+        width: 90%; max-width: 480px;
         background: #fff;
         padding: 20px;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         font-family: Arial, sans-serif;
       }
+      /* Simple close button at top-right */
       .aqua-close {
         position: absolute;
-        top: 10px; right: 10px;
-        width: 32px; height: 32px;
-        background: #fff;
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer;
-        font-size: 1.2em;
+        top: 8px;
+        right: 8px;
+        background: none;
+        border: none;
+        font-size: 1.4em;
         line-height: 1;
-        box-shadow: 0 0 4px rgba(0,0,0,0.2);
-        z-index: 1;
+        color: #333;
+        cursor: pointer;
       }
       .aqua-container input,
       .aqua-container textarea {
-        width:100%; margin:8px 0; padding:10px;
-        font-size:1em; border:1px solid #ccc; border-radius:4px;
+        width: 100%; margin: 8px 0; padding: 10px;
+        font-size: 1em; border: 1px solid #ccc; border-radius: 4px;
       }
       .aqua-container button {
-        width:100%; margin:8px 0; padding:10px;
-        font-size:1em; background:#007bff; color:#fff;
-        border:none; cursor:pointer; border-radius:4px;
+        width: 100%; margin: 8px 0; padding: 10px;
+        font-size: 1em; background: #007bff; color: #fff;
+        border: none; cursor: pointer; border-radius: 4px;
       }
       .aqua-container button:disabled {
-        background: #888; cursor:not-allowed;
+        background: #888; cursor: not-allowed;
       }
       .aqua-container textarea { resize: vertical; font-family: monospace; }
-      .aqua-container p,
-      .aqua-container label,
-      .aqua-container span {
-        width:100%; margin:8px 0;
+      .aqua-container p, .aqua-container label, .aqua-container span {
+        width: 100%; margin: 8px 0;
       }
       .aqua-pct-buttons {
-        display:flex; gap:8px; margin-top:4px;
+        display: flex; gap: 8px; margin-top: 4px;
       }
       .aqua-pct-buttons button {
-        flex:1; background:#e9ecef; color:#000; border:none;
+        flex: 1; background: #e9ecef; color: #000; border: none;
       }
-      .aqua-pct-buttons button:hover { background:#dee2e6; }
-      .aqua-info {
-        font-weight:bold; white-space:pre-line; margin-bottom:10px;
-      }
-      @media (min-width:600px) {
-        .aqua-container { margin:20px auto; }
-      }
+      .aqua-pct-buttons button:hover { background: #dee2e6; }
+      .aqua-info { font-weight: bold; white-space: pre-line; margin-bottom: 10px; }
+      @media (min-width: 600px) { .aqua-container { margin: 20px auto; } }
     `;
     document.head.appendChild(style);
   }
 
-  // Build modal
+  // Construct modal HTML
   const modal = document.createElement('div');
   modal.className = 'aqua-modal';
   modal.innerHTML = `
     <div class="aqua-container">
-      <span class="aqua-close" aria-label="Close">&times;</span>
+      <button class="aqua-close" aria-label="Close modal">&times;</button>
       <h2>Lock ${assetCode} Tokens for 3 Years</h2>
       <label for="aqua-pubkey">Public Key:</label>
       <input id="aqua-pubkey" type="text" placeholder="Enter your Stellar public key" />
@@ -107,10 +99,10 @@ export function initAquaLocker({
       <label for="aqua-amount">AQUAm25 Amount:</label>
       <input id="aqua-amount" type="number" step="any" placeholder="Amount to lock" />
       <div class="aqua-pct-buttons">
-        <button type="button" data-pct="25">25%</button>
-        <button type="button" data-pct="50">50%</button>
-        <button type="button" data-pct="75">75%</button>
-        <button type="button" data-pct="100">100%</button>
+        <button data-pct="25" type="button">25%</button>
+        <button data-pct="50" type="button">50%</button>
+        <button data-pct="75" type="button">75%</button>
+        <button data-pct="100" type="button">100%</button>
       </div>
       <button class="aqua-copy" disabled>Copy XDR</button>
       <button class="aqua-sign" disabled>Sign with Stellar Lab</button>
@@ -121,7 +113,7 @@ export function initAquaLocker({
   `;
   document.body.appendChild(modal);
 
-  // Refs
+  // Element refs
   const closeBtn = modal.querySelector('.aqua-close');
   const pubKeyIn = modal.querySelector('#aqua-pubkey');
   const balanceEl = modal.querySelector('.aqua-balance');
@@ -135,8 +127,8 @@ export function initAquaLocker({
 
   let refreshInterval, buildTimeout;
 
-  // Exact Lab prefixes from original page:
-  const labPrefix = 
+  // Stellar Lab URL prefixes
+  const labPrefix =
     'https://lab.stellar.org/transaction/sign?' +
     '$=network$id=mainnet&' +
     'label=Mainnet&' +
@@ -152,48 +144,39 @@ export function initAquaLocker({
     'rpcUrl=https:////mainnet.sorobanrpc.com&' +
     'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
 
-  // Open / close
-  function openModal() {
-    modal.style.display = 'flex';
-    pubKeyIn.focus();
-  }
-  function closeModal() {
-    modal.style.display = 'none';
-    clearInterval(refreshInterval);
-  }
+  // Open/close
+  function openModal() { modal.style.display = 'flex'; pubKeyIn.focus(); }
+  function closeModal() { modal.style.display = 'none'; clearInterval(refreshInterval); }
   document.querySelector(triggerSelector).addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
 
   // Fetch balance on pubkey change & every 10s
   pubKeyIn.addEventListener('change', () => {
     clearInterval(refreshInterval);
-    doFetchBalance();
-    refreshInterval = setInterval(doFetchBalance, 10000);
+    fetchBalance();
+    refreshInterval = setInterval(fetchBalance, 10000);
     scheduleBuild();
   });
 
-  // Percent buttons & manual input
+  // Input & pct buttons
   amtIn.addEventListener('input', scheduleBuild);
-  pctBtns.forEach(btn =>
-    btn.addEventListener('click', () => {
-      const bal = parseFloat(balanceEl.textContent) || 0;
-      const pct = parseInt(btn.dataset.pct, 10) / 100;
-      amtIn.value = (bal * pct).toFixed(7).replace(/\.0+$/, '');
-      scheduleBuild();
-    })
-  );
+  pctBtns.forEach(btn => btn.addEventListener('click', () => {
+    const bal = parseFloat(balanceEl.textContent) || 0;
+    amtIn.value = (bal * (parseInt(btn.dataset.pct, 10) / 100))
+      .toFixed(7)
+      .replace(/\.0+$/, '');
+    scheduleBuild();
+  }));
 
-  async function doFetchBalance() {
+  async function fetchBalance() {
     const pk = pubKeyIn.value.trim();
     if (!pk) { balanceEl.textContent = '-'; return; }
     try {
-      const account = await server.loadAccount(pk);
-      const obj = account.balances.find(
-        b => b.asset_code === assetCode && b.asset_issuer === assetIssuer
-      );
+      const acct = await server.loadAccount(pk);
+      const obj = acct.balances.find(b => b.asset_code === assetCode && b.asset_issuer === assetIssuer);
       balanceEl.textContent = obj ? obj.balance : '0';
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
       balanceEl.textContent = 'Error';
     }
   }
@@ -210,7 +193,6 @@ export function initAquaLocker({
     const pk = pubKeyIn.value.trim();
     const amt = amtIn.value.trim();
     if (!pk || !amt) return;
-
     try {
       const src = await server.loadAccount(pk);
       const now = new Date();
@@ -264,11 +246,12 @@ export function initAquaLocker({
       viewBtn.disabled = false;
       signBtn.onclick = () => window.open(labPrefix + encoded);
       viewBtn.onclick = () => window.open(viewPrefix + encoded + '&xdr$blob=' + encoded);
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     }
   }
 
+  // Copy handler
   copyBtn.addEventListener('click', () => {
     navigator.clipboard
       .writeText(xdrEl.value)
@@ -279,6 +262,6 @@ export function initAquaLocker({
       .catch(console.error);
   });
 
-  // Hide by default
+  // Hide initially
   modal.style.display = 'none';
 }
