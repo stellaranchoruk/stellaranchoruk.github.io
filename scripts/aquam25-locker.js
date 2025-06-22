@@ -1,9 +1,11 @@
 // aquam25-locker.js
 // ES module for embedding AQUAm25 locking widget as a modal/dialog on any page.
-
+//
 // Usage:
-// 1. Include this script as a module: <script type="module" src="https://mirrasets.com/scripts/aquam25-locker.js"></script>
-// 2. Add a button (or any element) with id or class you want, e.g. <button id="lockBtn">Lock AQUAm25</button>
+// 1. Include this script as a module:
+//    <script type="module" src="https://mirrasets.com/scripts/aquam25-locker.js"></script>
+// 2. Add a button (or any element) with an ID you choose, e.g.
+//    <button id="lockBtn">Lock AQUAm25</button>
 // 3. In your page script, call:
 //    import { initAquaLocker } from 'https://mirrasets.com/scripts/aquam25-locker.js';
 //    initAquaLocker({ triggerSelector: '#lockBtn' });
@@ -21,118 +23,89 @@ export function initAquaLocker({
   const server = new StellarSdk.Server(horizonUrl);
   const AQUA_ASSET = new StellarSdk.Asset(assetCode, assetIssuer);
 
-  // Inject CSS only once
+  // Inject CSS once
   if (!document.getElementById('aqua-locker-css')) {
     const style = document.createElement('style');
     style.id = 'aqua-locker-css';
     style.textContent = `
       *, *::before, *::after { box-sizing: border-box; }
       .aqua-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        position: fixed; top:0; left:0;
+        width:100%; height:100%;
         background: rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
+        display:flex; justify-content:center; align-items:center;
+        z-index:9999;
       }
       .aqua-container {
         position: relative;
-        overflow: visible;
-        width: 90%;
-        max-width: 480px;
+        width: 90%; max-width:480px;
         background: #fff;
-        padding: 15px;
+        padding: 20px;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         font-family: Arial, sans-serif;
       }
       .aqua-close {
         position: absolute;
-        top: 10px;
-        right: 10px;
+        top: 10px; right: 10px;
+        width: 32px; height: 32px;
+        background: #fff;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
         cursor: pointer;
         font-size: 1.2em;
-        z-index: 1001;
+        line-height: 1;
+        box-shadow: 0 0 4px rgba(0,0,0,0.2);
+        z-index: 1;
       }
       .aqua-container input,
       .aqua-container textarea {
-        width: 100%;
-        margin: 8px 0;
-        padding: 10px;
-        font-size: 1em;
-        border: 1px solid #ccc;
-        border-radius: 4px;
+        width:100%; margin:8px 0; padding:10px;
+        font-size:1em; border:1px solid #ccc; border-radius:4px;
       }
       .aqua-container button {
-        width: 100%;
-        margin: 8px 0;
-        padding: 10px;
-        font-size: 1em;
-        background: #007bff;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-        border-radius: 4px;
-        text-align: center;
+        width:100%; margin:8px 0; padding:10px;
+        font-size:1em; background:#007bff; color:#fff;
+        border:none; cursor:pointer; border-radius:4px;
       }
       .aqua-container button:disabled {
-        background: #888;
-        cursor: not-allowed;
+        background: #888; cursor:not-allowed;
       }
-      .aqua-container textarea {
-        resize: vertical;
-        font-family: monospace;
-      }
+      .aqua-container textarea { resize: vertical; font-family: monospace; }
       .aqua-container p,
       .aqua-container label,
       .aqua-container span {
-        width: 100%;
-        margin: 8px 0;
+        width:100%; margin:8px 0;
       }
       .aqua-pct-buttons {
-        display: flex;
-        gap: 8px;
-        margin-top: 4px;
+        display:flex; gap:8px; margin-top:4px;
       }
       .aqua-pct-buttons button {
-        flex: 1;
-        background: #e9ecef;
-        color: #000;
-        border: none;
+        flex:1; background:#e9ecef; color:#000; border:none;
       }
-      .aqua-pct-buttons button:hover {
-        background: #dee2e6;
-      }
+      .aqua-pct-buttons button:hover { background:#dee2e6; }
       .aqua-info {
-        font-weight: bold;
-        white-space: pre-line;
-        margin-bottom: 10px;
+        font-weight:bold; white-space:pre-line; margin-bottom:10px;
       }
-      @media (min-width: 600px) {
-        .aqua-container {
-          margin: 20px auto;
-        }
+      @media (min-width:600px) {
+        .aqua-container { margin:20px auto; }
       }
     `;
     document.head.appendChild(style);
   }
 
-  // Create modal DOM
+  // Build modal
   const modal = document.createElement('div');
   modal.className = 'aqua-modal';
   modal.innerHTML = `
     <div class="aqua-container">
-      <span class="aqua-close">&times;</span>
+      <span class="aqua-close" aria-label="Close">&times;</span>
       <h2>Lock ${assetCode} Tokens for 3 Years</h2>
       <label for="aqua-pubkey">Public Key:</label>
-      <input id="aqua-pubkey" class="aqua-pubkey" type="text" placeholder="Enter your Stellar public key" />
+      <input id="aqua-pubkey" type="text" placeholder="Enter your Stellar public key" />
       <p>AQUAm25 Balance: <span class="aqua-balance">-</span></p>
       <label for="aqua-amount">AQUAm25 Amount:</label>
-      <input id="aqua-amount" class="aqua-amount" type="number" step="any" placeholder="Amount to lock" />
+      <input id="aqua-amount" type="number" step="any" placeholder="Amount to lock" />
       <div class="aqua-pct-buttons">
         <button type="button" data-pct="25">25%</button>
         <button type="button" data-pct="50">50%</button>
@@ -148,11 +121,11 @@ export function initAquaLocker({
   `;
   document.body.appendChild(modal);
 
-  // Element references
+  // Refs
   const closeBtn = modal.querySelector('.aqua-close');
-  const pubInput = modal.querySelector('#aqua-pubkey');
-  const balEl = modal.querySelector('.aqua-balance');
-  const amtInput = modal.querySelector('#aqua-amount');
+  const pubKeyIn = modal.querySelector('#aqua-pubkey');
+  const balanceEl = modal.querySelector('.aqua-balance');
+  const amtIn = modal.querySelector('#aqua-amount');
   const pctBtns = modal.querySelectorAll('.aqua-pct-buttons button');
   const copyBtn = modal.querySelector('.aqua-copy');
   const signBtn = modal.querySelector('.aqua-sign');
@@ -160,10 +133,10 @@ export function initAquaLocker({
   const infoEl = modal.querySelector('.aqua-info');
   const xdrEl = modal.querySelector('.aqua-xdr');
 
-  let refreshInt, buildDebounce;
+  let refreshInterval, buildTimeout;
 
-  // Stellar Lab URL prefixes (copied from original page)
-  const labPrefix =
+  // Exact Lab prefixes from original page:
+  const labPrefix = 
     'https://lab.stellar.org/transaction/sign?' +
     '$=network$id=mainnet&' +
     'label=Mainnet&' +
@@ -179,77 +152,101 @@ export function initAquaLocker({
     'rpcUrl=https:////mainnet.sorobanrpc.com&' +
     'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
 
-  // Open/close handlers
+  // Open / close
   function openModal() {
     modal.style.display = 'flex';
-    pubInput.focus();
+    pubKeyIn.focus();
   }
   function closeModal() {
     modal.style.display = 'none';
-    clearInterval(refreshInt);
+    clearInterval(refreshInterval);
   }
-
   document.querySelector(triggerSelector).addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
 
-  // Balance fetching and periodic refresh
-  pubInput.addEventListener('change', () => {
-    clearInterval(refreshInt);
-    fetchBalance();
-    refreshInt = setInterval(fetchBalance, 10000);
-    debounceBuild();
+  // Fetch balance on pubkey change & every 10s
+  pubKeyIn.addEventListener('change', () => {
+    clearInterval(refreshInterval);
+    doFetchBalance();
+    refreshInterval = setInterval(doFetchBalance, 10000);
+    scheduleBuild();
   });
 
-  amtInput.addEventListener('input', debounceBuild);
-  pctBtns.forEach(btn => btn.addEventListener('click', () => {
-    const bal = parseFloat(balEl.textContent) || 0;
-    const pct = parseInt(btn.dataset.pct, 10) / 100;
-    amtInput.value = (bal * pct).toFixed(7).replace(/\.0+$/, '');
-    debounceBuild();
-  }));
+  // Percent buttons & manual input
+  amtIn.addEventListener('input', scheduleBuild);
+  pctBtns.forEach(btn =>
+    btn.addEventListener('click', () => {
+      const bal = parseFloat(balanceEl.textContent) || 0;
+      const pct = parseInt(btn.dataset.pct, 10) / 100;
+      amtIn.value = (bal * pct).toFixed(7).replace(/\.0+$/, '');
+      scheduleBuild();
+    })
+  );
 
-  async function fetchBalance() {
-    const pk = pubInput.value.trim();
-    if (!pk) { balEl.textContent = '-'; return; }
+  async function doFetchBalance() {
+    const pk = pubKeyIn.value.trim();
+    if (!pk) { balanceEl.textContent = '-'; return; }
     try {
       const account = await server.loadAccount(pk);
-      const balObj = account.balances.find(b => b.asset_code === assetCode && b.asset_issuer === assetIssuer);
-      balEl.textContent = balObj ? balObj.balance : '0';
+      const obj = account.balances.find(
+        b => b.asset_code === assetCode && b.asset_issuer === assetIssuer
+      );
+      balanceEl.textContent = obj ? obj.balance : '0';
     } catch (err) {
       console.error(err);
-      balEl.textContent = 'Error';
+      balanceEl.textContent = 'Error';
     }
   }
 
-  function debounceBuild() {
+  function scheduleBuild() {
     copyBtn.disabled = true;
     signBtn.disabled = true;
     viewBtn.disabled = true;
-    clearTimeout(buildDebounce);
-    buildDebounce = setTimeout(buildXDR, 700);
+    clearTimeout(buildTimeout);
+    buildTimeout = setTimeout(buildXDR, 700);
   }
 
   async function buildXDR() {
-    const pk = pubInput.value.trim();
-    const amt = amtInput.value.trim();
+    const pk = pubKeyIn.value.trim();
+    const amt = amtIn.value.trim();
     if (!pk || !amt) return;
+
     try {
-      const sourceAcc = await server.loadAccount(pk);
-      const start = new Date();
-      const end = new Date(start);
+      const src = await server.loadAccount(pk);
+      const now = new Date();
+      const end = new Date(now);
       end.setUTCFullYear(end.getUTCFullYear() + 3);
       end.setUTCHours(23, 59, 59, 0);
 
-      infoEl.textContent = `Lock start: ${start.toLocaleString()}\nLock end:   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
+      infoEl.textContent =
+        `Lock start: ${now.toLocaleString()}\n` +
+        `Lock end:   ${end.toLocaleString(undefined, { timeZone: 'UTC' })}`;
 
       const endTs = Math.floor(end.getTime() / 1000).toString();
       const claimants = [
-        new StellarSdk.Claimant(pk, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(endTs))),
-        new StellarSdk.Claimant(trackerKey, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
+        new StellarSdk.Claimant(
+          pk,
+          StellarSdk.Claimant.predicateNot(
+            StellarSdk.Claimant.predicateBeforeAbsoluteTime(endTs)
+          )
+        ),
+        new StellarSdk.Claimant(
+          trackerKey,
+          StellarSdk.Claimant.predicateBeforeAbsoluteTime('0')
+        )
       ];
 
-      const tx = new StellarSdk.TransactionBuilder(sourceAcc, { fee: 20000, networkPassphrase })
-        .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount: amt, claimants }))
+      const tx = new StellarSdk.TransactionBuilder(src, {
+        fee: 20000,
+        networkPassphrase
+      })
+        .addOperation(
+          StellarSdk.Operation.createClaimableBalance({
+            asset: AQUA_ASSET,
+            amount: amt,
+            claimants
+          })
+        )
         .setTimeout(180)
         .build();
 
@@ -272,14 +269,16 @@ export function initAquaLocker({
     }
   }
 
-  // Copy to clipboard
   copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(xdrEl.value).then(() => {
-      copyBtn.textContent = 'Copied!';
-      setTimeout(() => { copyBtn.textContent = 'Copy XDR'; }, 2000);
-    }).catch(console.error);
+    navigator.clipboard
+      .writeText(xdrEl.value)
+      .then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => (copyBtn.textContent = 'Copy XDR'), 2000);
+      })
+      .catch(console.error);
   });
 
-  // Hide modal initially
+  // Hide by default
   modal.style.display = 'none';
 }
