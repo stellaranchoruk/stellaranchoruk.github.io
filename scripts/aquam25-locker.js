@@ -35,20 +35,19 @@ export function initAquaLocker({
         background: rgba(0,0,0,0.5);
         display: flex; justify-content: center; align-items: center;
         z-index: 9999;
-        padding: 10px; /* allow some viewport padding */
+        padding: 10px;
       }
       .aqua-container {
         position: relative;
-        width: 100%; max-width: 480px;
+        width: 90%; max-width: 480px;
+        max-height: 90vh;
+        overflow-y: auto;
         background: #fff;
         padding: 20px;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         font-family: Arial, sans-serif;
-        max-height: 90vh; /* allow scrolling on tall content */
-        overflow-y: auto;
       }
-      /* Close button styling */
       .aqua-close {
         position: absolute;
         top: 8px; right: 8px;
@@ -59,11 +58,10 @@ export function initAquaLocker({
         color: #333;
         cursor: pointer;
       }
-      /* Buttons inside container except close */
       .aqua-container button:not(.aqua-close) {
         width: 100%; margin: 8px 0; padding: 10px;
         font-size: 1em; background: #007bff; color: #fff;
-        border: none; cursor: pointer; border-radius: 4px;
+        border: none; border-radius: 4px; cursor: pointer;
       }
       .aqua-container button:not(.aqua-close):disabled {
         background: #888; cursor: not-allowed;
@@ -85,7 +83,7 @@ export function initAquaLocker({
       }
       .aqua-pct-buttons button:hover { background: #dee2e6; }
       .aqua-info { font-weight: bold; white-space: pre-line; margin-bottom: 10px; }
-      @media (min-width: 600px) { .aqua-modal { padding: 0; } .aqua-container { margin: 20px auto; } }
+      @media (min-width: 600px) { .aqua-container { margin: 20px auto; } }
     `;
     document.head.appendChild(style);
   }
@@ -129,7 +127,7 @@ export function initAquaLocker({
   const infoEl = modal.querySelector('.aqua-info');
   const xdrEl = modal.querySelector('.aqua-xdr');
 
-  let refreshInterval, buildTimeout;
+  let refreshInterval; let buildTimeout;
 
   // Stellar Lab URL prefixes
   const labPrefix =
@@ -148,19 +146,21 @@ export function initAquaLocker({
     'rpcUrl=https:////mainnet.sorobanrpc.com&' +
     'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
 
-  // Handlers
+  // Open/close handlers
   function openModal() { modal.style.display = 'flex'; pubKeyIn.focus(); }
   function closeModal() { modal.style.display = 'none'; clearInterval(refreshInterval); }
   document.querySelector(triggerSelector).addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
 
-  // Balance fetch
+  // Balance fetch on pubkey change & every 10s
   pubKeyIn.addEventListener('change', () => {
     clearInterval(refreshInterval);
     fetchBalance();
     refreshInterval = setInterval(fetchBalance, 10000);
     scheduleBuild();
   });
+
+  // Input & percent buttons
   amtIn.addEventListener('input', scheduleBuild);
   pctBtns.forEach(btn => btn.addEventListener('click', () => {
     const bal = parseFloat(balanceEl.textContent) || 0;
@@ -201,23 +201,35 @@ export function initAquaLocker({
       const src = await server.loadAccount(pk);
       const now = new Date();
       const end = new Date(now);
-      end = new Date(now);
       end.setUTCFullYear(end.getUTCFullYear() + 3);
       end.setUTCHours(23, 59, 59, 0);
 
       infoEl.textContent =
-        `Lock start: ${now.toLocaleString()}
-` +
+        `Lock start: ${now.toLocaleString()}\n` +
         `Lock end:   ${end.toLocaleString(undefined, { timeZone: 'UTC' })}`;
 
       const endTs = Math.floor(end.getTime() / 1000).toString();
       const claimants = [
-        new StellarSdk.Claimant(pk, StellarSdk.Claimant.predicateNot(StellarSdk.Claimant.predicateBeforeAbsoluteTime(endTs))),
-        new StellarSdk.Claimant(trackerKey, StellarSdk.Claimant.predicateBeforeAbsoluteTime('0'))
+        new StellarSdk.Claimant(
+          pk,
+          StellarSdk.Claimant.predicateNot(
+            StellarSdk.Claimant.predicateBeforeAbsoluteTime(endTs)
+          )
+        ),
+        new StellarSdk.Claimant(
+          trackerKey,
+          StellarSdk.Claimant.predicateBeforeAbsoluteTime('0')
+        )
       ];
 
       const tx = new StellarSdk.TransactionBuilder(src, { fee: 20000, networkPassphrase })
-        .addOperation(StellarSdk.Operation.createClaimableBalance({ asset: AQUA_ASSET, amount: amt, claimants }))
+        .addOperation(
+          StellarSdk.Operation.createClaimableBalance({
+            asset: AQUA_ASSET,
+            amount: amt,
+            claimants
+          })
+        )
         .setTimeout(180)
         .build();
 
@@ -242,10 +254,13 @@ export function initAquaLocker({
 
   // Copy XDR
   copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(xdrEl.value).then(() => {
-      copyBtn.textContent = 'Copied!';
-      setTimeout(() => (copyBtn.textContent = 'Copy XDR'), 2000);
-    }).catch(console.error);
+    navigator.clipboard
+      .writeText(xdrEl.value)
+      .then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => (copyBtn.textContent = 'Copy XDR'), 2000);
+      })
+      .catch(console.error);
   });
 
   // Hide initially
