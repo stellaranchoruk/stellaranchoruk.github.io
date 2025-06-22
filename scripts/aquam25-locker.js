@@ -2,7 +2,8 @@
 // ES module for embedding AQUAm25 locking widget as a modal/dialog on any page.
 
 // Usage:
-// 1. Include this script as a module: <script type="module" src="https://mirrasets.com/scripts/aquam25-locker.js"></script>
+// 1. Include this script as a module:
+//    <script type="module" src="https://mirrasets.com/scripts/aquam25-locker.js"></script>
 // 2. Add a trigger button, e.g. <button id="lockBtn">Lock AQUAm25</button>
 // 3. In your page script, call:
 //    import { initAquaLocker } from 'https://mirrasets.com/scripts/aquam25-locker.js';
@@ -44,11 +45,10 @@ export function initAquaLocker({
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         font-family: Arial, sans-serif;
       }
-      /* Simple close button at top-right */
+      /* Close button styling */
       .aqua-close {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: 8px; right: 8px;
         background: none;
         border: none;
         font-size: 1.4em;
@@ -56,18 +56,19 @@ export function initAquaLocker({
         color: #333;
         cursor: pointer;
       }
-      .aqua-container input,
-      .aqua-container textarea {
-        width: 100%; margin: 8px 0; padding: 10px;
-        font-size: 1em; border: 1px solid #ccc; border-radius: 4px;
-      }
-      .aqua-container button {
+      /* Buttons inside container except close */
+      .aqua-container button:not(.aqua-close) {
         width: 100%; margin: 8px 0; padding: 10px;
         font-size: 1em; background: #007bff; color: #fff;
         border: none; cursor: pointer; border-radius: 4px;
       }
-      .aqua-container button:disabled {
+      .aqua-container button:not(.aqua-close):disabled {
         background: #888; cursor: not-allowed;
+      }
+      .aqua-container input,
+      .aqua-container textarea {
+        width: 100%; margin: 8px 0; padding: 10px;
+        font-size: 1em; border: 1px solid #ccc; border-radius: 4px;
       }
       .aqua-container textarea { resize: vertical; font-family: monospace; }
       .aqua-container p, .aqua-container label, .aqua-container span {
@@ -86,7 +87,7 @@ export function initAquaLocker({
     document.head.appendChild(style);
   }
 
-  // Construct modal HTML
+  // Create modal HTML
   const modal = document.createElement('div');
   modal.className = 'aqua-modal';
   modal.innerHTML = `
@@ -99,10 +100,10 @@ export function initAquaLocker({
       <label for="aqua-amount">AQUAm25 Amount:</label>
       <input id="aqua-amount" type="number" step="any" placeholder="Amount to lock" />
       <div class="aqua-pct-buttons">
-        <button data-pct="25" type="button">25%</button>
-        <button data-pct="50" type="button">50%</button>
-        <button data-pct="75" type="button">75%</button>
-        <button data-pct="100" type="button">100%</button>
+        <button type="button" data-pct="25">25%</button>
+        <button type="button" data-pct="50">50%</button>
+        <button type="button" data-pct="75">75%</button>
+        <button type="button" data-pct="100">100%</button>
       </div>
       <button class="aqua-copy" disabled>Copy XDR</button>
       <button class="aqua-sign" disabled>Sign with Stellar Lab</button>
@@ -144,13 +145,13 @@ export function initAquaLocker({
     'rpcUrl=https:////mainnet.sorobanrpc.com&' +
     'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
 
-  // Open/close
+  // Open/close handlers
   function openModal() { modal.style.display = 'flex'; pubKeyIn.focus(); }
   function closeModal() { modal.style.display = 'none'; clearInterval(refreshInterval); }
   document.querySelector(triggerSelector).addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
 
-  // Fetch balance on pubkey change & every 10s
+  // Balance fetch on pubkey change & every 10s
   pubKeyIn.addEventListener('change', () => {
     clearInterval(refreshInterval);
     fetchBalance();
@@ -158,7 +159,7 @@ export function initAquaLocker({
     scheduleBuild();
   });
 
-  // Input & pct buttons
+  // Input & percent buttons
   amtIn.addEventListener('input', scheduleBuild);
   pctBtns.forEach(btn => btn.addEventListener('click', () => {
     const bal = parseFloat(balanceEl.textContent) || 0;
@@ -173,7 +174,9 @@ export function initAquaLocker({
     if (!pk) { balanceEl.textContent = '-'; return; }
     try {
       const acct = await server.loadAccount(pk);
-      const obj = acct.balances.find(b => b.asset_code === assetCode && b.asset_issuer === assetIssuer);
+      const obj = acct.balances.find(
+        b => b.asset_code === assetCode && b.asset_issuer === assetIssuer
+      );
       balanceEl.textContent = obj ? obj.balance : '0';
     } catch (e) {
       console.error(e);
@@ -218,10 +221,7 @@ export function initAquaLocker({
         )
       ];
 
-      const tx = new StellarSdk.TransactionBuilder(src, {
-        fee: 20000,
-        networkPassphrase
-      })
+      const tx = new StellarSdk.TransactionBuilder(src, { fee: 20000, networkPassphrase })
         .addOperation(
           StellarSdk.Operation.createClaimableBalance({
             asset: AQUA_ASSET,
@@ -251,7 +251,7 @@ export function initAquaLocker({
     }
   }
 
-  // Copy handler
+  // Copy XDR
   copyBtn.addEventListener('click', () => {
     navigator.clipboard
       .writeText(xdrEl.value)
