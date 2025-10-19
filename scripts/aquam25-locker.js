@@ -19,6 +19,8 @@ export function initAquaLocker({
   assetIssuer = 'GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC',
   trackerKey = 'GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP'
 }) {
+  if (!StellarSdk) throw new Error('StellarSdk not found on window. Include Stellar SDK before this script.');
+
   const server = new StellarSdk.Server(horizonUrl);
   const AQUA_ASSET = new StellarSdk.Asset(assetCode, assetIssuer);
 
@@ -91,6 +93,8 @@ export function initAquaLocker({
   // Create modal HTML
   const modal = document.createElement('div');
   modal.className = 'aqua-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
   modal.innerHTML = `
     <div class="aqua-container">
       <button class="aqua-close" aria-label="Close modal">&times;</button>
@@ -106,6 +110,8 @@ export function initAquaLocker({
         <button type="button" data-pct="75">75%</button>
         <button type="button" data-pct="100">100%</button>
       </div>
+      <button class="aqua-freighter-connect" disabled>Connect Freighter</button>
+      <button class="aqua-freighter-sign" disabled>Sign & Submit with Freighter</button>
       <button class="aqua-copy" disabled>Copy XDR</button>
       <button class="aqua-sign" disabled>Sign with Stellar Lab</button>
       <button class="aqua-view" disabled>View XDR with Stellar Lab</button>
@@ -121,6 +127,8 @@ export function initAquaLocker({
   const balanceEl = modal.querySelector('.aqua-balance');
   const amtIn = modal.querySelector('#aqua-amount');
   const pctBtns = modal.querySelectorAll('.aqua-pct-buttons button');
+  const freighterConnectBtn = modal.querySelector('.aqua-freighter-connect');
+  const freighterSignBtn = modal.querySelector('.aqua-freighter-sign');
   const copyBtn = modal.querySelector('.aqua-copy');
   const signBtn = modal.querySelector('.aqua-sign');
   const viewBtn = modal.querySelector('.aqua-view');
@@ -146,11 +154,30 @@ export function initAquaLocker({
     'rpcUrl=https:////mainnet.sorobanrpc.com&' +
     'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
 
+  // Freighter detection
+  const freighter = window.freighterApi;
+  const hasFreighter = !!(freighter && typeof freighter.getPublicKey === 'function');
+  if (hasFreighter) {
+    freighterConnectBtn.disabled = false;
+  } else {
+    freighterConnectBtn.textContent = 'Freighter not found';
+  }
+
   // Open/close handlers
   function openModal() { modal.style.display = 'flex'; pubKeyIn.focus(); }
   function closeModal() { modal.style.display = 'none'; clearInterval(refreshInterval); }
   document.querySelector(triggerSelector).addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
+
+  // Helpers
+  function isValidPubKey(k) {
+    try { return StellarSdk.StrKey.isValidEd25519PublicKey(k); } catch { return false; }
+  }
+  function sanitizeAmount(aStr) {
+    const n = Number(aStr);
+    if (!isFinite(n) || n <= 0) return null;
+    return n.toFixed(7).replace(/\.0+$/, '');
+  }
 
   // Balance fetch on pubkey change & every 10s
   pubKeyIn.addEventListener('change', () => {
@@ -164,15 +191,15 @@ export function initAquaLocker({
   amtIn.addEventListener('input', scheduleBuild);
   pctBtns.forEach(btn => btn.addEventListener('click', () => {
     const bal = parseFloat(balanceEl.textContent) || 0;
-    amtIn.value = (bal * (parseInt(btn.dataset.pct, 10) / 100))
-      .toFixed(7)
-      .replace(/\.0+$/, '');
+    const v = (bal * (parseInt(btn.dataset.pct, 10) / 100));
+    amtIn.value = sanitizeAmount(v);
     scheduleBuild();
   }));
 
   async function fetchBalance() {
     const pk = pubKeyIn.value.trim();
     if (!pk) { balanceEl.textContent = '-'; return; }
+    if (!isValidPubKey(pk)) { balanceEl.textContent = 'Invalid key'; return; }
     try {
       const acct = await server.loadAccount(pk);
       const obj = acct.balances.find(
@@ -189,14 +216,18 @@ export function initAquaLocker({
     copyBtn.disabled = true;
     signBtn.disabled = true;
     viewBtn.disabled = true;
+    if (hasFreighter) freighterSignBtn.disabled = true;
     clearTimeout(buildTimeout);
     buildTimeout = setTimeout(buildXDR, 700);
   }
 
   async function buildXDR() {
     const pk = pubKeyIn.value.trim();
-    const amt = amtIn.value.trim();
-    if (!pk || !amt) return;
+    const amt = sanitizeAmount(amtIn.value.trim());
+    if (!isValidPubKey(pk) || !amt) {
+      infoEl.textContent = 'Enter a valid public key and a positive amount.';
+      return;
+    }
     try {
       const src = await server.loadAccount(pk);
       const now = new Date();
@@ -247,9 +278,64 @@ export function initAquaLocker({
       viewBtn.disabled = false;
       signBtn.onclick = () => window.open(labPrefix + encoded);
       viewBtn.onclick = () => window.open(viewPrefix + encoded + '&xdr$blob=' + encoded);
+
+      if (hasFreighter) freighterSignBtn.disabled = false;
     } catch (e) {
       console.error(e);
+      infoEl.textContent = 'Failed to build transaction. Check inputs and balance.';
     }
+  }
+
+  // Freighter actions
+  if (hasFreighter) {
+    freighterConnectBtn.addEventListener('click', async () => {
+      try {
+        infoEl.textContent = 'Requesting access from Freighter…';
+        const pubkey = await freighter.getPublicKey();
+        pubKeyIn.value = pubkey;
+        infoEl.textContent = `Freighter connected.\nPublic key: ${pubkey}`;
+        clearInterval(refreshInterval);
+        await fetchBalance();
+        refreshInterval = setInterval(fetchBalance, 10000);
+        scheduleBuild();
+      } catch (e) {
+        console.error(e);
+        infoEl.textContent = 'Freighter connect failed or was denied.';
+      }
+    });
+
+    freighterSignBtn.addEventListener('click', async () => {
+      try {
+        const pkInput = pubKeyIn.value.trim();
+        if (!isValidPubKey(pkInput)) { infoEl.textContent = 'Invalid public key.'; return; }
+
+        infoEl.textContent = 'Preparing transaction for Freighter…';
+
+        const freighterPk = await freighter.getPublicKey();
+        if (freighterPk !== pkInput) {
+          infoEl.textContent = `Freighter account (${freighterPk.slice(0,6)}…${freighterPk.slice(-6)}) does not match the Public Key input. Update the input or switch account in Freighter.`;
+          return;
+        }
+
+        const unsignedXdr = xdrEl.value.trim();
+        if (!unsignedXdr) { infoEl.textContent = 'No XDR to sign. Enter amount and build first.'; return; }
+
+        const signedXdr = await freighter.signTransaction(unsignedXdr, { networkPassphrase });
+
+        infoEl.textContent = 'Submitting to Horizon…';
+        const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
+        const res = await server.submitTransaction(tx);
+
+        const txHash = res.hash;
+        infoEl.innerHTML =
+          `Submitted ✅\nHash: ${txHash}\n` +
+          `View: https://stellar.expert/explorer/public/tx/${txHash}`;
+      } catch (e) {
+        console.error(e);
+        const msg = (e && e.message) ? e.message : 'Sign/submit failed.';
+        infoEl.textContent = `Error: ${msg}`;
+      }
+    });
   }
 
   // Copy XDR
