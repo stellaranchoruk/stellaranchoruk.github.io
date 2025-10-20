@@ -194,6 +194,20 @@ export function initAquaLocker({
   closeBtn.addEventListener('click', closeModal);
 
   // Helpers
+  function getFreighter() { return window.freighterApi; }
+  async function getFreighterAddressSafe(freighter) {
+    try {
+      if (freighter && typeof freighter.getAddress === 'function') {
+        const res = await freighter.getAddress();
+        return res?.address || '';
+      }
+      if (freighter && typeof freighter.requestAccess === 'function') {
+        const res = await freighter.requestAccess();
+        return res?.address || '';
+      }
+      return '';
+    } catch (_) { return ''; }
+  }
   function isValidPubKey(k) {
     try { return StellarSdk.StrKey.isValidEd25519PublicKey(k); } catch { return false; }
   }
@@ -316,17 +330,8 @@ export function initAquaLocker({
       try {
         const freighter = getFreighter();
         infoEl.textContent = 'Requesting access from Freighter…';
-        // Prefer requestAccess (prompts if needed), fallback to getAddress
-        let pubkey = '';
-        if (typeof freighter.requestAccess === 'function') {
-          const res = await freighter.requestAccess();
-          if (res?.error) throw new Error(res.error.message || 'Access denied');
-          pubkey = res.address;
-        } else if (typeof freighter.getAddress === 'function') {
-          const res = await freighter.getAddress();
-          if (res?.error) throw new Error(res.error.message || 'No address');
-          pubkey = res.address;
-        }
+        const pubkey = await getFreighterAddressSafe(freighter);
+        if (!pubkey) throw new Error('Access denied or no address');
         pubKeyIn.value = pubkey;
         infoEl.textContent = `Freighter connected.
 Public key: ${pubkey}`;
@@ -348,14 +353,8 @@ Public key: ${pubkey}`;
 
         infoEl.textContent = 'Preparing transaction for Freighter…';
 
-        let freighterPk = '';
-        if (typeof freighter.getAddress === 'function') {
-          const res = await freighter.getAddress();
-          freighterPk = res?.address || '';
-        } else if (typeof freighter.requestAccess === 'function') {
-          const res = await freighter.requestAccess();
-          freighterPk = res?.address || '';
-        }
+        let freighterPk = await getFreighterAddressSafe(freighter);
+        if (!freighterPk) { infoEl.textContent = 'No Freighter address available.'; return; }
         if (freighterPk !== pkInput) {
           infoEl.textContent = `Freighter account (${freighterPk.slice(0,6)}…${freighterPk.slice(-6)}) does not match the Public Key input. Update the input or switch account in Freighter.`;
           return;
