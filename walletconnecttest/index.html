@@ -23,6 +23,7 @@
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .section{margin-top:18px;padding-top:14px;border-top:1px dashed #2b3b6a}
     .inline{display:inline-flex;gap:10px;align-items:center}
+
     /* Modal */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
@@ -114,7 +115,7 @@
       <p>Select a login method:</p>
       <button class="wallet-btn" id="wcBtn">🔗 WalletConnect</button>
 
-      <!-- Our QR area (replaces @walletconnect/modal) -->
+      <!-- Our QR area -->
       <div id="qrArea" class="qr-wrap" style="display:none">
         <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
         <div class="qr-help">
@@ -125,16 +126,14 @@
     </div>
   </div>
 
-  <!-- QR generator (UMD global: window.QRCode) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-
   <!-- Small polyfill some libs read in the browser -->
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- App logic (ESM): Stellar SDK + WalletConnect Sign Client -->
+  <!-- App logic (ESM): Stellar SDK + WalletConnect Sign Client + QRCode -->
   <script type="module">
     import * as Stellar from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm";
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+    import QRCode from "https://esm.sh/qrcode@1.5.3";
     const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = Stellar;
 
     // ---- Config
@@ -188,7 +187,8 @@
         await ensureClient();
         statusEl.textContent="Starting WalletConnect…";
 
-        const requiredNamespaces={
+        // Use optionalNamespaces to avoid deprecation warning
+        const optionalNamespaces = {
           stellar:{
             chains:[chainId()],
             methods:["stellar_signXDR","stellar_signAndSubmitXDR"],
@@ -196,7 +196,7 @@
           }
         };
 
-        const { uri, approval } = await client.connect({ requiredNamespaces });
+        const { uri, approval } = await client.connect({ optionalNamespaces });
         if(!uri) throw new Error("No WC URI returned");
 
         if(isMobile()){
@@ -206,7 +206,7 @@
 
         // Show QR (desktop + fallback)
         qrArea.style.display="flex";
-        await window.QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
         deepLink.href = uri;
 
         // Wait for wallet approval
