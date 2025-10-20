@@ -2,23 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AQUAm25 Locker Demo</title>
 
-  <!-- Freighter API adds window.freighterApi -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
-          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- 1️⃣  Freighter API (must come BEFORE your locker script) -->
+  <!-- This exposes window.freighterApi for the Freighter extension to talk to -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
+
+  <!-- 2️⃣  Stellar SDK UMD bundle -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
 </head>
+
 <body>
   <button id="lockBtn">Lock AQUAm25</button>
 
-  <!-- Stellar SDK -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"></script>
-
-  <!-- Locker module -->
+  <!-- 3️⃣  AQUAm25 Locker Module -->
   <script type="module" src="/scripts/aquam25-locker.js"></script>
 
-  <!-- Kickoff -->
+  <!-- 4️⃣  Initialization -->
   <script type="module">
     import { initAquaLocker } from '/scripts/aquam25-locker.js';
     initAquaLocker({ triggerSelector: '#lockBtn' });
