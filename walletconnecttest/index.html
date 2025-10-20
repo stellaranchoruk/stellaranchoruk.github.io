@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Stellar WalletConnect v2 — Static Demo (No WC Modal)</title>
+  <title>Stellar WalletConnect v2 — Static Demo (QR + XDR Builder)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{--bg:#0b1220;--card:#121a2b;--border:#233055;--muted:#8ea2ff}
@@ -23,7 +23,8 @@
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .section{margin-top:18px;padding-top:14px;border-top:1px dashed #2b3b6a}
     .inline{display:inline-flex;gap:10px;align-items:center}
-    /* Simple modal */
+
+    /* Modal */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
     .open{display:flex}
@@ -114,7 +115,7 @@
       <p>Select a login method:</p>
       <button class="wallet-btn" id="wcBtn">🔗 WalletConnect</button>
 
-      <!-- Our OWN QR area (replaces @walletconnect/modal) -->
+      <!-- Our QR area (replaces @walletconnect/modal) -->
       <div id="qrArea" class="qr-wrap" style="display:none">
         <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
         <div class="qr-help">
@@ -125,17 +126,14 @@
     </div>
   </div>
 
-  <!-- Load UMD globals BEFORE our module: QRCode + SignClient -->
+  <!-- QR generator (UMD global: window.QRCode) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.21.8/dist/index.umd.js"></script>
 
-  <!-- Our app logic as an ES module (Stellar SDK via ESM) -->
+  <!-- App logic (ESM): Stellar SDK + WalletConnect Sign Client -->
   <script type="module">
     import * as Stellar from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm";
+    import SignClient from "https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.21.8/+esm";
     const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = Stellar;
-
-    // WalletConnect UMD global
-    const SignClient = window.WalletConnectSignClient?.default || window.WalletConnectSignClient;
 
     // ---- Config
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
@@ -173,9 +171,9 @@
     const isMobile=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     async function ensureClient(){
-      if(!SignClient){alert("WalletConnect SignClient failed to load.");throw new Error("SignClient missing");}
       if(!client){
         client = await SignClient.init({ projectId: PROJECT_ID });
+        console.log("WalletConnect SignClient ready");
       }
     }
 
@@ -197,15 +195,14 @@
         };
 
         const { uri, approval } = await client.connect({ requiredNamespaces });
+        if(!uri) throw new Error("No WC URI returned");
 
-        if(!uri){ throw new Error("No WC URI returned"); }
-
-        // Mobile: jump straight to deep link
         if(isMobile()){
+          // Mobile: deep-link straight into wallet
           window.location.href = uri;
         }
 
-        // Show our QR for desktop (and as fallback on mobile)
+        // Show QR (desktop + fallback)
         qrArea.style.display="flex";
         await window.QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
         deepLink.href = uri;
