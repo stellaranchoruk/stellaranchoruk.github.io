@@ -69,7 +69,7 @@ export function initAquaLocker({
         background: #888; cursor: not-allowed;
       }
       .aqua-container input,
-        .aqua-container textarea {
+      .aqua-container textarea {
         width: 100%; margin: 8px 0; padding: 10px;
         font-size: 1em; border: 1px solid #ccc; border-radius: 4px;
       }
@@ -98,7 +98,7 @@ export function initAquaLocker({
   modal.innerHTML = `
     <div class="aqua-container">
       <button class="aqua-close" aria-label="Close modal">&times;</button>
-      <h2>Lock ${assetCode} Tokens for 3 Years</h2>
+      <h2>Lock ${assetCode} Tokens for 1 Year</h2>
       <label for="aqua-pubkey">Public Key:</label>
       <input id="aqua-pubkey" type="text" placeholder="Enter your Stellar public key" />
       <p>${assetCode} Balance: <span class="aqua-balance">-</span></p>
@@ -272,14 +272,15 @@ export function initAquaLocker({
     }
     try {
       const src = await server.loadAccount(pk);
+
+      // >>> 1-YEAR LOCK <<<
       const now = new Date();
       const end = new Date(now);
-      end.setUTCFullYear(end.getUTCFullYear() + 3);
+      end.setUTCFullYear(end.getUTCFullYear() + 1); // 1 year
       end.setUTCHours(23, 59, 59, 0);
 
       infoEl.textContent =
-        `Lock start: ${now.toLocaleString()}
-` +
+        `Lock start: ${now.toLocaleString()}\n` +
         `Lock end:   ${end.toLocaleString(undefined, { timeZone: 'UTC' })}`;
 
       const endTs = Math.floor(end.getTime() / 1000).toString();
@@ -337,8 +338,7 @@ export function initAquaLocker({
       const pubkey = await getFreighterAddressSafe(freighter);
       if (!pubkey) throw new Error('Access denied or no address');
       pubKeyIn.value = pubkey;
-      infoEl.textContent = `Freighter connected.
-Public key: ${pubkey}`;
+      infoEl.textContent = `Freighter connected.\nPublic key: ${pubkey}`;
       clearInterval(refreshInterval);
       await fetchBalance();
       refreshInterval = setInterval(fetchBalance, 10000);
@@ -377,9 +377,7 @@ Public key: ${pubkey}`;
 
       const txHash = res.hash;
       infoEl.innerHTML =
-        `Submitted ✅
-Hash: ${txHash}
-` +
+        `Submitted ✅\nHash: ${txHash}\n` +
         `View: https://stellar.expert/explorer/public/tx/${txHash}`;
     } catch (e) {
       console.error(e);
