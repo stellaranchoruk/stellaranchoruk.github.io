@@ -210,7 +210,8 @@ export function initAquaLocker({
     try {
       if (freighter && typeof freighter.getAddress === 'function') {
         const res = await freighter.getAddress();
-        return res?.address || '';
+        const addr = res?.address || '';
+        if (addr) return addr; // if not allowed/connected, fall through to requestAccess
       }
       if (freighter && typeof freighter.requestAccess === 'function') {
         const res = await freighter.requestAccess();
