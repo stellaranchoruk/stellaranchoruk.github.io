@@ -1,67 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AQUAm25 Locker Demo</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AQUAm25 Locker — Freighter + WalletConnect</title>
 
-  <!-- 1) Try the official Freighter API UMD (should expose window.freighterApi) -->
-  <!-- NOTE: this must be a NON-self-closing script tag -->
-  <script
-    src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer"
-  ></script>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; margin: 12px 0 20px; }
+  button { padding: 10px 14px; border: 0; border-radius: 8px; cursor: pointer; background:#0d6efd; color:#fff; }
+  button.secondary { background:#6c757d; }
+  #wcStatus { align-self:center; opacity:0.8 }
+</style>
 
-  <!-- 2) Stellar SDK (UMD) -->
-  <script
-    src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer"
-  ></script>
+<!-- 1) Freighter API (for desktop extension, global window.freighterApi) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- (Optional) TEMP debug helper so you can see detection in console -->
-  <script>
-    (function(){
-      const tick = () => console.log('freighter (global)?', !!window.freighterApi);
-      setTimeout(tick, 0);
-      setTimeout(tick, 500);
-      setTimeout(tick, 1500);
-    })();
-  </script>
+<!-- 2) Stellar SDK (UMD) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<!-- 3) WalletConnect UMD builds (for page-level QR login) -->
+<script src="https://unpkg.com/@walletconnect/sign-client@2/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@walletconnect/modal@2/dist/index.umd.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@walletconnect/modal@2/dist/styles.css"/>
 </head>
+
 <body>
-  <button id="lockBtn">Lock AQUAm25</button>
+  <h1>AQUAm25 Locker</h1>
 
-  <!-- 3) Bootstrap module:
-         - If the global isn't present, import the ESM build and attach it.
-         - Then initialize your locker. -->
+  <div class="row">
+    <button id="lockBtn">Open Locker</button>
+    <!-- Page-level WalletConnect login (your requested primary login entry point) -->
+    <button id="wcConnectBtn" class="secondary">Connect Wallet (QR)</button>
+    <span id="wcStatus"></span>
+  </div>
+
+  <!-- 4) Locker module (your updated file that includes Freighter + WC inside the modal) -->
+  <script type="module" src="/scripts/aquam25-locker.js"></script>
   <script type="module">
-    // Fallback loader if the global wasn't created by the CDN script
-    async function ensureFreighterApi() {
-      if (window.freighterApi) return window.freighterApi;
+    import { initAquaLocker } from '/scripts/aquam25-locker.js';
 
-      // Try to import the ESM build directly in-browser (no bundler needed)
-      try {
-        // esm.sh serves ESM you can import from the browser
-        const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
-        // some CDNs export a default, some named — normalize:
-        window.freighterApi = mod?.default ?? mod;
-        console.log('freighter (esm)?', !!window.freighterApi);
-        return window.freighterApi;
-      } catch (e) {
-        console.error('Failed to import @stellar/freighter-api via ESM', e);
-        return null;
+    // Initialize the locker with defaults; the updated script already supports WC in-modal too.
+    initAquaLocker({
+      triggerSelector: '#lockBtn',
+      // ensure these match your desired network + project
+      walletConnectProjectId: 'f658ce3a7c8a185214974f71539fea39',
+      walletConnectChain: 'stellar:pubnet'
+    });
+  </script>
+
+  <!-- 5) Page-level WalletConnect glue: connect via QR and feed pubkey into the modal -->
+  <script>
+    (function () {
+      // ==== CONFIG ====
+      const PROJECT_ID = 'f658ce3a7c8a185214974f71539fea39';
+      const STELLAR_CHAIN = 'stellar:pubnet';
+      const NETWORK_PASSPHRASE = 'Public Global Stellar Network ; September 2015';
+      // ================
+
+      const { SignClient } = window.WalletConnectSign || {};
+      const { WalletConnectModal } = window.WalletConnectModal || {};
+      const wcBtn = document.getElementById('wcConnectBtn');
+      const wcStatus = document.getElementById('wcStatus');
+
+      let signClient = null;
+      let modal = null;
+      let session = null;
+      let topic = null;
+      let address = '';
+
+      function lockerPkInput() {
+        return document.querySelector('#aqua-pubkey');
       }
-    }
+      function setLockerPubkey(pk) {
+        const input = lockerPkInput();
+        if (input) {
+          input.value = pk;
+          input.dispatchEvent(new Event('change', { bubbles: true })); // let modal load balance/build XDR
+        }
+      }
 
-    // Wait for the API (global or ESM), then load the locker and init
-    (async () => {
-      await ensureFreighterApi();
+      async function ensureClient() {
+        if (signClient) return signClient;
+        if (!SignClient || !WalletConnectModal) {
+          alert('WalletConnect libraries failed to load.');
+          throw new Error('WC libs missing');
+        }
+        signClient = await SignClient.init({ projectId: PROJECT_ID });
+        modal = new WalletConnectModal({ projectId: PROJECT_ID, themeMode: 'light' });
+        signClient.on('session_delete', () => {
+          session = null; topic = null; address = '';
+          wcStatus.textContent = '';
+        });
+        return signClient;
+      }
 
-      // Now import your locker (it looks for window.freighterApi)
-      const { initAquaLocker } = await import('/scripts/aquam25-locker.js');
-      initAquaLocker({ triggerSelector: '#lockBtn' });
+      async function connectWC() {
+        try {
+          const client = await ensureClient();
+          const requiredNamespaces = {
+            stellar: {
+              chains: [STELLAR_CHAIN],
+              methods: ['stellar_getAddress', 'stellar_signXDR'],
+              events: []
+            }
+          };
+
+          const { uri, approval } = await client.connect({ requiredNamespaces });
+          if (uri) await modal.openModal({ uri });
+
+          session = await approval();
+          modal.closeModal();
+          topic = session.topic;
+
+          // get address via RPC if supported, else parse from session
+          try {
+            const res = await client.request({
+              topic,
+              chainId: STELLAR_CHAIN,
+              request: { method: 'stellar_getAddress', params: {} }
+            });
+            address = (res && (res.address || res)) || '';
+          } catch {
+            const acc = session.namespaces?.stellar?.accounts?.[0]; // 'stellar:pubnet:G...'
+            address = acc ? acc.split(':').pop() : '';
+          }
+
+          if (!address) throw new Error('No address from wallet');
+
+          // feed address into modal’s input (so it works even if they never clicked inside modal)
+          setLockerPubkey(address);
+          wcStatus.textContent = `Connected (WC): ${address.slice(0,6)}…${address.slice(-6)}`;
+
+          // If the modal is open and has a WC Sign button, enable it
+          const wcSignBtn = document.querySelector('.aqua-wc-sign');
+          if (wcSignBtn) wcSignBtn.disabled = false;
+
+        } catch (e) {
+          console.error(e);
+          modal && modal.closeModal();
+          alert('WalletConnect connect was cancelled or failed.');
+        }
+      }
+
+      wcBtn.addEventListener('click', connectWC);
     })();
   </script>
 </body>
