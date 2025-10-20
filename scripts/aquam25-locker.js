@@ -154,13 +154,17 @@ export function initAquaLocker({
     'rpcUrl=https:////mainnet.sorobanrpc.com&' +
     'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
 
-  // Freighter detection (with late-injection retry)
+  // ========= Freighter detection (no await here) =========
   let freighterCheckTimer = null;
   let hasFreighter = false;
+
   function getFreighter() { return window.freighterApi; }
+  function freighterHasConnect(api) {
+    return !!(api && (typeof api.requestAccess === 'function' || typeof api.getAddress === 'function'));
+  }
   function detectFreighterOnce() {
     const api = getFreighter();
-    if (api && (typeof api.requestAccess === 'function' || typeof api.getAddress === 'function')) {
+    if (freighterHasConnect(api)) {
       hasFreighter = true;
       freighterConnectBtn.disabled = false;
       if (xdrEl.value.trim()) freighterSignBtn.disabled = false;
@@ -194,7 +198,14 @@ export function initAquaLocker({
   closeBtn.addEventListener('click', closeModal);
 
   // Helpers
-  function getFreighter() { return window.freighterApi; }
+  function isValidPubKey(k) {
+    try { return StellarSdk.StrKey.isValidEd25519PublicKey(k); } catch { return false; }
+  }
+  function sanitizeAmount(aStr) {
+    const n = Number(aStr);
+    if (!isFinite(n) || n <= 0) return null;
+    return n.toFixed(7).replace(/\.0+$/, '');
+  }
   async function getFreighterAddressSafe(freighter) {
     try {
       if (freighter && typeof freighter.getAddress === 'function') {
@@ -205,16 +216,8 @@ export function initAquaLocker({
         const res = await freighter.requestAccess();
         return res?.address || '';
       }
-      return '';
-    } catch (_) { return ''; }
-  }
-  function isValidPubKey(k) {
-    try { return StellarSdk.StrKey.isValidEd25519PublicKey(k); } catch { return false; }
-  }
-  function sanitizeAmount(aStr) {
-    const n = Number(aStr);
-    if (!isFinite(n) || n <= 0) return null;
-    return n.toFixed(7).replace(/\.0+$/, '');
+    } catch (_) {}
+    return '';
   }
 
   // Balance fetch on pubkey change & every 10s
@@ -274,7 +277,8 @@ export function initAquaLocker({
       end.setUTCHours(23, 59, 59, 0);
 
       infoEl.textContent =
-        `Lock start: ${now.toLocaleString()}\n` +
+        `Lock start: ${now.toLocaleString()}
+` +
         `Lock end:   ${end.toLocaleString(undefined, { timeZone: 'UTC' })}`;
 
       const endTs = Math.floor(end.getTime() / 1000).toString();
@@ -325,82 +329,63 @@ export function initAquaLocker({
   }
 
   // Freighter actions
-  if (hasFreighter) {
-    freighterConnectBtn.addEventListener('click', async () => {
-      try {
-        const freighter = getFreighter();
-        infoEl.textContent = 'Requesting access from Freighter…';
-        const pubkey = await getFreighterAddressSafe(freighter);
-        if (!pubkey) throw new Error('Access denied or no address');
-        pubKeyIn.value = pubkey;
-        infoEl.textContent = `Freighter connected.
+  freighterConnectBtn.addEventListener('click', async () => {
+    try {
+      const freighter = getFreighter();
+      infoEl.textContent = 'Requesting access from Freighter…';
+      const pubkey = await getFreighterAddressSafe(freighter);
+      if (!pubkey) throw new Error('Access denied or no address');
+      pubKeyIn.value = pubkey;
+      infoEl.textContent = `Freighter connected.
 Public key: ${pubkey}`;
-        clearInterval(refreshInterval);
-        await fetchBalance();
-        refreshInterval = setInterval(fetchBalance, 10000);
-        scheduleBuild();
-      } catch (e) {
-        console.error(e);
-        infoEl.textContent = 'Freighter connect failed or was denied.';
+      clearInterval(refreshInterval);
+      await fetchBalance();
+      refreshInterval = setInterval(fetchBalance, 10000);
+      scheduleBuild();
+    } catch (e) {
+      console.error(e);
+      infoEl.textContent = 'Freighter connect failed or was denied.';
+    }
+  });
+
+  freighterSignBtn.addEventListener('click', async () => {
+    try {
+      const freighter = getFreighter();
+      const pkInput = pubKeyIn.value.trim();
+      if (!isValidPubKey(pkInput)) { infoEl.textContent = 'Invalid public key.'; return; }
+
+      infoEl.textContent = 'Preparing transaction for Freighter…';
+
+      const freighterPk = await getFreighterAddressSafe(freighter);
+      if (!freighterPk) { infoEl.textContent = 'No Freighter address available.'; return; }
+      if (freighterPk !== pkInput) {
+        infoEl.textContent = `Freighter account (${freighterPk.slice(0,6)}…${freighterPk.slice(-6)}) does not match the Public Key input. Update the input or switch account in Freighter.`;
+        return;
       }
-    });
 
-    freighterSignBtn.addEventListener('click', async () => {
-      try {
-        const freighter = getFreighter();
-        const pkInput = pubKeyIn.value.trim();
-        if (!isValidPubKey(pkInput)) { infoEl.textContent = 'Invalid public key.'; return; }
+      const unsignedXdr = xdrEl.value.trim();
+      if (!unsignedXdr) { infoEl.textContent = 'No XDR to sign. Enter amount and build first.'; return; }
 
-        infoEl.textContent = 'Preparing transaction for Freighter…';
+      const signedRes = await freighter.signTransaction(unsignedXdr, { networkPassphrase, address: freighterPk });
+      if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
+      const signedXdr = signedRes.signedTxXdr;
 
-        let freighterPk = await getFreighterAddressSafe(freighter);
-        if (!freighterPk) { infoEl.textContent = 'No Freighter address available.'; return; }
-        if (freighterPk !== pkInput) {
-          infoEl.textContent = `Freighter account (${freighterPk.slice(0,6)}…${freighterPk.slice(-6)}) does not match the Public Key input. Update the input or switch account in Freighter.`;
-          return;
-        }
+      infoEl.textContent = 'Submitting to Horizon…';
+      const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
+      const res = await server.submitTransaction(tx);
 
-        const unsignedXdr = xdrEl.value.trim();
-        if (!unsignedXdr) { infoEl.textContent = 'No XDR to sign. Enter amount and build first.'; return; }
-
-        const signedRes = await freighter.signTransaction(unsignedXdr, { networkPassphrase, address: freighterPk });
-        if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
-        const signedXdr = signedRes.signedTxXdr;
-
-        infoEl.textContent = 'Submitting to Horizon…';
-        const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
-        const res = await server.submitTransaction(tx);
-
-        const txHash = res.hash;
-        infoEl.innerHTML =
-          `Submitted ✅
+      const txHash = res.hash;
+      infoEl.innerHTML =
+        `Submitted ✅
 Hash: ${txHash}
 ` +
-          `View: https://stellar.expert/explorer/public/tx/${txHash}`;
-      } catch (e) {
-        console.error(e);
-        const msg = (e && e.message) ? e.message : 'Sign/submit failed.';
-        infoEl.textContent = `Error: ${msg}`;
-      }
-    });
-        if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
-        const signedXdr = signedRes.signedTxXdr;
-
-        infoEl.textContent = 'Submitting to Horizon…';
-        const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
-        const res = await server.submitTransaction(tx);
-
-        const txHash = res.hash;
-        infoEl.innerHTML =
-          `Submitted ✅\nHash: ${txHash}\n` +
-          `View: https://stellar.expert/explorer/public/tx/${txHash}`;
-      } catch (e) {
-        console.error(e);
-        const msg = (e && e.message) ? e.message : 'Sign/submit failed.';
-        infoEl.textContent = `Error: ${msg}`;
-      }
-    });
-  }
+        `View: https://stellar.expert/explorer/public/tx/${txHash}`;
+    } catch (e) {
+      console.error(e);
+      const msg = (e && e.message) ? e.message : 'Sign/submit failed.';
+      infoEl.textContent = `Error: ${msg}`;
+    }
+  });
 
   // Copy XDR
   copyBtn.addEventListener('click', () => {
