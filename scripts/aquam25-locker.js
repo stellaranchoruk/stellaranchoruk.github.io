@@ -17,9 +17,7 @@ export function initAquaLocker({
   networkPassphrase = StellarSdk.Networks.PUBLIC,
   assetCode = 'AQUAm25',
   assetIssuer = 'GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC',
-  trackerKey = 'GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP',
-  walletConnectProjectId = 'f658ce3a7c8a185214974f71539fea39',
-  walletConnectChain = 'stellar:pubnet'
+  trackerKey = 'GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP'
 }) {
   if (!StellarSdk) throw new Error('StellarSdk not found on window. Include Stellar SDK before this script.');
 
@@ -71,7 +69,7 @@ export function initAquaLocker({
         background: #888; cursor: not-allowed;
       }
       .aqua-container input,
-      .aqua-container textarea {
+        .aqua-container textarea {
         width: 100%; margin: 8px 0; padding: 10px;
         font-size: 1em; border: 1px solid #ccc; border-radius: 4px;
       }
@@ -103,8 +101,8 @@ export function initAquaLocker({
       <h2>Lock ${assetCode} Tokens for 3 Years</h2>
       <label for="aqua-pubkey">Public Key:</label>
       <input id="aqua-pubkey" type="text" placeholder="Enter your Stellar public key" />
-      <p>AQUAm25 Balance: <span class="aqua-balance">-</span></p>
-      <label for="aqua-amount">AQUAm25 Amount:</label>
+      <p>${assetCode} Balance: <span class="aqua-balance">-</span></p>
+      <label for="aqua-amount">${assetCode} Amount:</label>
       <input id="aqua-amount" type="number" step="any" placeholder="Amount to lock" />
       <div class="aqua-pct-buttons">
         <button type="button" data-pct="25">25%</button>
@@ -114,11 +112,9 @@ export function initAquaLocker({
       </div>
       <button class="aqua-freighter-connect" disabled>Connect Freighter</button>
       <button class="aqua-freighter-sign" disabled>Sign & Submit with Freighter</button>
-      <button class=\"aqua-copy\" disabled>Copy XDR<\/button>
-      <button class=\"aqua-sign\" disabled>Sign with Stellar Lab<\/button>
-      <button class=\"aqua-view\" disabled>View XDR with Stellar Lab<\/button>
-      <button class=\"aqua-wc-connect\" disabled>Connect Wallet (QR)</button>
-      <button class=\"aqua-wc-sign\" disabled>Sign & Submit via WalletConnect</button>
+      <button class="aqua-copy" disabled>Copy XDR</button>
+      <button class="aqua-sign" disabled>Sign with Stellar Lab</button>
+      <button class="aqua-view" disabled>View XDR with Stellar Lab</button>
       <p class="aqua-info"></p>
       <textarea class="aqua-xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
     </div>
@@ -133,8 +129,6 @@ export function initAquaLocker({
   const pctBtns = modal.querySelectorAll('.aqua-pct-buttons button');
   const freighterConnectBtn = modal.querySelector('.aqua-freighter-connect');
   const freighterSignBtn = modal.querySelector('.aqua-freighter-sign');
-  const wcConnectBtn = modal.querySelector('.aqua-wc-connect');
-  const wcSignBtn = modal.querySelector('.aqua-wc-sign');
   const copyBtn = modal.querySelector('.aqua-copy');
   const signBtn = modal.querySelector('.aqua-sign');
   const viewBtn = modal.querySelector('.aqua-view');
@@ -142,15 +136,6 @@ export function initAquaLocker({
   const xdrEl = modal.querySelector('.aqua-xdr');
 
   let refreshInterval; let buildTimeout;
-
-  // WalletConnect state
-  let wc = {
-    signClient: null,
-    modal: null,
-    session: null,
-    topic: null,
-    address: ''
-  };
 
   // Stellar Lab URL prefixes
   const labPrefix =
@@ -207,30 +192,12 @@ export function initAquaLocker({
   window.addEventListener('focus', detectFreighterOnce);
 
   // Open/close handlers
-  function setWcButtonsState() {
-    if (wcConnectBtn) wcConnectBtn.disabled = false; // will be refined when libs load
-    if (wcSignBtn) wcSignBtn.disabled = !wc.address;
-  }
   function openModal() { modal.style.display = 'flex'; pubKeyIn.focus(); detectFreighterOnce(); }
   function closeModal() { modal.style.display = 'none'; clearInterval(refreshInterval); }
   document.querySelector(triggerSelector).addEventListener('click', openModal);
-  setWcButtonsState();
   closeBtn.addEventListener('click', closeModal);
 
   // Helpers
-  function injectScriptOnce(id, src) {
-    if (document.getElementById(id)) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.id = id; s.src = src; s.onload = () => resolve(); s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-  function injectCssOnce(id, href) {
-    if (document.getElementById(id)) return;
-    const l = document.createElement('link');
-    l.id = id; l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l);
-  }
   function isValidPubKey(k) {
     try { return StellarSdk.StrKey.isValidEd25519PublicKey(k); } catch { return false; }
   }
@@ -245,43 +212,6 @@ export function initAquaLocker({
         const res = await freighter.getAddress();
         const addr = res?.address || '';
         if (addr) return addr;
-      }
-      if (freighter && typeof freighter.requestAccess === 'function') {
-        const res = await freighter.requestAccess();
-        return res?.address || '';
-      }
-    } catch (_) {}
-    return '';
-  }
-
-  async function ensureWalletConnectLibs() {
-    // Prefer pinned jsDelivr builds for reliability
-    const cssHref = 'https://cdn.jsdelivr.net/npm/@walletconnect/modal@2.6.2/dist/styles.css';
-    const signSrc = 'https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.13.3/dist/index.umd.js';
-    const modalSrc = 'https://cdn.jsdelivr.net/npm/@walletconnect/modal@2.6.2/dist/index.umd.js';
-
-    if (!(window.WalletConnectSign && window.WalletConnectModal)) {
-      injectCssOnce('wc-modal-css', cssHref);
-      // Load sign-client first, then modal
-      await injectScriptOnce('wc-sign', signSrc);
-      await injectScriptOnce('wc-modal', modalSrc);
-    }
-
-    // Normalize globals across different UMD flavors
-    const SignNS = window.WalletConnectSign || window.WalletConnect || {};
-    const ModalNS = window.WalletConnectModal || {};
-    const SignClientCtor = (SignNS.default && SignNS.default.SignClient) || SignNS.SignClient;
-    const ModalCtor = ModalNS.default || ModalNS; // some UMDs export ctor as default
-
-    const ok = !!(SignClientCtor && ModalCtor);
-    if (!ok) console.error('WalletConnect UMDs present but constructors missing', { SignNS, ModalNS });
-    return ok;
-  }(freighter) {
-    try {
-      if (freighter && typeof freighter.getAddress === 'function') {
-        const res = await freighter.getAddress();
-        const addr = res?.address || '';
-        if (addr) return addr; // if not allowed/connected, fall through to requestAccess
       }
       if (freighter && typeof freighter.requestAccess === 'function') {
         const res = await freighter.requestAccess();
@@ -438,126 +368,6 @@ Public key: ${pubkey}`;
       if (!unsignedXdr) { infoEl.textContent = 'No XDR to sign. Enter amount and build first.'; return; }
 
       const signedRes = await freighter.signTransaction(unsignedXdr, { networkPassphrase, address: freighterPk });
-      if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
-      const signedXdr = signedRes.signedTxXdr;
-
-      infoEl.textContent = 'Submitting to Horizon…';
-      const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
-      const res = await server.submitTransaction(tx);
-
-      const txHash = res.hash;
-      infoEl.innerHTML =
-        `Submitted ✅
-Hash: ${txHash}
-` +
-        `View: https://stellar.expert/explorer/public/tx/${txHash}`;
-    } catch (e) {
-      console.error(e);
-      const msg = (e && e.message) ? e.message : 'Sign/submit failed.';
-      infoEl.textContent = `Error: ${msg}`;
-    }
-  });
-
-  // WalletConnect actions
-  wcConnectBtn.addEventListener('click', async () => {
-    try {
-      infoEl.textContent = 'Loading WalletConnect…';
-      const ok = await ensureWalletConnectLibs();
-      if (!ok) { infoEl.textContent = 'WalletConnect libraries failed to load.'; return; }
-
-      const SignNS = window.WalletConnectSign || window.WalletConnect || {};
-      const ModalNS = window.WalletConnectModal || {};
-      const SignClient = (SignNS.default && SignNS.default.SignClient) || SignNS.SignClient;
-      const WalletConnectModal = ModalNS.default || ModalNS;
-
-      if (!wc.signClient) {
-        wc.signClient = await SignClient.init({ projectId: walletConnectProjectId });
-        wc.modal = new WalletConnectModal({ projectId: walletConnectProjectId, themeMode: 'light' });
-
-        wc.signClient.on('session_delete', () => {
-          wc.session = null; wc.topic = null; wc.address = '';
-          setWcButtonsState();
-        });
-      }
-
-      const requiredNamespaces = {
-        stellar: {
-          chains: [walletConnectChain],
-          methods: ['stellar_getAddress', 'stellar_signXDR'],
-          events: []
-        }
-      };
-
-      const { uri, approval } = await wc.signClient.connect({ requiredNamespaces });
-      if (uri) await wc.modal.openModal({ uri });
-
-      wc.session = await approval();
-      wc.modal.closeModal();
-      wc.topic = wc.session.topic;
-
-      try {
-        const res = await wc.signClient.request({
-          topic: wc.topic,
-          chainId: walletConnectChain,
-          request: { method: 'stellar_getAddress', params: {} }
-        });
-        wc.address = (res && (res.address || res)) || '';
-      } catch (_) {
-        const acc = wc.session.namespaces?.stellar?.accounts?.[0];
-        wc.address = acc ? acc.split(':').pop() : '';
-      }
-
-      if (!wc.address) throw new Error('No address from wallet');
-
-      // Push into modal input to trigger existing flows
-      pubKeyIn.value = wc.address;
-      pubKeyIn.dispatchEvent(new Event('change', { bubbles: true }));
-      infoEl.textContent = `WalletConnect connected.
-Public key: ${wc.address}`;
-      setWcButtonsState();
-    } catch (e) {
-      console.error(e);
-      infoEl.textContent = 'WalletConnect connect was cancelled or failed.';
-    }
-  });
-
-  wcSignBtn.addEventListener('click', async () => {
-    try {
-      if (!wc.session || !wc.topic || !wc.address) {
-        infoEl.textContent = 'Connect a wallet via QR first.'; return;
-      }
-      const unsignedXdr = xdrEl.value.trim();
-      if (!unsignedXdr) { infoEl.textContent = 'No XDR to sign. Enter amount and build first.'; return; }
-
-      infoEl.textContent = 'Preparing transaction for WalletConnect…';
-
-      const result = await wc.signClient.request({
-        topic: wc.topic,
-        chainId: walletConnectChain,
-        request: {
-          method: 'stellar_signXDR',
-          params: { xdr: unsignedXdr, address: wc.address, networkPassphrase }
-        }
-      });
-
-      const signedXdr = result?.signedXDR || result?.signedTxXdr || result;
-      if (!signedXdr || typeof signedXdr !== 'string') throw new Error('Wallet returned no signed XDR');
-
-      infoEl.textContent = 'Submitting to Horizon…';
-      const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
-      const res = await server.submitTransaction(tx);
-
-      const txHash = res.hash;
-      infoEl.innerHTML =
-        `Submitted ✅
-Hash: ${txHash}
-` +
-        `View: https://stellar.expert/explorer/public/tx/${txHash}`;
-    } catch (e) {
-      console.error(e);
-      infoEl.textContent = `WalletConnect sign/submit failed: ${e?.message || e}`;
-    }
-  });
       if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
       const signedXdr = signedRes.signedTxXdr;
 
