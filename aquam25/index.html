@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AQUAm25 Locker — Freighter + WalletConnect</title>
 
 <style>
@@ -13,18 +13,24 @@
   #wcStatus { align-self:center; opacity:0.8 }
 </style>
 
-<!-- 1) Freighter API (for desktop extension, global window.freighterApi) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- 1) Freighter API (desktop extension) -->
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
 
 <!-- 2) Stellar SDK (UMD) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
 
-<!-- 3) WalletConnect UMD builds (for page-level QR login) -->
-<script src="https://unpkg.com/@walletconnect/sign-client@2/dist/index.umd.js"></script>
-<script src="https://unpkg.com/@walletconnect/modal@2/dist/index.umd.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/@walletconnect/modal@2/dist/styles.css"/>
+<!-- 3) WalletConnect UMD builds (PINNED to reliable versions) -->
+<script src="https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.13.3/dist/index.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@walletconnect/modal@2.6.2/dist/index.umd.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@walletconnect/modal@2.6.2/dist/styles.css" />
 </head>
 
 <body>
@@ -32,20 +38,17 @@
 
   <div class="row">
     <button id="lockBtn">Open Locker</button>
-    <!-- Page-level WalletConnect login (your requested primary login entry point) -->
+    <!-- Page-level WalletConnect login (primary QR entry point) -->
     <button id="wcConnectBtn" class="secondary">Connect Wallet (QR)</button>
     <span id="wcStatus"></span>
   </div>
 
-  <!-- 4) Locker module (your updated file that includes Freighter + WC inside the modal) -->
+  <!-- 4) Locker module (updated file that includes Freighter + WC inside the modal) -->
   <script type="module" src="/scripts/aquam25-locker.js"></script>
   <script type="module">
     import { initAquaLocker } from '/scripts/aquam25-locker.js';
-
-    // Initialize the locker with defaults; the updated script already supports WC in-modal too.
     initAquaLocker({
       triggerSelector: '#lockBtn',
-      // ensure these match your desired network + project
       walletConnectProjectId: 'f658ce3a7c8a185214974f71539fea39',
       walletConnectChain: 'stellar:pubnet'
     });
@@ -60,13 +63,21 @@
       const NETWORK_PASSPHRASE = 'Public Global Stellar Network ; September 2015';
       // ================
 
-      const { SignClient } = window.WalletConnectSign || {};
-      const { WalletConnectModal } = window.WalletConnectModal || {};
+      // Normalize UMD globals across different shapes
+      function getWcConstructors() {
+        const SignNS = window.WalletConnectSign || window.WalletConnect || {};
+        const ModalNS = window.WalletConnectModal || {};
+        const SignClient =
+          (SignNS.default && SignNS.default.SignClient) || SignNS.SignClient;
+        const WalletConnectModal = ModalNS.default || ModalNS;
+        return { SignClient, WalletConnectModal };
+      }
+
       const wcBtn = document.getElementById('wcConnectBtn');
       const wcStatus = document.getElementById('wcStatus');
 
       let signClient = null;
-      let modal = null;
+      let wcModal = null;
       let session = null;
       let topic = null;
       let address = '';
@@ -78,18 +89,24 @@
         const input = lockerPkInput();
         if (input) {
           input.value = pk;
-          input.dispatchEvent(new Event('change', { bubbles: true })); // let modal load balance/build XDR
+          // trigger the locker’s balance fetch + XDR build
+          input.dispatchEvent(new Event('change', { bubbles: true }));
         }
+        // also tell the locker we have a WC address so its in-modal WC sign enables
+        if (window.AquaLocker_setPubKey) window.AquaLocker_setPubKey(pk);
       }
 
       async function ensureClient() {
-        if (signClient) return signClient;
+        const { SignClient, WalletConnectModal } = getWcConstructors();
         if (!SignClient || !WalletConnectModal) {
+          console.error('WalletConnect UMDs present but constructors missing.');
           alert('WalletConnect libraries failed to load.');
           throw new Error('WC libs missing');
         }
+        if (signClient) return signClient;
+
         signClient = await SignClient.init({ projectId: PROJECT_ID });
-        modal = new WalletConnectModal({ projectId: PROJECT_ID, themeMode: 'light' });
+        wcModal = new WalletConnectModal({ projectId: PROJECT_ID, themeMode: 'light' });
         signClient.on('session_delete', () => {
           session = null; topic = null; address = '';
           wcStatus.textContent = '';
@@ -109,13 +126,13 @@
           };
 
           const { uri, approval } = await client.connect({ requiredNamespaces });
-          if (uri) await modal.openModal({ uri });
+          if (uri) await wcModal.openModal({ uri });
 
           session = await approval();
-          modal.closeModal();
+          wcModal.closeModal();
           topic = session.topic;
 
-          // get address via RPC if supported, else parse from session
+          // Get address via RPC if supported, else parse from session namespace
           try {
             const res = await client.request({
               topic,
@@ -130,17 +147,17 @@
 
           if (!address) throw new Error('No address from wallet');
 
-          // feed address into modal’s input (so it works even if they never clicked inside modal)
+          // Feed the modal's public key input
           setLockerPubkey(address);
           wcStatus.textContent = `Connected (WC): ${address.slice(0,6)}…${address.slice(-6)}`;
 
-          // If the modal is open and has a WC Sign button, enable it
+          // If modal is open, enable its WC sign button
           const wcSignBtn = document.querySelector('.aqua-wc-sign');
           if (wcSignBtn) wcSignBtn.disabled = false;
 
         } catch (e) {
           console.error(e);
-          modal && modal.closeModal();
+          wcModal && wcModal.closeModal();
           alert('WalletConnect connect was cancelled or failed.');
         }
       }
