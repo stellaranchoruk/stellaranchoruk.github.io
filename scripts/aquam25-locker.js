@@ -159,7 +159,7 @@ export function initAquaLocker({
   let hasFreighter = false;
   function detectFreighterOnce() {
     const api = window.freighterApi;
-    if (api && typeof api.getPublicKey === 'function') {
+    if (api && (typeof api.requestAccess === 'function' || typeof api.getAddress === 'function')) {
       hasFreighter = true;
       freighterConnectBtn.disabled = false;
       // if an XDR is already built, enable sign
@@ -315,7 +315,7 @@ export function initAquaLocker({
     freighterConnectBtn.addEventListener('click', async () => {
       try {
         infoEl.textContent = 'Requesting access from Freighter…';
-        const pubkey = await freighter.getPublicKey();
+        const pubkey = await (typeof freighter.getAddress === 'function' ? (await freighter.getAddress()).address : (await freighter.requestAccess()).address);
         pubKeyIn.value = pubkey;
         infoEl.textContent = `Freighter connected.\nPublic key: ${pubkey}`;
         clearInterval(refreshInterval);
@@ -335,7 +335,7 @@ export function initAquaLocker({
 
         infoEl.textContent = 'Preparing transaction for Freighter…';
 
-        const freighterPk = await freighter.getPublicKey();
+        const freighterPk = await (typeof freighter.getAddress === 'function' ? (await freighter.getAddress()).address : (await freighter.requestAccess()).address);
         if (freighterPk !== pkInput) {
           infoEl.textContent = `Freighter account (${freighterPk.slice(0,6)}…${freighterPk.slice(-6)}) does not match the Public Key input. Update the input or switch account in Freighter.`;
           return;
@@ -344,7 +344,9 @@ export function initAquaLocker({
         const unsignedXdr = xdrEl.value.trim();
         if (!unsignedXdr) { infoEl.textContent = 'No XDR to sign. Enter amount and build first.'; return; }
 
-        const signedXdr = await freighter.signTransaction(unsignedXdr, { networkPassphrase });
+        const signedRes = await freighter.signTransaction(unsignedXdr, { networkPassphrase, address: freighterPk });
+        if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
+        const signedXdr = signedRes.signedTxXdr;
 
         infoEl.textContent = 'Submitting to Horizon…';
         const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
