@@ -3,32 +3,66 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AQUAm25 Locker Demo (Freighter only)</title>
+  <title>AQUAm25 Locker Demo</title>
 
-  <!-- Freighter API (browser build adds window.freighterApi) -->
+  <!-- 1) Try the official Freighter API UMD (should expose window.freighterApi) -->
+  <!-- NOTE: this must be a NON-self-closing script tag -->
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
     crossorigin="anonymous"
     referrerpolicy="no-referrer"
   ></script>
 
-  <!-- Stellar SDK UMD bundle -->
+  <!-- 2) Stellar SDK (UMD) -->
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/8.2.3/stellar-sdk.min.js"
     crossorigin="anonymous"
     referrerpolicy="no-referrer"
   ></script>
+
+  <!-- (Optional) TEMP debug helper so you can see detection in console -->
+  <script>
+    (function(){
+      const tick = () => console.log('freighter (global)?', !!window.freighterApi);
+      setTimeout(tick, 0);
+      setTimeout(tick, 500);
+      setTimeout(tick, 1500);
+    })();
+  </script>
 </head>
 <body>
   <button id="lockBtn">Lock AQUAm25</button>
 
-  <!-- Locker module -->
-  <script type="module" src="/scripts/aquam25-locker.js"></script>
-
-  <!-- Kickoff -->
+  <!-- 3) Bootstrap module:
+         - If the global isn't present, import the ESM build and attach it.
+         - Then initialize your locker. -->
   <script type="module">
-    import { initAquaLocker } from '/scripts/aquam25-locker.js';
-    initAquaLocker({ triggerSelector: '#lockBtn' });
+    // Fallback loader if the global wasn't created by the CDN script
+    async function ensureFreighterApi() {
+      if (window.freighterApi) return window.freighterApi;
+
+      // Try to import the ESM build directly in-browser (no bundler needed)
+      try {
+        // esm.sh serves ESM you can import from the browser
+        const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
+        // some CDNs export a default, some named — normalize:
+        window.freighterApi = mod?.default ?? mod;
+        console.log('freighter (esm)?', !!window.freighterApi);
+        return window.freighterApi;
+      } catch (e) {
+        console.error('Failed to import @stellar/freighter-api via ESM', e);
+        return null;
+      }
+    }
+
+    // Wait for the API (global or ESM), then load the locker and init
+    (async () => {
+      await ensureFreighterApi();
+
+      // Now import your locker (it looks for window.freighterApi)
+      const { initAquaLocker } = await import('/scripts/aquam25-locker.js');
+      initAquaLocker({ triggerSelector: '#lockBtn' });
+    })();
   </script>
 </body>
 </html>
