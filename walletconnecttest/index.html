@@ -23,7 +23,6 @@
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .section{margin-top:18px;padding-top:14px;border-top:1px dashed #2b3b6a}
     .inline{display:inline-flex;gap:10px;align-items:center}
-
     /* Modal */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
@@ -129,10 +128,13 @@
   <!-- QR generator (UMD global: window.QRCode) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
+  <!-- Small polyfill some libs read in the browser -->
+  <script>window.process = window.process || { env: {} };</script>
+
   <!-- App logic (ESM): Stellar SDK + WalletConnect Sign Client -->
   <script type="module">
     import * as Stellar from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm";
-    import SignClient from "https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.21.8/+esm";
+    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = Stellar;
 
     // ---- Config
