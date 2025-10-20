@@ -157,12 +157,12 @@ export function initAquaLocker({
   // Freighter detection (with late-injection retry)
   let freighterCheckTimer = null;
   let hasFreighter = false;
+  function getFreighter() { return window.freighterApi; }
   function detectFreighterOnce() {
-    const api = window.freighterApi;
+    const api = getFreighter();
     if (api && (typeof api.requestAccess === 'function' || typeof api.getAddress === 'function')) {
       hasFreighter = true;
       freighterConnectBtn.disabled = false;
-      // if an XDR is already built, enable sign
       if (xdrEl.value.trim()) freighterSignBtn.disabled = false;
       if (freighterCheckTimer) { clearInterval(freighterCheckTimer); freighterCheckTimer = null; }
       return true;
@@ -314,10 +314,22 @@ export function initAquaLocker({
   if (hasFreighter) {
     freighterConnectBtn.addEventListener('click', async () => {
       try {
+        const freighter = getFreighter();
         infoEl.textContent = 'Requesting access from Freighter…';
-        const pubkey = await (typeof freighter.getAddress === 'function' ? (await freighter.getAddress()).address : (await freighter.requestAccess()).address);
+        // Prefer requestAccess (prompts if needed), fallback to getAddress
+        let pubkey = '';
+        if (typeof freighter.requestAccess === 'function') {
+          const res = await freighter.requestAccess();
+          if (res?.error) throw new Error(res.error.message || 'Access denied');
+          pubkey = res.address;
+        } else if (typeof freighter.getAddress === 'function') {
+          const res = await freighter.getAddress();
+          if (res?.error) throw new Error(res.error.message || 'No address');
+          pubkey = res.address;
+        }
         pubKeyIn.value = pubkey;
-        infoEl.textContent = `Freighter connected.\nPublic key: ${pubkey}`;
+        infoEl.textContent = `Freighter connected.
+Public key: ${pubkey}`;
         clearInterval(refreshInterval);
         await fetchBalance();
         refreshInterval = setInterval(fetchBalance, 10000);
@@ -330,12 +342,20 @@ export function initAquaLocker({
 
     freighterSignBtn.addEventListener('click', async () => {
       try {
+        const freighter = getFreighter();
         const pkInput = pubKeyIn.value.trim();
         if (!isValidPubKey(pkInput)) { infoEl.textContent = 'Invalid public key.'; return; }
 
         infoEl.textContent = 'Preparing transaction for Freighter…';
 
-        const freighterPk = await (typeof freighter.getAddress === 'function' ? (await freighter.getAddress()).address : (await freighter.requestAccess()).address);
+        let freighterPk = '';
+        if (typeof freighter.getAddress === 'function') {
+          const res = await freighter.getAddress();
+          freighterPk = res?.address || '';
+        } else if (typeof freighter.requestAccess === 'function') {
+          const res = await freighter.requestAccess();
+          freighterPk = res?.address || '';
+        }
         if (freighterPk !== pkInput) {
           infoEl.textContent = `Freighter account (${freighterPk.slice(0,6)}…${freighterPk.slice(-6)}) does not match the Public Key input. Update the input or switch account in Freighter.`;
           return;
@@ -345,6 +365,25 @@ export function initAquaLocker({
         if (!unsignedXdr) { infoEl.textContent = 'No XDR to sign. Enter amount and build first.'; return; }
 
         const signedRes = await freighter.signTransaction(unsignedXdr, { networkPassphrase, address: freighterPk });
+        if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
+        const signedXdr = signedRes.signedTxXdr;
+
+        infoEl.textContent = 'Submitting to Horizon…';
+        const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
+        const res = await server.submitTransaction(tx);
+
+        const txHash = res.hash;
+        infoEl.innerHTML =
+          `Submitted ✅
+Hash: ${txHash}
+` +
+          `View: https://stellar.expert/explorer/public/tx/${txHash}`;
+      } catch (e) {
+        console.error(e);
+        const msg = (e && e.message) ? e.message : 'Sign/submit failed.';
+        infoEl.textContent = `Error: ${msg}`;
+      }
+    });
         if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
         const signedXdr = signedRes.signedTxXdr;
 
