@@ -154,17 +154,41 @@ export function initAquaLocker({
     'rpcUrl=https:////mainnet.sorobanrpc.com&' +
     'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
 
-  // Freighter detection
-  const freighter = window.freighterApi;
-  const hasFreighter = !!(freighter && typeof freighter.getPublicKey === 'function');
-  if (hasFreighter) {
-    freighterConnectBtn.disabled = false;
-  } else {
-    freighterConnectBtn.textContent = 'Freighter not found';
+  // Freighter detection (with late-injection retry)
+  let freighterCheckTimer = null;
+  let hasFreighter = false;
+  function detectFreighterOnce() {
+    const api = window.freighterApi;
+    if (api && typeof api.getPublicKey === 'function') {
+      hasFreighter = true;
+      freighterConnectBtn.disabled = false;
+      // if an XDR is already built, enable sign
+      if (xdrEl.value.trim()) freighterSignBtn.disabled = false;
+      if (freighterCheckTimer) { clearInterval(freighterCheckTimer); freighterCheckTimer = null; }
+      return true;
+    }
+    return false;
   }
+  function waitForFreighter(maxMs = 6000, intervalMs = 250) {
+    if (detectFreighterOnce()) return;
+    const start = Date.now();
+    freighterCheckTimer = setInterval(() => {
+      if (detectFreighterOnce() || Date.now() - start > maxMs) {
+        if (!hasFreighter) {
+          freighterConnectBtn.textContent = 'Freighter not found';
+          freighterConnectBtn.disabled = true;
+        }
+        clearInterval(freighterCheckTimer);
+        freighterCheckTimer = null;
+      }
+    }, intervalMs);
+  }
+  // attempt early, and again on focus (extension may unlock late)
+  waitForFreighter();
+  window.addEventListener('focus', detectFreighterOnce);
 
   // Open/close handlers
-  function openModal() { modal.style.display = 'flex'; pubKeyIn.focus(); }
+  function openModal() { modal.style.display = 'flex'; pubKeyIn.focus(); detectFreighterOnce(); }
   function closeModal() { modal.style.display = 'none'; clearInterval(refreshInterval); }
   document.querySelector(triggerSelector).addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
