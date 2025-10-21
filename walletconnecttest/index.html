@@ -124,10 +124,10 @@
     const EXPLORER = "https://explorer-api.walletconnect.com/v3/wallets";
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
 
-    // App store fallbacks
+    // App store fallbacks (UPDATED Freighter URLs)
     const STORE = {
       lobstr:   { ios:"https://apps.apple.com/app/id1404357892", android:"https://play.google.com/store/apps/details?id=com.lobstr.client" },
-      freighter:{ ios:"https://apps.apple.com/app/freighter-wallet/id6479234208", android:"https://play.google.com/store/apps/details?id=io.freighter.app" }
+      freighter:{ ios:"https://apps.apple.com/app/freighter/id6743947720", android:"https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1" }
     };
 
     // DOM utils
@@ -197,7 +197,6 @@
         const res = await fetch(url);
         const data = await res.json();
         const list = Array.isArray(data.listings) ? data.listings : (data.data || []);
-        // safest match: name includes 'freighter'
         const w = list.find(item => (item.name || item.app?.name || "").toLowerCase().includes("freighter"));
         const mobile = w?.mobile || w?.app?.mobile || {};
         return {
@@ -232,7 +231,6 @@
       }
     }
 
-    // Start WalletConnect → show QR → wire buttons
     on(wcBtn,"click", async ()=>{
       try{
         await ensureClient();
@@ -254,17 +252,15 @@
         const freighterLinks = await getFreighterLinks();
         linkStatus.textContent = "";
 
-        // Rebind buttons fresh per-session (avoid stacked listeners)
+        // Rebind buttons fresh (avoid stacked listeners)
         const newL = btnLobstr.cloneNode(true), newF = btnFreighter.cloneNode(true);
         btnLobstr.replaceWith(newL); btnFreighter.replaceWith(newF);
 
         newL.addEventListener("click", ()=> openLobstrApp(latestWcUri));
         newF.addEventListener("click", ()=> openFreighter(freighterLinks, latestWcUri));
 
-        // Wait for approval from the wallet
         session = await approval();
 
-        // Close modal & show connected info
         qrArea.style.display = "none";
         closeModal();
 
@@ -282,7 +278,6 @@
       }
     });
 
-    // Disconnect
     on(disconnectBtn,"click", async ()=>{
       try{
         if(client && session){
@@ -294,13 +289,11 @@
       document.querySelectorAll('input[name=\"net\"]').forEach(r=>r.disabled=false);
     });
 
-    // WC request helper
     const wcRequest = (method, xdr) => client.request({
       topic: session.topic, chainId: chainId(),
       request: { jsonrpc:"2.0", method, params:{ xdr } }
     });
 
-    // Prompt flows
     on(signBtn,"click", async ()=>{
       if(!session) return; const xdr = prompt("Paste a Transaction XDR to sign"); if(!xdr) return;
       try{ const r = await wcRequest("stellar_signXDR", xdr); console.log("signed:", r); signResult.textContent="Signed ✓"; }
@@ -312,7 +305,6 @@
       catch(e){ console.error(e); signResult.textContent="Sign & submit failed."; }
     });
 
-    // Build XDR (native payment)
     async function buildPaymentXDR({ source, destination, amount, memo }){
       const server=new ServerCtor(horizonUrl());
       const account=await server.loadAccount(source);
@@ -337,7 +329,6 @@
       catch(e){ console.error(e); buildStatus.textContent="Failed to build XDR."; }
     });
 
-    // Wallet signing / submitting for built XDR
     on(signBuiltBtn,"click", async ()=>{
       if(!session){ submitResult.textContent="Connect first."; return; }
       const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Build or paste an XDR first."; return; }
@@ -359,7 +350,8 @@
       submitResult.textContent="Submitting to Horizon…";
       try{
         const resp = await fetch(`${horizonUrl()}/transactions`,{
-          method:"POST", headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+          method:"POST",
+          headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
           body:"tx="+encodeURIComponent(xdr)
         });
         const data = await resp.json();
