@@ -127,7 +127,8 @@
         <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
         <div class="qr-help">
           Scan with your wallet app (LOBSTR, etc).<br/>
-          Or <a id="deepLink" class="link" href="#" target="_blank" rel="noreferrer">open in LOBSTR</a>.
+          Or <a id="deepLink" class="link" href="#" target="_blank" rel="noreferrer">open in LOBSTR</a> ·
+          <a id="altDeepLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
         </div>
       </div>
     </div>
@@ -145,7 +146,6 @@
       throw new Error("StellarSdk failed to load; check the jsDelivr script tag.");
     }
     const SDK = window.StellarSdk;
-    // Some UMD bundles expose Server under SDK.Horizon.Server
     const ServerCtor = SDK.Server || SDK.Horizon?.Server;
     if (!ServerCtor) {
       console.error("StellarSdk keys:", Object.keys(SDK));
@@ -156,7 +156,7 @@
     // ---- Config
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
 
-    // ---- DOM helpers (defensive)
+    // ---- DOM helpers
     const $  = (id) => document.getElementById(id);
     const on = (el, evt, fn) => el?.addEventListener?.(evt, fn);
 
@@ -169,7 +169,8 @@
     const signBuiltBtn=$("signBuiltBtn"), signAndSubmitBuiltBtn=$("signAndSubmitBuiltBtn");
     const submitSignedBtn=$("submitSignedBtn"), submitResult=$("submitResult");
     const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal"), wcBtn=$("wcBtn");
-    const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), deepLink=$("deepLink");
+    const qrArea=$("qrArea"), qrCanvas=$("qrCanvas");
+    const deepLink=$("deepLink"), altDeepLink=$("altDeepLink");
 
     // Modal
     const openModal=()=>{backdrop?.classList.add("open");loginModal?.classList.add("open");};
@@ -190,12 +191,33 @@
     // WalletConnect
     let client=null, session=null;
     const isMobile=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isiOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     async function ensureClient(){
       if(!client){
         client=await SignClient.init({ projectId: PROJECT_ID });
         console.log("WalletConnect SignClient ready");
       }
+    }
+
+    // Try to open LOBSTR via custom scheme; fallback to store if not installed
+    function openLobstrNow(wcUri){
+      const lobstrScheme = `lobstr://wc?uri=${encodeURIComponent(wcUri)}`;
+      const storeUrl = isiOS()
+        ? "https://apps.apple.com/app/id1404357892"
+        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+
+      // Attempt open; if app isn't installed, redirect to the store shortly
+      const before = Date.now();
+      // Use assign so back button returns here
+      window.location.assign(lobstrScheme);
+
+      setTimeout(() => {
+        // If the page is still visible and we haven't switched apps, go to store
+        if (!document.hidden && Date.now() - before < 2000) {
+          window.location.assign(storeUrl);
+        }
+      }, 1200);
     }
 
     on(connectBtn,"click",openModal);
@@ -212,18 +234,22 @@
         const { uri, approval } = await client.connect({ optionalNamespaces });
         if(!uri) throw new Error("No WC URI returned");
 
-        if(isMobile()){
-          // iOS will ask "Open in MetaMask?" for wc: scheme; we still deep-link,
-          // but provide a LOBSTR-preferring link below as well.
-          window.location.href = uri;
+        // Build deep links
+        const wcUri = uri;
+        const lobstrScheme = `lobstr://wc?uri=${encodeURIComponent(wcUri)}`;
+
+        // MOBILE: open LOBSTR directly (custom scheme) instead of wc:
+        if (isMobile()) {
+          openLobstrNow(wcUri);
         }
 
-        // Show QR
+        // Show QR (desktop + fallback for mobile)
         qrArea.style.display="flex";
-        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        await QRCode.toCanvas(qrCanvas, wcUri, { width:256, margin:1 });
 
-        // Prefer LOBSTR for the "open in LOBSTR" link on mobile
-        deepLink.href = `https://lobstr.co/wc?uri=${encodeURIComponent(uri)}`;
+        // Preferred link = LOBSTR custom scheme, secondary = raw wc:
+        deepLink.href   = lobstrScheme;
+        altDeepLink.href= wcUri;
 
         // Wait for wallet approval
         session = await approval();
@@ -280,7 +306,7 @@
       }catch(e){ console.error(e); signResult.textContent="Signing failed."; }
     });
 
-    on(signSubmitPromptBtn,"click", async ()=>{
+    on(signAndSubmitPromptBtn,"click", async ()=>{
       if(!session) return;
       const xdr = prompt("Paste a Transaction XDR to sign & submit");
       if(!xdr){ signResult.textContent="No XDR provided."; return; }
