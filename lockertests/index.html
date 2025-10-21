@@ -60,7 +60,7 @@
       <div class="row" style="margin-top:8px">
         <button id="connectBtn">Connect Wallet</button>
         <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
-        <span id="status" class="muted">Not connected</span>
+        <span id="status" class="muted" aria-live="polite">Not connected</span>
       </div>
 
       <!-- Connection -->
@@ -104,7 +104,7 @@
           </div>
         </div>
 
-        <p class="small" id="swapQuote" style="margin-top:6px"></p>
+        <p class="small" id="swapQuote" style="margin-top:6px" aria-live="polite"></p>
 
         <label for="xdrSwap" style="margin-top:10px">Swap XDR</label>
         <textarea id="xdrSwap" rows="5" placeholder="Built swap XDR appears here" readonly></textarea>
@@ -115,7 +115,7 @@
           <button id="swapCopy" class="ghost">Copy XDR</button>
         </div>
 
-        <p id="swapResult" class="small" style="margin-top:6px"></p>
+        <p id="swapResult" class="small" style="margin-top:6px" aria-live="polite"></p>
       </div>
 
       <!-- Locker -->
@@ -148,7 +148,7 @@
           <button id="labBtn" class="ghost">Open in Stellar Lab</button>
         </div>
 
-        <p id="actionResult" class="small" style="margin-top:6px"></p>
+        <p id="actionResult" class="small" style="margin-top:6px" aria-live="polite"></p>
       </div>
     </div>
   </div>
@@ -286,8 +286,10 @@
         }
       }catch(e){ console.warn(e); }
       session=null; connectionMode="none"; setConnected("", "none");
-      disableLockerButtons();
-      disableSwapButtons();
+      // Reset any stale UI state/results and disable buttons
+      xdrOut.value = ""; xdrSwap.value = ""; swapEst.value = "";
+      actionResult.textContent = ""; swapResult.textContent = ""; swapQuote.textContent = "";
+      disableLockerButtons(); disableSwapButtons();
     });
 
     // ---------- Locker balance + build ----------
@@ -335,14 +337,15 @@
         end.setUTCFullYear(end.getUTCFullYear()+1);
         end.setUTCHours(23,59,59,0);
         const endTs = Math.floor(end.getTime()/1000).toString();
-        lockInfoEl.textContent = `Lock start: ${now.toLocaleString()}\nLock end:   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
+        lockInfoEl.textContent = `Lock start: ${now.toLocaleString()}
+Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
         const claimants = [
           new SDK.Claimant(pk, SDK.Claimant.predicateNot(SDK.Claimant.predicateBeforeAbsoluteTime(endTs))),
           new SDK.Claimant(TRACKER_KEY, SDK.Claimant.predicateBeforeAbsoluteTime("0"))
         ];
 
-        const tx = new SDK.TransactionBuilder(src, { fee: 20000, networkPassphrase: NETWORK })
+        const tx = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK })
           .addOperation(SDK.Operation.createClaimableBalance({ asset: AQUAm25, amount: amt, claimants }))
           .setTimeout(180)
           .build();
@@ -364,7 +367,7 @@
     on(amountEl,"input", scheduleLockerBuild);
 
     pctBtns.forEach(btn=>btn.addEventListener("click", ()=>{
-      const bal = parseFloat(aquaBalEl.textContent)||0;
+      const bal = Math.max(0, parseFloat(aquaBalEl.textContent) || 0);
       const pct = parseInt(btn.dataset.pct,10)/100;
       const v = cleanAmt(bal*pct);
       amountEl.value = v||"";
@@ -437,12 +440,13 @@
         const [code, issuer] = swapFrom.value.split(":");
         sendAsset = new SDK.Asset(code, issuer);
       }
+      const sendLabel = (sendAsset.isNative && sendAsset.isNative()) ? "XLM" : (sendAsset.code || (sendAsset.getCode ? sendAsset.getCode() : "asset"));
 
       try{
         const paths = await getServer().strictSendPaths(sendAsset, sendAmt, [AQUAm25]).call();
         const records = paths.records || [];
         if(!records.length){
-          swapQuote.textContent = "No path found for this amount.";
+          swapQuote.textContent = `No path found from ${sendLabel} → AQUAm25 for this amount.`;
           return;
         }
         records.sort((a,b)=> parseFloat(b.destination_amount) - parseFloat(a.destination_amount));
@@ -459,6 +463,7 @@
         swapQuote.innerHTML = `Min receive (2% slippage): <b>${minOut}</b> AQUAm25<br/><span class="small">${pathStr}</span>`;
 
         const src = await getServer().loadAccount(pk);
+
         const op = SDK.Operation.pathPaymentStrictSend({
           sendAsset,
           sendAmount: sendAmt,
@@ -470,10 +475,9 @@
               : new SDK.Asset(p.asset_code, p.asset_issuer))
         });
 
-        const txb = new SDK.TransactionBuilder(src, { fee: 20000, networkPassphrase: NETWORK });
-        // Ensure trustline exists for AQUAm25
-        const acct = await getServer().loadAccount(pk);
-        const hasTrust = !!acct.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
+        const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
+        // Ensure trustline exists for AQUAm25 — reuse the same loaded account
+        const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
         if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
 
         txb.addOperation(op).setTimeout(180);
