@@ -189,12 +189,20 @@
     on(closeModalBtn,"click",closeModal); on(backdrop,"click",closeModal);
     on(connectBtn,"click",openModal);
 
-    // ---------- Stellar SDK setup ----------
+    // ---------- Stellar SDK setup (SAFE Server detection) ----------
     if(!window.StellarSdk) throw new Error("Stellar SDK failed to load.");
-    const SDK=window.StellarSdk;
-    const Server=SDK.Server;
-    const server=new Server(HORIZON);
-    const AQUA=new SDK.Asset(AQUA_CODE, AQUA_ISSUER);
+    const SDK = window.StellarSdk;
+
+    // Some UMD builds expose Server as StellarSdk.Server, others as StellarSdk.Horizon.Server
+    const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
+    if (!ServerCtor) {
+      console.error("Could not find StellarSdk.Server constructor on this build", SDK);
+      throw new Error("Stellar SDK: Server constructor not found.");
+    }
+
+    let _server = null;
+    const getServer = () => (_server ||= new ServerCtor(HORIZON));
+    const AQUA = new SDK.Asset(AQUA_CODE, AQUA_ISSUER);
 
     // ---------- Connection state ----------
     // 'none' | 'wc' | 'freighter'
@@ -293,7 +301,6 @@
         const freighterLinks = await getFreighterLinks();
         linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
 
-        // rebind wallet buttons freshly
         const bL = btnLobstr.cloneNode(true), bF = btnFreighter.cloneNode(true);
         btnLobstr.replaceWith(bL); btnFreighter.replaceWith(bF);
         bL.addEventListener("click", ()=> openLobstrApp(latestWcUri));
@@ -319,7 +326,6 @@
         const freighter = await ensureFreighterApi();
         if(!freighter){ alert("Freighter extension not detected."); return; }
 
-        // Try getPublicKey first (newer), fall back to getAddress/requestAccess
         let address = "";
         try { address = await freighter.getPublicKey(); } catch {}
         if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
@@ -340,7 +346,7 @@
       const pk = pubkeyEl.value.trim();
       if(!isValidG(pk)){ aquaBalEl.textContent = "Invalid key"; return; }
       try{
-        const acct = await server.loadAccount(pk);
+        const acct = await getServer().loadAccount(pk);
         const bal = acct.balances.find(b => b.asset_code===AQUA_CODE && b.asset_issuer===AQUA_ISSUER);
         aquaBalEl.textContent = bal ? bal.balance : "0";
       }catch(e){ console.error(e); aquaBalEl.textContent="Error"; }
@@ -363,9 +369,8 @@
       if(!amt){ buildStatus.textContent="Enter a positive amount."; return null; }
 
       try{
-        const src = await server.loadAccount(pk);
+        const src = await getServer().loadAccount(pk);
 
-        // lock times
         const now = new Date();
         const end = new Date(now);
         end.setUTCFullYear(end.getUTCFullYear()+1);
@@ -378,7 +383,6 @@
           new SDK.Claimant(TRACKER_KEY, SDK.Claimant.predicateBeforeAbsoluteTime("0"))
         ];
 
-        // fixed fee like your working snippet
         const tx = new SDK.TransactionBuilder(src, { fee: 20000, networkPassphrase: NETWORK })
           .addOperation(SDK.Operation.createClaimableBalance({ asset: AQUA, amount: amt, claimants }))
           .setTimeout(180)
@@ -408,7 +412,6 @@
       }
       if(connectionMode==="freighter"){
         const api = await ensureFreighterApi();
-        // get address (helps some Freighter versions)
         let address = ""; try{ address = await api.getPublicKey(); }catch{}
         if(!address && api.getAddress){ const r=await api.getAddress(); address=r?.address||""; }
         const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, address });
@@ -466,11 +469,6 @@
       encoded = encoded.replace(/\//g,'//') + ';;';
       window.open('https://lab.stellar.org/transaction/sign?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=https:////mainnet.sorobanrpc.com&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr='+encoded, "_blank");
     });
-
-    // ---------- WalletConnect modal open ----------
-    // show QR area only after we have a wc URI
-    // (done inside wcBtn click handler above)
-
   </script>
 
   <noscript style="color:#fff">Enable JavaScript to use the AQUAm25 locker.</noscript>
