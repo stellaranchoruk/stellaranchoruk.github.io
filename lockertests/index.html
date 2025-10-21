@@ -77,25 +77,34 @@
         <h2>Swap</h2>
         <p class="small">Swap any Stellar token you hold into AQUAm25 using the network DEX.</p>
 
+        <!-- Row 1: From & Amount -->
         <div class="row" style="gap:14px">
-          <div style="flex:1;min-width:220px">
+          <div style="flex:1;min-width:260px">
             <label for="swapFrom">From</label>
             <select id="swapFrom"></select>
           </div>
-          <div style="width:140px">
+          <div style="width:180px">
             <label for="swapAmount">Amount</label>
             <input id="swapAmount" type="number" step="any" placeholder="0.0" />
           </div>
-          <div style="flex:1;min-width:220px">
+        </div>
+
+        <!-- Row 2: To & Estimated -->
+        <div class="row" style="gap:14px;margin-top:6px">
+          <div style="flex:1;min-width:260px">
             <label>To</label>
             <div class="mono small" style="padding:10px 12px;border:1px solid #2a3d7a;border-radius:10px;background:#0b1430">
               AQUAm25<br/>
               <span style="opacity:.8">GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC</span>
             </div>
           </div>
+          <div style="width:180px">
+            <label for="swapEst">Estimated receive</label>
+            <input id="swapEst" type="text" readonly placeholder="—" />
+          </div>
         </div>
 
-        <p class="small" id="swapQuote" style="margin-top:8px"></p>
+        <p class="small" id="swapQuote" style="margin-top:6px"></p>
 
         <label for="xdrSwap" style="margin-top:10px">Swap XDR</label>
         <textarea id="xdrSwap" rows="5" placeholder="Built swap XDR appears here" readonly></textarea>
@@ -212,7 +221,8 @@
     // Swap DOM
     const swapFrom=$("swapFrom"), swapAmount=$("swapAmount"), swapQuote=$("swapQuote"),
           xdrSwap=$("xdrSwap"), swapSignSubmit=$("swapSignSubmit"),
-          swapSignOnly=$("swapSignOnly"), swapCopy=$("swapCopy"), swapResult=$("swapResult");
+          swapSignOnly=$("swapSignOnly"), swapCopy=$("swapCopy"), swapResult=$("swapResult"),
+          swapEst=$("swapEst");
 
     // ---------- Modal ----------
     const openModal=()=>{backdrop.classList.add("open");loginModal.classList.add("open");};
@@ -235,11 +245,15 @@
     let client=null, session=null, latestWcUri=null;
     let buildTimer=null;       // locker debounce
     let swapTimer=null;        // swap debounce
-    let lockerRefreshTimer=null; // optional periodic locker balance refresh (swap unaffected)
+    let lockerRefreshTimer=null;
+
+    // Cache for issuer -> domain
+    const DOMAIN_CACHE = new Map(); // issuer => domain (string or "")
 
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
     const cleanAmt = a => { const n=Number(a); if(!isFinite(n)||n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
+    const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
 
     function disableLockerButtons(){ [signSubmitBtn,signOnlyBtn,copyBtn,labBtn].forEach(b=>b.disabled=true); }
     function enableLockerButtons(){ const ok=!!xdrOut.value.trim(); [signSubmitBtn,signOnlyBtn,copyBtn,labBtn].forEach(b=>b.disabled=!ok); }
@@ -257,8 +271,8 @@
       if(address && /^G[A-Z2-7]{55}$/.test(address)){
         pubkeyEl.value = address;
         pubkeyEl.readOnly = true;
-        initForNewAccount(); // fill swap once, refresh locker, build XDRs
-        startLockerAutoRefresh(); // locker-only periodic balance refresh
+        initForNewAccount();      // fill swap once, refresh balance, build locker
+        startLockerAutoRefresh(); // locker-only periodic balance update
       }else{
         pubkeyEl.readOnly = false;
         stopLockerAutoRefresh();
@@ -276,13 +290,12 @@
       disableSwapButtons();
     });
 
-    // ---------- Locker: balance + build ----------
+    // ---------- Locker balance + build ----------
     async function loadAquaM25Balance(pk){
       const acct = await getServer().loadAccount(pk);
       const bal = acct.balances.find(b => b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
       return { acct, balance: bal ? bal.balance : "0" };
     }
-
     function startLockerAutoRefresh(){
       stopLockerAutoRefresh();
       lockerRefreshTimer = setInterval(async ()=>{
@@ -291,7 +304,6 @@
         try{
           const { balance } = await loadAquaM25Balance(pk);
           aquaBalEl.textContent = balance;
-          // Do NOT touch swap here; do not rebuild swap; only locker can auto-build if amount changed.
         }catch(e){ console.warn(e); }
       }, 15000);
     }
@@ -342,11 +354,11 @@
     // Locker inputs
     on(pubkeyEl,"input", ()=>{
       if(pubkeyEl.readOnly) return;
-      scheduleLockerBuild(); // swap unaffected
+      scheduleLockerBuild();
     });
     on(pubkeyEl,"change", ()=>{
       if(pubkeyEl.readOnly) return;
-      initForNewAccount(); // fills swap once, refreshes balances, builds both if amounts set
+      initForNewAccount();
       startLockerAutoRefresh();
     });
     on(amountEl,"input", scheduleLockerBuild);
@@ -359,7 +371,7 @@
       scheduleLockerBuild();
     }));
 
-    // ---------- Swap (one-time fill per account; only re-quote on user input/change) ----------
+    // ---------- Swap (one-time fill, domain names) ----------
     async function loadAllBalances(pk){
       const acct = await getServer().loadAccount(pk);
       const items = [];
@@ -372,24 +384,46 @@
       return { acct, items };
     }
 
+    async function fetchDomainsForIssuers(issuers){
+      const unique = [...new Set(issuers.filter(Boolean))];
+      const need = unique.filter(i => !DOMAIN_CACHE.has(i));
+      // Fetch issuer accounts to get home_domain
+      await Promise.all(need.map(async (issuer)=>{
+        try{
+          const r = await fetch(`${HORIZON}/accounts/${issuer}`);
+          const j = await r.json();
+          const d = (j && j.home_domain) ? j.home_domain : "";
+          DOMAIN_CACHE.set(issuer, d);
+        }catch(_){ DOMAIN_CACHE.set(issuer, ""); }
+      }));
+    }
+
+    function labelWithDomain(code, issuer, balance){
+      if(!issuer) return `${code} — ${balance}`;
+      const dom = DOMAIN_CACHE.get(issuer) || "";
+      const right = dom || shortG(issuer);
+      return `${code} · ${right} — ${balance}`;
+    }
+
     function fillSwapDropdownOnce(items){
       swapFrom.innerHTML = "";
       for(const it of items){
         const opt = document.createElement("option");
         opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
-        opt.textContent = `${it.code}${it.issuer?` · ${it.issuer.slice(0,6)}…${it.issuer.slice(-6)}`:""} — ${it.balance}`;
+        opt.textContent = labelWithDomain(it.code, it.issuer, it.balance);
         swapFrom.appendChild(opt);
       }
-      // Default to AQUA if present; otherwise keep first
+      // Default to AQUA if present; else first
       const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
       const found = [...swapFrom.options].find(o=>o.value===def);
       swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
     }
 
     async function quoteSwap(){
-      // Only called on user's actions (amount input or asset change)
+      // Only on user actions
       disableSwapButtons();
       xdrSwap.value = "";
+      swapEst.value = "";
       swapQuote.textContent = "";
 
       const pk = pubkeyEl.value.trim();
@@ -416,13 +450,15 @@
 
         const destAmount = best.destination_amount;
         const minOut = (parseFloat(destAmount) * 0.98).toFixed(7); // 2% buffer
+        swapEst.value = destAmount;
 
-        swapQuote.innerHTML =
-          `Est. receive: <b>${destAmount}</b> AQUAm25 (min ${minOut})` +
-          (best.path && best.path.length ? `<br/><span class="small">Path: ${best.path.map(p=>`${p.asset_code||'XLM'}:${p.asset_issuer||'native'}`).join(" → ")}</span>`:"");
+        const pathStr = (best.path && best.path.length)
+          ? `Path: ${best.path.map(p=>`${p.asset_code||'XLM'}:${DOMAIN_CACHE.get(p.asset_issuer)|| (p.asset_issuer?shortG(p.asset_issuer):'native')}`).join(" → ")}`
+          : "Direct";
+
+        swapQuote.innerHTML = `Min receive (2% slippage): <b>${minOut}</b> AQUAm25<br/><span class="small">${pathStr}</span>`;
 
         const src = await getServer().loadAccount(pk);
-
         const op = SDK.Operation.pathPaymentStrictSend({
           sendAsset,
           sendAmount: sendAmt,
@@ -435,13 +471,10 @@
         });
 
         const txb = new SDK.TransactionBuilder(src, { fee: 20000, networkPassphrase: NETWORK });
-
         // Ensure trustline exists for AQUAm25
         const acct = await getServer().loadAccount(pk);
         const hasTrust = !!acct.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
-        if(!hasTrust){
-          txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 }));
-        }
+        if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
 
         txb.addOperation(op).setTimeout(180);
         const tx = txb.build();
@@ -456,7 +489,7 @@
       }
     }
 
-    // Swap triggers: ONLY on user actions
+    // Swap triggers
     on(swapFrom,"change", quoteSwap);
     on(swapAmount,"input", ()=>{
       if(swapTimer) clearTimeout(swapTimer);
@@ -469,24 +502,22 @@
       if(!isValidG(pk)) { aquaBalEl.textContent="Invalid key"; return; }
 
       try{
-        // Update locker balance
+        // Locker balance
         const { balance } = await loadAquaM25Balance(pk);
         aquaBalEl.textContent = balance;
 
-        // Fill swap dropdown ONCE for this account
+        // Balances for swap & domains (one-time per account load)
         const { items } = await loadAllBalances(pk);
+        await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean));
         fillSwapDropdownOnce(items);
 
-        // Friendly defaults (do NOT auto-quote; user will type amount)
+        // Suggested defaults (do NOT auto-quote; user will type amount)
         if(!amountEl.value.trim()){
           const v = cleanAmt(parseFloat(balance||"0")*0.25);
           if(v){ amountEl.value = v; }
         }
-
         // Build locker if amount exists
         scheduleLockerBuild();
-
-        // Swap XDR will be built only after user types an amount or changes asset
       }catch(e){ console.error(e); }
     }
 
@@ -688,7 +719,7 @@
         swapResult.textContent="Submitting…";
         const hash = await submitToHorizon(signed);
         swapResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
-        // After a successful swap, you can optionally refresh the locker balance:
+        // Optional: refresh AQUAm25 balance after swap
         setTimeout(async ()=>{
           const pk = pubkeyEl.value.trim();
           if(isValidG(pk)){
@@ -699,7 +730,7 @@
     });
     on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
 
-    // ---------- First-load: if user already has a key typed in ----------
+    // ---------- First-load ----------
     window.addEventListener("load", ()=>{
       const pk = pubkeyEl.value.trim();
       if(isValidG(pk)){ initForNewAccount(); startLockerAutoRefresh(); }
