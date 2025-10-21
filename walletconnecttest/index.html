@@ -124,7 +124,7 @@
     const EXPLORER = "https://explorer-api.walletconnect.com/v3/wallets";
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
 
-    // App store fallbacks (UPDATED Freighter URLs)
+    // App store fallbacks (your corrected Freighter URLs)
     const STORE = {
       lobstr:   { ios:"https://apps.apple.com/app/id1404357892", android:"https://play.google.com/store/apps/details?id=com.lobstr.client" },
       freighter:{ ios:"https://apps.apple.com/app/freighter/id6743947720", android:"https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1" }
@@ -190,22 +190,34 @@
       }, 1800);
     }
 
-    // Get Freighter links from Explorer
+    // --- FIXED: Normalize Explorer v3 response (object map -> array), then match Freighter
     async function getFreighterLinks(){
       try{
         const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
         const res = await fetch(url);
         const data = await res.json();
-        const list = Array.isArray(data.listings) ? data.listings : (data.data || []);
-        const w = list.find(item => (item.name || item.app?.name || "").toLowerCase().includes("freighter"));
-        const mobile = w?.mobile || w?.app?.mobile || {};
+
+        // Explorer v3 returns { listings: { <id>: Wallet, ... } }
+        const raw = data?.listings ?? data?.data ?? [];
+        const arr = Array.isArray(raw) ? raw : Object.values(raw);
+
+        // Match by exact name if possible, else contains "freighter"
+        const w = arr.find(item => {
+          const name = (item.name || item.app?.name || "").toLowerCase().trim();
+          return name === "freighter" || name.includes("freighter");
+        });
+
+        if (!w) return { native:null, universal:null, found:false };
+
+        const mobile = w.mobile || w.app?.mobile || {};
         return {
           native:    mobile.native || mobile.nativeLink || null,
-          universal: mobile.universal || mobile.universalLink || null
+          universal: mobile.universal || mobile.universalLink || null,
+          found:     true
         };
       }catch(e){
         console.warn("Explorer fetch failed:", e);
-        return { native:null, universal:null };
+        return { native:null, universal:null, found:false, error:true };
       }
     }
 
@@ -215,6 +227,7 @@
       const universal = links.universal ? links.universal.replace("{wc}", enc).replace("{URI}", enc) : null;
       const store = isIOS()? STORE.freighter.ios : STORE.freighter.android;
 
+      // Prefer native scheme if provided by Explorer
       if (native){
         const t0 = Date.now();
         window.location.href = native;
@@ -225,8 +238,10 @@
           }
         }, 1200);
       } else if (universal){
+        // Open universal in a new tab so our page stays put
         window.open(universal, "_blank", "noopener");
       } else {
+        // Last resort: store page
         window.open(store, "_blank", "noopener");
       }
     }
@@ -250,7 +265,8 @@
 
         linkStatus.textContent = "Loading Freighter deep link…";
         const freighterLinks = await getFreighterLinks();
-        linkStatus.textContent = "";
+        linkStatus.textContent = freighterLinks.found
+          ? "" : "Couldn’t auto-detect Freighter link (using store fallback).";
 
         // Rebind buttons fresh (avoid stacked listeners)
         const newL = btnLobstr.cloneNode(true), newF = btnFreighter.cloneNode(true);
