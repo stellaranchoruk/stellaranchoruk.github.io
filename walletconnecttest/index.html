@@ -4,21 +4,17 @@
   <meta charset="utf-8" />
   <title>Stellar WalletConnect v2 — Static Demo (QR + XDR Builder)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <style>
     :root{--bg:#0b1220;--card:#121a2b;--border:#233055;--muted:#8ea2ff}
     body{margin:0;padding:28px;background:var(--bg);color:#f1f5ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
     .card{max-width:920px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 22px}
-    h1{margin:0 0 12px;font-size:22px}
-    h2{margin:18px 0 8px;font-size:18px}
+    h1{margin:0 0 12px;font-size:22px} h2{margin:18px 0 8px;font-size:18px}
     p{margin:0 0 10px;opacity:.95}
     .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    .muted{opacity:.85;font-size:14px}
-    .small{font-size:12px;opacity:.8}
+    .muted{opacity:.85;font-size:14px} .small{font-size:12px;opacity:.8}
     .addr{word-break:break-all;font-family:ui-monospace,Menlo,Consolas,monospace}
     button{cursor:pointer;font-weight:600;border-radius:10px;border:1px solid #3a4a7a;background:#1a2550;color:#fff;padding:10px 14px}
-    button:hover{filter:brightness(1.1)}
-    button.ghost{background:transparent}
+    button:hover{filter:brightness(1.1)} button.ghost{background:transparent}
     input,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a3d7a;background:#0b1430;color:#fff}
     label{display:block;margin:10px 0 6px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -40,7 +36,7 @@
     a.link{color:#9ab0ff;text-decoration:underline}
   </style>
 
-  <!-- Stellar SDK -->
+  <!-- Stellar SDK (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -66,7 +62,6 @@
     <div id="connected" style="display:none" class="section">
       <div class="muted">Connected address:</div>
       <div id="address" class="addr"></div>
-
       <div style="margin-top:12px" class="row">
         <button id="signDemoBtn">Sign XDR (prompt)</button>
         <button id="signAndSubmitPromptBtn">Sign &amp; Submit (prompt)</button>
@@ -77,21 +72,12 @@
     <div class="section">
       <h2>Build Payment XDR</h2>
       <div class="grid">
-        <div>
-          <label for="dest">Destination (G…)</label>
-          <input id="dest" placeholder="G… destination address" />
-        </div>
-        <div>
-          <label for="amount">Amount (XLM)</label>
-          <input id="amount" type="number" min="0" step="0.0000001" placeholder="10.5" />
-        </div>
+        <div><label for="dest">Destination (G…)</label><input id="dest" placeholder="G… destination address" /></div>
+        <div><label for="amount">Amount (XLM)</label><input id="amount" type="number" min="0" step="0.0000001" placeholder="10.5" /></div>
       </div>
       <label for="memo">Memo (optional)</label>
       <input id="memo" maxlength="28" placeholder="Thanks AQUA!" />
-      <div class="row" style="margin-top:10px">
-        <button id="buildBtn">Build XDR</button>
-        <span id="buildStatus" class="small"></span>
-      </div>
+      <div class="row" style="margin-top:10px"><button id="buildBtn">Build XDR</button><span id="buildStatus" class="small"></span></div>
       <label for="xdrOut" style="margin-top:12px">Transaction XDR</label>
       <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here"></textarea>
       <div class="row" style="margin-top:10px">
@@ -103,26 +89,31 @@
     </div>
   </div>
 
+  <!-- Login modal -->
   <div id="backdrop" class="backdrop"></div>
-  <div id="loginModal" class="modal">
+  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
     <div class="modal-inner">
       <div class="modal-header">
         <h2 id="loginTitle" style="font-size:18px;margin:0">Login</h2>
-        <button class="x" id="closeModal">×</button>
+        <button class="x" id="closeModal" aria-label="Close">×</button>
       </div>
       <p>Select a login method:</p>
       <button class="wallet-btn" id="wcBtn">🔗 WalletConnect</button>
+
       <div id="qrArea" class="qr-wrap" style="display:none">
         <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
-        <div class="wallet-choices">
-          <button id="btnLobstr">Open in LOBSTR</button>
-          <button id="btnFreighter">Open in Freighter</button>
-          <button id="btnXbull">Open in xBull Wallet</button>
+
+        <div class="wallet-choices" aria-label="Open with wallet">
+          <button id="btnLobstr"   aria-label="Open in LOBSTR">Open in LOBSTR</button>
+          <button id="btnFreighter" aria-label="Open in Freighter">Open in Freighter</button>
+          <button id="btnXbull"    aria-label="Open in xBull Wallet">Open in xBull Wallet</button>
         </div>
+
         <div class="qr-help">
           Scan with your wallet app (LOBSTR / Freighter / xBull Wallet),<br/>
           or tap a button above on mobile. · <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
         </div>
+        <p id="linkStatus" class="small" style="margin:0;text-align:center;opacity:.8"></p>
       </div>
     </div>
   </div>
@@ -131,18 +122,27 @@
 
   <script type="module">
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
-    import QRCode from "https://esm.sh/qrcode@1.5.3";
+    import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    if (!window.StellarSdk) throw new Error("Stellar SDK failed to load.");
-    const SDK = window.StellarSdk;
-    const ServerCtor = SDK.Server || SDK.Horizon?.Server;
-    const { Networks, TransactionBuilder, Operation, Asset, Memo } = SDK;
+    // ---- WalletConnect Explorer API (returns native/universal links wallets publish)
+    const EXPLORER = "https://explorer-api.walletconnect.com/v3/wallets";
 
+    // ---- Your WalletConnect Project ID
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
-    const $ = (id)=>document.getElementById(id);
-    const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
+
+    // ---- App store fallbacks
+    const STORE = {
+      lobstr:   { ios:"https://apps.apple.com/app/id1404357892", android:"https://play.google.com/store/apps/details?id=com.lobstr.client" },
+      freighter:{ ios:"https://apps.apple.com/app/freighter-wallet/id6479234208", android:"https://play.google.com/store/apps/details?id=io.freighter.app" },
+      xbull:    { ios:"https://apps.apple.com/app/xbull-wallet/id1613698505", android:"https://play.google.com/store/apps/details?id=com.xbull.app" }
+    };
+
+    // ---- Utility
+    const $  = (id)=>document.getElementById(id);
+    const on = (el,ev,fn)=>el&&el.addEventListener(ev,fn);
     const isIOS = ()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+    // ---- DOM
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
     const connectedWrap=$("connected"), addrEl=$("address");
     const signBtn=$("signDemoBtn"), signSubmitPromptBtn=$("signAndSubmitPromptBtn"), signResult=$("signResult");
@@ -151,119 +151,255 @@
     const signBuiltBtn=$("signBuiltBtn"), signAndSubmitBuiltBtn=$("signAndSubmitBuiltBtn");
     const submitSignedBtn=$("submitSignedBtn"), submitResult=$("submitResult");
     const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal"), wcBtn=$("wcBtn");
-    const qrArea=$("qrArea"), qrCanvas=$("qrCanvas");
+    const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus");
     const btnLobstr=$("btnLobstr"), btnFreighter=$("btnFreighter"), btnXbull=$("btnXbull"), rawWcLink=$("rawWcLink");
 
+    // ---- Modal
     const openModal=()=>{backdrop.classList.add("open");loginModal.classList.add("open");};
     const closeModal=()=>{backdrop.classList.remove("open");loginModal.classList.remove("open");};
     on(closeModalBtn,"click",closeModal); on(backdrop,"click",closeModal);
+    on(connectBtn,"click",openModal);
 
+    // ---- Network
+    if(!window.StellarSdk) throw new Error("Stellar SDK failed to load.");
+    const SDK = window.StellarSdk;
+    const ServerCtor = SDK.Server || SDK.Horizon?.Server;
+    const { Networks, TransactionBuilder, Operation, Asset, Memo } = SDK;
     let CURRENT_NET="pubnet";
-    const netRadios=document.querySelectorAll('input[name="net"]');
-    netRadios.forEach(r=>on(r,"change",()=>{ if(session){alert("Disconnect first");return;} CURRENT_NET=r.value; }));
     const chainId=()=>`stellar:${CURRENT_NET}`;
     const horizonUrl=()=>CURRENT_NET==="pubnet"?"https://horizon.stellar.org":"https://horizon-testnet.stellar.org";
     const netPassphrase=()=>CURRENT_NET==="pubnet"?Networks.PUBLIC:Networks.TESTNET;
+    document.querySelectorAll('input[name="net"]').forEach(r=>on(r,"change",()=>{
+      if(session){ alert("Disconnect first to switch networks."); return; }
+      CURRENT_NET=r.value;
+    }));
 
-    let client=null, session=null;
-    async function ensureClient(){ if(!client){ client=await SignClient.init({projectId:PROJECT_ID}); console.log("WalletConnect ready"); } }
+    // ---- WalletConnect
+    let client=null, session=null, latestWcUri=null;
+    async function ensureClient(){
+      if(!client){
+        client = await SignClient.init({ projectId: PROJECT_ID });
+        console.log("WalletConnect SignClient ready");
+      }
+    }
 
-    on(connectBtn,"click",openModal);
-
+    // ---- LOBSTR: open via scheme (foreground) and fallback store in new tab
     function openLobstrApp(wcUri){
-      const encoded=encodeURIComponent(wcUri);
-      const schemeUrl=`lobstr://wc?uri=${encoded}`;
-      const store=isIOS()? "https://apps.apple.com/app/id1404357892" :"https://play.google.com/store/apps/details?id=com.lobstr.client";
-      const t0=Date.now();
-      window.location.href=schemeUrl;
+      const scheme = `lobstr://wc?uri=${encodeURIComponent(wcUri)}`;
+      const store  = isIOS()? STORE.lobstr.ios : STORE.lobstr.android;
+      const t0 = Date.now();
+      window.location.href = scheme;
       setTimeout(()=>{
-        if(!document.hidden && Date.now()-t0<2000){
-          window.open(store,"_blank","noopener");
+        if(!document.hidden && Date.now()-t0 < 2000){
+          window.open(store, "_blank", "noopener");
         }
-      },1800);
+      }, 1800);
     }
 
-    function openUniversalNewTab(url){ window.open(url,"_blank","noopener"); }
+    // ---- Use Explorer API to get official links for Freighter/xBull
+    async function fetchWalletLinks() {
+      try {
+        // Get a page of wallets and filter by name. You can increase entries if needed.
+        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const list = Array.isArray(data.listings) ? data.listings : (data.data || []);
+        const byName = (name) => list.find(w => (w.name || w.app?.name || "").toLowerCase().includes(name));
 
-    on(wcBtn,"click",async()=>{
-      try{
+        const freighter = byName("freighter");
+        const xbull     = byName("xbull");
+
+        const pickLinks = (w) => {
+          if(!w) return null;
+          // Normalized fields across API versions
+          const mobile = w.mobile || w.app?.mobile || {};
+          return {
+            native:   mobile.native || mobile.nativeLink || null,
+            universal:mobile.universal || mobile.universalLink || null
+          };
+        };
+
+        return {
+          freighter: pickLinks(freighter),
+          xbull:     pickLinks(xbull)
+        };
+      } catch (e) {
+        console.warn("Explorer fetch failed:", e);
+        return { freighter:null, xbull:null };
+      }
+    }
+
+    function openViaNativeOrUniversal(links, wcUri, store) {
+      if(!links) return; // nothing to do
+      const enc = encodeURIComponent(wcUri);
+      const native = links.native ? links.native.replace("{wc}", enc).replace("{URI}", enc) : null;
+      const universal = links.universal ? links.universal.replace("{wc}", enc).replace("{URI}", enc) : null;
+
+      if (native) {
+        // Try native scheme in current tab (works if app registered the scheme)
+        const t0 = Date.now();
+        window.location.href = native;
+        setTimeout(()=>{
+          if(!document.hidden && Date.now()-t0 < 2000){
+            // As a backup, if universal exists, use it in a new tab; else store
+            if (universal) window.open(universal, "_blank", "noopener");
+            else if (store) window.open(store, "_blank", "noopener");
+          }
+        }, 1200);
+      } else if (universal) {
+        // Open universal in a new tab so our page stays put
+        window.open(universal, "_blank", "noopener");
+      } else if (store) {
+        window.open(store, "_blank", "noopener");
+      }
+    }
+
+    // ---- Bind WalletConnect button
+    on(wcBtn,"click", async ()=>{
+      try {
         await ensureClient();
-        statusEl.textContent="Starting WalletConnect…";
-        const { uri, approval }=await client.connect({
-          optionalNamespaces:{ stellar:{ chains:[chainId()], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] } }
+        statusEl.textContent = "Starting WalletConnect…";
+
+        // Start pairing (Stellar namespace)
+        const { uri, approval } = await client.connect({
+          optionalNamespaces: {
+            stellar: { chains:[chainId()], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+          }
         });
-        if(!uri) throw new Error("No URI");
-        await QRCode.toCanvas(qrCanvas,uri,{width:256});
-        qrArea.style.display="flex";
-        rawWcLink.href=uri;
+        if (!uri) throw new Error("No WC URI");
+        latestWcUri = uri;
 
-        on(btnLobstr,"click",()=>openLobstrApp(uri));
-        on(btnFreighter,"click",()=>openUniversalNewTab(`https://freighter.app/wc?uri=${encodeURIComponent(uri)}`));
-        on(btnXbull,"click",()=>openUniversalNewTab(`https://xbull.app/wc?uri=${encodeURIComponent(uri)}`));
+        // Show QR + raw link
+        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
 
-        session=await approval();
-        qrArea.style.display="none"; closeModal();
+        // Fetch official links and wire buttons
+        linkStatus.textContent = "Loading wallet deep links…";
+        const links = await fetchWalletLinks();
+        linkStatus.textContent = ""; // clear
 
-        const accounts=session.namespaces?.stellar?.accounts||[];
-        const address=accounts[0]?.split(":")[2]||"(unknown)";
-        addrEl.textContent=address; connectedWrap.style.display="block";
-        statusEl.textContent=`Connected (${CURRENT_NET})`; disconnectBtn.disabled=false;
-      }catch(e){console.error(e);statusEl.textContent="Connection failed.";}
+        // (Re)bind wallet buttons fresh (avoid stacked listeners across sessions)
+        const newL = btnLobstr.cloneNode(true), newF = btnFreighter.cloneNode(true), newX = btnXbull.cloneNode(true);
+        btnLobstr.replaceWith(newL); btnFreighter.replaceWith(newF); btnXbull.replaceWith(newX);
+
+        newL.addEventListener("click", () => openLobstrApp(latestWcUri));
+        newF.addEventListener("click", () => openViaNativeOrUniversal(
+          links.freighter, latestWcUri, isIOS()? STORE.freighter.ios : STORE.freighter.android
+        ));
+        newX.addEventListener("click", () => openViaNativeOrUniversal(
+          links.xbull, latestWcUri, isIOS()? STORE.xbull.ios : STORE.xbull.android
+        ));
+
+        // Wait for wallet approval
+        session = await approval();
+
+        // Done — close modal and show account
+        qrArea.style.display = "none"; closeModal();
+
+        const accounts = session.namespaces?.stellar?.accounts || [];
+        const first = accounts.find(a=>a.startsWith(chainId())) || accounts[0] || "";
+        const address = first.split(":")[2] || "(unknown)";
+        addrEl.textContent = address; connectedWrap.style.display = "block";
+        statusEl.textContent = `Connected (${CURRENT_NET})`;
+        disconnectBtn.disabled = false;
+        document.querySelectorAll('input[name="net"]').forEach(r=>r.disabled=true);
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = "Connection canceled or failed.";
+      }
     });
 
-    on(disconnectBtn,"click",async()=>{
-      try{ if(client&&session){ await client.disconnect({topic:session.topic,reason:{code:6000,message:"User disconnected"}}); } }catch{}
-      session=null; connectedWrap.style.display="none"; addrEl.textContent=""; statusEl.textContent="Not connected";
+    // ---- Disconnect
+    on(disconnectBtn,"click", async ()=>{
+      try{
+        if(client && session){
+          await client.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
+        }
+      }catch(e){ console.warn("disconnect error", e); }
+      session=null; connectedWrap.style.display="none"; addrEl.textContent="";
+      statusEl.textContent="Not connected"; disconnectBtn.disabled=true;
+      document.querySelectorAll('input[name=\"net\"]').forEach(r=>r.disabled=false);
     });
 
-    const wcRequest=(method,xdr)=>client.request({topic:session.topic,chainId:chainId(),request:{jsonrpc:"2.0",method,params:{xdr}}});
-
-    on(signBtn,"click",async()=>{
-      if(!session) return; const xdr=prompt("Paste XDR"); if(!xdr) return;
-      try{const r=await wcRequest("stellar_signXDR",xdr);console.log(r);signResult.textContent="Signed ✓";}catch{signResult.textContent="Failed";}
+    // ---- Request helper
+    const wcRequest = (method, xdr) => client.request({
+      topic: session.topic, chainId: chainId(),
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
     });
 
-    on(signAndSubmitPromptBtn,"click",async()=>{
-      if(!session) return; const xdr=prompt("Paste XDR"); if(!xdr) return;
-      try{const r=await wcRequest("stellar_signAndSubmitXDR",xdr);console.log(r);signResult.textContent="Submitted ✓";}catch{signResult.textContent="Failed";}
+    // ---- Prompt flows
+    on(signBtn,"click", async ()=>{
+      if(!session) return; const xdr = prompt("Paste a Transaction XDR to sign"); if(!xdr) return;
+      try{ const r = await wcRequest("stellar_signXDR", xdr); console.log("signed:", r); signResult.textContent="Signed ✓"; }
+      catch(e){ console.error(e); signResult.textContent="Signing failed."; }
+    });
+    on(signAndSubmitPromptBtn,"click", async ()=>{
+      if(!session) return; const xdr = prompt("Paste a Transaction XDR to sign & submit"); if(!xdr) return;
+      try{ const r = await wcRequest("stellar_signAndSubmitXDR", xdr); console.log("submitted:", r); signResult.textContent="Submitted ✓"; }
+      catch(e){ console.error(e); signResult.textContent="Sign & submit failed."; }
     });
 
-    async function buildPaymentXDR({source,destination,amount,memo}){
-      const server=new ServerCtor(horizonUrl()); const account=await server.loadAccount(source);
+    // ---- Build XDR (native payment)
+    async function buildPaymentXDR({ source, destination, amount, memo }){
+      const server=new ServerCtor(horizonUrl());
+      const account=await server.loadAccount(source);
       const baseFee=await server.fetchBaseFee();
-      const tb=new TransactionBuilder(account,{fee:String(baseFee),networkPassphrase:netPassphrase()})
-        .addOperation(Operation.payment({destination,asset:Asset.native(),amount:String(amount)})).setTimeout(300);
-      if(memo) tb.addMemo(Memo.text(memo)); return tb.build().toXDR();
+      const tb=new TransactionBuilder(account,{ fee:String(baseFee), networkPassphrase: netPassphrase() })
+        .addOperation(Operation.payment({ destination, asset: Asset.native(), amount: String(amount) }))
+        .setTimeout(300);
+      if(memo) tb.addMemo(Memo.text(memo));
+      return tb.build().toXDR();
     }
 
-    const connectedAddress=()=>addrEl.textContent.startsWith("G")?addrEl.textContent.trim():null;
+    const connectedAddress = ()=> addrEl.textContent.trim().startsWith("G") ? addrEl.textContent.trim() : null;
 
-    on(buildBtn,"click",async()=>{
-      buildStatus.textContent=""; const source=connectedAddress();
-      if(!source){buildStatus.textContent="Connect first.";return;}
-      const dest=destEl.value.trim(),amt=amountEl.value.trim(),memo=memoEl.value.trim();
-      if(!/^G[A-Z2-7]{55}$/.test(dest)){buildStatus.textContent="Bad destination";return;}
-      try{xdrOut.value=await buildPaymentXDR({source,destination:dest,amount:amt,memo});buildStatus.textContent="Built ✓";}catch(e){console.error(e);buildStatus.textContent="Error";}
+    on(buildBtn,"click", async ()=>{
+      buildStatus.textContent="";
+      const source=connectedAddress();
+      if(!source){ buildStatus.textContent="Connect first."; return; }
+      const destination=destEl.value.trim(), amount=amountEl.value.trim(), memo=memoEl.value.trim();
+      if(!/^G[A-Z2-7]{55}$/.test(destination)){ buildStatus.textContent="Invalid destination."; return; }
+      if(!amount || Number(amount)<=0){ buildStatus.textContent="Enter amount."; return; }
+      try{ buildStatus.textContent="Building…"; xdrOut.value = await buildPaymentXDR({ source, destination, amount, memo }); buildStatus.textContent="Built ✓"; }
+      catch(e){ console.error(e); buildStatus.textContent="Failed to build XDR."; }
     });
 
-    on(signBuiltBtn,"click",async()=>{
-      if(!session){submitResult.textContent="Connect first.";return;}
-      const xdr=xdrOut.value.trim(); if(!xdr){submitResult.textContent="No XDR";return;}
-      try{const r=await wcRequest("stellar_signXDR",xdr);if(r?.signedXDR){xdrOut.value=r.signedXDR;submitResult.textContent="Signed ✓";}}catch{submitResult.textContent="Fail";}
+    // ---- Wallet signing / submitting for built XDR
+    on(signBuiltBtn,"click", async ()=>{
+      if(!session){ submitResult.textContent="Connect first."; return; }
+      const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Build or paste an XDR first."; return; }
+      submitResult.textContent="Signing…";
+      try{ const r = await wcRequest("stellar_signXDR", xdr); if(r?.signedXDR){ xdrOut.value=r.signedXDR; submitResult.textContent="Signed XDR ✓"; } else { submitResult.textContent="No signedXDR returned."; } }
+      catch(e){ console.error(e); submitResult.textContent="Signing failed."; }
     });
 
-    on(signAndSubmitBuiltBtn,"click",async()=>{
-      if(!session){submitResult.textContent="Connect first.";return;}
-      const xdr=xdrOut.value.trim(); if(!xdr){submitResult.textContent="No XDR";return;}
-      try{const r=await wcRequest("stellar_signAndSubmitXDR",xdr);console.log(r);submitResult.textContent="Submitted ✓";}catch{submitResult.textContent="Fail";}
+    on(signAndSubmitBuiltBtn,"click", async ()=>{
+      if(!session){ submitResult.textContent="Connect first."; return; }
+      const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Build or paste an XDR first."; return; }
+      submitResult.textContent="Submitting…";
+      try{ const r = await wcRequest("stellar_signAndSubmitXDR", xdr); console.log("signAndSubmit:", r); submitResult.textContent="Submitted ✓ (check console)"; }
+      catch(e){ console.error(e); submitResult.textContent="Sign & submit failed."; }
     });
 
-    on(submitSignedBtn,"click",async()=>{
-      const xdr=xdrOut.value.trim(); if(!xdr){submitResult.textContent="Need XDR";return;}
-      try{const res=await fetch(`${horizonUrl()}/transactions`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"tx="+encodeURIComponent(xdr)});const j=await res.json();submitResult.textContent=res.ok?`OK ✓ tx: ${j.hash}`:"Horizon error";}catch{submitResult.textContent="Network fail";}
+    on(submitSignedBtn,"click", async ()=>{
+      const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Need a signed XDR."; return; }
+      submitResult.textContent="Submitting to Horizon…";
+      try{
+        const resp = await fetch(`${horizonUrl()}/transactions`,{
+          method:"POST",
+          headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+          body:"tx="+encodeURIComponent(xdr)
+        });
+        const data = await resp.json();
+        if(resp.ok){ submitResult.textContent=`Horizon OK ✓ tx: ${data.hash}`; }
+        else{ submitResult.textContent="Horizon error (check console)."; console.error("Horizon error:", data); }
+      }catch(e){ console.error(e); submitResult.textContent="Network/submit error."; }
     });
+
+    if(!PROJECT_ID){ statusEl.textContent="Set your WalletConnect projectId."; }
   </script>
 
-  <noscript style="color:#fff">Enable JavaScript.</noscript>
+  <noscript style="color:#fff">Enable JavaScript to use WalletConnect.</noscript>
 </body>
 </html>
