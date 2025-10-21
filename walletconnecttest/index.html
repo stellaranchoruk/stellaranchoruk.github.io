@@ -35,20 +35,23 @@
     .qr-help{font-size:13px;opacity:.85}
     a.link{color:#9ab0ff;text-decoration:underline}
   </style>
+
+  <!-- Load Stellar SDK (UMD global) FIRST to guarantee window.StellarSdk -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/14.3.0/stellar-sdk.min.js"
+          integrity="sha512-jPttcJf5GxEB9dYfQAzcXk6lGvQyqz4sE4i3q7J0qFzLQq8+3Q2YdD1JHnC3z0d1R4JZqB2h0dUo6N2v9H6zvA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <div class="card">
     <h1>Stellar WalletConnect v2 — Static Demo</h1>
     <p>Connect a Stellar wallet via WalletConnect v2. On desktop you’ll see a QR; on mobile it deep-links your wallet (e.g., LOBSTR). Build a payment XDR, sign, and optionally submit.</p>
 
-    <!-- Top controls -->
     <div class="row" style="margin-top:10px">
       <button id="connectBtn">Connect Wallet</button>
       <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
       <span id="status" class="muted">Not connected</span>
     </div>
 
-    <!-- Network selector -->
     <div class="section">
       <div class="inline">
         <strong>Network:</strong>
@@ -58,7 +61,6 @@
       <p class="small">Change before connecting (disconnect to switch later).</p>
     </div>
 
-    <!-- Connected info -->
     <div id="connected" style="display:none" class="section">
       <div class="muted">Connected address:</div>
       <div id="address" class="addr"></div>
@@ -70,7 +72,6 @@
       <p id="signResult" class="small" style="margin-top:6px"></p>
     </div>
 
-    <!-- XDR Builder -->
     <div class="section">
       <h2>Build Payment XDR</h2>
       <p class="small">Builds a native XLM payment from your connected address (fetches sequence & base fee from Horizon).</p>
@@ -103,36 +104,19 @@
     </div>
   </div>
 
-  <!-- Backdrop + Login Modal -->
-  <div id="backdrop" class="backdrop"></div>
-  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-    <div class="modal-inner">
-      <div class="modal-header">
-        <h2 id="loginTitle" style="font-size:18px;margin:0">Login</h2>
-        <button class="x" id="closeModal" aria-label="Close">×</button>
-      </div>
-      <p>Select a login method:</p>
-      <button class="wallet-btn" id="wcBtn">🔗 WalletConnect</button>
-
-      <!-- Our QR area -->
-      <div id="qrArea" class="qr-wrap" style="display:none">
-        <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
-        <div class="qr-help">
-          Scan with your wallet app (LOBSTR, etc).<br/>
-          Or <a id="deepLink" class="link" href="#" target="_blank" rel="noreferrer">open in wallet</a>.
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Tiny polyfill some libs read in the browser -->
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- App logic (ESM): Stellar SDK + WalletConnect Sign Client + QRCode (all via esm.sh) -->
+  <!-- App logic (ESM): WC Sign Client + QRCode; Stellar comes from window.StellarSdk -->
   <script type="module">
-    import { Server, Networks, TransactionBuilder, Operation, Asset, Memo } from "https://esm.sh/@stellar/stellar-sdk@14.3.0";
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode from "https://esm.sh/qrcode@1.5.3";
+
+    // Ensure Stellar global is present
+    if (!window.StellarSdk) {
+      throw new Error("StellarSdk failed to load; check the CDN script tag.");
+    }
+    const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = window.StellarSdk;
 
     // ---- Config
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
@@ -165,7 +149,6 @@
 
     // ---- WC state
     let client=null, session=null;
-
     const isMobile=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     async function ensureClient(){
@@ -182,7 +165,7 @@
         await ensureClient();
         statusEl.textContent="Starting WalletConnect…";
 
-        // Use optionalNamespaces to avoid deprecation warning
+        // Use optionalNamespaces (avoids deprecation log)
         const optionalNamespaces = {
           stellar:{
             chains:[chainId()],
@@ -206,7 +189,7 @@
         // Wait for wallet approval
         session = await approval();
 
-        // Clean up UI
+        // Clean up
         qrArea.style.display="none";
         closeModal();
 
