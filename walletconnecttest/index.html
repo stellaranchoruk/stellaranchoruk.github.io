@@ -38,7 +38,7 @@
     a.link{color:#9ab0ff;text-decoration:underline}
   </style>
 
-  <!-- Stellar SDK (UMD global). cdnjs doesn't host this build; jsDelivr does. -->
+  <!-- Stellar SDK (UMD global). -->
   <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -145,7 +145,15 @@
     if (!window.StellarSdk) {
       throw new Error("StellarSdk failed to load; check the jsDelivr script tag.");
     }
-    const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = window.StellarSdk;
+    const SDK = window.StellarSdk;
+
+    // Some UMD bundles expose Server under SDK.Horizon.Server instead of SDK.Server
+    const ServerCtor = SDK.Server || SDK.Horizon?.Server;
+    if (!ServerCtor) {
+      console.error("StellarSdk keys:", Object.keys(SDK));
+      throw new Error("Could not find Stellar Server constructor on StellarSdk");
+    }
+    const { Networks, TransactionBuilder, Operation, Asset, Memo } = SDK;
 
     // ---- Config
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
@@ -234,7 +242,7 @@
         await ensureClient();
         if (statusEl) statusEl.textContent = "Starting WalletConnect…";
 
-        // Use optionalNamespaces (newer API shape)
+        // Use optionalNamespaces (no deprecation warning)
         const optionalNamespaces = {
           stellar: {
             chains:  [chainId()],
@@ -331,9 +339,9 @@
       } catch (e) { console.error(e); if (signResult) signResult.textContent = "Sign & submit failed."; }
     });
 
-    // XDR builder (native payment)
+    // XDR builder (native payment) — uses ServerCtor (works across UMD variants)
     async function buildPaymentXDR({ source, destination, amount, memo }) {
-      const server  = new Server(horizonUrl());
+      const server  = new ServerCtor(horizonUrl());
       const account = await server.loadAccount(source);
       const baseFee = await server.fetchBaseFee();
       const tb = new TransactionBuilder(account, {
