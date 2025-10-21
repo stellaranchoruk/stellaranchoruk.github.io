@@ -90,7 +90,7 @@
             <label>To</label>
             <div class="mono small" style="padding:10px 12px;border:1px solid #2a3d7a;border-radius:10px;background:#0b1430">
               AQUAm25<br/>
-              <span id="toIssuer" style="opacity:.8">GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC</span>
+              <span style="opacity:.8">GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC</span>
             </div>
           </div>
         </div>
@@ -233,8 +233,9 @@
     // 'none' | 'wc' | 'freighter'
     let connectionMode="none";
     let client=null, session=null, latestWcUri=null;
-    let buildTimer=null, balanceTimer=null, balanceInterval=null;
-    let swapTimer=null;
+    let buildTimer=null;       // locker debounce
+    let swapTimer=null;        // swap debounce
+    let lockerRefreshTimer=null; // optional periodic locker balance refresh (swap unaffected)
 
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
@@ -246,6 +247,7 @@
     function disableSwapButtons(){ [swapSignSubmit,swapSignOnly,swapCopy].forEach(b=>b.disabled=true); }
     function enableSwapButtons(){ const ok=!!xdrSwap.value.trim(); [swapSignSubmit,swapSignOnly,swapCopy].forEach(b=>b.disabled=!ok); }
 
+    // ---------- Connection state ----------
     function setConnected(address, mode){
       addrEl.textContent = address || "";
       modeEl.textContent = mode==="wc"?"WalletConnect":(mode==="freighter"?"Freighter extension":"—");
@@ -255,10 +257,11 @@
       if(address && /^G[A-Z2-7]{55}$/.test(address)){
         pubkeyEl.value = address;
         pubkeyEl.readOnly = true;
-        refreshBalancesAndUI();
-        startBalanceAutoRefresh();
+        initForNewAccount(); // fill swap once, refresh locker, build XDRs
+        startLockerAutoRefresh(); // locker-only periodic balance refresh
       }else{
         pubkeyEl.readOnly = false;
+        stopLockerAutoRefresh();
       }
     }
 
@@ -269,73 +272,34 @@
         }
       }catch(e){ console.warn(e); }
       session=null; connectionMode="none"; setConnected("", "none");
-      stopBalanceAutoRefresh();
       disableLockerButtons();
       disableSwapButtons();
     });
 
-    // ---------- Balances / dropdown ----------
-    async function loadBalances(pk){
+    // ---------- Locker: balance + build ----------
+    async function loadAquaM25Balance(pk){
       const acct = await getServer().loadAccount(pk);
-      const items = [];
-      const xlmBal = acct.balances.find(b=>b.asset_type==="native");
-      items.push({ code:"XLM", issuer:null, balance: xlmBal ? xlmBal.balance : "0" });
-      for(const b of acct.balances){
-        if(b.asset_type==="native") continue;
-        items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
-      }
-      return { acct, items };
+      const bal = acct.balances.find(b => b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
+      return { acct, balance: bal ? bal.balance : "0" };
     }
 
-    function fillSwapDropdown(items){
-      swapFrom.innerHTML = "";
-      for(const it of items){
-        const opt = document.createElement("option");
-        opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
-        opt.textContent = `${it.code}${it.issuer?` · ${it.issuer.slice(0,6)}…${it.issuer.slice(-6)}`:""} — ${it.balance}`;
-        swapFrom.appendChild(opt);
-      }
-      const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
-      const found = [...swapFrom.options].find(o=>o.value===def);
-      swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
+    function startLockerAutoRefresh(){
+      stopLockerAutoRefresh();
+      lockerRefreshTimer = setInterval(async ()=>{
+        const pk = pubkeyEl.value.trim();
+        if(!isValidG(pk)) return;
+        try{
+          const { balance } = await loadAquaM25Balance(pk);
+          aquaBalEl.textContent = balance;
+          // Do NOT touch swap here; do not rebuild swap; only locker can auto-build if amount changed.
+        }catch(e){ console.warn(e); }
+      }, 15000);
+    }
+    function stopLockerAutoRefresh(){
+      if(lockerRefreshTimer) clearInterval(lockerRefreshTimer);
+      lockerRefreshTimer = null;
     }
 
-    function startBalanceAutoRefresh(){ stopBalanceAutoRefresh(); balanceInterval = setInterval(refreshBalancesAndUI, 15000); }
-    function stopBalanceAutoRefresh(){ if(balanceInterval) clearInterval(balanceInterval); balanceInterval=null; }
-
-    async function refreshBalancesAndUI(){
-      const pk = pubkeyEl.value.trim();
-      if(!isValidG(pk)) { aquaBalEl.textContent="Invalid key"; return; }
-      try{
-        const { acct, items } = await loadBalances(pk);
-
-        // AQUAm25 balance
-        const a = acct.balances.find(b => b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
-        aquaBalEl.textContent = a ? a.balance : "0";
-
-        // Fill swap dropdown
-        fillSwapDropdown(items);
-
-        // Friendly defaults
-        if(!swapAmount.value.trim()){
-          const aquaItem = items.find(i=>i.code===AQUA_CODE && i.issuer===AQUA_ISSUER);
-          if(aquaItem){
-            const v = cleanAmt(parseFloat(aquaItem.balance||"0")*0.25);
-            if(v){ swapAmount.value = v; }
-          }
-        }
-        if(!amountEl.value.trim()){
-          const v = cleanAmt(parseFloat(aquaBalEl.textContent||"0")*0.25);
-          if(v){ amountEl.value = v; }
-        }
-
-        // Trigger updates
-        quoteSwap();
-        scheduleLockerBuild();
-      }catch(e){ console.error(e); }
-    }
-
-    // ---------- Locker build ----------
     function scheduleLockerBuild(){
       disableLockerButtons();
       if(buildTimer) clearTimeout(buildTimer);
@@ -375,8 +339,55 @@
       }catch(e){ console.error(e); return null; }
     }
 
-    // ---------- Swap quoting + XDR build ----------
+    // Locker inputs
+    on(pubkeyEl,"input", ()=>{
+      if(pubkeyEl.readOnly) return;
+      scheduleLockerBuild(); // swap unaffected
+    });
+    on(pubkeyEl,"change", ()=>{
+      if(pubkeyEl.readOnly) return;
+      initForNewAccount(); // fills swap once, refreshes balances, builds both if amounts set
+      startLockerAutoRefresh();
+    });
+    on(amountEl,"input", scheduleLockerBuild);
+
+    pctBtns.forEach(btn=>btn.addEventListener("click", ()=>{
+      const bal = parseFloat(aquaBalEl.textContent)||0;
+      const pct = parseInt(btn.dataset.pct,10)/100;
+      const v = cleanAmt(bal*pct);
+      amountEl.value = v||"";
+      scheduleLockerBuild();
+    }));
+
+    // ---------- Swap (one-time fill per account; only re-quote on user input/change) ----------
+    async function loadAllBalances(pk){
+      const acct = await getServer().loadAccount(pk);
+      const items = [];
+      const xlmBal = acct.balances.find(b=>b.asset_type==="native");
+      items.push({ code:"XLM", issuer:null, balance: xlmBal ? xlmBal.balance : "0" });
+      for(const b of acct.balances){
+        if(b.asset_type==="native") continue;
+        items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
+      }
+      return { acct, items };
+    }
+
+    function fillSwapDropdownOnce(items){
+      swapFrom.innerHTML = "";
+      for(const it of items){
+        const opt = document.createElement("option");
+        opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
+        opt.textContent = `${it.code}${it.issuer?` · ${it.issuer.slice(0,6)}…${it.issuer.slice(-6)}`:""} — ${it.balance}`;
+        swapFrom.appendChild(opt);
+      }
+      // Default to AQUA if present; otherwise keep first
+      const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
+      const found = [...swapFrom.options].find(o=>o.value===def);
+      swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
+    }
+
     async function quoteSwap(){
+      // Only called on user's actions (amount input or asset change)
       disableSwapButtons();
       xdrSwap.value = "";
       swapQuote.textContent = "";
@@ -425,6 +436,7 @@
 
         const txb = new SDK.TransactionBuilder(src, { fee: 20000, networkPassphrase: NETWORK });
 
+        // Ensure trustline exists for AQUAm25
         const acct = await getServer().loadAccount(pk);
         const hasTrust = !!acct.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
         if(!hasTrust){
@@ -444,32 +456,39 @@
       }
     }
 
-    // ---------- Inputs & percent buttons ----------
-    on(pubkeyEl,"input", ()=>{
-      if(pubkeyEl.readOnly) return;
-      scheduleLockerBuild();
-      quoteSwap();
-    });
-    on(pubkeyEl,"change", ()=>{
-      if(pubkeyEl.readOnly) return;
-      refreshBalancesAndUI();
-      startBalanceAutoRefresh();
-    });
-
-    on(amountEl,"input", scheduleLockerBuild);
-    pctBtns.forEach(btn=>btn.addEventListener("click", ()=>{
-      const bal = parseFloat(aquaBalEl.textContent)||0;
-      const pct = parseInt(btn.dataset.pct,10)/100;
-      const v = cleanAmt(bal*pct);
-      amountEl.value = v||"";
-      scheduleLockerBuild();
-    }));
-
+    // Swap triggers: ONLY on user actions
     on(swapFrom,"change", quoteSwap);
     on(swapAmount,"input", ()=>{
       if(swapTimer) clearTimeout(swapTimer);
       swapTimer = setTimeout(quoteSwap, 400);
     });
+
+    // ---------- Init / account bootstrap ----------
+    async function initForNewAccount(){
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)) { aquaBalEl.textContent="Invalid key"; return; }
+
+      try{
+        // Update locker balance
+        const { balance } = await loadAquaM25Balance(pk);
+        aquaBalEl.textContent = balance;
+
+        // Fill swap dropdown ONCE for this account
+        const { items } = await loadAllBalances(pk);
+        fillSwapDropdownOnce(items);
+
+        // Friendly defaults (do NOT auto-quote; user will type amount)
+        if(!amountEl.value.trim()){
+          const v = cleanAmt(parseFloat(balance||"0")*0.25);
+          if(v){ amountEl.value = v; }
+        }
+
+        // Build locker if amount exists
+        scheduleLockerBuild();
+
+        // Swap XDR will be built only after user types an amount or changes asset
+      }catch(e){ console.error(e); }
+    }
 
     // ---------- WalletConnect (mobile) ----------
     async function ensureClient(){ if(!client){ client = await SignClient.init({ projectId: PROJECT_ID }); } }
@@ -669,18 +688,23 @@
         swapResult.textContent="Submitting…";
         const hash = await submitToHorizon(signed);
         swapResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
-        setTimeout(refreshBalancesAndUI, 1200);
+        // After a successful swap, you can optionally refresh the locker balance:
+        setTimeout(async ()=>{
+          const pk = pubkeyEl.value.trim();
+          if(isValidG(pk)){
+            try{ const { balance } = await loadAquaM25Balance(pk); aquaBalEl.textContent = balance; }catch{}
+          }
+        }, 1200);
       }catch(e){ console.error(e); swapResult.textContent=e.message||"Sign/submit failed."; }
     });
     on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
 
-    // ---------- Init ----------
-    disableLockerButtons();
-    disableSwapButtons();
-
+    // ---------- First-load: if user already has a key typed in ----------
     window.addEventListener("load", ()=>{
       const pk = pubkeyEl.value.trim();
-      if(isValidG(pk)){ refreshBalancesAndUI(); startBalanceAutoRefresh(); }
+      if(isValidG(pk)){ initForNewAccount(); startLockerAutoRefresh(); }
+      disableLockerButtons();
+      disableSwapButtons();
     });
   </script>
 
