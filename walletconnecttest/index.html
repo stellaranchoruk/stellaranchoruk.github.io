@@ -42,7 +42,7 @@
 <body>
   <div class="card">
     <h1>Stellar — WalletConnect + Freighter Extension</h1>
-    <p>Connect a Stellar wallet via <b>WalletConnect</b> (LOBSTR/Freighter mobile) or the <b>Freighter browser extension</b>. Build a payment XDR, sign, and optionally submit.</p>
+    <p>Connect via <b>WalletConnect</b> (LOBSTR / Freighter mobile) or the <b>Freighter browser extension</b>. Build a payment XDR, sign, and optionally submit.</p>
 
     <div class="row" style="margin-top:10px">
       <button id="connectBtn">Connect Wallet</button>
@@ -128,14 +128,13 @@
     </div>
   </div>
 
-  <!-- Polyfill env -->
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // ========= Config / helpers =========
+    // ------- Config / helpers -------
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
 
@@ -195,7 +194,7 @@
       }
     }
 
-    // ======== LOBSTR deep link (solid) ========
+    // LOBSTR deep link
     function openLobstrApp(wcUri){
       const scheme = `lobstr://wc?uri=${encodeURIComponent(wcUri)}`;
       const store  = isIOS()? STORE.lobstr.ios : STORE.lobstr.android;
@@ -208,7 +207,7 @@
       }, 1800);
     }
 
-    // ======== Freighter mobile deep link via Explorer ========
+    // Freighter mobile deep links (Explorer)
     async function getFreighterLinks(){
       try{
         const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
@@ -248,10 +247,8 @@
       let attempted = false;
       for (const href of natives){
         attempted = true;
-        const t0 = Date.now();
         window.location.href = href;
         setTimeout(()=>{}, 350);
-        // next loop iteration will try the next candidate if we remained visible
       }
       if (universals.length){
         attempted = true;
@@ -262,7 +259,7 @@
       }
     }
 
-    // ======== WalletConnect button ========
+    // WalletConnect flow
     on(wcBtn,"click", async ()=>{
       try{
         await ensureClient();
@@ -284,14 +281,13 @@
         const freighterLinks = await getFreighterLinks();
         linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
 
-        // Rebind per-session
         const newL = btnLobstr.cloneNode(true), newF = btnFreighter.cloneNode(true);
         btnLobstr.replaceWith(newL); btnFreighter.replaceWith(newF);
         newL.addEventListener("click", ()=> openLobstrApp(latestWcUri));
         newF.addEventListener("click", ()=> openFreighterSmart(freighterLinks, latestWcUri));
 
-        session = await approval();         // Wait for wallet
-        connectionMode = "wc";              // mark mode
+        session = await approval();
+        connectionMode = "wc";
 
         qrArea.style.display = "none"; closeModal();
 
@@ -309,20 +305,57 @@
       }
     });
 
-    // ======== Freighter extension button ========
+    // ===== Freighter EXTENSION path (mirrors your working modal logic) =====
+    let freighterPoll = null;
+    function getFreighter(){ return window.freighterApi; }
+    function hasFreighterConnect(api){
+      return !!(api && (typeof api.getAddress==='function' || typeof api.requestAccess==='function' || typeof api.getPublicKey==='function'));
+    }
+    function detectFreighterOnce(){
+      const api = getFreighter();
+      return hasFreighterConnect(api);
+    }
+    function waitForFreighter(maxMs=6000, intervalMs=250){
+      if (detectFreighterOnce()) return Promise.resolve(true);
+      return new Promise(resolve=>{
+        const start=Date.now();
+        freighterPoll = setInterval(()=>{
+          if (detectFreighterOnce() || Date.now()-start>maxMs){
+            clearInterval(freighterPoll); freighterPoll=null;
+            resolve(detectFreighterOnce());
+          }
+        }, intervalMs);
+      });
+    }
+    async function getFreighterAddressSafe(api){
+      try{
+        if (api?.getAddress) {
+          const r = await api.getAddress();
+          if (r?.address) return r.address;
+        }
+        if (api?.requestAccess) {
+          const r = await api.requestAccess();
+          if (r?.address) return r.address;
+        }
+        if (api?.getPublicKey) {
+          const pk = await api.getPublicKey();
+          if (pk) return pk;
+        }
+      }catch(_){}
+      return "";
+    }
+
     on(freighterExtBtn,"click", async ()=>{
       try{
-        const freighter = window.freighterApi;
-        if(!freighter){
-          const msg = "Freighter extension not detected. Install it from the Chrome Web Store or Firefox Add-ons.";
-          alert(msg);
-          // Open store in a new tab for convenience (Chrome link)
+        const found = await waitForFreighter();
+        if(!found){
+          alert("Freighter extension not detected. Opening the Chrome Web Store page.");
           window.open("https://chromewebstore.google.com/detail/freighter/bkakmcofbanhnhfkkmlgmmohbcnkgkdk", "_blank", "noopener");
           return;
         }
-        // Request public key (prompts the user if not connected)
-        const pubkey = await freighter.getPublicKey();
-        if(!pubkey) throw new Error("No public key returned from Freighter");
+        const api = getFreighter();
+        const pubkey = await getFreighterAddressSafe(api);
+        if(!pubkey) throw new Error("Access denied or no address");
 
         connectionMode = "freighter";
         addrEl.textContent = pubkey;
@@ -337,7 +370,7 @@
       }
     });
 
-    // ======== Disconnect (works for both modes) ========
+    // Disconnect for both modes
     on(disconnectBtn,"click", async ()=>{
       try{
         if(connectionMode==="wc" && client && session){
@@ -350,7 +383,7 @@
       document.querySelectorAll('input[name=\"net\"]').forEach(r=>r.disabled=false);
     });
 
-    // ======== Sign helpers for each mode ========
+    // Sign helpers
     const wcRequest = (method, xdr) => client.request({
       topic: session.topic, chainId: chainId(),
       request: { jsonrpc:"2.0", method, params:{ xdr } }
@@ -363,9 +396,13 @@
         return r.signedXDR;
       }
       if(connectionMode==="freighter"){
-        const signed = await window.freighterApi.signTransaction(xdr, { networkPassphrase: netPassphrase() });
-        if(!signed) throw new Error("Freighter: no signed XDR returned");
-        return signed;
+        const api = getFreighter();
+        // Prefer address from extension to pass back into signTransaction options
+        const address = await getFreighterAddressSafe(api);
+        const res = await api.signTransaction(xdr, { networkPassphrase: netPassphrase(), address });
+        if (res?.error) throw new Error(res.error.message || "Freighter: sign failed");
+        // Freighter often returns { signedTxXdr }
+        return res.signedTxXdr || res.signedXDR || res;
       }
       throw new Error("Not connected");
     }
@@ -382,7 +419,7 @@
       return { hash: data.hash, signedXdr };
     }
 
-    // ======== Prompt flows (paste XDR) ========
+    // Prompt flows
     on(signBtn,"click", async ()=>{
       const xdr = prompt("Paste a Transaction XDR to sign");
       if(!xdr){ signResult.textContent="No XDR provided."; return; }
@@ -405,7 +442,7 @@
       }catch(e){ console.error(e); signResult.textContent=e.message || "Sign & submit failed."; }
     });
 
-    // ======== Build XDR (native payment) ========
+    // Build XDR (native payment)
     async function buildPaymentXDR({ source, destination, amount, memo }){
       const server=new ServerCtor(horizonUrl());
       const account=await server.loadAccount(source);
@@ -433,7 +470,7 @@
       }catch(e){ console.error(e); buildStatus.textContent="Failed to build XDR."; }
     });
 
-    // ======== Built-XDR sign/submit buttons ========
+    // Built-XDR sign/submit buttons
     on(signBuiltBtn,"click", async ()=>{
       const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Build or paste an XDR first."; return; }
       if(connectionMode==="none"){ submitResult.textContent="Connect first."; return; }
@@ -471,6 +508,8 @@
       }catch(e){ console.error(e); submitResult.textContent="Network/submit error."; }
     });
 
+    // Bonus: if user focuses tab later (unlock extension), re-check Freighter
+    window.addEventListener('focus', ()=>{ if(connectionMode==="none") detectFreighterOnce(); });
   </script>
 
   <noscript style="color:#fff">Enable JavaScript to use WalletConnect.</noscript>
