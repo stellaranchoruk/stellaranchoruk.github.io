@@ -2,8 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Stellar — WalletConnect + Freighter Extension</title>
+  <title>Stellar — WalletConnect + Freighter (Extension & Mobile)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Freighter API (UMD global: window.freighterApi) -->
+  <!-- IMPORTANT: non-self-closing tag -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
+
+  <!-- Stellar SDK (UMD) for building XDR + Horizon calls -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js"
+    crossorigin="anonymous"
+  ></script>
+
   <style>
     :root{--bg:#0b1220;--card:#121a2b;--border:#233055;--muted:#8ea2ff}
     body{margin:0;padding:28px;background:var(--bg);color:#f1f5ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
@@ -35,13 +50,10 @@
     .wallet-choices button{background:#162554;border:1px solid #344a8a}
     a.link{color:#9ab0ff;text-decoration:underline}
   </style>
-
-  <!-- Stellar SDK (UMD) -->
-  <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="card">
-    <h1>Stellar — WalletConnect + Freighter Extension</h1>
+    <h1>Stellar — WalletConnect + Freighter (Extension & Mobile)</h1>
     <p>Connect via <b>WalletConnect</b> (LOBSTR / Freighter mobile) or the <b>Freighter browser extension</b>. Build a payment XDR, sign, and optionally submit.</p>
 
     <div class="row" style="margin-top:10px">
@@ -131,6 +143,19 @@
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
+    // --------- Ensure Freighter API is present (UMD global or ESM fallback) ----------
+    async function ensureFreighterApi(){
+      if (window.freighterApi) return window.freighterApi;
+      try {
+        const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
+        window.freighterApi = mod?.default ?? mod;
+        return window.freighterApi;
+      } catch (e) {
+        console.error('Failed to import @stellar/freighter-api via ESM', e);
+        return null;
+      }
+    }
+
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
@@ -305,24 +330,22 @@
       }
     });
 
-    // ===== Freighter EXTENSION path (mirrors your working modal logic) =====
+    // ===== Freighter EXTENSION path (uses ensured freighterApi) =====
     let freighterPoll = null;
     function getFreighter(){ return window.freighterApi; }
     function hasFreighterConnect(api){
       return !!(api && (typeof api.getAddress==='function' || typeof api.requestAccess==='function' || typeof api.getPublicKey==='function'));
     }
-    function detectFreighterOnce(){
-      const api = getFreighter();
-      return hasFreighterConnect(api);
-    }
-    function waitForFreighter(maxMs=6000, intervalMs=250){
-      if (detectFreighterOnce()) return Promise.resolve(true);
+    async function waitForFreighter(maxMs=6000, intervalMs=250){
+      await ensureFreighterApi();
+      if (hasFreighterConnect(getFreighter())) return true;
       return new Promise(resolve=>{
         const start=Date.now();
-        freighterPoll = setInterval(()=>{
-          if (detectFreighterOnce() || Date.now()-start>maxMs){
+        freighterPoll = setInterval(async ()=>{
+          await ensureFreighterApi();
+          if (hasFreighterConnect(getFreighter()) || Date.now()-start>maxMs){
             clearInterval(freighterPoll); freighterPoll=null;
-            resolve(detectFreighterOnce());
+            resolve(hasFreighterConnect(getFreighter()));
           }
         }, intervalMs);
       });
@@ -397,11 +420,9 @@
       }
       if(connectionMode==="freighter"){
         const api = getFreighter();
-        // Prefer address from extension to pass back into signTransaction options
         const address = await getFreighterAddressSafe(api);
         const res = await api.signTransaction(xdr, { networkPassphrase: netPassphrase(), address });
         if (res?.error) throw new Error(res.error.message || "Freighter: sign failed");
-        // Freighter often returns { signedTxXdr }
         return res.signedTxXdr || res.signedXDR || res;
       }
       throw new Error("Not connected");
@@ -508,8 +529,8 @@
       }catch(e){ console.error(e); submitResult.textContent="Network/submit error."; }
     });
 
-    // Bonus: if user focuses tab later (unlock extension), re-check Freighter
-    window.addEventListener('focus', ()=>{ if(connectionMode==="none") detectFreighterOnce(); });
+    // Re-check Freighter when tab regains focus (user may have just installed/unlocked)
+    window.addEventListener('focus', ()=>{ ensureFreighterApi(); });
   </script>
 
   <noscript style="color:#fff">Enable JavaScript to use WalletConnect.</noscript>
