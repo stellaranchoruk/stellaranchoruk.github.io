@@ -127,16 +127,15 @@
         <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
         <div class="qr-help">
           Scan with your wallet app (LOBSTR, etc).<br/>
-          Or <a id="deepLink" class="link" href="#" target="_blank" rel="noreferrer">open in wallet</a>.
+          Or <a id="deepLink" class="link" href="#" target="_blank" rel="noreferrer">open in LOBSTR</a>.
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Tiny polyfill some libs read in the browser -->
+  <!-- Tiny polyfill -->
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- App logic (ESM): WC Sign Client + QRCode; Stellar comes from window.StellarSdk -->
   <script type="module">
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
@@ -146,8 +145,7 @@
       throw new Error("StellarSdk failed to load; check the jsDelivr script tag.");
     }
     const SDK = window.StellarSdk;
-
-    // Some UMD bundles expose Server under SDK.Horizon.Server instead of SDK.Server
+    // Some UMD bundles expose Server under SDK.Horizon.Server
     const ServerCtor = SDK.Server || SDK.Horizon?.Server;
     if (!ServerCtor) {
       console.error("StellarSdk keys:", Object.keys(SDK));
@@ -159,272 +157,211 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
 
     // ---- DOM helpers (defensive)
-    const $ = (id) => {
-      const el = document.getElementById(id);
-      if (!el) console.warn(`[WARN] Missing element #${id}`);
-      return el;
-    };
+    const $  = (id) => document.getElementById(id);
     const on = (el, evt, fn) => el?.addEventListener?.(evt, fn);
 
-    // Grab elements
-    const connectBtn   = $("connectBtn");
-    const disconnectBtn= $("disconnectBtn");
-    const statusEl     = $("status");
+    // Elements
+    const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
+    const connectedWrap=$("connected"), addrEl=$("address");
+    const signBtn=$("signDemoBtn"), signSubmitPromptBtn=$("signAndSubmitPromptBtn"), signResult=$("signResult");
+    const buildBtn=$("buildBtn"), buildStatus=$("buildStatus"), xdrOut=$("xdrOut");
+    const destEl=$("dest"), amountEl=$("amount"), memoEl=$("memo");
+    const signBuiltBtn=$("signBuiltBtn"), signAndSubmitBuiltBtn=$("signAndSubmitBuiltBtn");
+    const submitSignedBtn=$("submitSignedBtn"), submitResult=$("submitResult");
+    const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal"), wcBtn=$("wcBtn");
+    const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), deepLink=$("deepLink");
 
-    const connectedWrap= $("connected");
-    const addrEl       = $("address");
+    // Modal
+    const openModal=()=>{backdrop?.classList.add("open");loginModal?.classList.add("open");};
+    const closeModal=()=>{backdrop?.classList.remove("open");loginModal?.classList.remove("open");};
+    on(closeModalBtn,"click",closeModal); on(backdrop,"click",closeModal);
 
-    const signBtn      = $("signDemoBtn");
-    const signSubmitPromptBtn = $("signAndSubmitPromptBtn");
-    const signResult   = $("signResult");
+    // Network
+    let CURRENT_NET="pubnet";
+    const netRadios=document.querySelectorAll('input[name="net"]');
+    netRadios.forEach(r=>on(r,"change",()=>{
+      if(session){ alert("Disconnect first to switch networks."); return; }
+      CURRENT_NET=r.value; statusEl.textContent=`Network: ${CURRENT_NET}`;
+    }));
+    const chainId=()=>`stellar:${CURRENT_NET}`;
+    const horizonUrl=()=>CURRENT_NET==="pubnet"?"https://horizon.stellar.org":"https://horizon-testnet.stellar.org";
+    const netPassphrase=()=>CURRENT_NET==="pubnet"?Networks.PUBLIC:Networks.TESTNET;
 
-    const buildBtn     = $("buildBtn");
-    const buildStatus  = $("buildStatus");
-    const xdrOut       = $("xdrOut");
-    const destEl       = $("dest");
-    const amountEl     = $("amount");
-    const memoEl       = $("memo");
+    // WalletConnect
+    let client=null, session=null;
+    const isMobile=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    const signBuiltBtn = $("signBuiltBtn");
-    const signAndSubmitBuiltBtn = $("signAndSubmitBuiltBtn");
-    const submitSignedBtn = $("submitSignedBtn");
-    const submitResult = $("submitResult");
-
-    const backdrop     = $("backdrop");
-    const loginModal   = $("loginModal");
-    const closeModalBtn= $("closeModal");
-    const wcBtn        = $("wcBtn");
-    const qrArea       = $("qrArea");
-    const qrCanvas     = $("qrCanvas");
-    const deepLink     = $("deepLink");
-
-    const openModal  = () => { backdrop?.classList.add("open"); loginModal?.classList.add("open"); };
-    const closeModal = () => { backdrop?.classList.remove("open"); loginModal?.classList.remove("open"); };
-
-    on(closeModalBtn, "click", closeModal);
-    on(backdrop, "click", closeModal);
-
-    // ---- Network
-    let CURRENT_NET = "pubnet";
-    const netRadios = document.querySelectorAll('input[name="net"]');
-
-    netRadios.forEach(r => {
-      on(r, "change", () => {
-        if (session) {
-          alert("Disconnect first to switch networks.");
-          [...netRadios].forEach(r2 => (r2.checked = r2.value === CURRENT_NET));
-          return;
-        }
-        CURRENT_NET = r.value;
-        if (statusEl) statusEl.textContent = `Network: ${CURRENT_NET}`;
-      });
-    });
-
-    const chainId       = () => `stellar:${CURRENT_NET}`;
-    const horizonUrl    = () => CURRENT_NET === "pubnet" ? "https://horizon.stellar.org" : "https://horizon-testnet.stellar.org";
-    const netPassphrase = () => CURRENT_NET === "pubnet" ? Networks.PUBLIC : Networks.TESTNET;
-
-    // ---- WalletConnect state
-    let client = null, session = null;
-    const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    async function ensureClient() {
-      if (!client) {
-        client = await SignClient.init({ projectId: PROJECT_ID });
+    async function ensureClient(){
+      if(!client){
+        client=await SignClient.init({ projectId: PROJECT_ID });
         console.log("WalletConnect SignClient ready");
       }
     }
 
-    on(connectBtn, "click", openModal);
+    on(connectBtn,"click",openModal);
 
-    on(wcBtn, "click", async () => {
-      try {
+    on(wcBtn,"click", async ()=>{
+      try{
         await ensureClient();
-        if (statusEl) statusEl.textContent = "Starting WalletConnect…";
+        statusEl.textContent="Starting WalletConnect…";
 
-        // Use optionalNamespaces (no deprecation warning)
-        const optionalNamespaces = {
-          stellar: {
-            chains:  [chainId()],
-            methods: ["stellar_signXDR", "stellar_signAndSubmitXDR"],
-            events:  []
-          }
+        const optionalNamespaces={
+          stellar:{ chains:[chainId()], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
         };
 
         const { uri, approval } = await client.connect({ optionalNamespaces });
-        if (!uri) throw new Error("No WC URI returned");
+        if(!uri) throw new Error("No WC URI returned");
 
-        if (isMobile()) {
-          window.location.href = uri; // deep-link to wallet on mobile
+        if(isMobile()){
+          // iOS will ask "Open in MetaMask?" for wc: scheme; we still deep-link,
+          // but provide a LOBSTR-preferring link below as well.
+          window.location.href = uri;
         }
 
-        // Show QR (desktop + fallback)
-        if (qrArea) qrArea.style.display = "flex";
-        if (qrCanvas) await QRCode.toCanvas(qrCanvas, uri, { width: 256, margin: 1 });
-        if (deepLink) deepLink.href = uri;
+        // Show QR
+        qrArea.style.display="flex";
+        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+
+        // Prefer LOBSTR for the "open in LOBSTR" link on mobile
+        deepLink.href = `https://lobstr.co/wc?uri=${encodeURIComponent(uri)}`;
 
         // Wait for wallet approval
         session = await approval();
 
-        // Clean up UI
-        if (qrArea) qrArea.style.display = "none";
+        // Clean up
+        qrArea.style.display="none";
         closeModal();
 
-        // Display connected account
         const accounts = session.namespaces?.stellar?.accounts || [];
-        const first    = accounts.find(a => a.startsWith(chainId())) || accounts[0] || "";
-        const address  = first.split(":")[2] || "(unknown)";
-
-        if (addrEl) addrEl.textContent = address;
-        if (connectedWrap) connectedWrap.style.display = "block";
-        if (statusEl) statusEl.textContent = `Connected (${CURRENT_NET})`;
-        if (disconnectBtn) disconnectBtn.disabled = false;
-        netRadios.forEach(r => (r.disabled = true));
-      } catch (e) {
+        const first = accounts.find(a=>a.startsWith(chainId())) || accounts[0] || "";
+        const address = first.split(":")[2] || "(unknown)";
+        addrEl.textContent = address;
+        connectedWrap.style.display="block";
+        statusEl.textContent = `Connected (${CURRENT_NET})`;
+        disconnectBtn.disabled = false;
+        netRadios.forEach(r=>r.disabled=true);
+      }catch(e){
         console.error(e);
-        if (statusEl) statusEl.textContent = "Connection canceled or failed.";
-        // If QR already rendered, we leave it visible so user can retry
+        statusEl.textContent="Connection canceled or failed.";
       }
     });
 
-    // Disconnect
-    on(disconnectBtn, "click", async () => {
-      try {
-        if (client && session) {
-          await client.disconnect({
-            topic: session.topic,
-            reason: { code: 6000, message: "User disconnected" }
-          });
+    on(disconnectBtn,"click", async ()=>{
+      try{
+        if(client && session){
+          await client.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
         }
-      } catch (e) {
-        console.warn("disconnect error", e);
-      }
-      session = null;
-      if (connectedWrap) connectedWrap.style.display = "none";
-      if (addrEl) addrEl.textContent = "";
-      if (statusEl) statusEl.textContent = "Not connected";
-      if (disconnectBtn) disconnectBtn.disabled = true;
-      netRadios.forEach(r => { r.disabled = false; r.checked = (r.value === CURRENT_NET); });
+      }catch(e){ console.warn("disconnect error", e); }
+      session=null;
+      connectedWrap.style.display="none";
+      addrEl.textContent="";
+      statusEl.textContent="Not connected";
+      disconnectBtn.disabled=true;
+      netRadios.forEach(r=>{ r.disabled=false; r.checked=(r.value===CURRENT_NET); });
     });
 
-    // WalletConnect request helper
+    // WC request helper
     const wcRequest = (method, xdr) => client.request({
-      topic:   session.topic,
+      topic: session.topic,
       chainId: chainId(),
-      request: { jsonrpc: "2.0", method, params: { xdr } }
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
     });
 
-    // Prompt signers
-    on(signBtn, "click", async () => {
-      if (!session) return;
+    // Prompt sign flows
+    on(signBtn,"click", async ()=>{
+      if(!session) return;
       const xdr = prompt("Paste a Transaction XDR to sign");
-      if (!xdr) { if (signResult) signResult.textContent = "No XDR provided."; return; }
-      try {
-        if (signResult) signResult.textContent = "Signing…";
+      if(!xdr){ signResult.textContent="No XDR provided."; return; }
+      try{
+        signResult.textContent="Signing…";
         const res = await wcRequest("stellar_signXDR", xdr);
-        if (res?.signedXDR) { console.log("signedXDR:", res.signedXDR); if (signResult) signResult.textContent = "Signed ✓ (check console)"; }
-        else { if (signResult) signResult.textContent = "No signedXDR in response."; }
-      } catch (e) { console.error(e); if (signResult) signResult.textContent = "Signing failed."; }
+        if(res?.signedXDR){ console.log("signedXDR:", res.signedXDR); signResult.textContent="Signed ✓ (check console)"; }
+        else { signResult.textContent="No signedXDR in response."; }
+      }catch(e){ console.error(e); signResult.textContent="Signing failed."; }
     });
 
-    on(signSubmitPromptBtn, "click", async () => {
-      if (!session) return;
+    on(signSubmitPromptBtn,"click", async ()=>{
+      if(!session) return;
       const xdr = prompt("Paste a Transaction XDR to sign & submit");
-      if (!xdr) { if (signResult) signResult.textContent = "No XDR provided."; return; }
-      try {
-        if (signResult) signResult.textContent = "Submitting…";
+      if(!xdr){ signResult.textContent="No XDR provided."; return; }
+      try{
+        signResult.textContent="Submitting…";
         const res = await wcRequest("stellar_signAndSubmitXDR", xdr);
         console.log("signAndSubmit response:", res);
-        if (signResult) signResult.textContent = "Submitted ✓ (check console)";
-      } catch (e) { console.error(e); if (signResult) signResult.textContent = "Sign & submit failed."; }
+        signResult.textContent="Submitted ✓ (check console)";
+      }catch(e){ console.error(e); signResult.textContent="Sign & submit failed."; }
     });
 
-    // XDR builder (native payment) — uses ServerCtor (works across UMD variants)
-    async function buildPaymentXDR({ source, destination, amount, memo }) {
-      const server  = new ServerCtor(horizonUrl());
-      const account = await server.loadAccount(source);
-      const baseFee = await server.fetchBaseFee();
-      const tb = new TransactionBuilder(account, {
-        fee: String(baseFee),
+    // Build XDR (native payment)
+    async function buildPaymentXDR({ source, destination, amount, memo }){
+      const server=new ServerCtor(horizonUrl());
+      const account=await server.loadAccount(source);
+      const baseFee=await server.fetchBaseFee();
+      const tb=new TransactionBuilder(account,{
+        fee:String(baseFee),
         networkPassphrase: netPassphrase()
       })
         .addOperation(Operation.payment({ destination, asset: Asset.native(), amount: String(amount) }))
         .setTimeout(300);
-      if (memo) tb.addMemo(Memo.text(memo));
+      if(memo) tb.addMemo(Memo.text(memo));
       return tb.build().toXDR();
     }
 
-    const connectedAddress = () => {
-      const txt = addrEl?.textContent?.trim() || "";
-      return txt.startsWith("G") ? txt : null;
-    };
+    const connectedAddress = ()=> addrEl.textContent.trim().startsWith("G") ? addrEl.textContent.trim() : null;
 
-    on(buildBtn, "click", async () => {
-      if (buildStatus) buildStatus.textContent = "";
-      const source = connectedAddress();
-      if (!source) { if (buildStatus) buildStatus.textContent = "Connect first."; return; }
-
-      const destination = destEl?.value?.trim() || "";
-      const amount      = amountEl?.value?.trim() || "";
-      const memo        = memoEl?.value?.trim() || "";
-
-      if (!/^G[A-Z2-7]{55}$/.test(destination)) { if (buildStatus) buildStatus.textContent = "Invalid destination."; return; }
-      if (!amount || Number(amount) <= 0)       { if (buildStatus) buildStatus.textContent = "Enter amount."; return; }
-
-      try {
-        if (buildStatus) buildStatus.textContent = "Building…";
-        const xdr = await buildPaymentXDR({ source, destination, amount, memo });
-        if (xdrOut) xdrOut.value = xdr;
-        if (buildStatus) buildStatus.textContent = "Built ✓";
-      } catch (e) {
-        console.error(e);
-        if (buildStatus) buildStatus.textContent = "Failed to build XDR.";
-      }
+    on(buildBtn,"click", async ()=>{
+      buildStatus.textContent="";
+      const source=connectedAddress();
+      if(!source){ buildStatus.textContent="Connect first."; return; }
+      const destination=destEl.value.trim(), amount=amountEl.value.trim(), memo=memoEl.value.trim();
+      if(!/^G[A-Z2-7]{55}$/.test(destination)){ buildStatus.textContent="Invalid destination."; return; }
+      if(!amount || Number(amount)<=0){ buildStatus.textContent="Enter amount."; return; }
+      try{
+        buildStatus.textContent="Building…";
+        xdrOut.value = await buildPaymentXDR({ source, destination, amount, memo });
+        buildStatus.textContent="Built ✓";
+      }catch(e){ console.error(e); buildStatus.textContent="Failed to build XDR."; }
     });
 
     // Wallet signing / submitting for built XDR
-    on(signBuiltBtn, "click", async () => {
-      if (!session) { if (submitResult) submitResult.textContent = "Connect first."; return; }
-      const xdr = xdrOut?.value?.trim();
-      if (!xdr) { if (submitResult) submitResult.textContent = "Build or paste an XDR first."; return; }
-      if (submitResult) submitResult.textContent = "Signing…";
-      try {
+    on(signBuiltBtn,"click", async ()=>{
+      if(!session){ submitResult.textContent="Connect first."; return; }
+      const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Build or paste an XDR first."; return; }
+      submitResult.textContent="Signing…";
+      try{
         const r = await wcRequest("stellar_signXDR", xdr);
-        if (r?.signedXDR) { if (xdrOut) xdrOut.value = r.signedXDR; if (submitResult) submitResult.textContent = "Signed XDR ✓"; }
-        else { if (submitResult) submitResult.textContent = "No signedXDR returned."; }
-      } catch (e) { console.error(e); if (submitResult) submitResult.textContent = "Signing failed."; }
+        if(r?.signedXDR){ xdrOut.value=r.signedXDR; submitResult.textContent="Signed XDR ✓"; }
+        else{ submitResult.textContent="No signedXDR returned."; }
+      }catch(e){ console.error(e); submitResult.textContent="Signing failed."; }
     });
 
-    on(signAndSubmitBuiltBtn, "click", async () => {
-      if (!session) { if (submitResult) submitResult.textContent = "Connect first."; return; }
-      const xdr = xdrOut?.value?.trim();
-      if (!xdr) { if (submitResult) submitResult.textContent = "Build or paste an XDR first."; return; }
-      if (submitResult) submitResult.textContent = "Submitting…";
-      try {
+    on(signAndSubmitBuiltBtn,"click", async ()=>{
+      if(!session){ submitResult.textContent="Connect first."; return; }
+      const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Build or paste an XDR first."; return; }
+      submitResult.textContent="Submitting…";
+      try{
         const r = await wcRequest("stellar_signAndSubmitXDR", xdr);
         console.log("signAndSubmit response:", r);
-        if (submitResult) submitResult.textContent = "Submitted ✓ (check console)";
-      } catch (e) { console.error(e); if (submitResult) submitResult.textContent = "Sign & submit failed."; }
+        submitResult.textContent="Submitted ✓ (check console)";
+      }catch(e){ console.error(e); submitResult.textContent="Sign & submit failed."; }
     });
 
-    // Submit signed XDR to Horizon
-    on(submitSignedBtn, "click", async () => {
-      const xdr = xdrOut?.value?.trim();
-      if (!xdr) { if (submitResult) submitResult.textContent = "Need a signed XDR."; return; }
-      if (submitResult) submitResult.textContent = "Submitting to Horizon…";
-      try {
-        const resp = await fetch(`${horizonUrl()}/transactions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-          body: "tx=" + encodeURIComponent(xdr)
+    on(submitSignedBtn,"click", async ()=>{
+      const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Need a signed XDR."; return; }
+      submitResult.textContent="Submitting to Horizon…";
+      try{
+        const resp = await fetch(`${horizonUrl()}/transactions`,{
+          method:"POST",
+          headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+          body:"tx="+encodeURIComponent(xdr)
         });
         const data = await resp.json();
-        if (resp.ok) { if (submitResult) submitResult.textContent = `Horizon OK ✓ tx: ${data.hash}`; }
-        else { if (submitResult) submitResult.textContent = "Horizon error (check console)."; console.error("Horizon error:", data); }
-      } catch (e) { console.error(e); if (submitResult) submitResult.textContent = "Network/submit error."; }
+        if(resp.ok){ submitResult.textContent=`Horizon OK ✓ tx: ${data.hash}`; }
+        else{ submitResult.textContent="Horizon error (check console)."; console.error("Horizon error:", data); }
+      }catch(e){ console.error(e); submitResult.textContent="Network/submit error."; }
     });
 
-    if (!PROJECT_ID && statusEl) statusEl.textContent = "Set your WalletConnect projectId.";
+    if(!PROJECT_ID){ statusEl.textContent="Set your WalletConnect projectId."; }
   </script>
 
   <noscript style="color:#fff">Enable JavaScript to use WalletConnect.</noscript>
