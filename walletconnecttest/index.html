@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Stellar WalletConnect v2 — LOBSTR + Freighter</title>
+  <title>Stellar — WalletConnect + Freighter Extension</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{--bg:#0b1220;--card:#121a2b;--border:#233055;--muted:#8ea2ff}
@@ -20,10 +20,12 @@
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .section{margin-top:18px;padding-top:14px;border-top:1px dashed #2b3b6a}
     .inline{display:inline-flex;gap:10px;align-items:center}
+
+    /* Modal */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
     .open{display:flex}
-    .modal-inner{width:min(540px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
     .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
     .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
@@ -33,13 +35,14 @@
     .wallet-choices button{background:#162554;border:1px solid #344a8a}
     a.link{color:#9ab0ff;text-decoration:underline}
   </style>
+
   <!-- Stellar SDK (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="card">
-    <h1>Stellar WalletConnect v2 — LOBSTR + Freighter</h1>
-    <p>Connect a Stellar wallet via WalletConnect v2. Desktop shows a QR. On mobile, choose <b>LOBSTR</b> or <b>Freighter</b>. Build a payment XDR, sign, and optionally submit.</p>
+    <h1>Stellar — WalletConnect + Freighter Extension</h1>
+    <p>Connect a Stellar wallet via <b>WalletConnect</b> (LOBSTR/Freighter mobile) or the <b>Freighter browser extension</b>. Build a payment XDR, sign, and optionally submit.</p>
 
     <div class="row" style="margin-top:10px">
       <button id="connectBtn">Connect Wallet</button>
@@ -59,6 +62,7 @@
     <div id="connected" style="display:none" class="section">
       <div class="muted">Connected address:</div>
       <div id="address" class="addr"></div>
+
       <div style="margin-top:12px" class="row">
         <button id="signDemoBtn">Sign XDR (prompt)</button>
         <button id="signAndSubmitPromptBtn">Sign &amp; Submit (prompt)</button>
@@ -68,15 +72,24 @@
 
     <div class="section">
       <h2>Build Payment XDR</h2>
+      <p class="small">Builds a native XLM payment from your connected address (fetches sequence &amp; base fee from Horizon).</p>
+
       <div class="grid">
         <div><label for="dest">Destination (G…)</label><input id="dest" placeholder="G… destination address" /></div>
         <div><label for="amount">Amount (XLM)</label><input id="amount" type="number" min="0" step="0.0000001" placeholder="10.5" /></div>
       </div>
+
       <label for="memo">Memo (optional)</label>
       <input id="memo" maxlength="28" placeholder="Thanks AQUA!" />
-      <div class="row" style="margin-top:10px"><button id="buildBtn">Build XDR</button><span id="buildStatus" class="small"></span></div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="buildBtn">Build XDR</button>
+        <span id="buildStatus" class="small"></span>
+      </div>
+
       <label for="xdrOut" style="margin-top:12px">Transaction XDR</label>
       <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here"></textarea>
+
       <div class="row" style="margin-top:10px">
         <button id="signBuiltBtn">Sign XDR (wallet)</button>
         <button id="signAndSubmitBuiltBtn">Sign &amp; Submit (wallet)</button>
@@ -94,17 +107,18 @@
         <h2 id="loginTitle" style="font-size:18px;margin:0">Login</h2>
         <button class="x" id="closeModal" aria-label="Close">×</button>
       </div>
-      <p>Select a login method:</p>
-      <button class="wallet-btn" id="wcBtn">🔗 WalletConnect</button>
 
+      <p>Select a login method:</p>
+      <button class="wallet-btn" id="wcBtn">🔗 WalletConnect (mobile)</button>
+      <button class="wallet-btn" id="freighterExtBtn">🧩 Freighter (browser extension)</button>
+
+      <!-- WalletConnect QR + wallet choices -->
       <div id="qrArea" class="qr-wrap" style="display:none">
         <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
-
         <div class="wallet-choices" aria-label="Open with wallet">
           <button id="btnLobstr" aria-label="Open in LOBSTR">Open in LOBSTR</button>
-          <button id="btnFreighter" aria-label="Open in Freighter">Open in Freighter</button>
+          <button id="btnFreighter" aria-label="Open in Freighter (mobile)">Open in Freighter</button>
         </div>
-
         <div class="qr-help">
           Scan with your wallet app (LOBSTR / Freighter),<br/>
           or tap a button above on mobile. · <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
@@ -114,26 +128,27 @@
     </div>
   </div>
 
+  <!-- Polyfill env -->
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // WalletConnect Explorer (for Freighter deep links)
-    const EXPLORER = "https://explorer-api.walletconnect.com/v3/wallets";
+    // ========= Config / helpers =========
+    const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
 
-    // Correct store fallbacks you provided
     const STORE = {
-      lobstr:   { ios:"https://apps.apple.com/app/id1404357892", android:"https://play.google.com/store/apps/details?id=com.lobstr.client" },
-      freighter:{ ios:"https://apps.apple.com/app/freighter/id6743947720", android:"https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1" }
+      lobstr:   { ios:"https://apps.apple.com/app/id1404357892",                      android:"https://play.google.com/store/apps/details?id=com.lobstr.client" },
+      freighter:{ ios:"https://apps.apple.com/app/freighter/id6743947720",           android:"https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1" }
     };
 
-    const $=(id)=>document.getElementById(id);
-    const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
-    const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const $  = (id)=>document.getElementById(id);
+    const on = (el,ev,fn)=>el&&el.addEventListener(ev,fn);
+    const isIOS = ()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+    // DOM
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
     const connectedWrap=$("connected"), addrEl=$("address");
     const signBtn=$("signDemoBtn"), signSubmitPromptBtn=$("signAndSubmitPromptBtn"), signResult=$("signResult");
@@ -141,12 +156,14 @@
     const destEl=$("dest"), amountEl=$("amount"), memoEl=$("memo");
     const signBuiltBtn=$("signBuiltBtn"), signAndSubmitBuiltBtn=$("signAndSubmitBuiltBtn");
     const submitSignedBtn=$("submitSignedBtn"), submitResult=$("submitResult");
-    const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal"), wcBtn=$("wcBtn");
+    const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal");
+    const wcBtn=$("wcBtn"), freighterExtBtn=$("freighterExtBtn");
     const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus");
     const btnLobstr=$("btnLobstr"), btnFreighter=$("btnFreighter"), rawWcLink=$("rawWcLink");
 
-    const openModal=()=>{backdrop.classList.add("open");loginModal.classList.add("open");};
-    const closeModal=()=>{backdrop.classList.remove("open");loginModal.classList.remove("open");};
+    // Modal
+    const openModal = ()=>{backdrop.classList.add("open");loginModal.classList.add("open");};
+    const closeModal= ()=>{backdrop.classList.remove("open");loginModal.classList.remove("open");};
     on(closeModalBtn,"click",closeModal); on(backdrop,"click",closeModal);
     on(connectBtn,"click",openModal);
 
@@ -156,15 +173,20 @@
     const ServerCtor = SDK.Server || SDK.Horizon?.Server;
     const { Networks, TransactionBuilder, Operation, Asset, Memo } = SDK;
 
+    // Network
     let CURRENT_NET="pubnet";
     const chainId=()=>`stellar:${CURRENT_NET}`;
     const horizonUrl=()=>CURRENT_NET==="pubnet"?"https://horizon.stellar.org":"https://horizon-testnet.stellar.org";
     const netPassphrase=()=>CURRENT_NET==="pubnet"?Networks.PUBLIC:Networks.TESTNET;
     document.querySelectorAll('input[name="net"]').forEach(r=>on(r,"change",()=>{
-      if(session){ alert("Disconnect first to switch networks."); return; }
+      if(session || connectionMode!=="none"){ alert("Disconnect first to switch networks."); return; }
       CURRENT_NET=r.value;
     }));
 
+    // Connection mode: 'none' | 'wc' | 'freighter'
+    let connectionMode = "none";
+
+    // WalletConnect
     let client=null, session=null, latestWcUri=null;
     async function ensureClient(){
       if(!client){
@@ -173,7 +195,7 @@
       }
     }
 
-    // LOBSTR (scheme → app; store if missing)
+    // ======== LOBSTR deep link (solid) ========
     function openLobstrApp(wcUri){
       const scheme = `lobstr://wc?uri=${encodeURIComponent(wcUri)}`;
       const store  = isIOS()? STORE.lobstr.ios : STORE.lobstr.android;
@@ -186,93 +208,61 @@
       }, 1800);
     }
 
-    // -------- Freighter helpers --------
+    // ======== Freighter mobile deep link via Explorer ========
     async function getFreighterLinks(){
       try{
         const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
         const res = await fetch(url);
         const data = await res.json();
-
-        // Normalize to array (Explorer v3 is an object map)
         const raw = data?.listings ?? data?.data ?? [];
         const arr = Array.isArray(raw) ? raw : Object.values(raw);
-
-        // Prefer exact name match; otherwise includes 'freighter'
         const w = arr.find(item => {
-          const name = (item.name || item.app?.name || "").toLowerCase().trim();
-          return name === "freighter" || name.includes("freighter");
+          const n = (item.name || item.app?.name || "").toLowerCase().trim();
+          return n === "freighter" || n.includes("freighter");
         });
-
-        if (!w) return { native:null, universal:null, found:false };
-        const mobile = w.mobile || w.app?.mobile || {};
-
+        const mobile = w?.mobile || w?.app?.mobile || {};
         return {
           native:    mobile.native || mobile.nativeLink || null,
           universal: mobile.universal || mobile.universalLink || null,
-          found:     true
+          found: !!w
         };
       }catch(e){
         console.warn("Explorer fetch failed:", e);
-        return { native:null, universal:null, found:false, error:true };
+        return { native:null, universal:null, found:false };
       }
     }
-
-    // Given a base link (native or universal) from Explorer, produce candidates that include the WC URI
-    function buildFreighterCandidates(base, wcUri){
+    function buildCandidates(base, wcUri){
       if(!base) return [];
       const enc = encodeURIComponent(wcUri);
-
-      // If template includes placeholder, replace and return single candidate
-      if (base.includes("{wc}") || base.includes("{URI}")){
+      if (base.includes("{wc}") || base.includes("{URI}")) {
         return [ base.replace("{wc}", enc).replace("{URI}", enc) ];
       }
-
-      // Otherwise, try both ?wc= and ?uri= (and & variants if query already present)
-      const hasQuery = base.includes("?");
-      const join = hasQuery ? "&" : "?";
-      return [
-        `${base}${join}wc=${enc}`,
-        `${base}${join}uri=${enc}`
-      ];
+      const hasQ = base.includes("?"); const j = hasQ ? "&" : "?";
+      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
     }
-
-    // Try opening candidates: native (foreground) then universal (new tab). Store fallback last.
     function openFreighterSmart(links, wcUri){
       const store = isIOS()? STORE.freighter.ios : STORE.freighter.android;
+      const natives = buildCandidates(links.native, wcUri);
+      const universals = buildCandidates(links.universal, wcUri);
 
-      const nativeCandidates    = buildFreighterCandidates(links.native, wcUri);
-      const universalCandidates = buildFreighterCandidates(links.universal, wcUri);
-
-      // 1) Try native candidates sequentially
-      let triedSomething = false;
-      for (const href of nativeCandidates){
-        triedSomething = true;
+      let attempted = false;
+      for (const href of natives){
+        attempted = true;
         const t0 = Date.now();
         window.location.href = href;
-        // Give each candidate a moment; if page stays visible, try next
-        const start = performance.now();
-        const blocker = Date.now();
-        // eslint-disable-next-line no-loop-func
-        setTimeout(()=>{}, 400); // small pause
-        // If we’re still visible very quickly, continue loop to next candidate
-        // (No perfect signal on iOS; this heuristic works well enough.)
-        // Next candidate will overwrite location.href again.
+        setTimeout(()=>{}, 350);
+        // next loop iteration will try the next candidate if we remained visible
       }
-
-      // 2) If we had no native or they didn't take, try universal (new tab so our page stays)
-      if (universalCandidates.length){
-        // open the first universal candidate
-        window.open(universalCandidates[0], "_blank", "noopener");
-        triedSomething = true;
+      if (universals.length){
+        attempted = true;
+        window.open(universals[0], "_blank", "noopener");
       }
-
-      // 3) If nothing was attempted (no links) or all failed, go to store
-      if (!triedSomething){
+      if (!attempted){
         window.open(store, "_blank", "noopener");
       }
     }
-    // -----------------------------------
 
+    // ======== WalletConnect button ========
     on(wcBtn,"click", async ()=>{
       try{
         await ensureClient();
@@ -292,26 +282,25 @@
 
         linkStatus.textContent = "Loading Freighter deep link…";
         const freighterLinks = await getFreighterLinks();
-        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — using store fallback.";
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
 
-        // Rebind buttons fresh each pairing
+        // Rebind per-session
         const newL = btnLobstr.cloneNode(true), newF = btnFreighter.cloneNode(true);
         btnLobstr.replaceWith(newL); btnFreighter.replaceWith(newF);
-
         newL.addEventListener("click", ()=> openLobstrApp(latestWcUri));
         newF.addEventListener("click", ()=> openFreighterSmart(freighterLinks, latestWcUri));
 
-        session = await approval();
+        session = await approval();         // Wait for wallet
+        connectionMode = "wc";              // mark mode
 
-        qrArea.style.display = "none";
-        closeModal();
+        qrArea.style.display = "none"; closeModal();
 
         const accounts = session.namespaces?.stellar?.accounts || [];
         const first = accounts.find(a=>a.startsWith(chainId())) || accounts[0] || "";
         const address = first.split(":")[2] || "(unknown)";
         addrEl.textContent = address;
         connectedWrap.style.display = "block";
-        statusEl.textContent = `Connected (${CURRENT_NET})`;
+        statusEl.textContent = `Connected via WalletConnect (${CURRENT_NET})`;
         disconnectBtn.disabled = false;
         document.querySelectorAll('input[name="net"]').forEach(r=>r.disabled=true);
       }catch(e){
@@ -320,33 +309,103 @@
       }
     });
 
+    // ======== Freighter extension button ========
+    on(freighterExtBtn,"click", async ()=>{
+      try{
+        const freighter = window.freighterApi;
+        if(!freighter){
+          const msg = "Freighter extension not detected. Install it from the Chrome Web Store or Firefox Add-ons.";
+          alert(msg);
+          // Open store in a new tab for convenience (Chrome link)
+          window.open("https://chromewebstore.google.com/detail/freighter/bkakmcofbanhnhfkkmlgmmohbcnkgkdk", "_blank", "noopener");
+          return;
+        }
+        // Request public key (prompts the user if not connected)
+        const pubkey = await freighter.getPublicKey();
+        if(!pubkey) throw new Error("No public key returned from Freighter");
+
+        connectionMode = "freighter";
+        addrEl.textContent = pubkey;
+        connectedWrap.style.display = "block";
+        statusEl.textContent = `Connected via Freighter extension (${CURRENT_NET})`;
+        disconnectBtn.disabled = false;
+        document.querySelectorAll('input[name="net"]').forEach(r=>r.disabled=true);
+        closeModal();
+      }catch(e){
+        console.error(e);
+        alert("Freighter connect failed or was canceled.");
+      }
+    });
+
+    // ======== Disconnect (works for both modes) ========
     on(disconnectBtn,"click", async ()=>{
       try{
-        if(client && session){
+        if(connectionMode==="wc" && client && session){
           await client.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
         }
       }catch(e){ console.warn("disconnect error", e); }
-      session=null; connectedWrap.style.display="none"; addrEl.textContent="";
+      session=null; connectionMode="none";
+      connectedWrap.style.display="none"; addrEl.textContent="";
       statusEl.textContent="Not connected"; disconnectBtn.disabled=true;
       document.querySelectorAll('input[name=\"net\"]').forEach(r=>r.disabled=false);
     });
 
+    // ======== Sign helpers for each mode ========
     const wcRequest = (method, xdr) => client.request({
       topic: session.topic, chainId: chainId(),
       request: { jsonrpc:"2.0", method, params:{ xdr } }
     });
 
+    async function signXdrWithCurrentWallet(xdr){
+      if(connectionMode==="wc"){
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR returned");
+        return r.signedXDR;
+      }
+      if(connectionMode==="freighter"){
+        const signed = await window.freighterApi.signTransaction(xdr, { networkPassphrase: netPassphrase() });
+        if(!signed) throw new Error("Freighter: no signed XDR returned");
+        return signed;
+      }
+      throw new Error("Not connected");
+    }
+
+    async function signAndSubmitWithCurrentWallet(xdr){
+      const signedXdr = await signXdrWithCurrentWallet(xdr);
+      const resp = await fetch(`${horizonUrl()}/transactions`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+        body:"tx="+encodeURIComponent(signedXdr)
+      });
+      const data = await resp.json();
+      if(!resp.ok) throw new Error("Horizon error: "+(data?.extras?.result_codes?.transaction||resp.status));
+      return { hash: data.hash, signedXdr };
+    }
+
+    // ======== Prompt flows (paste XDR) ========
     on(signBtn,"click", async ()=>{
-      if(!session) return; const xdr = prompt("Paste a Transaction XDR to sign"); if(!xdr) return;
-      try{ const r = await wcRequest("stellar_signXDR", xdr); console.log("signed:", r); signResult.textContent="Signed ✓"; }
-      catch(e){ console.error(e); signResult.textContent="Signing failed."; }
-    });
-    on(signAndSubmitPromptBtn,"click", async ()=>{
-      if(!session) return; const xdr = prompt("Paste a Transaction XDR to sign & submit"); if(!xdr) return;
-      try{ const r = await wcRequest("stellar_signAndSubmitXDR", xdr); console.log("submitted:", r); signResult.textContent="Submitted ✓"; }
-      catch(e){ console.error(e); signResult.textContent="Sign & submit failed."; }
+      const xdr = prompt("Paste a Transaction XDR to sign");
+      if(!xdr){ signResult.textContent="No XDR provided."; return; }
+      try{
+        signResult.textContent="Signing…";
+        const signed = await signXdrWithCurrentWallet(xdr);
+        console.log("signedXDR:", signed);
+        signResult.textContent="Signed ✓ (check console)";
+      }catch(e){ console.error(e); signResult.textContent=e.message || "Signing failed."; }
     });
 
+    on(signAndSubmitPromptBtn,"click", async ()=>{
+      const xdr = prompt("Paste a Transaction XDR to sign & submit");
+      if(!xdr){ signResult.textContent="No XDR provided."; return; }
+      try{
+        signResult.textContent="Submitting…";
+        const res = await signAndSubmitWithCurrentWallet(xdr);
+        console.log("submit result:", res);
+        signResult.textContent=`Submitted ✓ tx: ${res.hash}`;
+      }catch(e){ console.error(e); signResult.textContent=e.message || "Sign & submit failed."; }
+    });
+
+    // ======== Build XDR (native payment) ========
     async function buildPaymentXDR({ source, destination, amount, memo }){
       const server=new ServerCtor(horizonUrl());
       const account=await server.loadAccount(source);
@@ -367,24 +426,34 @@
       const destination=destEl.value.trim(), amount=amountEl.value.trim(), memo=memoEl.value.trim();
       if(!/^G[A-Z2-7]{55}$/.test(destination)){ buildStatus.textContent="Invalid destination."; return; }
       if(!amount || Number(amount)<=0){ buildStatus.textContent="Enter amount."; return; }
-      try{ buildStatus.textContent="Building…"; xdrOut.value = await buildPaymentXDR({ source, destination, amount, memo }); buildStatus.textContent="Built ✓"; }
-      catch(e){ console.error(e); buildStatus.textContent="Failed to build XDR."; }
+      try{
+        buildStatus.textContent="Building…";
+        xdrOut.value = await buildPaymentXDR({ source, destination, amount, memo });
+        buildStatus.textContent="Built ✓";
+      }catch(e){ console.error(e); buildStatus.textContent="Failed to build XDR."; }
     });
 
+    // ======== Built-XDR sign/submit buttons ========
     on(signBuiltBtn,"click", async ()=>{
-      if(!session){ submitResult.textContent="Connect first."; return; }
       const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Build or paste an XDR first."; return; }
+      if(connectionMode==="none"){ submitResult.textContent="Connect first."; return; }
       submitResult.textContent="Signing…";
-      try{ const r = await wcRequest("stellar_signXDR", xdr); if(r?.signedXDR){ xdrOut.value=r.signedXDR; submitResult.textContent="Signed XDR ✓"; } else { submitResult.textContent="No signedXDR returned."; } }
-      catch(e){ console.error(e); submitResult.textContent="Signing failed."; }
+      try{
+        const signed = await signXdrWithCurrentWallet(xdr);
+        xdrOut.value = signed;
+        submitResult.textContent="Signed XDR ✓";
+      }catch(e){ console.error(e); submitResult.textContent=e.message || "Signing failed."; }
     });
 
     on(signAndSubmitBuiltBtn,"click", async ()=>{
-      if(!session){ submitResult.textContent="Connect first."; return; }
       const xdr=xdrOut.value.trim(); if(!xdr){ submitResult.textContent="Build or paste an XDR first."; return; }
+      if(connectionMode==="none"){ submitResult.textContent="Connect first."; return; }
       submitResult.textContent="Submitting…";
-      try{ const r = await wcRequest("stellar_signAndSubmitXDR", xdr); console.log("signAndSubmit:", r); submitResult.textContent="Submitted ✓ (check console)"; }
-      catch(e){ console.error(e); submitResult.textContent="Sign & submit failed."; }
+      try{
+        const res = await signAndSubmitWithCurrentWallet(xdr);
+        submitResult.textContent=`Submitted ✓ tx: ${res.hash}`;
+        console.log("submit result:", res);
+      }catch(e){ console.error(e); submitResult.textContent=e.message || "Sign & submit failed."; }
     });
 
     on(submitSignedBtn,"click", async ()=>{
@@ -402,7 +471,6 @@
       }catch(e){ console.error(e); submitResult.textContent="Network/submit error."; }
     });
 
-    if(!PROJECT_ID){ statusEl.textContent="Set your WalletConnect projectId."; }
   </script>
 
   <noscript style="color:#fff">Enable JavaScript to use WalletConnect.</noscript>
