@@ -29,22 +29,24 @@
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
     .open{display:flex}
-    .modal-inner{width:min(520px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .modal-inner{width:min(540px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
     .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
     .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
-    .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:12px}
-    .qr-help{font-size:13px;opacity:.85}
+    .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
+    .qr-help{font-size:13px;opacity:.85;text-align:center}
+    .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .wallet-choices button{background:#162554;border:1px solid #344a8a}
     a.link{color:#9ab0ff;text-decoration:underline}
   </style>
 
-  <!-- Stellar SDK (UMD global). -->
+  <!-- Stellar SDK (UMD global) -->
   <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="card">
     <h1>Stellar WalletConnect v2 — Static Demo</h1>
-    <p>Connect a Stellar wallet via WalletConnect v2. On desktop you’ll see a QR; on mobile it deep-links your wallet (e.g., LOBSTR). Build a payment XDR, sign, and optionally submit.</p>
+    <p>Connect a Stellar wallet via WalletConnect v2. On desktop you’ll see a QR; on mobile pick a wallet (LOBSTR, Freighter, xBull Wallet). Build a payment XDR, sign, and optionally submit.</p>
 
     <!-- Top controls -->
     <div class="row" style="margin-top:10px">
@@ -122,13 +124,19 @@
       <p>Select a login method:</p>
       <button class="wallet-btn" id="wcBtn">🔗 WalletConnect</button>
 
-      <!-- Our QR area -->
+      <!-- QR + wallet choices -->
       <div id="qrArea" class="qr-wrap" style="display:none">
         <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
+
+        <div class="wallet-choices" aria-label="Open with wallet">
+          <button id="btnLobstr"   aria-label="Open in LOBSTR">Open in LOBSTR</button>
+          <button id="btnFreighter" aria-label="Open in Freighter">Open in Freighter</button>
+          <button id="btnXbull"    aria-label="Open in xBull Wallet">Open in xBull Wallet</button>
+        </div>
+
         <div class="qr-help">
-          Scan with your wallet app (LOBSTR, etc).<br/>
-          Or <a id="deepLink" class="link" href="#" target="_blank" rel="noreferrer">open in LOBSTR</a> ·
-          <a id="altDeepLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
+          Scan with your wallet app (LOBSTR / Freighter / xBull Wallet),<br/>
+          or tap a button above on mobile. · <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
         </div>
       </div>
     </div>
@@ -137,9 +145,34 @@
   <!-- Tiny polyfill -->
   <script>window.process = window.process || { env: {} };</script>
 
+  <!-- App logic -->
   <script type="module">
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
+
+    // ------ Wallet deep-link CONFIG (edit here if vendors change schemes) ------
+    const WALLET_LINKS = {
+      lobstr: {
+        schemes:   ["lobstr://wc?uri={URI}"],
+        universals:["https://lobstr.co/wc?uri={URI}"],
+        iosStore:      "https://apps.apple.com/app/id1404357892",
+        androidStore:  "https://play.google.com/store/apps/details?id=com.lobstr.client"
+      },
+      freighter: {
+        // NOTE: adjust if Freighter uses a different path; these are reasonable defaults.
+        schemes:   ["freighter://wc?uri={URI}"],
+        universals:["https://freighter.app/wc?uri={URI}"],
+        iosStore:      "https://apps.apple.com/app/freighter-wallet/id6479234208",
+        androidStore:  "https://play.google.com/store/apps/details?id=io.freighter.app"
+      },
+      xbull: {
+        schemes:   ["xbull://wc?uri={URI}"],
+        universals:["https://xbull.app/wc?uri={URI}"],
+        iosStore:      "https://apps.apple.com/app/xbull-wallet/id1613698505",
+        androidStore:  "https://play.google.com/store/apps/details?id=com.xbull.app"
+      }
+    };
+    // ---------------------------------------------------------------------------
 
     // Ensure Stellar global is present
     if (!window.StellarSdk) {
@@ -159,6 +192,8 @@
     // ---- DOM helpers
     const $  = (id) => document.getElementById(id);
     const on = (el, evt, fn) => el?.addEventListener?.(evt, fn);
+    const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isiOS    = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     // Elements
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
@@ -170,7 +205,7 @@
     const submitSignedBtn=$("submitSignedBtn"), submitResult=$("submitResult");
     const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal"), wcBtn=$("wcBtn");
     const qrArea=$("qrArea"), qrCanvas=$("qrCanvas");
-    const deepLink=$("deepLink"), altDeepLink=$("altDeepLink");
+    const btnLobstr=$("btnLobstr"), btnFreighter=$("btnFreighter"), btnXbull=$("btnXbull"), rawWcLink=$("rawWcLink");
 
     // Modal
     const openModal=()=>{backdrop?.classList.add("open");loginModal?.classList.add("open");};
@@ -190,8 +225,6 @@
 
     // WalletConnect
     let client=null, session=null;
-    const isMobile=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isiOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     async function ensureClient(){
       if(!client){
@@ -200,27 +233,39 @@
       }
     }
 
-    // Try to open LOBSTR via custom scheme; fallback to store if not installed
-    function openLobstrNow(wcUri){
-      const lobstrScheme = `lobstr://wc?uri=${encodeURIComponent(wcUri)}`;
-      const storeUrl = isiOS()
-        ? "https://apps.apple.com/app/id1404357892"
-        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+    on(connectBtn,"click",openModal);
 
-      // Attempt open; if app isn't installed, redirect to the store shortly
-      const before = Date.now();
-      // Use assign so back button returns here
-      window.location.assign(lobstrScheme);
+    // Try opening a wallet via schemes/universals with store fallback
+    function tryOpenWallet({schemes=[], universals=[], iosStore, androidStore}, wcUri){
+      const encoded = encodeURIComponent(wcUri);
+      const candidates = [
+        ...schemes.map(t => t.replace("{URI}", encoded)),
+        ...universals.map(t => t.replace("{URI}", encoded)),
+      ];
+      const store = isiOS() ? iosStore : androidStore;
 
-      setTimeout(() => {
-        // If the page is still visible and we haven't switched apps, go to store
-        if (!document.hidden && Date.now() - before < 2000) {
-          window.location.assign(storeUrl);
+      if (!candidates.length) {
+        window.location.assign(wcUri);
+        return;
+      }
+
+      let idx = 0;
+      const attempt = () => {
+        if (idx >= candidates.length) {
+          if (store) window.location.assign(store);
+          return;
         }
-      }, 1200);
+        const href = candidates[idx++];
+        const t0 = Date.now();
+        window.location.assign(href);
+        setTimeout(() => {
+          if (!document.hidden && Date.now() - t0 < 2000) attempt();
+        }, 1100);
+      };
+      attempt();
     }
 
-    on(connectBtn,"click",openModal);
+    let latestWcUri = null;
 
     on(wcBtn,"click", async ()=>{
       try{
@@ -234,27 +279,22 @@
         const { uri, approval } = await client.connect({ optionalNamespaces });
         if(!uri) throw new Error("No WC URI returned");
 
-        // Build deep links
-        const wcUri = uri;
-        const lobstrScheme = `lobstr://wc?uri=${encodeURIComponent(wcUri)}`;
+        latestWcUri = uri;
 
-        // MOBILE: open LOBSTR directly (custom scheme) instead of wc:
-        if (isMobile()) {
-          openLobstrNow(wcUri);
-        }
-
-        // Show QR (desktop + fallback for mobile)
+        // Show QR (desktop; also useful on mobile)
         qrArea.style.display="flex";
-        await QRCode.toCanvas(qrCanvas, wcUri, { width:256, margin:1 });
+        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        rawWcLink.href = uri;
 
-        // Preferred link = LOBSTR custom scheme, secondary = raw wc:
-        deepLink.href   = lobstrScheme;
-        altDeepLink.href= wcUri;
+        // Wire wallet buttons (open only when tapped)
+        on(btnLobstr,   "click", ()=> tryOpenWallet(WALLET_LINKS.lobstr,   latestWcUri));
+        on(btnFreighter,"click", ()=> tryOpenWallet(WALLET_LINKS.freighter, latestWcUri));
+        on(btnXbull,    "click", ()=> tryOpenWallet(WALLET_LINKS.xbull,    latestWcUri));
 
-        // Wait for wallet approval
+        // Wait for approval
         session = await approval();
 
-        // Clean up
+        // Clean up UI
         qrArea.style.display="none";
         closeModal();
 
