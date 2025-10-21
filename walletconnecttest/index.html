@@ -129,12 +129,25 @@
   <!-- Small polyfill some libs read in the browser -->
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- App logic (ESM): Stellar SDK + WalletConnect Sign Client + QRCode -->
+  <!-- QR generator as ESM -->
+  <script type="module" src="https://esm.sh/v135/qrcode@1.5.3/es2022/qrcode.mjs"></script>
+  <script>
+    // Make the ESM default export reachable for our main module:
+    window.__QRCodePromise = import("https://esm.sh/qrcode@1.5.3");
+  </script>
+
+  <!-- Stellar SDK global (UMD) — exposes window.StellarSdk with Server, etc. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/14.3.0/stellar-sdk.min.js"></script>
+
+  <!-- App logic (ESM): WalletConnect Sign Client -->
   <script type="module">
-    import * as Stellar from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm";
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
-    import QRCode from "https://esm.sh/qrcode@1.5.3";
-    const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = Stellar;
+
+    // Pull Stellar SDK types from the global
+    const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = window.StellarSdk;
+
+    // Load QRCode ESM (from the promise we set up above)
+    const QRCode = (await window.__QRCodePromise).default;
 
     // ---- Config
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
@@ -187,7 +200,7 @@
         await ensureClient();
         statusEl.textContent="Starting WalletConnect…";
 
-        // Use optionalNamespaces to avoid deprecation warning
+        // Use optionalNamespaces (new API shape)
         const optionalNamespaces = {
           stellar:{
             chains:[chainId()],
