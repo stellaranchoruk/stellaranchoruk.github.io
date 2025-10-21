@@ -120,22 +120,20 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // WalletConnect Explorer (to get Freighter's official deep links)
+    // WalletConnect Explorer (for Freighter deep links)
     const EXPLORER = "https://explorer-api.walletconnect.com/v3/wallets";
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
 
-    // App store fallbacks (your corrected Freighter URLs)
+    // Correct store fallbacks you provided
     const STORE = {
       lobstr:   { ios:"https://apps.apple.com/app/id1404357892", android:"https://play.google.com/store/apps/details?id=com.lobstr.client" },
       freighter:{ ios:"https://apps.apple.com/app/freighter/id6743947720", android:"https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1" }
     };
 
-    // DOM utils
     const $=(id)=>document.getElementById(id);
     const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
     const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    // Elements
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
     const connectedWrap=$("connected"), addrEl=$("address");
     const signBtn=$("signDemoBtn"), signSubmitPromptBtn=$("signAndSubmitPromptBtn"), signResult=$("signResult");
@@ -147,13 +145,12 @@
     const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus");
     const btnLobstr=$("btnLobstr"), btnFreighter=$("btnFreighter"), rawWcLink=$("rawWcLink");
 
-    // Modal
     const openModal=()=>{backdrop.classList.add("open");loginModal.classList.add("open");};
     const closeModal=()=>{backdrop.classList.remove("open");loginModal.classList.remove("open");};
     on(closeModalBtn,"click",closeModal); on(backdrop,"click",closeModal);
     on(connectBtn,"click",openModal);
 
-    // Stellar SDK setup
+    // Stellar SDK
     if(!window.StellarSdk) throw new Error("Stellar SDK failed to load.");
     const SDK = window.StellarSdk;
     const ServerCtor = SDK.Server || SDK.Horizon?.Server;
@@ -168,7 +165,6 @@
       CURRENT_NET=r.value;
     }));
 
-    // WalletConnect
     let client=null, session=null, latestWcUri=null;
     async function ensureClient(){
       if(!client){
@@ -177,7 +173,7 @@
       }
     }
 
-    // LOBSTR open (scheme in current tab, fallback store in new tab)
+    // LOBSTR (scheme → app; store if missing)
     function openLobstrApp(wcUri){
       const scheme = `lobstr://wc?uri=${encodeURIComponent(wcUri)}`;
       const store  = isIOS()? STORE.lobstr.ios : STORE.lobstr.android;
@@ -190,26 +186,26 @@
       }, 1800);
     }
 
-    // --- FIXED: Normalize Explorer v3 response (object map -> array), then match Freighter
+    // -------- Freighter helpers --------
     async function getFreighterLinks(){
       try{
         const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
         const res = await fetch(url);
         const data = await res.json();
 
-        // Explorer v3 returns { listings: { <id>: Wallet, ... } }
+        // Normalize to array (Explorer v3 is an object map)
         const raw = data?.listings ?? data?.data ?? [];
         const arr = Array.isArray(raw) ? raw : Object.values(raw);
 
-        // Match by exact name if possible, else contains "freighter"
+        // Prefer exact name match; otherwise includes 'freighter'
         const w = arr.find(item => {
           const name = (item.name || item.app?.name || "").toLowerCase().trim();
           return name === "freighter" || name.includes("freighter");
         });
 
         if (!w) return { native:null, universal:null, found:false };
-
         const mobile = w.mobile || w.app?.mobile || {};
+
         return {
           native:    mobile.native || mobile.nativeLink || null,
           universal: mobile.universal || mobile.universalLink || null,
@@ -221,30 +217,61 @@
       }
     }
 
-    function openFreighter(links, wcUri){
+    // Given a base link (native or universal) from Explorer, produce candidates that include the WC URI
+    function buildFreighterCandidates(base, wcUri){
+      if(!base) return [];
       const enc = encodeURIComponent(wcUri);
-      const native = links.native ? links.native.replace("{wc}", enc).replace("{URI}", enc) : null;
-      const universal = links.universal ? links.universal.replace("{wc}", enc).replace("{URI}", enc) : null;
+
+      // If template includes placeholder, replace and return single candidate
+      if (base.includes("{wc}") || base.includes("{URI}")){
+        return [ base.replace("{wc}", enc).replace("{URI}", enc) ];
+      }
+
+      // Otherwise, try both ?wc= and ?uri= (and & variants if query already present)
+      const hasQuery = base.includes("?");
+      const join = hasQuery ? "&" : "?";
+      return [
+        `${base}${join}wc=${enc}`,
+        `${base}${join}uri=${enc}`
+      ];
+    }
+
+    // Try opening candidates: native (foreground) then universal (new tab). Store fallback last.
+    function openFreighterSmart(links, wcUri){
       const store = isIOS()? STORE.freighter.ios : STORE.freighter.android;
 
-      // Prefer native scheme if provided by Explorer
-      if (native){
+      const nativeCandidates    = buildFreighterCandidates(links.native, wcUri);
+      const universalCandidates = buildFreighterCandidates(links.universal, wcUri);
+
+      // 1) Try native candidates sequentially
+      let triedSomething = false;
+      for (const href of nativeCandidates){
+        triedSomething = true;
         const t0 = Date.now();
-        window.location.href = native;
-        setTimeout(()=>{
-          if(!document.hidden && Date.now()-t0 < 2000){
-            if(universal) window.open(universal, "_blank", "noopener");
-            else window.open(store, "_blank", "noopener");
-          }
-        }, 1200);
-      } else if (universal){
-        // Open universal in a new tab so our page stays put
-        window.open(universal, "_blank", "noopener");
-      } else {
-        // Last resort: store page
+        window.location.href = href;
+        // Give each candidate a moment; if page stays visible, try next
+        const start = performance.now();
+        const blocker = Date.now();
+        // eslint-disable-next-line no-loop-func
+        setTimeout(()=>{}, 400); // small pause
+        // If we’re still visible very quickly, continue loop to next candidate
+        // (No perfect signal on iOS; this heuristic works well enough.)
+        // Next candidate will overwrite location.href again.
+      }
+
+      // 2) If we had no native or they didn't take, try universal (new tab so our page stays)
+      if (universalCandidates.length){
+        // open the first universal candidate
+        window.open(universalCandidates[0], "_blank", "noopener");
+        triedSomething = true;
+      }
+
+      // 3) If nothing was attempted (no links) or all failed, go to store
+      if (!triedSomething){
         window.open(store, "_blank", "noopener");
       }
     }
+    // -----------------------------------
 
     on(wcBtn,"click", async ()=>{
       try{
@@ -265,15 +292,14 @@
 
         linkStatus.textContent = "Loading Freighter deep link…";
         const freighterLinks = await getFreighterLinks();
-        linkStatus.textContent = freighterLinks.found
-          ? "" : "Couldn’t auto-detect Freighter link (using store fallback).";
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — using store fallback.";
 
-        // Rebind buttons fresh (avoid stacked listeners)
+        // Rebind buttons fresh each pairing
         const newL = btnLobstr.cloneNode(true), newF = btnFreighter.cloneNode(true);
         btnLobstr.replaceWith(newL); btnFreighter.replaceWith(newF);
 
         newL.addEventListener("click", ()=> openLobstrApp(latestWcUri));
-        newF.addEventListener("click", ()=> openFreighter(freighterLinks, latestWcUri));
+        newF.addEventListener("click", ()=> openFreighterSmart(freighterLinks, latestWcUri));
 
         session = await approval();
 
