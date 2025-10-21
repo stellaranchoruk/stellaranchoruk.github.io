@@ -150,52 +150,46 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // ------ Wallet deep-link CONFIG (edit here if vendors change schemes) ------
+    // ---- Wallet deep-link CONFIG (edit here if vendors change links) ----
     const WALLET_LINKS = {
+      // LOBSTR: use custom scheme via hidden iframe so your page doesn't navigate away.
       lobstr: {
-        schemes:   ["lobstr://wc?uri={URI}"],
-        universals:["https://lobstr.co/wc?uri={URI}"],
-        iosStore:      "https://apps.apple.com/app/id1404357892",
-        androidStore:  "https://play.google.com/store/apps/details?id=com.lobstr.client"
+        openMethod: "scheme", // 'scheme' | 'universal'
+        scheme:     "lobstr://wc?uri={URI}",
+        universal:  "https://lobstr.co/wc?uri={URI}", // shown as raw link fallback only
+        iosStore:   "https://apps.apple.com/app/id1404357892",
+        androidStore:"https://play.google.com/store/apps/details?id=com.lobstr.client"
       },
+      // Freighter/xBull: use universal links in a NEW TAB (custom schemes unreliable on iOS).
       freighter: {
-        // NOTE: adjust if Freighter uses a different path; these are reasonable defaults.
-        schemes:   ["freighter://wc?uri={URI}"],
-        universals:["https://freighter.app/wc?uri={URI}"],
-        iosStore:      "https://apps.apple.com/app/freighter-wallet/id6479234208",
-        androidStore:  "https://play.google.com/store/apps/details?id=io.freighter.app"
+        openMethod: "universal",
+        // If Freighter later documents a custom scheme, set openMethod:'scheme' and add scheme here.
+        universal:  "https://freighter.app/wc?uri={URI}",
+        iosStore:   "https://apps.apple.com/app/freighter-wallet/id6479234208",
+        androidStore:"https://play.google.com/store/apps/details?id=io.freighter.app"
       },
       xbull: {
-        schemes:   ["xbull://wc?uri={URI}"],
-        universals:["https://xbull.app/wc?uri={URI}"],
-        iosStore:      "https://apps.apple.com/app/xbull-wallet/id1613698505",
-        androidStore:  "https://play.google.com/store/apps/details?id=com.xbull.app"
+        openMethod: "universal",
+        // If xBull documents a stable scheme, set openMethod:'scheme' and add scheme here.
+        universal:  "https://xbull.app/wc?uri={URI}",
+        iosStore:   "https://apps.apple.com/app/xbull-wallet/id1613698505",
+        androidStore:"https://play.google.com/store/apps/details?id=com.xbull.app"
       }
     };
-    // ---------------------------------------------------------------------------
+    // --------------------------------------------------------------------
 
     // Ensure Stellar global is present
-    if (!window.StellarSdk) {
-      throw new Error("StellarSdk failed to load; check the jsDelivr script tag.");
-    }
+    if (!window.StellarSdk) throw new Error("StellarSdk failed to load.");
     const SDK = window.StellarSdk;
     const ServerCtor = SDK.Server || SDK.Horizon?.Server;
-    if (!ServerCtor) {
-      console.error("StellarSdk keys:", Object.keys(SDK));
-      throw new Error("Could not find Stellar Server constructor on StellarSdk");
-    }
+    if (!ServerCtor) throw new Error("Could not find Stellar Server constructor");
     const { Networks, TransactionBuilder, Operation, Asset, Memo } = SDK;
 
-    // ---- Config
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
 
-    // ---- DOM helpers
     const $  = (id) => document.getElementById(id);
     const on = (el, evt, fn) => el?.addEventListener?.(evt, fn);
-    const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isiOS    = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    // Elements
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
     const connectedWrap=$("connected"), addrEl=$("address");
     const signBtn=$("signDemoBtn"), signSubmitPromptBtn=$("signAndSubmitPromptBtn"), signResult=$("signResult");
@@ -207,12 +201,10 @@
     const qrArea=$("qrArea"), qrCanvas=$("qrCanvas");
     const btnLobstr=$("btnLobstr"), btnFreighter=$("btnFreighter"), btnXbull=$("btnXbull"), rawWcLink=$("rawWcLink");
 
-    // Modal
     const openModal=()=>{backdrop?.classList.add("open");loginModal?.classList.add("open");};
     const closeModal=()=>{backdrop?.classList.remove("open");loginModal?.classList.remove("open");};
     on(closeModalBtn,"click",closeModal); on(backdrop,"click",closeModal);
 
-    // Network
     let CURRENT_NET="pubnet";
     const netRadios=document.querySelectorAll('input[name="net"]');
     netRadios.forEach(r=>on(r,"change",()=>{
@@ -223,49 +215,65 @@
     const horizonUrl=()=>CURRENT_NET==="pubnet"?"https://horizon.stellar.org":"https://horizon-testnet.stellar.org";
     const netPassphrase=()=>CURRENT_NET==="pubnet"?Networks.PUBLIC:Networks.TESTNET;
 
-    // WalletConnect
     let client=null, session=null;
-
     async function ensureClient(){
-      if(!client){
-        client=await SignClient.init({ projectId: PROJECT_ID });
-        console.log("WalletConnect SignClient ready");
-      }
+      if(!client){ client=await SignClient.init({ projectId: PROJECT_ID }); console.log("WalletConnect SignClient ready"); }
     }
 
     on(connectBtn,"click",openModal);
 
-    // Try opening a wallet via schemes/universals with store fallback
-    function tryOpenWallet({schemes=[], universals=[], iosStore, androidStore}, wcUri){
-      const encoded = encodeURIComponent(wcUri);
-      const candidates = [
-        ...schemes.map(t => t.replace("{URI}", encoded)),
-        ...universals.map(t => t.replace("{URI}", encoded)),
-      ];
-      const store = isiOS() ? iosStore : androidStore;
+    // Open via custom scheme WITHOUT leaving the page (hidden iframe). Fallback to store (new tab).
+    function openWithSchemeNoNav(schemeUrl, iosStore, androidStore){
+      const store = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? iosStore : androidStore;
+      const iframe = document.createElement("iframe");
+      iframe.style.display="none";
+      iframe.src = schemeUrl;
+      document.body.appendChild(iframe);
 
-      if (!candidates.length) {
-        window.location.assign(wcUri);
-        return;
-      }
-
-      let idx = 0;
-      const attempt = () => {
-        if (idx >= candidates.length) {
-          if (store) window.location.assign(store);
-          return;
+      const t0 = Date.now();
+      setTimeout(()=> {
+        // If user didn’t switch to app (still visible), open store in a new tab
+        if (!document.hidden && Date.now()-t0 < 2000 && store) {
+          window.open(store, "_blank", "noopener");
         }
-        const href = candidates[idx++];
-        const t0 = Date.now();
-        window.location.assign(href);
-        setTimeout(() => {
-          if (!document.hidden && Date.now() - t0 < 2000) attempt();
-        }, 1100);
-      };
-      attempt();
+        setTimeout(()=> document.body.removeChild(iframe), 1500);
+      }, 1000);
     }
 
+    // Open universal link in a NEW TAB (so your page stays put)
+    function openUniversalInNewTab(universalUrl){
+      window.open(universalUrl, "_blank", "noopener");
+    }
+
+    // Button handlers are rebound each connect to ensure fresh wc URI
     let latestWcUri = null;
+    function wireWalletButtons(wcUri){
+      const enc = encodeURIComponent(wcUri);
+      // Remove previous handlers to avoid stacking
+      btnLobstr.replaceWith(btnLobstr.cloneNode(true));
+      btnFreighter.replaceWith(btnFreighter.cloneNode(true));
+      btnXbull.replaceWith(btnXbull.cloneNode(true));
+      // Re-select fresh nodes
+      const bL = $("btnLobstr"), bF = $("btnFreighter"), bX = $("btnXbull");
+
+      bL.addEventListener("click", ()=>{
+        const cfg = WALLET_LINKS.lobstr;
+        const scheme = cfg.scheme.replace("{URI}", enc);
+        openWithSchemeNoNav(scheme, cfg.iosStore, cfg.androidStore);
+      });
+
+      bF.addEventListener("click", ()=>{
+        const cfg = WALLET_LINKS.freighter;
+        const url = cfg.universal.replace("{URI}", enc);
+        openUniversalInNewTab(url);
+      });
+
+      bX.addEventListener("click", ()=>{
+        const cfg = WALLET_LINKS.xbull;
+        const url = cfg.universal.replace("{URI}", enc);
+        openUniversalInNewTab(url);
+      });
+    }
 
     on(wcBtn,"click", async ()=>{
       try{
@@ -286,10 +294,8 @@
         await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
         rawWcLink.href = uri;
 
-        // Wire wallet buttons (open only when tapped)
-        on(btnLobstr,   "click", ()=> tryOpenWallet(WALLET_LINKS.lobstr,   latestWcUri));
-        on(btnFreighter,"click", ()=> tryOpenWallet(WALLET_LINKS.freighter, latestWcUri));
-        on(btnXbull,    "click", ()=> tryOpenWallet(WALLET_LINKS.xbull,    latestWcUri));
+        // Wire wallet buttons to THIS URI
+        wireWalletButtons(latestWcUri);
 
         // Wait for approval
         session = await approval();
