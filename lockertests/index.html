@@ -202,6 +202,10 @@
     let connectionMode="none";
     let client=null, session=null, latestWcUri=null;
 
+    // Balance + auto-refresh timers
+    let balanceTimer = null;
+    let balanceInterval = null;
+
     function updateActionButtons(){
       const hasXdr = !!xdrOut.value.trim();
       signOnlyBtn.disabled   = (connectionMode==="none") || !hasXdr;
@@ -228,12 +232,12 @@
       statusEl.textContent = address ? `Connected (${modeEl.textContent})` : "Not connected";
       disconnectBtn.disabled = !address;
 
-      // When connected: lock the pubkey field to prevent edits
       if(address && /^G[A-Z2-7]{55}$/.test(address)){
         pubkeyEl.value = address;
         pubkeyEl.readOnly = true;
         fetchAquaBalance();
-        scheduleBuild(); // auto-build with connected key
+        startBalanceAutoRefresh();
+        scheduleBuild();
       }else{
         pubkeyEl.readOnly = false;
       }
@@ -247,6 +251,7 @@
         }
       }catch(e){ console.warn(e); }
       session=null; connectionMode="none"; setConnected("", "none");
+      stopBalanceAutoRefresh();
     });
 
     // ---------- WalletConnect (mobile) ----------
@@ -298,7 +303,11 @@
         if(!uri) throw new Error("No WC URI");
         latestWcUri = uri;
 
-        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        try {
+          await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        } catch(e) {
+          console.warn("QR draw failed", e);
+        }
         qrArea.style.display = "flex";
         rawWcLink.href = uri;
 
@@ -347,14 +356,33 @@
     function isValidG(k){ try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} }
     function cleanAmt(a){ const n=Number(a); if(!isFinite(n)||n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); }
 
-    async function fetchAquaBalance(){
+    async function _loadAquaBalanceOnce() {
       const pk = pubkeyEl.value.trim();
       if(!isValidG(pk)){ aquaBalEl.textContent = "Invalid key"; return; }
       try{
         const acct = await getServer().loadAccount(pk);
         const bal = acct.balances.find(b => b.asset_code===AQUA_CODE && b.asset_issuer===AQUA_ISSUER);
-        aquaBalEl.textContent = bal ? bal.balance : "0";
+        const newBal = bal ? bal.balance : "0";
+        const oldBal = aquaBalEl.textContent;
+        aquaBalEl.textContent = newBal;
+
+        // Friendly default: if amount is empty, prefill 25% on fresh balance
+        if (!amountEl.value.trim()) {
+          const v = cleanAmt(parseFloat(newBal||"0") * 0.25);
+          if (v) { amountEl.value = v; scheduleBuild(); }
+        }
       }catch(e){ console.error(e); aquaBalEl.textContent="Error"; }
+    }
+    function fetchAquaBalance() {
+      if (balanceTimer) clearTimeout(balanceTimer);
+      balanceTimer = setTimeout(_loadAquaBalanceOnce, 400);
+    }
+    function startBalanceAutoRefresh() {
+      stopBalanceAutoRefresh();
+      balanceInterval = setInterval(_loadAquaBalanceOnce, 15000);
+    }
+    function stopBalanceAutoRefresh() {
+      if (balanceInterval) { clearInterval(balanceInterval); balanceInterval = null; }
     }
 
     // ---------- Debounced auto-build ----------
@@ -369,24 +397,29 @@
           buildStatus.textContent = "Built ✓ (auto)";
         }else{
           xdrOut.value = "";
-          updateActionButtons();
         }
         updateActionButtons();
       }, 700);
     }
 
     pubkeyEl.addEventListener("input", ()=>{
-      if (pubkeyEl.readOnly) return;      // locked when connected
-      fetchAquaBalance();                  // try to show balance quickly
-      scheduleBuild();                     // rebuild with new key
+      if (pubkeyEl.readOnly) return;
+      fetchAquaBalance();
+      scheduleBuild();
+      updateActionButtons();
     });
     pubkeyEl.addEventListener("change", ()=>{
       if (pubkeyEl.readOnly) return;
       fetchAquaBalance();
+      startBalanceAutoRefresh();
       scheduleBuild();
+      updateActionButtons();
     });
 
-    amountEl.addEventListener("input", scheduleBuild);
+    amountEl.addEventListener("input", ()=>{
+      scheduleBuild();
+      updateActionButtons();
+    });
 
     pctBtns.forEach(btn=>btn.addEventListener("click", ()=>{
       const bal = parseFloat(aquaBalEl.textContent)||0;
@@ -394,9 +427,10 @@
       const v = cleanAmt(bal*pct);
       amountEl.value = v||"";
       scheduleBuild();
+      updateActionButtons();
     }));
 
-    // Manual button still available (runs immediate)
+    // Manual build button (instant)
     on(buildBtn,"click", async ()=>{
       if(buildTimer) clearTimeout(buildTimer);
       buildStatus.textContent="Building…";
@@ -466,8 +500,12 @@
         headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
         body:"tx="+encodeURIComponent(signedXdr)
       });
-      const data = await resp.json();
-      if(!resp.ok) throw new Error("Horizon error: "+(data?.extras?.result_codes?.transaction||resp.status));
+      const data = await resp.json().catch(()=> ({}));
+      if(!resp.ok){
+        const code = data?.extras?.result_codes?.transaction || resp.status;
+        const op   = data?.extras?.result_codes?.operations || [];
+        throw new Error(`Horizon error: ${code}${op.length?` (${op.join(",")})`:""}`);
+      }
       return data.hash;
     }
 
@@ -512,6 +550,10 @@
 
     // Initialize buttons based on empty state
     updateActionButtons();
+
+    // Safety: stop balance refresh when leaving page
+    window.addEventListener("pagehide", stopBalanceAutoRefresh);
+    window.addEventListener("visibilitychange", ()=>{ if(document.hidden) stopBalanceAutoRefresh(); else if(isValidG(pubkeyEl.value)) startBalanceAutoRefresh(); });
   </script>
 
   <noscript style="color:#fff">Enable JavaScript to use the AQUAm25 locker.</noscript>
