@@ -5,7 +5,7 @@
   <title>Mirrasets — AQUAm25 Locker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Freighter API (UMD) — exposes window.freighterApi -->
+  <!-- Freighter API (UMD global) -->
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
     crossorigin="anonymous"
@@ -21,417 +21,456 @@
   <style>
     :root{--bg:#0b1220;--card:#121a2b;--border:#233055;--muted:#8ea2ff}
     body{margin:0;padding:28px;background:var(--bg);color:#f1f5ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-    .wrap{max-width:920px;margin:0 auto}
+    .wrap{max-width:980px;margin:0 auto}
     .card{background:#121a2b;border:1px solid #233055;border-radius:16px;padding:22px}
-    h1{margin:0 0 12px;font-size:24px}
-    p{margin:.2rem 0 .8rem;opacity:.95}
-    button{cursor:pointer;font-weight:600;border-radius:10px;border:1px solid #3a4a7a;background:#1a2550;color:#fff;padding:12px 16px}
-    button:hover{filter:brightness(1.08)}
-    .cta{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
-    .muted{opacity:.85}
-    .hint{font-size:12px;opacity:.8;margin-top:6px}
+    h1{margin:0 0 10px} h2{margin:18px 0 8px}
+    p{margin:.25rem 0 .75rem;opacity:.96}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .muted{opacity:.85} .small{font-size:12px;opacity:.8}
+    button{cursor:pointer;font-weight:600;border-radius:10px;border:1px solid #3a4a7a;background:#1a2550;color:#fff;padding:10px 14px}
+    button:hover{filter:brightness(1.08)} button.ghost{background:transparent}
+    input,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a3d7a;background:#0b1430;color:#fff}
+    label{display:block;margin:10px 0 6px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .section{margin-top:18px;padding-top:14px;border-top:1px dashed #2b3b6a}
+
+    /* Locker area */
+    .locker{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+    @media (max-width:840px){.locker{grid-template-columns:1fr}}
+    .box{background:#0e1627;border:1px solid #22315c;border-radius:12px;padding:14px}
+    .pct{display:flex;gap:8px;margin-top:6px}
+    .pct button{flex:1;background:#162554;border:1px solid #344a8a}
+
+    /* Connect modal */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
+    .open{display:flex}
+    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+    .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
+    .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
+    .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .wallet-choices button{background:#162554;border:1px solid #344a8a}
+    a.link{color:#9ab0ff;text-decoration:underline}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>AQUAm25 Locker (1-Year Lock)</h1>
-      <p>Connect your wallet, view your <b>AQUAm25</b> balance, choose a percentage or an exact amount, and sign the lock transaction. Lock start and end times are shown before signing.</p>
-      <div class="cta">
-        <button id="lockBtn">🔒 Lock AQUAm25</button>
-        <span class="muted">Freighter browser extension supported. You can also copy the XDR or use Stellar Lab.</span>
+      <p>Connect a wallet (mobile via WalletConnect or Freighter extension), view your <b>AQUAm25</b> balance, choose a percentage/amount, and sign the lock transaction. We’ll show the lock start and lock end (UTC) before you sign.</p>
+
+      <div class="row" style="margin-top:8px">
+        <button id="connectBtn">Connect Wallet</button>
+        <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
+        <span id="status" class="muted">Not connected</span>
       </div>
-      <div class="hint">Tip: If the Freighter button in the modal is disabled at first, unlock or install the extension and try again.</div>
+
+      <div class="section locker">
+        <!-- Left: Locker inputs -->
+        <div class="box">
+          <h2>Locker</h2>
+          <label for="pubkey">Public Key</label>
+          <input id="pubkey" placeholder="G… (auto-filled after connect)" />
+
+          <p class="small">AQUAm25 Balance: <b id="aquaBal">-</b></p>
+
+          <label for="amount">AQUAm25 Amount</label>
+          <input id="amount" type="number" step="any" placeholder="Amount to lock" />
+          <div class="pct">
+            <button data-pct="25">25%</button>
+            <button data-pct="50">50%</button>
+            <button data-pct="75">75%</button>
+            <button data-pct="100">100%</button>
+          </div>
+
+          <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
+
+          <div class="row" style="margin-top:8px">
+            <button id="buildBtn">Build Lock XDR</button>
+            <span id="buildStatus" class="small"></span>
+          </div>
+
+          <label for="xdrOut" style="margin-top:10px">Transaction XDR</label>
+          <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here"></textarea>
+
+          <div class="row" style="margin-top:10px">
+            <button id="signSubmitBtn">Sign &amp; Submit (current wallet)</button>
+            <button id="signOnlyBtn" class="ghost">Sign (don’t submit)</button>
+            <button id="copyBtn" class="ghost">Copy XDR</button>
+            <button id="labBtn" class="ghost">Open in Stellar Lab</button>
+          </div>
+
+          <p id="actionResult" class="small" style="margin-top:6px"></p>
+        </div>
+
+        <!-- Right: Connection state -->
+        <div class="box">
+          <h2>Connection</h2>
+          <p class="small">Mode: <b id="mode">—</b></p>
+          <p class="small">Address: <span id="addr" style="word-break:break-all"></span></p>
+          <p class="small">Network: <b>Public</b></p>
+          <p class="small">Tip: If using mobile, choose LOBSTR or Freighter from the WalletConnect popup.</p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- APP SCRIPT: ensures freighterApi fallback, then defines & initializes AQUAm25 Locker modal -->
+  <!-- Connect Modal -->
+  <div id="backdrop" class="backdrop"></div>
+  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 id="loginTitle" style="font-size:18px;margin:0">Connect Wallet</h2>
+        <button class="x" id="closeModal" aria-label="Close">×</button>
+      </div>
+      <p>Select a login method:</p>
+      <button class="wallet-btn" id="wcBtn">🔗 WalletConnect (mobile)</button>
+      <button class="wallet-btn" id="freighterExtBtn">🧩 Freighter (browser extension)</button>
+
+      <div id="qrArea" class="qr-wrap" style="display:none">
+        <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
+        <div class="wallet-choices">
+          <button id="btnLobstr">Open in LOBSTR</button>
+          <button id="btnFreighter">Open in Freighter</button>
+        </div>
+        <div class="small">
+          Scan with your wallet app (LOBSTR / Freighter), or tap a button above on mobile. ·
+          <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
+        </div>
+        <p id="linkStatus" class="small" style="margin:0;text-align:center;opacity:.8"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>window.process = window.process || { env: {} };</script>
+
   <script type="module">
-    // Ensure freighterApi is available: UMD global first, then ESM fallback if needed.
+    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+    import QRCode     from "https://esm.sh/qrcode@1.5.3";
+
+    // ---------- Config ----------
+    const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
+    const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
+    const HORIZON    = "https://horizon.stellar.org";
+    const NETWORK    = window.StellarSdk.Networks.PUBLIC;
+
+    // AQUAm25 specifics
+    const AQUA_CODE   = "AQUAm25";
+    const AQUA_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+    const TRACKER_KEY = "GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP";
+
+    const STORE = {
+      lobstr:   { ios:"https://apps.apple.com/app/id1404357892",                      android:"https://play.google.com/store/apps/details?id=com.lobstr.client" },
+      freighter:{ ios:"https://apps.apple.com/app/freighter/id6743947720",           android:"https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1" }
+    };
+
+    // ---------- DOM ----------
+    const $=(id)=>document.getElementById(id);
+    const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
+    const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
+    const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal"), wcBtn=$("wcBtn"), freighterExtBtn=$("freighterExtBtn");
+    const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus"), btnLobstr=$("btnLobstr"), btnFreighter=$("btnFreighter"), rawWcLink=$("rawWcLink");
+
+    const pubkeyEl=$("pubkey"), aquaBalEl=$("aquaBal"), amountEl=$("amount"), lockInfoEl=$("lockInfo");
+    const buildBtn=$("buildBtn"), buildStatus=$("buildStatus"), xdrOut=$("xdrOut");
+    const signSubmitBtn=$("signSubmitBtn"), signOnlyBtn=$("signOnlyBtn"), copyBtn=$("copyBtn"), labBtn=$("labBtn"), actionResult=$("actionResult");
+    const addrEl=$("addr"), modeEl=$("mode");
+
+    const pctBtns=[...document.querySelectorAll(".pct button")];
+
+    // ---------- UI helpers ----------
+    const openModal=()=>{backdrop.classList.add("open");loginModal.classList.add("open");};
+    const closeModal=()=>{backdrop.classList.remove("open");loginModal.classList.remove("open");};
+
+    on(closeModalBtn,"click",closeModal); on(backdrop,"click",closeModal);
+    on(connectBtn,"click",openModal);
+
+    // ---------- Stellar SDK setup ----------
+    if(!window.StellarSdk) throw new Error("Stellar SDK failed to load.");
+    const SDK=window.StellarSdk;
+    const Server=SDK.Server;
+    const server=new Server(HORIZON);
+    const AQUA=new SDK.Asset(AQUA_CODE, AQUA_ISSUER);
+
+    // ---------- Connection state ----------
+    // 'none' | 'wc' | 'freighter'
+    let connectionMode="none";
+    let client=null, session=null, latestWcUri=null;
+
+    async function ensureClient(){
+      if(!client){
+        client = await SignClient.init({ projectId: PROJECT_ID });
+        console.log("WalletConnect SignClient ready");
+      }
+    }
     async function ensureFreighterApi(){
       if (window.freighterApi) return window.freighterApi;
-      try {
+      try{
         const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
         window.freighterApi = mod?.default ?? mod;
         return window.freighterApi;
-      } catch (e) {
-        console.warn('Freighter ESM fallback failed', e);
-        return null;
+      }catch(e){ console.warn("Freighter ESM fallback failed", e); return null; }
+    }
+
+    function setConnected(address, mode){
+      addrEl.textContent = address || "";
+      modeEl.textContent = mode==="wc"?"WalletConnect":(mode==="freighter"?"Freighter extension":"—");
+      statusEl.textContent = address ? `Connected (${modeEl.textContent})` : "Not connected";
+      disconnectBtn.disabled = !address;
+      if(address && /^G[A-Z2-7]{55}$/.test(address)){
+        pubkeyEl.value = address; // auto-fill locker
+        fetchAquaBalance();
       }
     }
 
-    // ===== AQUAm25 LOCKER (from your working modal, converted to a local function) =====
-    const StellarSdk = window.StellarSdk;
-
-    function initAquaLocker({
-      triggerSelector,
-      horizonUrl = 'https://horizon.stellar.org',
-      networkPassphrase = StellarSdk.Networks.PUBLIC,
-      assetCode = 'AQUAm25',
-      assetIssuer = 'GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC',
-      trackerKey = 'GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP'
-    }) {
-      if (!StellarSdk) throw new Error('StellarSdk not found on window. Include Stellar SDK before this script.');
-
-      const server = new StellarSdk.Server(horizonUrl);
-      const AQUA_ASSET = new StellarSdk.Asset(assetCode, assetIssuer);
-
-      // Inject CSS once
-      if (!document.getElementById('aqua-locker-css')) {
-        const style = document.createElement('style');
-        style.id = 'aqua-locker-css';
-        style.textContent = `
-          *, *::before, *::after { box-sizing: border-box; }
-          .aqua-modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,.5);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 9999; padding: 10px;
-          }
-          .aqua-container {
-            position: relative; width: 90%; max-width: 520px; max-height: 90vh;
-            overflow-y: auto; background: #fff; padding: 20px; border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,.25); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-          }
-          .aqua-close { position: absolute; top: 8px; right: 10px; background: none; border: none; font-size: 1.4em; color: #333; cursor: pointer; }
-          .aqua-container button:not(.aqua-close) {
-            width: 100%; margin: 8px 0; padding: 12px; font-size: 1em;
-            background: #1a2550; color: #fff; border: 1px solid #3a4a7a; border-radius: 8px; cursor: pointer;
-          }
-          .aqua-container button:not(.aqua-close):disabled { background: #98a2b3; border-color:#98a2b3; cursor: not-allowed; }
-          .aqua-container input, .aqua-container textarea {
-            width: 100%; margin: 8px 0; padding: 10px; font-size: 1em; border: 1px solid #cbd5e1; border-radius: 8px;
-          }
-          .aqua-container textarea { resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; }
-          .aqua-container p, .aqua-container label, .aqua-container span { width: 100%; margin: 8px 0; }
-          .aqua-pct-buttons { display: flex; gap: 8px; margin-top: 4px; }
-          .aqua-pct-buttons button { flex: 1; background: #e9ecef; color: #000; border: 1px solid #cbd5e1; }
-          .aqua-pct-buttons button:hover { background: #dee2e6; }
-          .aqua-info { font-weight: 600; white-space: pre-line; margin-bottom: 10px; }
-          .aqua-muted { font-size: 12px; color: #475569; }
-        `;
-        document.head.appendChild(style);
-      }
-
-      // Create modal HTML
-      const modal = document.createElement('div');
-      modal.className = 'aqua-modal';
-      modal.setAttribute('role', 'dialog');
-      modal.setAttribute('aria-modal', 'true');
-      modal.innerHTML = `
-        <div class="aqua-container">
-          <button class="aqua-close" aria-label="Close modal">&times;</button>
-          <h2>Lock ${assetCode} Tokens for 1 Year</h2>
-
-          <label for="aqua-pubkey">Public Key:</label>
-          <input id="aqua-pubkey" type="text" placeholder="Enter your Stellar public key" />
-
-          <p>${assetCode} Balance: <span class="aqua-balance">-</span></p>
-
-          <label for="aqua-amount">${assetCode} Amount:</label>
-          <input id="aqua-amount" type="number" step="any" placeholder="Amount to lock" />
-
-          <div class="aqua-pct-buttons">
-            <button type="button" data-pct="25">25%</button>
-            <button type="button" data-pct="50">50%</button>
-            <button type="button" data-pct="75">75%</button>
-            <button type="button" data-pct="100">100%</button>
-          </div>
-
-          <div class="aqua-muted">Lock duration is 1 year from now. You'll see <b>Lock start</b> and <b>Lock end (UTC)</b> before you sign.</div>
-
-          <button class="aqua-freighter-connect" disabled>Connect Freighter</button>
-          <button class="aqua-freighter-sign" disabled>Sign & Submit with Freighter</button>
-
-          <button class="aqua-copy" disabled>Copy XDR</button>
-          <button class="aqua-sign" disabled>Sign with Stellar Lab</button>
-          <button class="aqua-view" disabled>View XDR with Stellar Lab</button>
-
-          <p class="aqua-info"></p>
-          <textarea class="aqua-xdr" readonly rows="6" placeholder="Your transaction XDR will appear here..."></textarea>
-        </div>
-      `;
-      document.body.appendChild(modal);
-
-      // Element refs
-      const closeBtn = modal.querySelector('.aqua-close');
-      const pubKeyIn = modal.querySelector('#aqua-pubkey');
-      const balanceEl = modal.querySelector('.aqua-balance');
-      const amtIn = modal.querySelector('#aqua-amount');
-      const pctBtns = modal.querySelectorAll('.aqua-pct-buttons button');
-      const freighterConnectBtn = modal.querySelector('.aqua-freighter-connect');
-      const freighterSignBtn = modal.querySelector('.aqua-freighter-sign');
-      const copyBtn = modal.querySelector('.aqua-copy');
-      const signBtn = modal.querySelector('.aqua-sign');
-      const viewBtn = modal.querySelector('.aqua-view');
-      const infoEl = modal.querySelector('.aqua-info');
-      const xdrEl = modal.querySelector('.aqua-xdr');
-
-      let refreshInterval; let buildTimeout;
-      const labPrefix =
-        'https://lab.stellar.org/transaction/sign?' +
-        '$=network$id=mainnet&' +
-        'label=Mainnet&' +
-        'horizonUrl=https:////horizon.stellar.org&' +
-        'rpcUrl=https:////mainnet.sorobanrpc.com&' +
-        'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&' +
-        'transaction$sign$activeView=overview&importXdr=';
-      const viewPrefix =
-        'https://lab.stellar.org/xdr/view?' +
-        '$=network$id=mainnet&' +
-        'label=Mainnet&' +
-        'horizonUrl=https:////horizon.stellar.org&' +
-        'rpcUrl=https:////mainnet.sorobanrpc.com&' +
-        'passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr=';
-
-      // ========= Freighter detection =========
-      let freighterCheckTimer = null;
-      let hasFreighter = false;
-
-      function getFreighter() { return window.freighterApi; }
-      function freighterHasConnect(api) {
-        return !!(api && (typeof api.requestAccess === 'function' || typeof api.getAddress === 'function' || typeof api.getPublicKey === 'function'));
-      }
-      function detectFreighterOnce() {
-        const api = getFreighter();
-        if (freighterHasConnect(api)) {
-          hasFreighter = true;
-          freighterConnectBtn.disabled = false;
-          if (xdrEl.value.trim()) freighterSignBtn.disabled = false;
-          if (freighterCheckTimer) { clearInterval(freighterCheckTimer); freighterCheckTimer = null; }
-          return true;
+    on(disconnectBtn,"click", async ()=>{
+      try{
+        if(connectionMode==="wc" && client && session){
+          await client.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
         }
-        return false;
-      }
-      function waitForFreighter(maxMs = 6000, intervalMs = 250) {
-        if (detectFreighterOnce()) return;
-        const start = Date.now();
-        freighterCheckTimer = setInterval(() => {
-          if (detectFreighterOnce() || Date.now() - start > maxMs) {
-            if (!hasFreighter) {
-              freighterConnectBtn.textContent = 'Freighter not found';
-              freighterConnectBtn.disabled = true;
-            }
-            clearInterval(freighterCheckTimer);
-            freighterCheckTimer = null;
-          }
-        }, intervalMs);
-      }
-      waitForFreighter();
-      window.addEventListener('focus', detectFreighterOnce);
+      }catch(e){ console.warn(e); }
+      session=null; connectionMode="none"; setConnected("", "none");
+    });
 
-      // Open/close handlers
-      function openModal() { modal.style.display = 'flex'; pubKeyIn.focus(); detectFreighterOnce(); }
-      function closeModal() { modal.style.display = 'none'; clearInterval(refreshInterval); }
-      document.querySelector(triggerSelector).addEventListener('click', openModal);
-      closeBtn.addEventListener('click', closeModal);
-
-      // Helpers
-      function isValidPubKey(k) {
-        try { return StellarSdk.StrKey.isValidEd25519PublicKey(k); } catch { return false; }
-      }
-      function sanitizeAmount(aStr) {
-        const n = Number(aStr);
-        if (!isFinite(n) || n <= 0) return null;
-        return n.toFixed(7).replace(/\.0+$/, '');
-      }
-      async function getFreighterAddressSafe(freighter) {
-        try {
-          if (freighter && typeof freighter.getAddress === 'function') {
-            const res = await freighter.getAddress();
-            const addr = res?.address || '';
-            if (addr) return addr;
-          }
-          if (freighter && typeof freighter.requestAccess === 'function') {
-            const res = await freighter.requestAccess();
-            return res?.address || '';
-          }
-          if (freighter && typeof freighter.getPublicKey === 'function') {
-            const pk = await freighter.getPublicKey();
-            if (pk) return pk;
-          }
-        } catch (_) {}
-        return '';
-      }
-
-      // Balance fetch on pubkey change & every 10s
-      pubKeyIn.addEventListener('change', () => {
-        clearInterval(refreshInterval);
-        fetchBalance();
-        refreshInterval = setInterval(fetchBalance, 10000);
-        scheduleBuild();
-      });
-
-      // Input & percent buttons
-      amtIn.addEventListener('input', scheduleBuild);
-      pctBtns.forEach(btn => btn.addEventListener('click', () => {
-        const bal = parseFloat(balanceEl.textContent) || 0;
-        const v = (bal * (parseInt(btn.dataset.pct, 10) / 100));
-        amtIn.value = sanitizeAmount(v);
-        scheduleBuild();
-      }));
-
-      async function fetchBalance() {
-        const pk = pubKeyIn.value.trim();
-        if (!pk) { balanceEl.textContent = '-'; return; }
-        if (!isValidPubKey(pk)) { balanceEl.textContent = 'Invalid key'; return; }
-        try {
-          const acct = await server.loadAccount(pk);
-          const obj = acct.balances.find(
-            b => b.asset_code === assetCode && b.asset_issuer === assetIssuer
-          );
-          balanceEl.textContent = obj ? obj.balance : '0';
-        } catch (e) {
-          console.error(e);
-          balanceEl.textContent = 'Error';
-        }
-      }
-
-      function scheduleBuild() {
-        copyBtn.disabled = true;
-        signBtn.disabled = true;
-        viewBtn.disabled = true;
-        if (hasFreighter) freighterSignBtn.disabled = true;
-        clearTimeout(buildTimeout);
-        buildTimeout = setTimeout(buildXDR, 700);
-      }
-
-      async function buildXDR() {
-        const pk = pubKeyIn.value.trim();
-        const amt = sanitizeAmount(amtIn.value.trim());
-        if (!isValidPubKey(pk) || !amt) {
-          infoEl.textContent = 'Enter a valid public key and a positive amount.';
-          return;
-        }
-        try {
-          const src = await server.loadAccount(pk);
-
-          // >>> 1-YEAR LOCK <<<
-          const now = new Date();
-          const end = new Date(now);
-          end.setUTCFullYear(end.getUTCFullYear() + 1); // 1 year
-          end.setUTCHours(23, 59, 59, 0);
-
-          infoEl.textContent =
-            `Lock start: ${now.toLocaleString()}\n` +
-            `Lock end:   ${end.toLocaleString(undefined, { timeZone: 'UTC' })}`;
-
-          const endTs = Math.floor(end.getTime() / 1000).toString();
-          const claimants = [
-            new StellarSdk.Claimant(
-              pk,
-              StellarSdk.Claimant.predicateNot(
-                StellarSdk.Claimant.predicateBeforeAbsoluteTime(endTs)
-              )
-            ),
-            new StellarSdk.Claimant(
-              trackerKey,
-              StellarSdk.Claimant.predicateBeforeAbsoluteTime('0')
-            )
-          ];
-
-          const tx = new StellarSdk.TransactionBuilder(src, { fee: 20000, networkPassphrase })
-            .addOperation(
-              StellarSdk.Operation.createClaimableBalance({
-                asset: AQUA_ASSET,
-                amount: amt,
-                claimants
-              })
-            )
-            .setTimeout(180)
-            .build();
-
-          const xdr = tx.toXDR();
-          xdrEl.value = xdr;
-          copyBtn.disabled = false;
-
-          let encoded = encodeURIComponent(xdr)
-            .replace(/%2F/g, '/')
-            .replace(/%2B/g, '+')
-            .replace(/%3D/g, '=');
-          encoded = encoded.replace(/\//g, '//') + ';;';
-
-          signBtn.disabled = false;
-          viewBtn.disabled = false;
-          signBtn.onclick = () => window.open(labPrefix + encoded);
-          viewBtn.onclick = () => window.open(viewPrefix + encoded + '&xdr$blob=' + encoded);
-
-          if (hasFreighter) freighterSignBtn.disabled = false;
-        } catch (e) {
-          console.error(e);
-          infoEl.textContent = 'Failed to build transaction. Check inputs and balance.';
-        }
-      }
-
-      // Freighter actions
-      freighterConnectBtn.addEventListener('click', async () => {
-        try {
-          const freighter = getFreighter();
-          infoEl.textContent = 'Requesting access from Freighter…';
-          const pubkey = await getFreighterAddressSafe(freighter);
-          if (!pubkey) throw new Error('Access denied or no address');
-          pubKeyIn.value = pubkey;
-          infoEl.textContent = `Freighter connected.\nPublic key: ${pubkey}`;
-          clearInterval(refreshInterval);
-          await fetchBalance();
-          refreshInterval = setInterval(fetchBalance, 10000);
-          scheduleBuild();
-        } catch (e) {
-          console.error(e);
-          infoEl.textContent = 'Freighter connect failed or was denied.';
-        }
-      });
-
-      freighterSignBtn.addEventListener('click', async () => {
-        try {
-          const freighter = getFreighter();
-          const pkInput = pubKeyIn.value.trim();
-          if (!isValidPubKey(pkInput)) { infoEl.textContent = 'Invalid public key.'; return; }
-
-          infoEl.textContent = 'Preparing transaction for Freighter…';
-
-          const freighterPk = await getFreighterAddressSafe(freighter);
-          if (!freighterPk) { infoEl.textContent = 'No Freighter address available.'; return; }
-          if (freighterPk !== pkInput) {
-            infoEl.textContent = `Freighter account (${freighterPk.slice(0,6)}…${freighterPk.slice(-6)}) does not match the Public Key input. Update the input or switch account in Freighter.`;
-            return;
-          }
-
-          const unsignedXdr = xdrEl.value.trim();
-          if (!unsignedXdr) { infoEl.textContent = 'No XDR to sign. Enter amount and build first.'; return; }
-
-          const signedRes = await freighter.signTransaction(unsignedXdr, { networkPassphrase, address: freighterPk });
-          if (signedRes?.error) throw new Error(signedRes.error.message || 'sign failed');
-          const signedXdr = signedRes.signedTxXdr || signedRes.signedXDR || signedRes;
-
-          infoEl.textContent = 'Submitting to Horizon…';
-          const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
-          const res = await server.submitTransaction(tx);
-
-          const txHash = res.hash;
-          infoEl.innerHTML =
-            `Submitted ✅\nHash: ${txHash}\n` +
-            `View: https://stellar.expert/explorer/public/tx/${txHash}`;
-        } catch (e) {
-          console.error(e);
-          const msg = (e && e.message) ? e.message : 'Sign/submit failed.';
-          infoEl.textContent = `Error: ${msg}`;
-        }
-      });
-
-      // Copy XDR
-      copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(xdrEl.value)
-          .then(() => { copyBtn.textContent = 'Copied!'; setTimeout(() => (copyBtn.textContent = 'Copy XDR'), 2000); })
-          .catch(console.error);
-      });
-
-      // Hide initially
-      modal.style.display = 'none';
+    // ---------- WalletConnect (mobile) ----------
+    function openLobstrApp(uri){
+      const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
+      const store  = isIOS()? STORE.lobstr.ios : STORE.lobstr.android;
+      const t0 = Date.now();
+      window.location.href = scheme;
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
     }
 
-    // Bootstrap: ensure freighterApi (global or ESM), then init the locker modal
-    await ensureFreighterApi();
-    initAquaLocker({ triggerSelector: '#lockBtn' });
+    async function getFreighterLinks(){
+      try{
+        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+        const res = await fetch(url); const data = await res.json();
+        const raw = data?.listings ?? data?.data ?? [];
+        const arr = Array.isArray(raw) ? raw : Object.values(raw);
+        const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
+        const mobile = w?.mobile || w?.app?.mobile || {};
+        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
+      }catch(e){ console.warn("Explorer fetch failed:",e); return {native:null,universal:null,found:false}; }
+    }
+    function buildCandidates(base, wcUri){
+      if(!base) return [];
+      const enc = encodeURIComponent(wcUri);
+      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      const j = base.includes("?") ? "&" : "?";
+      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
+    }
+    function openFreighterSmart(links, wcUri){
+      const store = isIOS()? STORE.freighter.ios : STORE.freighter.android;
+      const natives = buildCandidates(links.native, wcUri);
+      const universals = buildCandidates(links.universal, wcUri);
+      let attempted=false;
+      for(const href of natives){ attempted=true; window.location.href = href; setTimeout(()=>{},350); }
+      if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+      if(!attempted){ window.open(store, "_blank", "noopener"); }
+    }
+
+    on(wcBtn,"click", async ()=>{
+      try{
+        await ensureClient();
+        statusEl.textContent = "Starting WalletConnect…";
+        const { uri, approval } = await client.connect({
+          optionalNamespaces: {
+            stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+          }
+        });
+        if(!uri) throw new Error("No WC URI");
+        latestWcUri = uri;
+
+        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
+
+        linkStatus.textContent = "Loading Freighter deep link…";
+        const freighterLinks = await getFreighterLinks();
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+
+        // rebind wallet buttons freshly
+        const bL = btnLobstr.cloneNode(true), bF = btnFreighter.cloneNode(true);
+        btnLobstr.replaceWith(bL); btnFreighter.replaceWith(bF);
+        bL.addEventListener("click", ()=> openLobstrApp(latestWcUri));
+        bF.addEventListener("click", ()=> openFreighterSmart(freighterLinks, latestWcUri));
+
+        session = await approval();
+        connectionMode="wc";
+        qrArea.style.display="none"; closeModal();
+
+        const accounts = session.namespaces?.stellar?.accounts || [];
+        const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+        const address = first.split(":")[2] || "(unknown)";
+        setConnected(address, "wc");
+      }catch(e){
+        console.error(e);
+        statusEl.textContent = "Connection canceled or failed.";
+      }
+    });
+
+    // ---------- Freighter extension ----------
+    on(freighterExtBtn,"click", async ()=>{
+      try{
+        const freighter = await ensureFreighterApi();
+        if(!freighter){ alert("Freighter extension not detected."); return; }
+
+        // Try getPublicKey first (newer), fall back to getAddress/requestAccess
+        let address = "";
+        try { address = await freighter.getPublicKey(); } catch {}
+        if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
+        if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
+        if(!address){ alert("Freighter connect denied or failed."); return; }
+
+        connectionMode="freighter";
+        closeModal();
+        setConnected(address, "freighter");
+      }catch(e){ console.error(e); alert("Freighter connect failed."); }
+    });
+
+    // ---------- Balance + locker helpers ----------
+    function isValidG(k){ try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} }
+    function cleanAmt(a){ const n=Number(a); if(!isFinite(n)||n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); }
+
+    async function fetchAquaBalance(){
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)){ aquaBalEl.textContent = "Invalid key"; return; }
+      try{
+        const acct = await server.loadAccount(pk);
+        const bal = acct.balances.find(b => b.asset_code===AQUA_CODE && b.asset_issuer===AQUA_ISSUER);
+        aquaBalEl.textContent = bal ? bal.balance : "0";
+      }catch(e){ console.error(e); aquaBalEl.textContent="Error"; }
+    }
+
+    pubkeyEl.addEventListener("change", fetchAquaBalance);
+
+    pctBtns.forEach(btn=>btn.addEventListener("click", ()=>{
+      const bal = parseFloat(aquaBalEl.textContent)||0;
+      const pct = parseInt(btn.dataset.pct,10)/100;
+      const v = cleanAmt(bal*pct);
+      amountEl.value = v||"";
+    }));
+
+    // ---------- Build lock XDR ----------
+    async function buildLockXDR(){
+      const pk = pubkeyEl.value.trim();
+      const amt = cleanAmt(amountEl.value.trim());
+      if(!isValidG(pk)){ buildStatus.textContent="Invalid public key."; return null; }
+      if(!amt){ buildStatus.textContent="Enter a positive amount."; return null; }
+
+      try{
+        const src = await server.loadAccount(pk);
+
+        // lock times
+        const now = new Date();
+        const end = new Date(now);
+        end.setUTCFullYear(end.getUTCFullYear()+1);
+        end.setUTCHours(23,59,59,0);
+        lockInfoEl.textContent = `Lock start: ${now.toLocaleString()}\nLock end:   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
+
+        const endTs = Math.floor(end.getTime()/1000).toString();
+        const claimants = [
+          new SDK.Claimant(pk, SDK.Claimant.predicateNot(SDK.Claimant.predicateBeforeAbsoluteTime(endTs))),
+          new SDK.Claimant(TRACKER_KEY, SDK.Claimant.predicateBeforeAbsoluteTime("0"))
+        ];
+
+        // fixed fee like your working snippet
+        const tx = new SDK.TransactionBuilder(src, { fee: 20000, networkPassphrase: NETWORK })
+          .addOperation(SDK.Operation.createClaimableBalance({ asset: AQUA, amount: amt, claimants }))
+          .setTimeout(180)
+          .build();
+
+        return tx.toXDR();
+      }catch(e){ console.error(e); buildStatus.textContent="Failed to build XDR."; return null; }
+    }
+
+    on(buildBtn,"click", async ()=>{
+      buildStatus.textContent="Building…";
+      const xdr = await buildLockXDR();
+      if(xdr){ xdrOut.value=xdr; buildStatus.textContent="Built ✓"; }
+    });
+
+    // ---------- Signing helpers ----------
+    const wcRequest = (method, xdr) => client.request({
+      topic: session.topic, chainId: "stellar:pubnet",
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
+    });
+
+    async function signCurrent(xdr){
+      if(connectionMode==="wc"){
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      if(connectionMode==="freighter"){
+        const api = await ensureFreighterApi();
+        // get address (helps some Freighter versions)
+        let address = ""; try{ address = await api.getPublicKey(); }catch{}
+        if(!address && api.getAddress){ const r=await api.getAddress(); address=r?.address||""; }
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, address });
+        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      throw new Error("Not connected");
+    }
+
+    async function submitToHorizon(signedXdr){
+      const resp = await fetch(`${HORIZON}/transactions`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+        body:"tx="+encodeURIComponent(signedXdr)
+      });
+      const data = await resp.json();
+      if(!resp.ok) throw new Error("Horizon error: "+(data?.extras?.result_codes?.transaction||resp.status));
+      return data.hash;
+    }
+
+    on(signOnlyBtn,"click", async ()=>{
+      actionResult.textContent="";
+      const xdr = xdrOut.value.trim() || await buildLockXDR();
+      if(!xdr){ actionResult.textContent="Build the XDR first."; return; }
+      try{
+        actionResult.textContent="Signing…";
+        const signed = await signCurrent(xdr);
+        xdrOut.value = signed;
+        actionResult.textContent="Signed XDR ✓";
+      }catch(e){ console.error(e); actionResult.textContent=e.message||"Signing failed."; }
+    });
+
+    on(signSubmitBtn,"click", async ()=>{
+      actionResult.textContent="";
+      const xdr = xdrOut.value.trim() || await buildLockXDR();
+      if(!xdr){ actionResult.textContent="Build the XDR first."; return; }
+      try{
+        actionResult.textContent="Signing…";
+        const signed = await signCurrent(xdr);
+        actionResult.textContent="Submitting…";
+        const hash = await submitToHorizon(signed);
+        actionResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
+      }catch(e){ console.error(e); actionResult.textContent=e.message||"Sign/submit failed."; }
+    });
+
+    on(copyBtn,"click", async ()=>{
+      try{ await navigator.clipboard.writeText(xdrOut.value); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy XDR",1500); }
+      catch(e){ console.error(e); }
+    });
+
+    on(labBtn,"click", ()=>{
+      const xdr = xdrOut.value.trim();
+      if(!xdr){ actionResult.textContent="Build the XDR first."; return; }
+      let encoded = encodeURIComponent(xdr).replace(/%2F/g,'/').replace(/%2B/g,'+').replace(/%3D/g,'=');
+      encoded = encoded.replace(/\//g,'//') + ';;';
+      window.open('https://lab.stellar.org/transaction/sign?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=https:////mainnet.sorobanrpc.com&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr='+encoded, "_blank");
+    });
+
+    // ---------- WalletConnect modal open ----------
+    // show QR area only after we have a wc URI
+    // (done inside wcBtn click handler above)
+
   </script>
 
   <noscript style="color:#fff">Enable JavaScript to use the AQUAm25 locker.</noscript>
