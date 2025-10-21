@@ -36,10 +36,8 @@
     a.link{color:#9ab0ff;text-decoration:underline}
   </style>
 
-  <!-- Load Stellar SDK (UMD global) FIRST to guarantee window.StellarSdk -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/14.3.0/stellar-sdk.min.js"
-          integrity="sha512-jPttcJf5GxEB9dYfQAzcXk6lGvQyqz4sE4i3q7J0qFzLQq8+3Q2YdD1JHnC3z0d1R4JZqB2h0dUo6N2v9H6zvA=="
-          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Stellar SDK (UMD global). Use jsDelivr (cdnjs doesn’t host this path). -->
+  <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="card">
@@ -114,7 +112,7 @@
 
     // Ensure Stellar global is present
     if (!window.StellarSdk) {
-      throw new Error("StellarSdk failed to load; check the CDN script tag.");
+      throw new Error("StellarSdk failed to load; check the jsDelivr script tag.");
     }
     const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = window.StellarSdk;
 
