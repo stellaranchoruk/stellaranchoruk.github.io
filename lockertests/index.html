@@ -33,7 +33,6 @@
     label{display:block;margin:10px 0 6px}
     .section{margin-top:20px;padding-top:14px;border-top:1px dashed #2b3b6a}
     .box{background:#0e1627;border:1px solid #22315c;border-radius:12px;padding:14px}
-
     .pct{display:flex;gap:8px;margin-top:6px}
     .pct button{flex:1;background:#162554;border:1px solid #344a8a}
 
@@ -257,6 +256,7 @@
         pubkeyEl.value = address;
         pubkeyEl.readOnly = true;
         refreshBalancesAndUI();
+        startBalanceAutoRefresh();
       }else{
         pubkeyEl.readOnly = false;
       }
@@ -277,13 +277,9 @@
     // ---------- Balances / dropdown ----------
     async function loadBalances(pk){
       const acct = await getServer().loadAccount(pk);
-      // Make a list of assets (native first)
       const items = [];
-      // Native XLM
       const xlmBal = acct.balances.find(b=>b.asset_type==="native");
       items.push({ code:"XLM", issuer:null, balance: xlmBal ? xlmBal.balance : "0" });
-
-      // Non-native
       for(const b of acct.balances){
         if(b.asset_type==="native") continue;
         items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
@@ -299,7 +295,6 @@
         opt.textContent = `${it.code}${it.issuer?` · ${it.issuer.slice(0,6)}…${it.issuer.slice(-6)}`:""} — ${it.balance}`;
         swapFrom.appendChild(opt);
       }
-      // Default to AQUA if present, else first item
       const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
       const found = [...swapFrom.options].find(o=>o.value===def);
       swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
@@ -321,7 +316,7 @@
         // Fill swap dropdown
         fillSwapDropdown(items);
 
-        // Friendly default: if swap amount empty and you have AQUA, suggest 25% of AQUA
+        // Friendly defaults
         if(!swapAmount.value.trim()){
           const aquaItem = items.find(i=>i.code===AQUA_CODE && i.issuer===AQUA_ISSUER);
           if(aquaItem){
@@ -329,14 +324,12 @@
             if(v){ swapAmount.value = v; }
           }
         }
-
-        // Locker: if amount empty, suggest 25% of AQUAm25 balance
         if(!amountEl.value.trim()){
           const v = cleanAmt(parseFloat(aquaBalEl.textContent||"0")*0.25);
           if(v){ amountEl.value = v; }
         }
 
-        // Trigger re-quotes and rebuilds
+        // Trigger updates
         quoteSwap();
         scheduleLockerBuild();
       }catch(e){ console.error(e); }
@@ -392,7 +385,6 @@
       const sendAmt = cleanAmt(swapAmount.value.trim());
       if(!isValidG(pk) || !sendAmt) return;
 
-      // Parse "code:issuer" or "XLM"
       let sendAsset;
       if(swapFrom.value === "XLM"){
         sendAsset = SDK.Asset.native();
@@ -402,25 +394,22 @@
       }
 
       try{
-        // Use strict-send: source asset & source amount are fixed; we want best dest amount in AQUAm25
         const paths = await getServer().strictSendPaths(sendAsset, sendAmt, [AQUAm25]).call();
         const records = paths.records || [];
         if(!records.length){
           swapQuote.textContent = "No path found for this amount.";
           return;
         }
-        // Choose the best (max destination amount)
         records.sort((a,b)=> parseFloat(b.destination_amount) - parseFloat(a.destination_amount));
         const best = records[0];
 
-        const destAmount = best.destination_amount;  // estimated
+        const destAmount = best.destination_amount;
         const minOut = (parseFloat(destAmount) * 0.98).toFixed(7); // 2% buffer
 
         swapQuote.innerHTML =
-          `Est. receive: <b>${destAmount}</b> ${AQUAm25_CODE} (min ${minOut} with 2% buffer)` +
+          `Est. receive: <b>${destAmount}</b> AQUAm25 (min ${minOut})` +
           (best.path && best.path.length ? `<br/><span class="small">Path: ${best.path.map(p=>`${p.asset_code||'XLM'}:${p.asset_issuer||'native'}`).join(" → ")}</span>`:"");
 
-        // Build XDR: pathPaymentStrictSend to self
         const src = await getServer().loadAccount(pk);
 
         const op = SDK.Operation.pathPaymentStrictSend({
@@ -436,7 +425,6 @@
 
         const txb = new SDK.TransactionBuilder(src, { fee: 20000, networkPassphrase: NETWORK });
 
-        // Ensure trustline exists for AQUAm25
         const acct = await getServer().loadAccount(pk);
         const hasTrust = !!acct.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
         if(!hasTrust){
@@ -460,7 +448,6 @@
     on(pubkeyEl,"input", ()=>{
       if(pubkeyEl.readOnly) return;
       scheduleLockerBuild();
-      // swap/locker both depend on pk; re-quote too
       quoteSwap();
     });
     on(pubkeyEl,"change", ()=>{
@@ -480,7 +467,6 @@
 
     on(swapFrom,"change", quoteSwap);
     on(swapAmount,"input", ()=>{
-      // light debounce
       if(swapTimer) clearTimeout(swapTimer);
       swapTimer = setTimeout(quoteSwap, 400);
     });
@@ -538,19 +524,19 @@
 
         try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); }
         catch(e){ console.warn("QR draw failed", e); }
-        $("qrArea").style.display = "flex";
-        $("rawWcLink").href = uri;
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
 
-        $("linkStatus").textContent = "Loading Freighter deep link…";
+        linkStatus.textContent = "Loading Freighter deep link…";
         const freighterLinks = await getFreighterLinks();
-        $("linkStatus").textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
 
         $("btnLobstr").onclick = ()=> openLobstrApp(latestWcUri);
         $("btnFreighter").onclick = ()=> openFreighterSmart(freighterLinks, latestWcUri);
 
         session = await approval();
         connectionMode="wc";
-        $("qrArea").style.display="none"; closeModal();
+        qrArea.style.display="none"; closeModal();
 
         const accounts = session.namespaces?.stellar?.accounts || [];
         const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
@@ -683,7 +669,6 @@
         swapResult.textContent="Submitting…";
         const hash = await submitToHorizon(signed);
         swapResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
-        // After swap, refresh balances and re-quote
         setTimeout(refreshBalancesAndUI, 1200);
       }catch(e){ console.error(e); swapResult.textContent=e.message||"Sign/submit failed."; }
     });
@@ -693,39 +678,10 @@
     disableLockerButtons();
     disableSwapButtons();
 
-    // If user already types a public key without connecting, auto-refresh balances & build
-    on(window, "load", ()=>{
+    window.addEventListener("load", ()=>{
       const pk = pubkeyEl.value.trim();
       if(isValidG(pk)){ refreshBalancesAndUI(); startBalanceAutoRefresh(); }
     });
-
-    // Helpers
-    async function refreshBalancesAndUI(){
-      const pk = pubkeyEl.value.trim();
-      if(!isValidG(pk)) { aquaBalEl.textContent="Invalid key"; return; }
-      try{
-        const { acct, items } = await loadBalances(pk);
-        const a = acct.balances.find(b => b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
-        aquaBalEl.textContent = a ? a.balance : "0";
-        fillSwapDropdown(items);
-
-        // Keep defaults if empty
-        if(!swapAmount.value.trim()){
-          const aquaItem = items.find(i=>i.code===AQUA_CODE && i.issuer===AQUA_ISSUER);
-          if(aquaItem){
-            const v = cleanAmt(parseFloat(aquaItem.balance||"0")*0.25);
-            if(v){ swapAmount.value = v; }
-          }
-        }
-        if(!amountEl.value.trim()){
-          const v = cleanAmt(parseFloat(aquaBalEl.textContent||"0")*0.25);
-          if(v){ amountEl.value = v; }
-        }
-        // Trigger updates
-        quoteSwap();
-        scheduleLockerBuild();
-      }catch(e){ console.error(e); }
-    }
   </script>
 
   <noscript style="color:#fff">Enable JavaScript to use the AQUAm25 locker.</noscript>
