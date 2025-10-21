@@ -23,7 +23,6 @@
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .section{margin-top:18px;padding-top:14px;border-top:1px dashed #2b3b6a}
     .inline{display:inline-flex;gap:10px;align-items:center}
-
     /* Modal */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
@@ -126,28 +125,14 @@
     </div>
   </div>
 
-  <!-- Small polyfill some libs read in the browser -->
+  <!-- Tiny polyfill some libs read in the browser -->
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- QR generator as ESM -->
-  <script type="module" src="https://esm.sh/v135/qrcode@1.5.3/es2022/qrcode.mjs"></script>
-  <script>
-    // Make the ESM default export reachable for our main module:
-    window.__QRCodePromise = import("https://esm.sh/qrcode@1.5.3");
-  </script>
-
-  <!-- Stellar SDK global (UMD) — exposes window.StellarSdk with Server, etc. -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/14.3.0/stellar-sdk.min.js"></script>
-
-  <!-- App logic (ESM): WalletConnect Sign Client -->
+  <!-- App logic (ESM): Stellar SDK + WalletConnect Sign Client + QRCode (all via esm.sh) -->
   <script type="module">
+    import { Server, Networks, TransactionBuilder, Operation, Asset, Memo } from "https://esm.sh/@stellar/stellar-sdk@14.3.0";
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
-
-    // Pull Stellar SDK types from the global
-    const { Server, Networks, TransactionBuilder, Operation, Asset, Memo } = window.StellarSdk;
-
-    // Load QRCode ESM (from the promise we set up above)
-    const QRCode = (await window.__QRCodePromise).default;
+    import QRCode from "https://esm.sh/qrcode@1.5.3";
 
     // ---- Config
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
@@ -181,7 +166,6 @@
     // ---- WC state
     let client=null, session=null;
 
-    // Basic mobile check
     const isMobile=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     async function ensureClient(){
@@ -191,16 +175,14 @@
       }
     }
 
-    // UI
     connectBtn.addEventListener("click", ()=> openModal());
 
-    // Start WC flow using our own QR/deeplink UI
     wcBtn.addEventListener("click", async ()=>{
       try{
         await ensureClient();
         statusEl.textContent="Starting WalletConnect…";
 
-        // Use optionalNamespaces (new API shape)
+        // Use optionalNamespaces to avoid deprecation warning
         const optionalNamespaces = {
           stellar:{
             chains:[chainId()],
@@ -213,11 +195,10 @@
         if(!uri) throw new Error("No WC URI returned");
 
         if(isMobile()){
-          // Mobile: deep-link straight into wallet
-          window.location.href = uri;
+          window.location.href = uri; // deep-link
         }
 
-        // Show QR (desktop + fallback)
+        // Show QR
         qrArea.style.display="flex";
         await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
         deepLink.href = uri;
@@ -229,8 +210,8 @@
         qrArea.style.display="none";
         closeModal();
 
-        // Show connected account
-        const accounts = session.namespaces.stellar?.accounts || [];
+        // Display connected account
+        const accounts = session.namespaces?.stellar?.accounts || [];
         const first = accounts.find(a=>a.startsWith(chainId())) || accounts[0] || "";
         const address = (first.split(":")[2]) || "(unknown)";
         addrEl.textContent = address;
@@ -241,7 +222,6 @@
       }catch(e){
         console.error(e);
         statusEl.textContent="Connection canceled or failed.";
-        // Leave QR visible for retry if we already rendered it
       }
     });
 
@@ -249,10 +229,7 @@
     disconnectBtn.addEventListener("click", async ()=>{
       try{
         if(client && session){
-          await client.disconnect({
-            topic: session.topic,
-            reason:{ code:6000, message:"User disconnected" }
-          });
+          await client.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" } });
         }
       }catch(e){ console.warn("disconnect error", e); }
       session=null;
@@ -263,7 +240,7 @@
       netRadios.forEach(r=>{ r.disabled=false; r.checked=(r.value===CURRENT_NET); });
     });
 
-    // Helper to request via WC
+    // WalletConnect request helper
     const wcRequest = (method, xdr) => client.request({
       topic: session.topic,
       chainId: chainId(),
@@ -362,7 +339,6 @@
       }catch(e){ console.error(e); submitResult.textContent="Network/submit error."; }
     });
 
-    // Hint if project ID is missing
     if(!PROJECT_ID){ statusEl.textContent="Set your WalletConnect projectId."; }
   </script>
 
