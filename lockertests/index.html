@@ -72,7 +72,7 @@
       <!-- Swap -->
       <div class="section box" id="swapBox">
         <h2>Swap</h2>
-        <p class="small">Swap any Stellar token you hold into AQUAm25 using the network DEX.</p>
+        <p class="small">Swap any Stellar token you hold into AQUAm25 using the network DEX. Type either how much you’ll <b>send</b> or how much AQUAm25 you want to <b>receive</b>.</p>
 
         <!-- Row 1: From & Amount -->
         <div class="row" style="gap:14px">
@@ -83,9 +83,8 @@
 
           <div style="width:220px;max-width:100%">
             <div class="label-row">
-              <label for="swapAmount" style="margin-bottom:0">Amount</label>
-              <!-- Clickable balance chip -->
-              <button id="fillMaxBtn" class="chip linkish" title="Click to autofill your full balance" style="display:none">
+              <label for="swapAmount" style="margin-bottom:0">Amount to send</label>
+              <button id="fillMaxBtn" class="chip linkish" title="Autofill your full balance" style="display:none">
                 Balance: <span id="selectedBal">0</span>
               </button>
             </div>
@@ -102,9 +101,9 @@
               <span id="toIssuerMeta" style="opacity:.8">Loading issuer domain…</span>
             </div>
           </div>
-          <div style="width:180px">
-            <label for="swapEst">Estimated receive</label>
-            <input id="swapEst" type="text" readonly placeholder="—" />
+          <div style="width:220px">
+            <label for="swapEst">Receive (AQUAm25)</label>
+            <input id="swapEst" type="number" step="any" placeholder="0.0" />
           </div>
         </div>
 
@@ -384,7 +383,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       scheduleLockerBuild();
     }));
 
-    // ---------- Swap (one-time fill, domain names) ----------
+    // ---------- Swap (balances + domains) ----------
     async function loadAllBalances(pk){
       const acct = await getServer().loadAccount(pk);
       const items = [];
@@ -435,7 +434,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
       const found = [...swapFrom.options].find(o=>o.value===def);
       swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
-      // Update balance chip after initial fill
       updateSelectedAssetUI();
     }
 
@@ -452,7 +450,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     }
 
     async function updateToBoxDomain(){
-      // Make To show AQUAm25 + domain
       if(!DOMAIN_CACHE.has(AQUAm25_ISSUER)){
         await fetchDomainsForIssuers([AQUAm25_ISSUER]);
       }
@@ -465,19 +462,15 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(!isValidG(pk)) { aquaBalEl.textContent="Invalid key"; return; }
 
       try{
-        // Locker balance
         const { balance } = await loadAquaM25Balance(pk);
         aquaBalEl.textContent = balance;
 
-        // Balances (hide zero) + domains
         const { items } = await loadAllBalances(pk);
         await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean).concat([AQUAm25_ISSUER]));
         fillSwapDropdownOnce(items);
 
-        // To box domain
         updateToBoxDomain();
 
-        // Suggested defaults (do NOT auto-quote)
         if(!amountEl.value.trim()){
           const v = cleanAmt(parseFloat(balance||"0")*0.25);
           if(v){ amountEl.value = v; }
@@ -486,12 +479,12 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }catch(e){ console.error(e); }
     }
 
-    // ---------- Swap: quoting ----------
-    async function quoteSwap(){
-      // Only on user actions
+    // ---------- Swap quoting: strict-send & strict-receive ----------
+    let quoteMode = "send"; // "send" when user edits swapAmount, "receive" when user edits swapEst
+
+    async function quoteStrictSend(){
       disableSwapButtons();
       xdrSwap.value = "";
-      swapEst.value = "";
       swapQuote.textContent = "";
 
       const pk = pubkeyEl.value.trim();
@@ -514,18 +507,18 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           swapQuote.textContent = `No path found from ${sendLabel} → AQUAm25 for this amount.`;
           return;
         }
+        // pick max destination_amount
         records.sort((a,b)=> parseFloat(b.destination_amount) - parseFloat(a.destination_amount));
         const best = records[0];
-
         const destAmount = best.destination_amount;
-        const minOut = (parseFloat(destAmount) * 0.98).toFixed(7); // 2% buffer
         swapEst.value = destAmount;
 
+        const minOut = (parseFloat(destAmount) * 0.98).toFixed(7); // 2% buffer on receive
         const pathStr = (best.path && best.path.length)
           ? `Path: ${best.path.map(p=>`${p.asset_code||'XLM'}:${DOMAIN_CACHE.get(p.asset_issuer)|| (p.asset_issuer?shortG(p.asset_issuer):'native')}`).join(" → ")}`
           : "Direct";
 
-        swapQuote.innerHTML = `Min receive (2% slippage): <b>${minOut}</b> AQUAm25<br/><span class="small">${pathStr}</span>`;
+        swapQuote.innerHTML = `Mode: <b>Strict Send</b> · You send <b>${sendAmt}</b> ${sendLabel}. Min receive: <b>${minOut}</b> AQUAm25<br/><span class="small">${pathStr}</span>`;
 
         const src = await getServer().loadAccount(pk);
 
@@ -541,32 +534,106 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         });
 
         const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
-        // Ensure trustline exists for AQUAm25
         const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
         if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
-
         txb.addOperation(op).setTimeout(180);
-        const tx = txb.build();
-
-        xdrSwap.value = tx.toXDR();
+        xdrSwap.value = txb.build().toXDR();
         enableSwapButtons();
       }catch(e){
         console.error(e);
-        swapQuote.textContent = "Failed to quote path.";
+        swapQuote.textContent = "Failed to quote path (strict send).";
         xdrSwap.value = "";
         disableSwapButtons();
       }
     }
 
-    // UI wiring
+    async function quoteStrictReceive(){
+      disableSwapButtons();
+      xdrSwap.value = "";
+      swapQuote.textContent = "";
+
+      const pk = pubkeyEl.value.trim();
+      const destAmt = cleanAmt(swapEst.value.trim());
+      if(!isValidG(pk) || !destAmt) return;
+
+      let sendAsset;
+      if(swapFrom.value === "XLM"){
+        sendAsset = SDK.Asset.native();
+      }else{
+        const [code, issuer] = swapFrom.value.split(":");
+        sendAsset = new SDK.Asset(code, issuer);
+      }
+      const sendLabel = (sendAsset.isNative && sendAsset.isNative()) ? "XLM" : (sendAsset.code || (sendAsset.getCode ? sendAsset.getCode() : "asset"));
+
+      try{
+        // find cheapest source_amount to achieve destAmt AQUAm25
+        const paths = await getServer().strictReceivePaths(AQUAm25, destAmt, [sendAsset]).call();
+        const records = paths.records || [];
+        if(!records.length){
+          swapQuote.textContent = `No path found to receive ${destAmt} AQUAm25 from ${sendLabel}.`;
+          return;
+        }
+        // pick min source_amount
+        records.sort((a,b)=> parseFloat(a.source_amount) - parseFloat(b.source_amount));
+        const best = records[0];
+        const srcAmount = best.source_amount;
+        swapAmount.value = srcAmount;
+
+        const sendMax = (parseFloat(srcAmount) * 1.02).toFixed(7); // 2% buffer on send
+        const pathStr = (best.path && best.path.length)
+          ? `Path: ${best.path.map(p=>`${p.asset_code||'XLM'}:${DOMAIN_CACHE.get(p.asset_issuer)|| (p.asset_issuer?shortG(p.asset_issuer):'native')}`).join(" → ")}`
+          : "Direct";
+
+        swapQuote.innerHTML = `Mode: <b>Strict Receive</b> · To receive <b>${destAmt}</b> AQUAm25, you’ll send ~<b>${srcAmount}</b> ${sendLabel}. Send max set to <b>${sendMax}</b> (+2%).<br/><span class="small">${pathStr}</span>`;
+
+        const src = await getServer().loadAccount(pk);
+
+        const op = SDK.Operation.pathPaymentStrictReceive({
+          sendAsset,
+          sendMax,
+          destination: pk,
+          destAsset: AQUAm25,
+          destAmount: destAmt,
+          path: (best.path||[]).map(p => p.asset_type==="native"
+              ? SDK.Asset.native()
+              : new SDK.Asset(p.asset_code, p.asset_issuer))
+        });
+
+        const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
+        const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
+        if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
+        txb.addOperation(op).setTimeout(180);
+        xdrSwap.value = txb.build().toXDR();
+        enableSwapButtons();
+      }catch(e){
+        console.error(e);
+        swapQuote.textContent = "Failed to quote path (strict receive).";
+        xdrSwap.value = "";
+        disableSwapButtons();
+      }
+    }
+
+    // ---------- UI wiring ----------
+    function debounceQuote(fn){
+      if(swapTimer) clearTimeout(swapTimer);
+      swapTimer = setTimeout(fn, 400);
+    }
+
     on(swapFrom,"change", ()=>{
       updateSelectedAssetUI();
-      // Don’t auto-quote; user will type the amount
+      // re-run active mode if fields have values
+      if(quoteMode==="send" && swapAmount.value.trim()) debounceQuote(quoteStrictSend);
+      else if(quoteMode==="receive" && swapEst.value.trim()) debounceQuote(quoteStrictReceive);
     });
 
     on(swapAmount,"input", ()=>{
-      if(swapTimer) clearTimeout(swapTimer);
-      swapTimer = setTimeout(quoteSwap, 400);
+      quoteMode = "send";
+      debounceQuote(quoteStrictSend);
+    });
+
+    on(swapEst,"input", ()=>{
+      quoteMode = "receive";
+      debounceQuote(quoteStrictReceive);
     });
 
     on(fillMaxBtn,"click", ()=>{
@@ -574,7 +641,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(!opt) return;
       const bal = opt.dataset.balance || "0";
       swapAmount.value = bal;
-      quoteSwap();
+      quoteMode = "send";
+      quoteStrictSend();
     });
 
     // XDR reveal/hide toggles
