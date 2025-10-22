@@ -191,13 +191,49 @@
 
   <script>window.process = window.process || { env: {} };</script>
 
+  <!-- Failsafe: make the Connect button open/close the modal even if the module fails -->
+  <script>
+    (function () {
+      function openModal() {
+        var bd = document.getElementById('backdrop');
+        var md = document.getElementById('loginModal');
+        if (bd) bd.classList.add('open');
+        if (md) md.classList.add('open');
+      }
+      function closeModal() {
+        var bd = document.getElementById('backdrop');
+        var md = document.getElementById('loginModal');
+        if (bd) bd.classList.remove('open');
+        if (md) md.classList.remove('open');
+      }
+      function ready(fn){ document.readyState !== 'loading' ? fn() : document.addEventListener('DOMContentLoaded', fn); }
+      ready(function(){
+        var btn = document.getElementById('connectBtn');
+        var closeBtn = document.getElementById('closeModal');
+        var bd = document.getElementById('backdrop');
+        if (btn) btn.addEventListener('click', openModal);
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (bd) bd.addEventListener('click', closeModal);
+      });
+    })();
+  </script>
+
   <script type="module">
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
+    // Surface any fatal errors to the UI status
+    window.addEventListener("error", (e)=>{
+      const s = document.getElementById("status");
+      if (s && e?.error) s.textContent = "Load error: " + (e.error.message || "Unknown");
+    });
+    window.addEventListener("unhandledrejection", (e)=>{
+      const s = document.getElementById("status");
+      if (s && e?.reason) s.textContent = "Init error: " + (e.reason.message || "Unknown");
+    });
+
     // ---------- POLYFILLS ----------
     if(!String.prototype.includes){
-      // Minimal, fast, safe
       String.prototype.includes = function(search, start){
         if(typeof start !== "number") start = 0;
         if(start + search.length > this.length) return false;
@@ -249,6 +285,13 @@
           swapEst=$("swapEst"), selectedBal=$("selectedBal"), fillMaxBtn=$("fillMaxBtn"),
           toIssuerMeta=$("toIssuerMeta"), toggleSwapXdr=$("toggleSwapXdr"), toggleLockerXdr=$("toggleLockerXdr");
 
+    // ---------- Modal (normal path) ----------
+    const openModal=()=>{ backdrop.classList.add("open"); loginModal.classList.add("open"); };
+    const closeModal=()=>{ backdrop.classList.remove("open"); loginModal.classList.remove("open"); };
+    on(closeModalBtn,"click",closeModal);
+    on(backdrop,"click",closeModal);
+    on(connectBtn,"click",openModal);
+
     // ---------- Stellar SDK / Server ----------
     if(!window.StellarSdk) throw new Error("Stellar SDK failed to load.");
     const SDK = window.StellarSdk;
@@ -273,14 +316,7 @@
     const cleanAmt = a => { const n=Number(a); if(!isFinite(n)||n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
     const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
-    // Keep small numbers out of scientific notation
-    const plain = (v) => {
-      const s = String(v);
-      if(!/e/i.test(s)) return s;
-      const n = Number(v);
-      // 7dp is enough for Stellar amounts; trim trailing zeros
-      return n.toFixed(7).replace(/\.?0+$/,'');
-    };
+    const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
 
     function disableLockerButtons(){ [signSubmitBtn,signOnlyBtn,copyBtn,labBtn].forEach(b=>b.disabled=true); }
     function enableLockerButtons(){ const ok=!!xdrOut.value.trim(); [signSubmitBtn,signOnlyBtn,copyBtn,labBtn].forEach(b=>b.disabled=!ok); }
@@ -311,7 +347,6 @@
         }
       }catch(e){ console.warn(e); }
       session=null; connectionMode="none"; setConnected("", "none");
-      // Reset any stale UI state/results and disable buttons
       xdrOut.value = ""; xdrSwap.value = ""; swapEst.value = "";
       actionResult.textContent = ""; swapResult.textContent = ""; swapQuote.textContent = "";
       disableLockerButtons(); disableSwapButtons();
@@ -409,7 +444,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
       for(const b of acct.balances){
         if(b.asset_type==="native") continue;
-        if(parseFloat(b.balance) <= 0) continue; // hide zero-balance assets
+        if(parseFloat(b.balance) <= 0) continue;
         items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
       }
       return { acct, items };
@@ -441,12 +476,11 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const opt = document.createElement("option");
         opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
         opt.textContent = labelWithDomain(it.code, it.issuer);
-        opt.dataset.balance = it.balance; // for the balance chip
+        opt.dataset.balance = it.balance;
         opt.dataset.code = it.code;
         if(it.issuer) opt.dataset.issuer = it.issuer;
         swapFrom.appendChild(opt);
       }
-      // Default to AQUA if present; else first
       const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
       const found = [...swapFrom.options].find(o=>o.value===def);
       swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
@@ -523,13 +557,12 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           swapQuote.textContent = `No path found from ${sendLabel} → AQUAm25 for this amount.`;
           return;
         }
-        // pick max destination_amount
         records.sort((a,b)=> parseFloat(b.destination_amount) - parseFloat(a.destination_amount));
         const best = records[0];
         const destAmount = best.destination_amount;
         swapEst.value = plain(destAmount);
 
-        const minOut = (parseFloat(destAmount) * 0.98).toFixed(7); // 2% buffer on receive
+        const minOut = (parseFloat(destAmount) * 0.98).toFixed(7); // 2% buffer
         const pathArr = Array.isArray(best.path) ? best.path : [];
         const pathStr = pathArr.length
           ? `Path: ${pathArr.map(p=>`${(p.asset_code||'XLM')}:${DOMAIN_CACHE.get(p.asset_issuer)|| (p.asset_type==='native'?'native':(p.asset_issuer?shortG(p.asset_issuer):'native'))}`).join(" → ")}`
@@ -583,20 +616,18 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const sendLabel = toNativeLabel(sendAsset);
 
       try{
-        // find cheapest source_amount to achieve destAmt AQUAm25
         const paths = await getServer().strictReceivePaths(AQUAm25, destAmt, [sendAsset]).call();
         const records = Array.isArray(paths.records) ? paths.records : [];
         if(!records.length){
           swapQuote.textContent = `No path found to receive ${destAmt} AQUAm25 from ${sendLabel}.`;
           return;
         }
-        // pick min source_amount
         records.sort((a,b)=> parseFloat(a.source_amount) - parseFloat(b.source_amount));
         const best = records[0];
         const srcAmount = best.source_amount;
         swapAmount.value = plain(srcAmount);
 
-        const sendMax = (parseFloat(srcAmount) * 1.02).toFixed(7); // 2% buffer on send
+        const sendMax = (parseFloat(srcAmount) * 1.02).toFixed(7); // 2% buffer
         const pathArr = Array.isArray(best.path) ? best.path : [];
         const pathStr = pathArr.length
           ? `Path: ${pathArr.map(p=>`${(p.asset_code||'XLM')}:${DOMAIN_CACHE.get(p.asset_issuer)|| (p.asset_type==='native'?'native':(p.asset_issuer?shortG(p.asset_issuer):'native'))}`).join(" → ")}`
@@ -639,7 +670,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     on(swapFrom,"change", ()=>{
       updateSelectedAssetUI();
-      // re-run active mode if fields have values
       if(quoteMode==="send" && swapAmount.value.trim()) debounceQuote(quoteStrictSend);
       else if(quoteMode==="receive" && swapEst.value.trim()) debounceQuote(quoteStrictReceive);
     });
@@ -658,9 +688,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const opt = getSelectedOption();
       if(!opt) return;
       const bal = parseFloat(opt.dataset.balance || "0");
-      // ---------- SAFE XLM MAX ----------
       if(opt.value === "XLM"){
-        const safe = Math.max(0, bal - 2); // keep cushion; we’re not counting subentries here
+        const safe = Math.max(0, bal - 2);
         swapAmount.value = plain(safe);
       }else{
         swapAmount.value = plain(bal);
@@ -876,7 +905,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapResult.textContent="Submitting…";
         const hash = await submitToHorizon(signed);
         swapResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
-        // Optional: refresh AQUAm25 balance after swap
         setTimeout(async ()=>{
           const pk = pubkeyEl.value.trim();
           if(isValidG(pk)){
