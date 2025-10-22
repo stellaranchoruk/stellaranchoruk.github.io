@@ -611,7 +611,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     function buildCandidates(base, wcUri){
       if(!base) return [];
       const enc = encodeURIComponent(wcUri);
-      if (base includes "{wc}" || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
       const j = base.includes("?") ? "&" : "?";
       return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
     }
