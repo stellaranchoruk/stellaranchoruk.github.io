@@ -35,6 +35,7 @@
     .box{background:#0e1627;border:1px solid #22315c;border-radius:12px;padding:14px}
     .pct{display:flex;gap:8px;margin-top:6px}
     .pct button{flex:1;background:#162554;border:1px solid #344a8a}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 
     /* Modal */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
@@ -50,10 +51,8 @@
     a.link{color:#9ab0ff;text-decoration:underline}
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
 
-    /* New: little chips for selected asset + balance */
+    /* Small chips */
     .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #2a3d7a;background:#0b1430;border-radius:999px;padding:6px 10px;font-size:12px;opacity:.95}
-    .chip img{width:16px;height:16px;border-radius:50%;object-fit:cover;background:#111}
-    .chip .fallback{width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#1a2550;font-weight:700}
     .label-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
     .linkish{border:none;background:transparent;color:#9ab0ff;text-decoration:underline;padding:0;cursor:pointer}
   </style>
@@ -70,15 +69,6 @@
         <span id="status" class="muted" aria-live="polite">Not connected</span>
       </div>
 
-      <!-- Connection -->
-      <div class="section box" style="margin-top:20px">
-        <h2>Connection</h2>
-        <p class="small">Mode: <b id="mode">—</b></p>
-        <p class="small">Address: <span id="addr" style="word-break:break-all"></span></p>
-        <p class="small">Network: <b>Public</b></p>
-        <p class="small">Tip: Using mobile? Choose LOBSTR or Freighter from the WalletConnect popup.</p>
-      </div>
-
       <!-- Swap -->
       <div class="section box" id="swapBox">
         <h2>Swap</h2>
@@ -87,16 +77,7 @@
         <!-- Row 1: From & Amount -->
         <div class="row" style="gap:14px">
           <div style="flex:1;min-width:260px">
-            <div class="label-row">
-              <label for="swapFrom" style="margin-bottom:0">From</label>
-              <!-- Selected asset chip with logo + domain -->
-              <span id="selectedAssetChip" class="chip" title="Selected asset" style="display:none">
-                <span id="assetLogoWrap">
-                  <span class="fallback" id="assetLogoFallback">∎</span>
-                </span>
-                <span id="assetChipText" class="small"></span>
-              </span>
-            </div>
+            <label for="swapFrom" style="margin-bottom:0">From</label>
             <select id="swapFrom"></select>
           </div>
 
@@ -117,7 +98,7 @@
           <div style="flex:1;min-width:260px">
             <label>To</label>
             <div class="mono small" style="padding:10px 12px;border:1px solid #2a3d7a;border-radius:10px;background:#0b1430">
-              <span id="toAssetTitle">AQUAm25</span><br/>
+              AQUAm25<br/>
               <span id="toIssuerMeta" style="opacity:.8">Loading issuer domain…</span>
             </div>
           </div>
@@ -129,8 +110,11 @@
 
         <p class="small" id="swapQuote" style="margin-top:6px" aria-live="polite"></p>
 
-        <label for="xdrSwap" style="margin-top:10px">Swap XDR</label>
-        <textarea id="xdrSwap" rows="5" placeholder="Built swap XDR appears here" readonly></textarea>
+        <div class="toggle-row" style="margin-top:10px">
+          <label for="xdrSwap" style="margin:0">Swap XDR</label>
+          <button id="toggleSwapXdr" class="ghost small">Reveal XDR</button>
+        </div>
+        <textarea id="xdrSwap" rows="5" placeholder="Built swap XDR appears here" readonly style="display:none"></textarea>
 
         <div class="row" style="margin-top:10px;flex-wrap:wrap">
           <button id="swapSignSubmit">Sign &amp; Submit (current wallet)</button>
@@ -161,8 +145,11 @@
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
 
-        <label for="xdrOut" style="margin-top:10px">Transaction XDR</label>
-        <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here" readonly></textarea>
+        <div class="toggle-row" style="margin-top:10px">
+          <label for="xdrOut" style="margin:0">Transaction XDR</label>
+          <button id="toggleLockerXdr" class="ghost small">Reveal XDR</button>
+        </div>
+        <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here" readonly style="display:none"></textarea>
 
         <div class="row" style="margin-top:10px;flex-wrap:wrap">
           <button id="signSubmitBtn">Sign &amp; Submit (current wallet)</button>
@@ -237,7 +224,7 @@
     const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus"), rawWcLink=$("rawWcLink");
 
     const pubkeyEl=$("pubkey"), aquaBalEl=$("aquaBal"), amountEl=$("amount"), lockInfoEl=$("lockInfo");
-    const xdrOut=$("xdrOut"), actionResult=$("actionResult"), addrEl=$("addr"), modeEl=$("mode");
+    const xdrOut=$("xdrOut"), actionResult=$("actionResult");
     const signSubmitBtn=$("signSubmitBtn"), signOnlyBtn=$("signOnlyBtn"), copyBtn=$("copyBtn"), labBtn=$("labBtn");
     const pctBtns=[...document.querySelectorAll(".pct button")];
 
@@ -245,17 +232,14 @@
     const swapFrom=$("swapFrom"), swapAmount=$("swapAmount"), swapQuote=$("swapQuote"),
           xdrSwap=$("xdrSwap"), swapSignSubmit=$("swapSignSubmit"),
           swapSignOnly=$("swapSignOnly"), swapCopy=$("swapCopy"), swapResult=$("swapResult"),
-          swapEst=$("swapEst"), selectedAssetChip=$("selectedAssetChip"),
-          assetChipText=$("assetChipText"), assetLogoWrap=$("assetLogoWrap"),
-          assetLogoFallback=$("assetLogoFallback"), fillMaxBtn=$("fillMaxBtn"), selectedBal=$("selectedBal"),
-          toIssuerMeta=$("toIssuerMeta");
+          swapEst=$("swapEst"), selectedBal=$("selectedBal"), fillMaxBtn=$("fillMaxBtn"),
+          toIssuerMeta=$("toIssuerMeta"), toggleSwapXdr=$("toggleSwapXdr"), toggleLockerXdr=$("toggleLockerXdr");
 
-    // ---------- Modal (restored) ----------
-    const openModal = () => { backdrop.classList.add("open"); loginModal.classList.add("open"); };
-    const closeModal = () => { backdrop.classList.remove("open"); loginModal.classList.remove("open"); };
-    on(closeModalBtn, "click", closeModal);
-    on(backdrop, "click", closeModal);
-    on(connectBtn, "click", openModal);
+    // ---------- Modal ----------
+    const openModal=()=>{backdrop.classList.add("open");loginModal.classList.add("open");};
+    const closeModal=()=>{backdrop.classList.remove("open");loginModal.classList.remove("open");};
+    on(closeModalBtn,"click",closeModal); on(backdrop,"click",closeModal);
+    on(connectBtn,"click",openModal);
 
     // ---------- Stellar SDK / Server ----------
     if(!window.StellarSdk) throw new Error("Stellar SDK failed to load.");
@@ -274,9 +258,8 @@
     let swapTimer=null;        // swap debounce
     let lockerRefreshTimer=null;
 
-    // Caches
+    // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map(); // issuer => domain (string or "")
-    const LOGO_CACHE   = new Map(); // issuer => imageURL (string or "")
 
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
@@ -292,9 +275,7 @@
 
     // ---------- Connection state ----------
     function setConnected(address, mode){
-      addrEl.textContent = address || "";
-      modeEl.textContent = mode==="wc"?"WalletConnect":(mode==="freighter"?"Freighter extension":"—");
-      statusEl.textContent = address ? `Connected (${modeEl.textContent})` : "Not connected";
+      statusEl.textContent = address ? `Connected (${mode==="wc"?"WalletConnect":"Freighter"})` : "Not connected";
       disconnectBtn.disabled = !address;
 
       if(address && /^G[A-Z2-7]{55}$/.test(address)){
@@ -403,7 +384,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       scheduleLockerBuild();
     }));
 
-    // ---------- Swap (balances, domains, logos) ----------
+    // ---------- Swap (one-time fill, domain names) ----------
     async function loadAllBalances(pk){
       const acct = await getServer().loadAccount(pk);
       const items = [];
@@ -432,38 +413,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }));
     }
 
-    async function fetchLogosForIssuers(issuers){
-      const unique = [...new Set(issuers.filter(Boolean))];
-      const need = unique.filter(i => !LOGO_CACHE.has(i));
-      await Promise.all(need.map(async (issuer)=>{
-        try{
-          const dom = DOMAIN_CACHE.get(issuer);
-          if(!dom){ LOGO_CACHE.set(issuer,""); return; }
-          const url = `https://${dom}/.well-known/stellar.toml`;
-          const res = await fetch(url, { mode:"cors" });
-          if(!res.ok){ LOGO_CACHE.set(issuer,""); return; }
-          const txt = await res.text();
-          // Very light TOML scan for [[CURRENCIES]] with matching ISSUER; get IMAGE
-          const blocks = txt.split(/\[\[CURRENCIES\]\]/i).slice(1);
-          let img="";
-          for(const block of blocks){
-            const issuerMatch = block.match(/^\s*issuer\s*=\s*\"?([^\"]+)\"?/im);
-            const codeMatch   = block.match(/^\s*code\s*=\s*\"?([A-Za-z0-9_]{1,12})\"?/im);
-            const imageMatch  = block.match(/^\s*image\s*=\s*\"?([^\"]+)\"?/im);
-            const issuerVal = issuerMatch && issuerMatch[1]?.trim();
-            if(issuerVal && issuerVal.toUpperCase()===issuer.toUpperCase()){
-              img = imageMatch ? imageMatch[1].trim() : "";
-              if(img) break;
-            }
-            if(!img && codeMatch && issuerVal==null) {
-              img = imageMatch ? imageMatch[1].trim() : "";
-            }
-          }
-          LOGO_CACHE.set(issuer, img||"");
-        }catch(_){ LOGO_CACHE.set(issuer,""); }
-      }));
-    }
-
     function labelWithDomain(code, issuer){
       if(!issuer) return `${code} · native`;
       const dom = DOMAIN_CACHE.get(issuer) || "";
@@ -471,32 +420,13 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return `${code} · ${right}`;
     }
 
-    function renderSelectedAssetChip(code, issuer){
-      const text = labelWithDomain(code, issuer);
-      assetChipText.textContent = text;
-      selectedAssetChip.style.display = "inline-flex";
-      // logo (if any)
-      assetLogoWrap.innerHTML = "";
-      const imgUrl = issuer ? (LOGO_CACHE.get(issuer)||"") : "";
-      if(imgUrl){
-        const img = document.createElement("img");
-        img.src = imgUrl; img.alt = code; img.width=16; img.height=16;
-        assetLogoWrap.appendChild(img);
-      }else{
-        const fb = document.createElement("span");
-        fb.className = "fallback";
-        fb.textContent = code[0] || "∎";
-        assetLogoWrap.appendChild(fb);
-      }
-    }
-
     function fillSwapDropdownOnce(items){
       swapFrom.innerHTML = "";
       for(const it of items){
         const opt = document.createElement("option");
         opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
-        opt.textContent = labelWithDomain(it.code, it.issuer); // no balance in label anymore
-        opt.dataset.balance = it.balance; // keep for the balance chip
+        opt.textContent = labelWithDomain(it.code, it.issuer);
+        opt.dataset.balance = it.balance; // for the balance chip
         opt.dataset.code = it.code;
         if(it.issuer) opt.dataset.issuer = it.issuer;
         swapFrom.appendChild(opt);
@@ -505,7 +435,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
       const found = [...swapFrom.options].find(o=>o.value===def);
       swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
-      // Update chips after initial fill
+      // Update balance chip after initial fill
       updateSelectedAssetUI();
     }
 
@@ -515,13 +445,10 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     function updateSelectedAssetUI(){
       const opt = getSelectedOption();
-      if(!opt){ selectedAssetChip.style.display="none"; fillMaxBtn.style.display="none"; return; }
-      const code = opt.dataset.code || (opt.value==="XLM"?"XLM":"");
-      const issuer = opt.dataset.issuer || null;
+      if(!opt){ fillMaxBtn.style.display="none"; return; }
       const bal = opt.dataset.balance || "0";
       selectedBal.textContent = fmt(bal);
       fillMaxBtn.style.display = parseFloat(bal)>0 ? "inline-flex" : "none";
-      renderSelectedAssetChip(code, issuer);
     }
 
     async function updateToBoxDomain(){
@@ -542,10 +469,9 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const { balance } = await loadAquaM25Balance(pk);
         aquaBalEl.textContent = balance;
 
-        // Balances (hide zero), domains and logos
+        // Balances (hide zero) + domains
         const { items } = await loadAllBalances(pk);
         await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean).concat([AQUAm25_ISSUER]));
-        await fetchLogosForIssuers(items.map(i=>i.issuer).filter(Boolean));
         fillSwapDropdownOnce(items);
 
         // To box domain
@@ -651,6 +577,15 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       quoteSwap();
     });
 
+    // XDR reveal/hide toggles
+    function toggleEl(el, btn){
+      const isHidden = el.style.display === "none" || !el.style.display;
+      el.style.display = isHidden ? "block" : "none";
+      btn.textContent = isHidden ? "Hide XDR" : "Reveal XDR";
+    }
+    on(toggleSwapXdr, "click", ()=> toggleEl(xdrSwap, toggleSwapXdr));
+    on(toggleLockerXdr, "click", ()=> toggleEl(xdrOut,  toggleLockerXdr));
+
     // ---------- WalletConnect (mobile) ----------
     async function ensureClient(){ if(!client){ client = await SignClient.init({ projectId: PROJECT_ID }); } }
 
@@ -676,7 +611,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     function buildCandidates(base, wcUri){
       if(!base) return [];
       const enc = encodeURIComponent(wcUri);
-      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      if (base includes "{wc}" || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
       const j = base.includes("?") ? "&" : "?";
       return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
     }
