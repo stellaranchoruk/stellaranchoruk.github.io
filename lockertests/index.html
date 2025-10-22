@@ -250,6 +250,13 @@
           assetLogoFallback=$("assetLogoFallback"), fillMaxBtn=$("fillMaxBtn"), selectedBal=$("selectedBal"),
           toIssuerMeta=$("toIssuerMeta");
 
+    // ---------- Modal (restored) ----------
+    const openModal = () => { backdrop.classList.add("open"); loginModal.classList.add("open"); };
+    const closeModal = () => { backdrop.classList.remove("open"); loginModal.classList.remove("open"); };
+    on(closeModalBtn, "click", closeModal);
+    on(backdrop, "click", closeModal);
+    on(connectBtn, "click", openModal);
+
     // ---------- Stellar SDK / Server ----------
     if(!window.StellarSdk) throw new Error("Stellar SDK failed to load.");
     const SDK = window.StellarSdk;
@@ -436,7 +443,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           const res = await fetch(url, { mode:"cors" });
           if(!res.ok){ LOGO_CACHE.set(issuer,""); return; }
           const txt = await res.text();
-          // Very light TOML scan for [[CURRENCIES]] blocks with matching ISSUER; find IMAGE
+          // Very light TOML scan for [[CURRENCIES]] with matching ISSUER; get IMAGE
           const blocks = txt.split(/\[\[CURRENCIES\]\]/i).slice(1);
           let img="";
           for(const block of blocks){
@@ -446,10 +453,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
             const issuerVal = issuerMatch && issuerMatch[1]?.trim();
             if(issuerVal && issuerVal.toUpperCase()===issuer.toUpperCase()){
               img = imageMatch ? imageMatch[1].trim() : "";
-              // Prefer exact match, but if code matches and no image, keep searching
               if(img) break;
             }
-            // Fallback: if only one currency and ISSUER missing but code matches (rare)
             if(!img && codeMatch && issuerVal==null) {
               img = imageMatch ? imageMatch[1].trim() : "";
             }
@@ -645,6 +650,215 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       swapAmount.value = bal;
       quoteSwap();
     });
+
+    // ---------- WalletConnect (mobile) ----------
+    async function ensureClient(){ if(!client){ client = await SignClient.init({ projectId: PROJECT_ID }); } }
+
+    function openLobstrApp(uri){
+      const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
+      const store  = isIOS()? STORE.lobstr.ios : STORE.lobstr.android;
+      const t0 = Date.now();
+      window.location.href = scheme;
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
+
+    async function getFreighterLinks(){
+      try{
+        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+        const res = await fetch(url); const data = await res.json();
+        const raw = data?.listings ?? data?.data ?? [];
+        const arr = Array.isArray(raw) ? raw : Object.values(raw);
+        const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
+        const mobile = w?.mobile || w?.app?.mobile || {};
+        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
+      }catch{ return {native:null,universal:null,found:false}; }
+    }
+    function buildCandidates(base, wcUri){
+      if(!base) return [];
+      const enc = encodeURIComponent(wcUri);
+      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      const j = base.includes("?") ? "&" : "?";
+      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
+    }
+    function openFreighterSmart(links, wcUri){
+      const store = isIOS()? STORE.freighter.ios : STORE.freighter.android;
+      const natives = buildCandidates(links.native, wcUri);
+      const universals = buildCandidates(links.universal, wcUri);
+      let attempted=false;
+      for(const href of natives){ attempted=true; window.location.href = href; setTimeout(()=>{},350); }
+      if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+      if(!attempted){ window.open(store, "_blank", "noopener"); }
+    }
+
+    on($("wcBtn"),"click", async ()=>{
+      try{
+        await ensureClient();
+        statusEl.textContent = "Starting WalletConnect…";
+        const { uri, approval } = await client.connect({
+          optionalNamespaces: {
+            stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+          }
+        });
+        if(!uri) throw new Error("No WC URI");
+        latestWcUri = uri;
+
+        try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); }
+        catch(e){ console.warn("QR draw failed", e); }
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
+
+        linkStatus.textContent = "Loading Freighter deep link…";
+        const freighterLinks = await getFreighterLinks();
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+
+        $("btnLobstr").onclick = ()=> openLobstrApp(latestWcUri);
+        $("btnFreighter").onclick = ()=> openFreighterSmart(freighterLinks, latestWcUri);
+
+        session = await approval();
+        connectionMode="wc";
+        qrArea.style.display="none"; closeModal();
+
+        const accounts = session.namespaces?.stellar?.accounts || [];
+        const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+        const address = first.split(":")[2] || "";
+        setConnected(address, "wc");
+      }catch(e){
+        console.error(e);
+        statusEl.textContent = "Connection canceled or failed.";
+      }
+    });
+
+    // ---------- Freighter extension ----------
+    async function ensureFreighterApi(){
+      if (window.freighterApi) return window.freighterApi;
+      try{
+        const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
+        window.freighterApi = mod?.default ?? mod;
+        return window.freighterApi;
+      }catch{ return null; }
+    }
+
+    on($("freighterExtBtn"),"click", async ()=>{
+      try{
+        const freighter = await ensureFreighterApi();
+        if(!freighter){ alert("Freighter extension not detected."); return; }
+
+        let address = "";
+        try { address = await freighter.getPublicKey(); } catch {}
+        if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
+        if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
+        if(!address){ alert("Freighter connect denied or failed."); return; }
+
+        connectionMode="freighter";
+        closeModal();
+        setConnected(address, "freighter");
+      }catch(e){ console.error(e); alert("Freighter connect failed."); }
+    });
+
+    // ---------- Signing (shared) ----------
+    const wcRequest = (method, xdr) => client.request({
+      topic: session.topic, chainId: "stellar:pubnet",
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
+    });
+
+    async function signCurrent(xdr){
+      if(connectionMode==="wc"){
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      if(connectionMode==="freighter"){
+        const api = await ensureFreighterApi();
+        let address=""; try{ address = await api.getPublicKey(); }catch{}
+        if(!address && api.getAddress){ const r=await api.getAddress(); address=r?.address||""; }
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, address });
+        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      throw new Error("Not connected");
+    }
+
+    async function submitToHorizon(signedXdr){
+      const resp = await fetch(`${HORIZON}/transactions`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+        body:"tx="+encodeURIComponent(signedXdr)
+      });
+      const data = await resp.json().catch(()=> ({}));
+      if(!resp.ok){
+        const code = data?.extras?.result_codes?.transaction || resp.status;
+        const op   = data?.extras?.result_codes?.operations || [];
+        throw new Error(`Horizon error: ${code}${op.length?` (${op.join(",")})`:""}`);
+      }
+      return data.hash;
+    }
+
+    // Locker buttons
+    on(signOnlyBtn,"click", async ()=>{
+      actionResult.textContent="";
+      const xdr = xdrOut.value.trim();
+      if(!xdr){ actionResult.textContent="No XDR to sign. Enter key + amount first."; return; }
+      try{
+        actionResult.textContent="Signing…";
+        const signed = await signCurrent(xdr);
+        xdrOut.value = signed;
+        actionResult.textContent="Signed XDR ✓";
+        enableLockerButtons();
+      }catch(e){ console.error(e); actionResult.textContent=e.message||"Signing failed."; }
+    });
+    on(signSubmitBtn,"click", async ()=>{
+      actionResult.textContent="";
+      const xdr = xdrOut.value.trim();
+      if(!xdr){ actionResult.textContent="No XDR to sign. Enter key + amount first."; return; }
+      try{
+        actionResult.textContent="Signing…";
+        const signed = await signCurrent(xdr);
+        actionResult.textContent="Submitting…";
+        const hash = await submitToHorizon(signed);
+        actionResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
+      }catch(e){ console.error(e); actionResult.textContent=e.message||"Sign/submit failed."; }
+    });
+    on(copyBtn,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrOut.value); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy XDR",1500); } catch(e){ console.error(e); } });
+    on(labBtn,"click", ()=>{
+      const xdr = xdrOut.value.trim(); if(!xdr) return;
+      let enc = encodeURIComponent(xdr).replace(/%2F/g,'/').replace(/%2B/g,'+').replace(/%3D/g,'=');
+      enc = enc.replace(/\//g,'//') + ';;';
+      window.open('https://lab.stellar.org/transaction/sign?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=https:////mainnet.sorobanrpc.com&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr='+enc, "_blank");
+    });
+
+    // Swap buttons
+    on(swapSignOnly,"click", async ()=>{
+      swapResult.textContent="";
+      const xdr = xdrSwap.value.trim();
+      if(!xdr){ swapResult.textContent="No swap XDR to sign."; return; }
+      try{
+        swapResult.textContent="Signing…";
+        const signed = await signCurrent(xdr);
+        xdrSwap.value = signed;
+        swapResult.textContent="Signed XDR ✓";
+        enableSwapButtons();
+      }catch(e){ console.error(e); swapResult.textContent=e.message||"Signing failed."; }
+    });
+    on(swapSignSubmit,"click", async ()=>{
+      swapResult.textContent="";
+      const xdr = xdrSwap.value.trim();
+      if(!xdr){ swapResult.textContent="No swap XDR to sign."; return; }
+      try{
+        swapResult.textContent="Signing…";
+        const signed = await signCurrent(xdr);
+        swapResult.textContent="Submitting…";
+        const hash = await submitToHorizon(signed);
+        swapResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
+        // Optional: refresh AQUAm25 balance after swap
+        setTimeout(async ()=>{
+          const pk = pubkeyEl.value.trim();
+          if(isValidG(pk)){
+            try{ const { balance } = await loadAquaM25Balance(pk); aquaBalEl.textContent = balance; }catch{}
+          }
+        }, 1200);
+      }catch(e){ console.error(e); swapResult.textContent=e.message||"Sign/submit failed."; }
+    });
+    on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
 
     // ---------- First-load ----------
     window.addEventListener("load", ()=>{
