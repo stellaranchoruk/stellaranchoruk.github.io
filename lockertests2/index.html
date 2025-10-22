@@ -324,6 +324,51 @@
     function disableSwapButtons(){ [swapSignSubmit,swapSignOnly,swapCopy].forEach(b=>b.disabled=true); }
     function enableSwapButtons(){ const ok=!!xdrSwap.value.trim(); [swapSignSubmit,swapSignOnly,swapCopy].forEach(b=>b.disabled=!ok); }
 
+    // ---- Smart swap helpers (after `plain()` ) ----
+    const SLIPPAGE_BPS = 200; // 2%
+    const bpsFactor = (bps)=> 1 + (bps/10000);
+    const calcMinOut = (dest) => (parseFloat(dest)/bpsFactor(SLIPPAGE_BPS)).toFixed(7);
+    const calcSendMax = (src)  => (parseFloat(src) * bpsFactor(SLIPPAGE_BPS)).toFixed(7);
+
+    // Build an array of SDK.Asset hops from a path record; null if any hop isn't representable
+    function pathAssetsFromRecord(rec){
+      const raw = Array.isArray(rec?.path) ? rec.path : [];
+      const hops = [];
+      for(const p of raw){
+        if (p?.asset_type === "native") {
+          hops.push(SDK.Asset.native());
+        } else if (p?.asset_code && p?.asset_issuer) {
+          hops.push(new SDK.Asset(p.asset_code, p.asset_issuer));
+        } else {
+          return null; // unsupported hop (e.g., liquidity_pool_id)
+        }
+      }
+      return hops;
+    }
+
+    // Choose the first usable record; objective: 'maxDest' | 'minSource'
+    function chooseUsableRecord(records, objective){
+      const arr = Array.isArray(records) ? records.slice() : [];
+      if (!arr.length) return { rec:null, hops:[] };
+      if (objective === "maxDest") {
+        arr.sort((a,b)=> parseFloat(b.destination_amount) - parseFloat(a.destination_amount));
+      } else {
+        arr.sort((a,b)=> parseFloat(a.source_amount) - parseFloat(b.source_amount));
+      }
+      for(const r of arr){
+        const hops = pathAssetsFromRecord(r);
+        if (hops) return { rec:r, hops };
+      }
+      return { rec:null, hops:[] };
+    }
+
+    function pathLabelFromHops(hops){
+      if (!hops.length) return "Direct";
+      return "Path: " + hops.map(a =>
+        (a.isNative && a.isNative()) ? "XLM" : `${a.code}:${DOMAIN_CACHE.get(a.issuer) || shortG(a.issuer)}`
+      ).join(" → ");
+    }
+
     // ---------- Connection state ----------
     function setConnected(address, mode){
       statusEl.textContent = address ? `Connected (${mode==="wc"?"WalletConnect":"Freighter"})` : "Not connected";
@@ -444,7 +489,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
       for(const b of acct.balances){
         if(b.asset_type==="native") continue;
-        if(parseFloat(b.balance) <= 0) continue;
+        if(parseFloat(b.balance) <= 0) continue; // hide zero-balance assets
         items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
       }
       return { acct, items };
@@ -476,11 +521,12 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const opt = document.createElement("option");
         opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
         opt.textContent = labelWithDomain(it.code, it.issuer);
-        opt.dataset.balance = it.balance;
+        opt.dataset.balance = it.balance; // for the balance chip
         opt.dataset.code = it.code;
         if(it.issuer) opt.dataset.issuer = it.issuer;
         swapFrom.appendChild(opt);
       }
+      // Default to AQUA if present; else first
       const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
       const found = [...swapFrom.options].find(o=>o.value===def);
       swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
@@ -529,18 +575,18 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }catch(e){ console.error(e); }
     }
 
-    // ---------- Swap quoting: strict-send & strict-receive ----------
-    let quoteMode = "send"; // "send" when user edits swapAmount, "receive" when user edits swapEst
-
-    async function quoteStrictSend(){
+    // ---- Smart swap picker: tries both endpoints and chooses the best ----
+    async function quoteBest(){
       disableSwapButtons();
       xdrSwap.value = "";
       swapQuote.textContent = "";
 
       const pk = pubkeyEl.value.trim();
-      const sendAmt = cleanAmt(swapAmount.value.trim());
-      if(!isValidG(pk) || !sendAmt) return;
+      const sendField = cleanAmt(swapAmount.value.trim());
+      const destField = cleanAmt(swapEst.value.trim());
+      if(!isValidG(pk) || (!sendField && !destField)) return;
 
+      // Build selected sendAsset
       let sendAsset;
       if(swapFrom.value === "XLM"){
         sendAsset = SDK.Asset.native();
@@ -550,113 +596,98 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
       const sendLabel = toNativeLabel(sendAsset);
 
+      const server = getServer();
+      let best = null; // { mode:'send'|'receive', rec, hops, srcAmount, destAmount }
+
       try{
-        const paths = await getServer().strictSendPaths(sendAsset, sendAmt, [AQUAm25]).call();
-        const records = Array.isArray(paths.records) ? paths.records : [];
-        if(!records.length){
-          swapQuote.textContent = `No path found from ${sendLabel} → AQUAm25 for this amount.`;
+        // Option A: strict-send
+        let ss=null;
+        if (sendField) {
+          const pA = await server.strictSendPaths(sendAsset, sendField, [AQUAm25]).call();
+          const { rec, hops } = chooseUsableRecord(pA.records, "maxDest");
+          if (rec) {
+            ss = {
+              mode: "send",
+              rec, hops,
+              srcAmount: rec.source_amount || sendField,
+              destAmount: rec.destination_amount
+            };
+          }
+        }
+
+        // Option B: strict-receive
+        let sr=null;
+        const targetDest = destField || (ss && ss.destAmount);
+        if (targetDest) {
+          const pB = await server.strictReceivePaths(AQUAm25, targetDest, [sendAsset]).call();
+          const { rec, hops } = chooseUsableRecord(pB.records, "minSource");
+          if (rec) {
+            sr = {
+              mode: "receive",
+              rec, hops,
+              srcAmount: rec.source_amount,
+              destAmount: rec.destination_amount || targetDest
+            };
+          }
+        }
+
+        if (ss && !sr) best = ss;
+        else if (sr && !ss) best = sr;
+        else if (ss && sr) {
+          if (destField) {
+            best = (parseFloat(sr.srcAmount) <= parseFloat(ss.srcAmount||Infinity)) ? sr : ss;
+          } else {
+            best = (parseFloat(ss.destAmount) >= parseFloat(sr.destAmount||0)) ? ss : sr;
+          }
+        }
+
+        if(!best){
+          swapQuote.textContent = `No usable path found (${sendLabel} → AQUAm25). Try a different amount or asset.`;
           return;
         }
-        records.sort((a,b)=> parseFloat(b.destination_amount) - parseFloat(a.destination_amount));
-        const best = records[0];
-        const destAmount = best.destination_amount;
-        swapEst.value = plain(destAmount);
 
-        const minOut = (parseFloat(destAmount) * 0.98).toFixed(7); // 2% buffer
-        const pathArr = Array.isArray(best.path) ? best.path : [];
-        const pathStr = pathArr.length
-          ? `Path: ${pathArr.map(p=>`${(p.asset_code||'XLM')}:${DOMAIN_CACHE.get(p.asset_issuer)|| (p.asset_type==='native'?'native':(p.asset_issuer?shortG(p.asset_issuer):'native'))}`).join(" → ")}`
-          : "Direct";
+        // Normalize UI fields based on winner
+        swapAmount.value = plain(best.srcAmount);
+        swapEst.value    = plain(best.destAmount);
 
-        swapQuote.innerHTML = `Mode: <b>Strict Send</b> · You send <b>${sendAmt}</b> ${sendLabel}. Min receive: <b>${minOut}</b> AQUAm25<br/><span class="small">${pathStr}</span>`;
-
-        const src = await getServer().loadAccount(pk);
-
-        const op = SDK.Operation.pathPaymentStrictSend({
-          sendAsset,
-          sendAmount: sendAmt,
-          destination: pk,
-          destAsset: AQUAm25,
-          destMin: minOut,
-          path: pathArr.map(p => p.asset_type==="native"
-              ? SDK.Asset.native()
-              : new SDK.Asset(p.asset_code, p.asset_issuer))
-        });
-
+        // Build op + XDR with slippage protection
+        const src = await server.loadAccount(pk);
         const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
+
         const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
         if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
-        txb.addOperation(op).setTimeout(180);
-        xdrSwap.value = txb.build().toXDR();
+
+        if (best.mode === "send") {
+          const minOut = calcMinOut(best.destAmount);
+          txb.addOperation(SDK.Operation.pathPaymentStrictSend({
+            sendAsset,
+            sendAmount: best.srcAmount,
+            destination: pk,
+            destAsset: AQUAm25,
+            destMin: minOut,
+            path: best.hops
+          }));
+          const pathStr = pathLabelFromHops(best.hops);
+          swapQuote.innerHTML = `Mode: <b>Strict Send</b> · You send <b>${plain(best.srcAmount)}</b> ${sendLabel}. Min receive: <b>${minOut}</b> AQUAm25<br/><span class="small">${pathStr}</span>`;
+        } else {
+          const sendMax = calcSendMax(best.srcAmount);
+          txb.addOperation(SDK.Operation.pathPaymentStrictReceive({
+            sendAsset,
+            sendMax,
+            destination: pk,
+            destAsset: AQUAm25,
+            destAmount: best.destAmount,
+            path: best.hops
+          }));
+          const pathStr = pathLabelFromHops(best.hops);
+          swapQuote.innerHTML = `Mode: <b>Strict Receive</b> · To receive <b>${plain(best.destAmount)}</b> AQUAm25, you’ll send ~<b>${plain(best.srcAmount)}</b> ${sendLabel}. Send max set to <b>${sendMax}</b> (+${SLIPPAGE_BPS/100}%).<br/><span class="small">${pathStr}</span>`;
+        }
+
+        xdrSwap.value = txb.setTimeout(180).build().toXDR();
         enableSwapButtons();
       }catch(e){
         console.error(e);
-        swapQuote.textContent = "Failed to quote path (strict send).";
-        xdrSwap.value = "";
-        disableSwapButtons();
-      }
-    }
-
-    async function quoteStrictReceive(){
-      disableSwapButtons();
-      xdrSwap.value = "";
-      swapQuote.textContent = "";
-
-      const pk = pubkeyEl.value.trim();
-      const destAmt = cleanAmt(swapEst.value.trim());
-      if(!isValidG(pk) || !destAmt) return;
-
-      let sendAsset;
-      if(swapFrom.value === "XLM"){
-        sendAsset = SDK.Asset.native();
-      }else{
-        const [code, issuer] = swapFrom.value.split(":");
-        sendAsset = new SDK.Asset(code, issuer);
-      }
-      const sendLabel = toNativeLabel(sendAsset);
-
-      try{
-        const paths = await getServer().strictReceivePaths(AQUAm25, destAmt, [sendAsset]).call();
-        const records = Array.isArray(paths.records) ? paths.records : [];
-        if(!records.length){
-          swapQuote.textContent = `No path found to receive ${destAmt} AQUAm25 from ${sendLabel}.`;
-          return;
-        }
-        records.sort((a,b)=> parseFloat(a.source_amount) - parseFloat(b.source_amount));
-        const best = records[0];
-        const srcAmount = best.source_amount;
-        swapAmount.value = plain(srcAmount);
-
-        const sendMax = (parseFloat(srcAmount) * 1.02).toFixed(7); // 2% buffer
-        const pathArr = Array.isArray(best.path) ? best.path : [];
-        const pathStr = pathArr.length
-          ? `Path: ${pathArr.map(p=>`${(p.asset_code||'XLM')}:${DOMAIN_CACHE.get(p.asset_issuer)|| (p.asset_type==='native'?'native':(p.asset_issuer?shortG(p.asset_issuer):'native'))}`).join(" → ")}`
-          : "Direct";
-
-        swapQuote.innerHTML = `Mode: <b>Strict Receive</b> · To receive <b>${destAmt}</b> AQUAm25, you’ll send ~<b>${srcAmount}</b> ${sendLabel}. Send max set to <b>${sendMax}</b> (+2%).<br/><span class="small">${pathStr}</span>`;
-
-        const src = await getServer().loadAccount(pk);
-
-        const op = SDK.Operation.pathPaymentStrictReceive({
-          sendAsset,
-          sendMax,
-          destination: pk,
-          destAsset: AQUAm25,
-          destAmount: destAmt,
-          path: pathArr.map(p => p.asset_type==="native"
-              ? SDK.Asset.native()
-              : new SDK.Asset(p.asset_code, p.asset_issuer))
-        });
-
-        const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
-        const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
-        if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
-        txb.addOperation(op).setTimeout(180);
-        xdrSwap.value = txb.build().toXDR();
-        enableSwapButtons();
-      }catch(e){
-        console.error(e);
-        swapQuote.textContent = "Failed to quote path (strict receive).";
+        swapQuote.textContent = "Failed to quote best path.";
         xdrSwap.value = "";
         disableSwapButtons();
       }
@@ -670,24 +701,27 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     on(swapFrom,"change", ()=>{
       updateSelectedAssetUI();
-      if(quoteMode==="send" && swapAmount.value.trim()) debounceQuote(quoteStrictSend);
-      else if(quoteMode==="receive" && swapEst.value.trim()) debounceQuote(quoteStrictReceive);
+      if(swapAmount.value.trim() || swapEst.value.trim()){
+        debounceQuote(quoteBest);
+      }
     });
 
+    let quoteMode = "send"; // not strictly required now, but kept for UX parity
     on(swapAmount,"input", ()=>{
       quoteMode = "send";
-      debounceQuote(quoteStrictSend);
+      debounceQuote(quoteBest);
     });
 
     on(swapEst,"input", ()=>{
       quoteMode = "receive";
-      debounceQuote(quoteStrictReceive);
+      debounceQuote(quoteBest);
     });
 
     on(fillMaxBtn,"click", ()=>{
       const opt = getSelectedOption();
       if(!opt) return;
       const bal = parseFloat(opt.dataset.balance || "0");
+      // SAFE XLM "Max" (keep cushion)
       if(opt.value === "XLM"){
         const safe = Math.max(0, bal - 2);
         swapAmount.value = plain(safe);
@@ -695,7 +729,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapAmount.value = plain(bal);
       }
       quoteMode = "send";
-      quoteStrictSend();
+      quoteBest();
     });
 
     // XDR reveal/hide toggles
@@ -905,6 +939,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapResult.textContent="Submitting…";
         const hash = await submitToHorizon(signed);
         swapResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
+        // Optional: refresh AQUAm25 balance after swap
         setTimeout(async ()=>{
           const pk = pubkeyEl.value.trim();
           if(isValidG(pk)){
