@@ -8,7 +8,7 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v14) -->
+  <!-- Stellar SDK (UMD v14) — gives window.StellarSdk (incl. SorobanRpc) -->
   <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 
   <style>
@@ -173,7 +173,7 @@
           <button data-pct="25">25%</button>
           <button data-pct="50">50%</button>
           <button data-pct="75">75%</button>
-          <button data-pct="100">100%</button>
+          <button data-pct="100%">100%</button>
         </div>
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
@@ -226,11 +226,9 @@
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
-    /* ===== ESM imports ===== */
+    /* ===== ESM imports (no SorobanRpc import here) ===== */
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
-    /* 🎯 Import SorobanRpc as a named export (v14 ESM) */
-    import { SorobanRpc as SorobanRpcESM } from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/+esm";
 
     // ---------- Shortcuts ----------
     const SDK = window.StellarSdk;
@@ -244,7 +242,7 @@
 
     // Aquarius / Soroban
     const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
-    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com"; // official mainnet RPC
+    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
     const baseApi           = "https://amm-api.aqua.network/api/external/v1";
     const networkPassphrase = NETWORK;
 
@@ -252,18 +250,12 @@
     const AQUA_CODE   = "AQUA";
     const AQUA_ISSUER = "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA";
     const AQUAm25_CODE   = "AQUAm25";
-    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"; // your issuer
+    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
     const TRACKER_KEY    = "GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP";
 
     // WalletConnect
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
-
-    // Safety guard: issuer format
-    if (!/^G[A-Z2-7]{55}$/.test(AQUAm25_ISSUER)) {
-      const msg = "Config error: AQUAm25_ISSUER is not a valid public key.";
-      console.error(msg); alert(msg); throw new Error(msg);
-    }
 
     // ---------- DOM ----------
     const $=(id)=>document.getElementById(id);
@@ -307,14 +299,12 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // Soroban RPC (UMD or ESM fallback via named export)
+    // ---------- Soroban RPC via UMD only ----------
     let _soro = null;
     function rpc() {
       if (_soro) return _soro;
-      const UmdCtor = window.StellarSdk?.SorobanRpc?.Server; // from UMD tag
-      const EsmCtor = SorobanRpcESM?.Server;                 // from ESM named export
-      const Server = UmdCtor || EsmCtor;
-      if (!Server) throw new Error("SorobanRpc unavailable: neither UMD nor ESM present.");
+      const Server = window.StellarSdk?.SorobanRpc?.Server;
+      if (!Server) throw new Error("SorobanRpc unavailable from UMD.");
       _soro = new Server(sorobanRpcUrl, { allowHttp:false });
       return _soro;
     }
@@ -330,8 +320,7 @@
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
     function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
 
-    // Contract IDs (SAC)
-    function contractId(asset){ return asset.contractId(networkPassphrase); }
+    function contractId(asset){ return asset.contractId(NETWORK); }
 
     // ---------- Connection UI ----------
     function openModal()  { backdrop.classList.add('open'); loginModal.classList.add('open'); }
@@ -475,7 +464,7 @@
       }
     });
 
-    // ---------- Signing helpers (shared) ----------
+    // ---------- Signing helpers ----------
     const wcRequest = (method, xdr) => client.request({
       topic: session.topic, chainId: "stellar:pubnet",
       request: { jsonrpc:"2.0", method, params:{ xdr } }
@@ -495,7 +484,7 @@
       throw new Error("Not connected");
     }
 
-    // ---------- Locker: balance + build ----------
+    // ---------- Locker ----------
     function disableLockerButtons(){ [signSubmitBtn,signOnlyBtn,copyBtn,labBtn].forEach(b=>b.disabled=true); }
     function enableLockerButtons(){ const ok=!!xdrOut.value.trim(); [signSubmitBtn,signOnlyBtn,copyBtn,labBtn].forEach(b=>b.disabled=!ok); }
 
@@ -572,7 +561,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       scheduleLockerBuild();
     }));
 
-    // ---------- Balances + dropdown ----------
+    // ---------- Swap balances + dropdown ----------
     async function loadAllBalances(pk){
       const acct = await getServer().loadAccount(pk);
       const items = [];
@@ -841,7 +830,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     // Submit Soroban
     async function submitToSoroban(signedXdr){
-      const tx = SDK.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
+      const tx = SDK.TransactionBuilder.fromXDR(signedXdr, NETWORK);
       const send = await rpc().sendTransaction(tx);
       if (send.status !== "PENDING" && send.status !== "SUCCESS")
         throw new Error(`Soroban send failed: ${send.status}`);
@@ -982,7 +971,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }catch(e){ console.error(e); swapResult.textContent=e.message||"Sign/submit failed."; }
     });
 
-    // ---------- Locker signing & submit (classic) ----------
+    // ---------- Locker submit (classic) ----------
     async function submitToHorizon(signedXdr){
       const resp = await fetch(`${HORIZON}/transactions`,{
         method:"POST",
