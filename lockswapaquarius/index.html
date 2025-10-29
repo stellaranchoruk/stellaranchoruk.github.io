@@ -225,8 +225,8 @@
 
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- Soroban Client Fallback (for SorobanRpc if not bundled in Stellar SDK) -->
-<script src="https://unpkg.com/soroban-client@0.8.1/dist/soroban-client.min.js" crossorigin="anonymous"></script>
+<!-- Soroban Client Fallback (modern UMD) -->
+<script src="https://cdn.jsdelivr.net/npm/@stellar/soroban-client@2.4.0/dist/soroban-client.umd.js" crossorigin="anonymous"></script>
 
   <script type="module">
     /* ===== ESM imports (no SorobanRpc import here) ===== */
@@ -302,26 +302,26 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-// ---------- Soroban RPC (UMD + fallback to soroban-client) ----------
+// ---------- Soroban RPC (prefer Stellar SDK UMD; fallback to @stellar/soroban-client UMD) ----------
 let _soro = null;
 function rpc() {
   if (_soro) return _soro;
 
-  // Try the Stellar SDK UMD first
+  // Preferred: Stellar SDK UMD (if exposed in this CDN build)
   const SdkServer = window.StellarSdk?.SorobanRpc?.Server;
   if (SdkServer) {
-    _soro = new SdkServer(sorobanRpcUrl, { allowHttp:false });
+    _soro = new SdkServer("https://mainnet.sorobanrpc.com", { allowHttp: false });
     return _soro;
   }
 
-  // Fallback to legacy soroban-client UMD (0.8.x)
-  const LegacyServer = window.sorobanClient?.Server || window.SorobanClient?.Server;
-  if (LegacyServer) {
-    _soro = new LegacyServer(sorobanRpcUrl, { allowHttp:false });
+  // Fallback: modern @stellar/soroban-client (v2.x) UMD
+  const FallbackServer = window.SorobanClient?.Server;
+  if (FallbackServer) {
+    _soro = new FallbackServer("https://mainnet.sorobanrpc.com", { allowHttp: false });
     return _soro;
   }
 
-  throw new Error("SorobanRpc unavailable: neither StellarSdk.SorobanRpc nor soroban-client present.");
+  throw new Error("SorobanRpc unavailable: neither StellarSdk.SorobanRpc nor @stellar/soroban-client present.");
 }
 
     // Cache for issuer -> domain
