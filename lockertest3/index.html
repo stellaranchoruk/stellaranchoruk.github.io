@@ -530,6 +530,22 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }catch(e){ console.error(e); }
     }
 
+    // ---------- PATH UTIL (new) ----------
+    // Convert Horizon path hop objects into SDK.Asset[], or [] safely.
+    function toSdkAssetFromHorizon(pathArr) {
+      if (!Array.isArray(pathArr)) return [];
+      const out = [];
+      for (const a of pathArr) {
+        if (!a) continue;
+        if (a.asset_type === "native") {
+          out.push(SDK.Asset.native());
+        } else if (a.asset_code && a.asset_issuer) {
+          out.push(new SDK.Asset(a.asset_code, a.asset_issuer));
+        }
+      }
+      return out;
+    }
+
     // ---------- Swap quoting: strict-send & strict-receive ----------
     let quoteMode = "send"; // "send" when user edits swapAmount, "receive" when user edits swapEst
 
@@ -543,10 +559,12 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(!isValidG(pk) || !sendAmt) return;
 
       let sendAsset;
+      if(!swapFrom.value){ swapQuote.textContent = "Pick a source asset."; return; }
       if(swapFrom.value === "XLM"){
         sendAsset = SDK.Asset.native();
       }else{
         const [code, issuer] = swapFrom.value.split(":");
+        if(!code || !issuer){ swapQuote.textContent = "Invalid source asset."; return; }
         sendAsset = new SDK.Asset(code, issuer);
       }
       const sendLabel = toNativeLabel(sendAsset);
@@ -565,10 +583,15 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapEst.value = plain(destAmount);
 
         const minOut = (parseFloat(destAmount) * 0.98).toFixed(7); // 2% buffer on receive
-        // Note: we show the path textually if you want, but we do NOT inject it into the op (we pass an empty array)
+        const opPath = toSdkAssetFromHorizon(best.path); // always an array
+
         swapQuote.innerHTML = `Mode: <b>Strict Send</b> · You send <b>${sendAmt}</b> ${sendLabel}. Min receive: <b>${minOut}</b> AQUAm25`;
 
         const src = await getServer().loadAccount(pk);
+
+        const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
+        const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
+        if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
 
         const op = SDK.Operation.pathPaymentStrictSend({
           sendAsset,
@@ -576,12 +599,9 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           destination: pk,
           destAsset: AQUAm25,
           destMin: minOut,
-          path: [] // <-- important: avoid SDK v14 path map crash; let network choose route
+          path: opPath
         });
 
-        const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
-        const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
-        if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
         txb.addOperation(op).setTimeout(180);
         xdrSwap.value = txb.build().toXDR();
         enableSwapButtons();
@@ -603,10 +623,12 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(!isValidG(pk) || !destAmt) return;
 
       let sendAsset;
+      if(!swapFrom.value){ swapQuote.textContent = "Pick a source asset."; return; }
       if(swapFrom.value === "XLM"){
         sendAsset = SDK.Asset.native();
       }else{
         const [code, issuer] = swapFrom.value.split(":");
+        if(!code || !issuer){ swapQuote.textContent = "Invalid source asset."; return; }
         sendAsset = new SDK.Asset(code, issuer);
       }
       const sendLabel = toNativeLabel(sendAsset);
@@ -626,9 +648,15 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapAmount.value = plain(srcAmount);
 
         const sendMax = (parseFloat(srcAmount) * 1.02).toFixed(7); // 2% buffer on send
+        const opPath = toSdkAssetFromHorizon(best.path); // always an array
+
         swapQuote.innerHTML = `Mode: <b>Strict Receive</b> · To receive <b>${destAmt}</b> AQUAm25, you’ll send ~<b>${srcAmount}</b> ${sendLabel}. Send max set to <b>${sendMax}</b> (+2%).`;
 
         const src = await getServer().loadAccount(pk);
+
+        const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
+        const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
+        if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
 
         const op = SDK.Operation.pathPaymentStrictReceive({
           sendAsset,
@@ -636,20 +664,37 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           destination: pk,
           destAsset: AQUAm25,
           destAmount: destAmt,
-          path: [] // <-- important: avoid SDK v14 path map crash; let network choose route
+          path: opPath
         });
 
-        const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
-        const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
-        if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
         txb.addOperation(op).setTimeout(180);
         xdrSwap.value = txb.build().toXDR();
         enableSwapButtons();
       }catch(e){
         console.error(e);
-        swapQuote.textContent = "Failed to quote path (strict receive).";
-        xdrSwap.value = "";
-        disableSwapButtons();
+        // Fallback: build with empty path so user can still try to route on-network
+        try{
+          const src = await getServer().loadAccount(pk);
+          const txb = new SDK.TransactionBuilder(src, { fee:"20000", networkPassphrase: NETWORK });
+          const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
+          if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
+          txb.addOperation(SDK.Operation.pathPaymentStrictReceive({
+            sendAsset,
+            sendMax: swapAmount.value.trim() || "0.0000001",
+            destination: pk,
+            destAsset: AQUAm25,
+            destAmount: destAmt,
+            path: []
+          })).setTimeout(180);
+          xdrSwap.value = txb.build().toXDR();
+          swapQuote.textContent = "Built with empty path (fallback).";
+          enableSwapButtons();
+        }catch(e2){
+          console.error(e2);
+          swapQuote.textContent = "Failed to quote path (strict receive).";
+          xdrSwap.value = "";
+          disableSwapButtons();
+        }
       }
     }
 
