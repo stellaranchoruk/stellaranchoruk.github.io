@@ -173,7 +173,7 @@
           <button data-pct="25">25%</button>
           <button data-pct="50">50%</button>
           <button data-pct="75">75%</button>
-          <button data-pct="100">100%</button>
+          <button data-pct="100%">100%</button>
         </div>
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
@@ -229,8 +229,8 @@
     /* ESM imports */
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
-    /* SorobanRpc fallback (ESM) in case UMD lacks it */
-    import { SorobanRpc as SorobanRpcESM } from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@13.1.0/+esm";
+    /* Stellar SDK ESM (v14) as namespace for Soroban fallback */
+    import * as StellarSdkESM from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/+esm";
 
     // ---------- Shortcuts ----------
     const SDK = window.StellarSdk;
@@ -244,7 +244,7 @@
 
     // Aquarius / Soroban
     const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
-    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
+    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com"; // official mainnet RPC
     const baseApi           = "https://amm-api.aqua.network/api/external/v1";
     const networkPassphrase = NETWORK;
 
@@ -252,14 +252,14 @@
     const AQUA_CODE   = "AQUA";
     const AQUA_ISSUER = "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA";
     const AQUAm25_CODE   = "AQUAm25";
-    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"; // <-- your issuer
+    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"; // your issuer
     const TRACKER_KEY    = "GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP";
 
     // WalletConnect
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
-    // Safety guard: ensure issuer is valid
+    // Safety guard: issuer format
     if (!/^G[A-Z2-7]{55}$/.test(AQUAm25_ISSUER)) {
       const msg = "Config error: AQUAm25_ISSUER is not a valid public key.";
       console.error(msg); alert(msg); throw new Error(msg);
@@ -312,7 +312,7 @@
     function rpc() {
       if (_soro) return _soro;
       const UmdCtor = window.StellarSdk?.SorobanRpc?.Server;
-      const EsmCtor = SorobanRpcESM?.Server;
+      const EsmCtor = StellarSdkESM?.SorobanRpc?.Server;
       const Server = UmdCtor || EsmCtor;
       if (!Server) throw new Error("SorobanRpc unavailable: neither UMD nor ESM present.");
       _soro = new Server(sorobanRpcUrl, { allowHttp:false });
