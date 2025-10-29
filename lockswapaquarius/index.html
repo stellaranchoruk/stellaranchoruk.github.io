@@ -226,8 +226,11 @@
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
+    /* ESM imports */
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
+    /* SorobanRpc fallback (ESM) in case UMD lacks it */
+    import { SorobanRpc as SorobanRpcESM } from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@13.1.0/+esm";
 
     // ---------- Shortcuts ----------
     const SDK = window.StellarSdk;
@@ -249,12 +252,18 @@
     const AQUA_CODE   = "AQUA";
     const AQUA_ISSUER = "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA";
     const AQUAm25_CODE   = "AQUAm25";
-    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"; // <-- your issuer
     const TRACKER_KEY    = "GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP";
 
     // WalletConnect
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
+
+    // Safety guard: ensure issuer is valid
+    if (!/^G[A-Z2-7]{55}$/.test(AQUAm25_ISSUER)) {
+      const msg = "Config error: AQUAm25_ISSUER is not a valid public key.";
+      console.error(msg); alert(msg); throw new Error(msg);
+    }
 
     // ---------- DOM ----------
     const $=(id)=>document.getElementById(id);
@@ -297,7 +306,18 @@
     let lastQuote=null;
     let quoteMode="send";
     let lastIsSend=true;
-    let _soro=null; const rpc=()=>(_soro ||= new SDK.SorobanRpc.Server(sorobanRpcUrl,{allowHttp:false}));
+
+    // Soroban RPC (UMD or ESM fallback)
+    let _soro = null;
+    function rpc() {
+      if (_soro) return _soro;
+      const UmdCtor = window.StellarSdk?.SorobanRpc?.Server;
+      const EsmCtor = SorobanRpcESM?.Server;
+      const Server = UmdCtor || EsmCtor;
+      if (!Server) throw new Error("SorobanRpc unavailable: neither UMD nor ESM present.");
+      _soro = new Server(sorobanRpcUrl, { allowHttp:false });
+      return _soro;
+    }
 
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
@@ -308,7 +328,7 @@
     const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
-    function toast(msg, err=false){ statusEl.textContent = msg; if(err){ statusEl.style.color = "#ff6b6b"; } else { statusEl.style.color = ""; } }
+    function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
 
     // Contract IDs (SAC)
     function contractId(asset){ return asset.contractId(networkPassphrase); }
@@ -800,8 +820,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         SDK.scVal.toAddress(account),
         SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64"),
         SDK.scVal.toAddress(contractId(tokenIn)),
-        SDK.scVal.toUint128(inAmountStroops.toString()),
-        SDK.scVal.toUint128(limitOutOrExact.toString())
+        SDK.scVal.toU128(inAmountStroops.toString()),
+        SDK.scVal.toU128(limitOutOrExact.toString())
       ];
 
       let tx = new SDK.TransactionBuilder(acc, { fee:"10000", networkPassphrase })
@@ -891,9 +911,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     // Mode toggle
     function setMode(m){
-      if(m==="send"){ btnModeSend.style.background="#0c3137"; btnModeSend.style.borderColor="#2a6f7c"; btnModeRecv.style.background="#141b22"; }
-      else { btnModeRecv.style.background="#0c3137"; btnModeRecv.style.borderColor="#2a6f7c"; btnModeSend.style.background="#141b22"; }
-      if(m==="send"){ swapAmount.removeAttribute("disabled"); swapEst.removeAttribute("disabled"); }
+      if(m==="send"){ btnModeSend.style.background="#0c3137"; btnModeSend.style.borderColor="#2a6f7c"; btnModeRecv.style.background="#141b22"; btnModeRecv.style.borderColor="#2a3340"; }
+      else { btnModeRecv.style.background="#0c3137"; btnModeRecv.style.borderColor="#2a6f7c"; btnModeSend.style.background="#141b22"; btnModeSend.style.borderColor="#2a3340"; }
       quoteMode = m==="send" ? "send" : "receive";
       lastIsSend = (m==="send");
       swapQuote.textContent=""; xdrSwap.value=""; disableSwapButtons();
@@ -1016,9 +1035,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     // ---------- Validate / Quote buttons ----------
     on(btnValidate,"click", onValidate);
-    on(btnQuote,"click", ()=>{
-      if(lastIsSend) quoteStrictSend(); else quoteStrictReceive();
-    });
+    on(btnQuote,"click", ()=>{ if(lastIsSend) quoteStrictSend(); else quoteStrictReceive(); });
 
     // ---------- First-load ----------
     window.addEventListener("load", ()=>{
@@ -1027,8 +1044,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(isValidG(pk)){ initForNewAccount(); startLockerAutoRefresh(); }
       disableLockerButtons();
       disableSwapButtons();
-      // Show SAC IDs once (for default AQUA -> AQUAm25)
-      showContracts();
+      showContracts(); // SAC IDs for defaults
     });
   </script>
 
