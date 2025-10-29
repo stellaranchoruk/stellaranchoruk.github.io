@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mirrasets • Aquarius AMM Router Swap + WalletConnect</title>
+
+<!-- Freighter UMD (for quick detection; we still ESM import if needed) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<style>
+  :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; }
+  html,body { margin:0; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+  .wrap { max-width: 980px; margin: 28px auto; padding: 0 16px; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing:.3px; margin: 0 0 16px; }
+  .grid { display:grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width:880px){ .grid { grid-template-columns: 1fr 1fr; } }
+  .card { background: var(--panel); border: 1px solid #1c242c; border-radius: 12px; padding: 16px; }
+  label { display:block; font-size:12px; color:var(--muted); margin: 10px 0 6px; }
+  input, select { width:100%; background:#0e1419; color:var(--ink); border:1px solid #1e2831; border-radius:10px; padding:12px 12px; outline:none; }
+  input:focus { border-color:#2a3a46; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .pill { display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:6px 10px; border-radius:999px; background:#0e151a; border:1px solid #1e2831; }
+  .pill.ok { border-color:#234b3b; color:var(--ok); }
+  .pill.warn { border-color:#4a2a2a; color:var(--err); }
+  .btn { cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 14px; border-radius:10px; border:1px solid #21464f; background:#0c1c20; color:#d9f6ff; font-weight:600; }
+  .btn:disabled { opacity:.6; cursor:not-allowed; }
+  .btn.primary { background: linear-gradient(180deg,#0c3137,#0e2024); border-color:#2a6f7c; }
+  .btn.alt { background:#141b22; border-color:#2a3340; }
+  .mini { font-size:11px; padding:6px 8px; border-radius:8px; }
+  .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; padding:10px; background:#0b1115; border:1px dashed #20303a; border-radius:8px; overflow:auto; }
+  .flex { display:flex; align-items:center; gap:10px; flex-wrap: wrap; }
+  .sep { height:1px; background:#1a232c; margin:14px 0; }
+  .hint { font-size:12px; color:#b7c3cc; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+  /* Modal (WalletConnect) */
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
+  .open{display:flex}
+  .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+  .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
+  .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
+  .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .wallet-choices button{background:#162554;border:1px solid #344a8a}
+  a.link{color:#9ab0ff;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="flex" style="justify-content:space-between;">
+    <h1>Mirrasets • Aquarius AMM Router Swap (Multi-hop)</h1>
+    <div class="flex">
+      <button id="btnOpenConnect" class="btn alt">Connect Wallet</button>
+      <div id="who" class="muted"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="flex" style="justify-content:space-between;">
+        <div class="pill">Network: <span class="mono">Mainnet</span></div>
+        <div class="pill">Router: <span class="mono">…QUK</span></div>
+      </div>
+
+      <label>Mode</label>
+      <div class="row">
+        <button class="btn primary" id="btnModeSend">Strict-Send (fix input)</button>
+        <button class="btn alt" id="btnModeRecv">Strict-Receive (fix output)</button>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="row">
+        <div>
+          <label>Token In — Code</label>
+          <input id="inCode" value="AQUA" />
+        </div>
+        <div>
+          <label>Token In — Issuer</label>
+          <input id="inIssuer" value="GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Token Out — Code</label>
+          <input id="outCode" value="AQUAm25" />
+        </div>
+        <div>
+          <label>Token Out — Issuer</label>
+          <input id="outIssuer" value="<YOUR_AQUAm25_ISSUER_G...>" />
+        </div>
+      </div>
+
+      <div class="row" id="amountRowSend">
+        <div>
+          <label>Amount In</label>
+          <input id="amountIn" type="number" step="0.0000001" value="100" />
+        </div>
+        <div>
+          <label>Slippage (out-min %)</label>
+          <input id="slipSend" type="number" step="0.1" value="1" />
+        </div>
+      </div>
+
+      <div class="row" id="amountRowRecv" style="display:none">
+        <div>
+          <label>Amount Out Wanted</label>
+          <input id="amountOutWanted" type="number" step="0.0000001" value="100" />
+        </div>
+        <div>
+          <label>Input Cushion (%)</label>
+          <input id="slipRecv" type="number" step="0.1" value="1" />
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="flex">
+        <button id="btnValidate" class="btn">Validate Tokens & Trustline</button>
+        <button id="btnQuote" class="btn">Quote via Aquarius</button>
+        <button id="btnSwap" class="btn primary">Execute Swap</button>
+      </div>
+      <div class="hint" id="status"></div>
+    </div>
+
+    <div class="card">
+      <div class="flex" style="gap:8px;">
+        <span class="muted">Soroban Contract IDs (SAC)</span>
+        <button class="mini btn alt" id="copyContracts">Copy</button>
+      </div>
+      <div class="code" id="contractsBox">—</div>
+
+      <div class="sep"></div>
+
+      <div class="flex" style="gap:8px;">
+        <span class="muted">Validation</span>
+      </div>
+      <div id="validationBox" class="hint">—</div>
+
+      <div class="sep"></div>
+
+      <div class="flex" style="gap:8px;">
+        <span class="muted">Quote / Route</span>
+        <button class="mini btn alt" id="copyQuote">Copy</button>
+      </div>
+      <div class="code" id="quoteBox">—</div>
+
+      <div class="sep"></div>
+
+      <div class="flex" style="gap:8px;">
+        <span class="muted">Prepared Transaction XDR</span>
+        <button class="mini btn alt" id="copyTx">Copy</button>
+      </div>
+      <div class="code" id="txBox">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- Connect Modal (WalletConnect + Freighter) -->
+<div id="backdrop" class="backdrop"></div>
+<div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <h2 id="loginTitle" style="font-size:18px;margin:0">Connect Wallet</h2>
+      <button class="x" id="closeModal" aria-label="Close">×</button>
+    </div>
+    <p>Select a login method:</p>
+    <button class="wallet-btn" id="wcBtn">🔗 WalletConnect (mobile)</button>
+    <button class="wallet-btn" id="freighterExtBtn">🧩 Freighter (browser extension)</button>
+
+    <div id="qrArea" class="qr-wrap" style="display:none">
+      <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
+      <div class="wallet-choices">
+        <button id="btnLobstr">Open in LOBSTR</button>
+        <button id="btnFreighter">Open in Freighter</button>
+      </div>
+      <div class="muted">
+        Scan with your wallet app (LOBSTR / Freighter), or tap a button above on mobile. ·
+        <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
+      </div>
+      <p id="linkStatus" class="muted" style="margin:0;text-align:center;"></p>
+    </div>
+  </div>
+</div>
+
+<script>window.process = window.process || { env: {} };</script>
+
+<script type="module">
+/* ===== Imports ===== */
+import {
+  Asset, Keypair, Networks, SorobanRpc, TransactionBuilder, scVal, xdr
+} from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@13.1.0/+esm";
+import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+import QRCode     from "https://esm.sh/qrcode@1.5.3";
+
+/* ===== Config (Mainnet) ===== */
+const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
+const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
+const horizonUrl        = "https://horizon.stellar.org";
+const baseApi           = "https://amm-api.aqua.network/api/external/v1";
+const networkPassphrase = Networks.PUBLIC;
+
+/* WalletConnect config */
+const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
+const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
+
+/* ===== DOM ===== */
+const el = (id)=>document.getElementById(id);
+const statusEl = el("status"), boxContracts = el("contractsBox"), boxQuote = el("quoteBox"), boxTx = el("txBox");
+const whoEl = el("who");
+const btnOpenConnect = el("btnOpenConnect");
+
+/* Modal */
+const backdrop = el("backdrop"), loginModal = el("loginModal"), closeModalBtn = el("closeModal");
+const wcBtn = el("wcBtn"), freighterExtBtn = el("freighterExtBtn");
+const qrArea = el("qrArea"), qrCanvas = el("qrCanvas"), linkStatus = el("linkStatus"), rawWcLink = el("rawWcLink");
+const btnLobstr = el("btnLobstr"), btnFreighter = el("btnFreighter");
+
+/* ===== STATE ===== */
+let mode = "send"; // "send" | "recv"
+let pubkey = null;
+let lastQuote = null;
+
+let connectionMode = "none"; // "none" | "wc" | "freighter"
+let client = null, session = null, latestWcUri = null;
+
+/* ===== Utils ===== */
+function toast(msg, err=false){ statusEl.innerHTML = err ? `<span style="color:#ff6b6b">${msg}</span>` : msg; }
+const toStroops = (n) => BigInt(Math.round(Number(n) * 1e7));
+const fromStroops = (bi) => Number(bi) / 1e7;
+function short(s){ return s ? s.slice(0,5)+"…"+s.slice(-4) : ""; }
+function isIOS(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
+
+/* ===== Assets (UI reads) ===== */
+function readAssets(){
+  const inCode = el("inCode").value.trim();
+  const inIssuer = el("inIssuer").value.trim();
+  const outCode = el("outCode").value.trim();
+  const outIssuer = el("outIssuer").value.trim();
+
+  const tokenIn = inCode.toUpperCase() === "XLM" || inCode === "native" ? Asset.native() : new Asset(inCode, inIssuer);
+  const tokenOut = outCode.toUpperCase() === "XLM" || outCode === "native" ? Asset.native() : new Asset(outCode, outIssuer);
+  return { tokenIn, tokenOut };
+}
+function contractId(asset){ return asset.contractId(networkPassphrase); }
+
+/* ===== Show IDs ===== */
+function showContracts(){
+  const {tokenIn, tokenOut} = readAssets();
+  const data = {
+    token_in: {
+      code: tokenIn.isNative() ? "XLM" : tokenIn.code,
+      issuer: tokenIn.isNative() ? "(native)" : tokenIn.issuer,
+      contract_id: contractId(tokenIn)
+    },
+    token_out: {
+      code: tokenOut.isNative() ? "XLM" : tokenOut.code,
+      issuer: tokenOut.isNative() ? "(native)" : tokenOut.issuer,
+      contract_id: contractId(tokenOut)
+    },
+    router_contract_id: routerContractId
+  };
+  boxContracts.textContent = JSON.stringify(data, null, 2);
+}
+
+/* ===== Trustline check (output asset) ===== */
+async function hasTrustline(account, asset){
+  if (asset.isNative()) return true;
+  const r = await fetch(`${horizonUrl}/accounts/${account}`);
+  if(!r.ok) throw new Error("Horizon account lookup failed");
+  const j = await r.json();
+  const bal = (j.balances || []).find(b => b.asset_code === asset.code && b.asset_issuer === asset.issuer);
+  return !!bal;
+}
+
+/* ===== Soft Aquarius token check ===== */
+async function softTokenCheck(asset){
+  const probe = {
+    token_in_address:  contractId(asset),
+    token_out_address: contractId(Asset.native()),
+    amount: "1"
+  };
+  const r = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(probe) });
+  const j = await r.json().catch(()=>null);
+  return !!j && (typeof j.success === "boolean");
+}
+
+/* ===== Validate button ===== */
+async function onValidate(){
+  try{
+    showContracts();
+    const {tokenIn, tokenOut} = readAssets();
+    const bits = [];
+
+    const [okIn, okOut] = await Promise.all([softTokenCheck(tokenIn), softTokenCheck(tokenOut)]);
+    bits.push(okIn ? `<div class="pill ok">Token In recognized by Aquarius</div>` : `<div class="pill warn">Token In not recognized</div>`);
+    bits.push(okOut ? `<div class="pill ok">Token Out recognized by Aquarius</div>` : `<div class="pill warn">Token Out not recognized</div>`);
+
+    if(pubkey){
+      const tl = await hasTrustline(pubkey, tokenOut);
+      bits.push(tl ? `<div class="pill ok">Trustline: OK for output asset</div>` : `<div class="pill warn">No trustline for output asset</div>`);
+    } else {
+      bits.push(`<div class="pill">Connect to check trustline</div>`);
+    }
+
+    el("validationBox").innerHTML = `<div class="flex">${bits.join("")}</div>`;
+    toast("Validation finished.");
+  } catch(e){
+    el("validationBox").innerHTML = `<span style="color:#ff6b6b">${e.message}</span>`;
+    toast("Validation error.", true);
+  }
+}
+
+/* ===== Quote via Aquarius ===== */
+async function onQuote(){
+  try{
+    const {tokenIn, tokenOut} = readAssets();
+    const isSend = (mode === "send");
+
+    const amountStroops = isSend
+      ? toStroops(el("amountIn").value)
+      : toStroops(el("amountOutWanted").value);
+
+    const body = {
+      token_in_address:  contractId(tokenIn),
+      token_out_address: contractId(tokenOut),
+      amount: String(amountStroops)
+    };
+    const endpoint = isSend ? "/find-path/" : "/find-path-strict-receive/";
+    const r = await fetch(`${baseApi}${endpoint}`, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+    const j = await r.json();
+    if (!j?.success) throw new Error("Aquarius quote failed");
+
+    lastQuote = j; // {success, amount, tokens, pools, swap_chain_xdr}
+    const summary = {
+      mode: isSend ? "strict-send" : "strict-receive",
+      estimate_amount: Number(j.amount)/1e7,
+      pools: j.pools,
+      tokens: j.tokens
+    };
+    boxQuote.textContent = JSON.stringify(summary, null, 2);
+    toast("Quote ready.");
+  } catch(e){
+    boxQuote.textContent = e.message;
+    lastQuote = null;
+    toast("Quote error.", true);
+  }
+}
+
+/* ===== Build & sign & submit (Soroban) ===== */
+async function onSwap(){
+  try{
+    if(!pubkey) throw new Error("Connect a wallet first.");
+    if(!lastQuote) throw new Error("No quote yet. Click Quote first.");
+
+    const {tokenIn, tokenOut} = readAssets();
+    const rpc = new SorobanRpc.Server(sorobanRpcUrl, { allowHttp:false });
+
+    // Limits
+    const isSend = (mode === "send");
+    const slipSend = Math.max(0, Number(el("slipSend").value || "1"));
+    const slipRecv = Math.max(0, Number(el("slipRecv").value || "1"));
+
+    const amountStroops_in  = isSend
+      ? toStroops(el("amountIn").value)
+      : (BigInt(lastQuote.amount) * BigInt(100 + slipRecv) / 100n); // max input
+
+    const limit_out_or_exact = isSend
+      ? (BigInt(lastQuote.amount) * BigInt(100 - slipSend) / 100n)  // out_min
+      : toStroops(el("amountOutWanted").value);                      // exact out
+
+    // Build invoke
+    const acc = await rpc.getAccount(pubkey);
+    const fn  = isSend ? "swap_chained" : "swap_chained_strict_receive";
+    const params = [
+      scVal.toAddress(pubkey),
+      xdr.ScVal.fromXDR(lastQuote.swap_chain_xdr, "base64"),
+      scVal.toAddress(contractId(tokenIn)),
+      scVal.toU128(amountStroops_in.toString()),
+      scVal.toU128(limit_out_or_exact.toString())
+    ];
+
+    let tx = new TransactionBuilder(acc, { fee:"10000", networkPassphrase })
+      .setTimeout(300)
+      .addOperation({
+        type: "invokeHostFunction",
+        invokeHostFunction: {
+          type: xdr.HostFunctionType.hostFunctionTypeInvokeContract(),
+          invokeContract: { contractId: routerContractId, functionName: fn, args: params }
+        }
+      })
+      .build();
+
+    // Prepare footprint
+    tx = await rpc.prepareTransaction(tx);
+
+    // Sign (Freighter or WalletConnect)
+    let signedXDR;
+    if(connectionMode === "freighter"){
+      const api = await ensureFreighterApi();
+      const prepared = tx.toXDR();
+      signedXDR = await api.signTransaction(prepared, { networkPassphrase, accountToSign: pubkey });
+    } else if (connectionMode === "wc"){
+      if(!client || !session) throw new Error("WalletConnect session not ready.");
+      const prepared = tx.toXDR();
+      const resp = await client.request({
+        topic: session.topic,
+        chainId: "stellar:pubnet",
+        request: { jsonrpc:"2.0", method:"stellar_signXDR", params:{ xdr: prepared } }
+      });
+      signedXDR = resp?.signedXDR;
+      if(!signedXDR) throw new Error("WalletConnect: no signedXDR");
+    } else {
+      throw new Error("No wallet connected.");
+    }
+
+    // Display prepared XDR
+    boxTx.textContent = signedXDR;
+
+    // Submit to Soroban
+    const signedTx = TransactionBuilder.fromXDR(signedXDR, networkPassphrase);
+    const sendRes = await rpc.sendTransaction(signedTx);
+    if (sendRes.status !== "PENDING" && sendRes.status !== "SUCCESS")
+      throw new Error(`Tx send failed: ${sendRes.status}`);
+
+    // Poll
+    let final = await rpc.getTransaction(sendRes.hash);
+    let tries = 0;
+    while(final.status === "NOT_FOUND" && tries < 10){
+      await new Promise(r=>setTimeout(r, 800));
+      final = await rpc.getTransaction(sendRes.hash);
+      tries++;
+    }
+    if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
+
+    const ret = BigInt(final.returnValue?.u128 ?? 0n);
+    const txt = isSend ? `Amount OUT: ${fromStroops(ret)} ${tokenOut.isNative()? "XLM": tokenOut.code}`
+                       : `Amount IN: ${fromStroops(ret)} ${tokenIn.isNative()? "XLM": tokenIn.code}`;
+    toast(`Swap success. ${txt}`);
+  } catch(e){
+    toast(`Swap error: ${e.message}`, true);
+  }
+}
+
+/* ===== Mode toggle ===== */
+function setMode(m){
+  mode = m;
+  el("btnModeSend").classList.toggle("primary", m==="send");
+  el("btnModeSend").classList.toggle("alt", m!=="send");
+  el("btnModeRecv").classList.toggle("primary", m==="recv");
+  el("btnModeRecv").classList.toggle("alt", m!=="recv");
+  el("amountRowSend").style.display = (m==="send") ? "" : "none";
+  el("amountRowRecv").style.display = (m==="recv") ? "" : "none";
+  boxQuote.textContent = "—";
+  lastQuote = null;
+  toast(`Mode: ${m==="send" ? "Strict-Send" : "Strict-Receive"}.`);
+}
+
+/* ===== Copy helpers ===== */
+function copy(id){
+  const t = el(id).textContent || "";
+  navigator.clipboard.writeText(t).then(()=>toast("Copied."), ()=>toast("Copy failed.", true));
+}
+
+/* ===== Freighter helpers ===== */
+async function ensureFreighterApi(){
+  if (window.freighterApi) return window.freighterApi;
+  try{
+    const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
+    window.freighterApi = mod?.default ?? mod;
+    return window.freighterApi;
+  }catch{ return null; }
+}
+
+/* ===== WalletConnect helpers (deep links) ===== */
+async function ensureWcClient(){ if(!client){ client = await SignClient.init({ projectId: PROJECT_ID }); } }
+async function getFreighterLinks(){
+  try{
+    const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+    const res = await fetch(url); const data = await res.json();
+    const arr = Array.isArray(data?.listings ?? data?.data) ? (data.listings ?? data.data) : Object.values(data?.listings ?? {});
+    const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
+    const mobile = w?.mobile || w?.app?.mobile || {};
+    return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
+  }catch{ return {native:null,universal:null,found:false}; }
+}
+function buildCandidates(base, wcUri){
+  if(!base) return [];
+  const enc = encodeURIComponent(wcUri);
+  if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+  const j = base.includes("?") ? "&" : "?";
+  return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
+}
+function openFreighterSmart(links, wcUri){
+  const store = isIOS()? "https://apps.apple.com/app/freighter/id6743947720" : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
+  const natives = buildCandidates(links.native, wcUri);
+  const universals = buildCandidates(links.universal, wcUri);
+  let attempted=false;
+  for(const href of natives){ attempted=true; window.location.href = href; setTimeout(()=>{},350); }
+  if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+  if(!attempted){ window.open(store, "_blank", "noopener"); }
+}
+function openLobstrApp(uri){
+  const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
+  const store  = isIOS()? "https://apps.apple.com/app/id1404357892" : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+  const t0 = Date.now();
+  window.location.href = scheme;
+  setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+}
+
+/* ===== Connect UI ===== */
+function openModal(){ backdrop.classList.add('open'); loginModal.classList.add('open'); }
+function closeModal(){ backdrop.classList.remove('open'); loginModal.classList.remove('open'); }
+btnOpenConnect.onclick = openModal;
+closeModalBtn.onclick = closeModal; backdrop.onclick = closeModal;
+
+/* WalletConnect flow */
+wcBtn.onclick = async ()=>{
+  try{
+    await ensureWcClient();
+    toast("Starting WalletConnect…");
+    const { uri, approval } = await client.connect({
+      optionalNamespaces: {
+        stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+      }
+    });
+    if(!uri) throw new Error("No WC URI");
+    latestWcUri = uri;
+
+    try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); } catch {}
+    qrArea.style.display = "flex";
+    rawWcLink.href = uri;
+
+    linkStatus.textContent = "Loading Freighter deep link…";
+    const freighterLinks = await getFreighterLinks();
+    linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+
+    btnLobstr.onclick = ()=> openLobstrApp(latestWcUri);
+    btnFreighter.onclick = async ()=>{
+      const links = await getFreighterLinks();
+      openFreighterSmart(links, latestWcUri);
+    };
+
+    session = await approval();
+    connectionMode="wc";
+    qrArea.style.display="none"; closeModal();
+
+    const accounts = session.namespaces?.stellar?.accounts || [];
+    const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+    pubkey = (first.split(":")[2] || "");
+    whoEl.innerHTML = `Connected (WC): <span class="mono">${short(pubkey)}</span>`;
+    toast("WalletConnect connected.");
+  }catch(e){
+    toast("Connection canceled or failed.", true);
+  }
+};
+
+/* Freighter connect */
+freighterExtBtn.onclick = async ()=>{
+  try{
+    const api = await ensureFreighterApi();
+    if(!api){ toast("Freighter extension not detected.", true); return; }
+    let address = "";
+    try { address = await api.getPublicKey(); } catch {}
+    if(!address && api.getAddress){ const r=await api.getAddress(); address=r?.address||""; }
+    if(!address && api.requestAccess){ const r=await api.requestAccess(); address=r?.address||""; }
+    if(!address){ toast("Freighter connect denied or failed.", true); return; }
+
+    pubkey = address;
+    connectionMode="freighter";
+    closeModal();
+    whoEl.innerHTML = `Connected (Freighter): <span class="mono">${short(pubkey)}</span>`;
+    toast("Freighter connected.");
+  }catch(e){ toast("Freighter connect failed.", true); }
+};
+
+/* ===== Wire buttons ===== */
+el("btnValidate").onclick = onValidate;
+el("btnQuote").onclick    = onQuote;
+el("btnSwap").onclick     = onSwap;
+el("btnModeSend").onclick = ()=>setMode("send");
+el("btnModeRecv").onclick = ()=>setMode("recv");
+el("copyContracts").onclick = ()=>copy("contractsBox");
+el("copyQuote").onclick     = ()=>copy("quoteBox");
+el("copyTx").onclick        = ()=>copy("txBox");
+
+/* Init */
+showContracts();
+toast("Ready.");
+</script>
+
+<!-- Freighter detection (optional fallback UMD loader already added at top) -->
+<script>
+  if(!window.freighterApi){
+    const s = document.createElement('script');
+    s.src = "https://cdn.freighter.app/freighter-api-v1.js";
+    document.head.appendChild(s);
+  }
+</script>
+</body>
+</html>
