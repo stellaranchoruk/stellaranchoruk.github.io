@@ -173,7 +173,7 @@
           <button data-pct="25">25%</button>
           <button data-pct="50">50%</button>
           <button data-pct="75">75%</button>
-          <button data-pct="100%">100%</button>
+          <button data-pct="100">100%</button>
         </div>
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
@@ -226,11 +226,11 @@
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
-    /* ESM imports */
+    /* ===== ESM imports ===== */
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
-    /* Stellar SDK ESM (v14) as namespace for Soroban fallback */
-    import * as StellarSdkESM from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/+esm";
+    /* 🎯 Import SorobanRpc as a named export (v14 ESM) */
+    import { SorobanRpc as SorobanRpcESM } from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/+esm";
 
     // ---------- Shortcuts ----------
     const SDK = window.StellarSdk;
@@ -307,12 +307,12 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // Soroban RPC (UMD or ESM fallback)
+    // Soroban RPC (UMD or ESM fallback via named export)
     let _soro = null;
     function rpc() {
       if (_soro) return _soro;
-      const UmdCtor = window.StellarSdk?.SorobanRpc?.Server;
-      const EsmCtor = StellarSdkESM?.SorobanRpc?.Server;
+      const UmdCtor = window.StellarSdk?.SorobanRpc?.Server; // from UMD tag
+      const EsmCtor = SorobanRpcESM?.Server;                 // from ESM named export
       const Server = UmdCtor || EsmCtor;
       if (!Server) throw new Error("SorobanRpc unavailable: neither UMD nor ESM present.");
       _soro = new Server(sorobanRpcUrl, { allowHttp:false });
