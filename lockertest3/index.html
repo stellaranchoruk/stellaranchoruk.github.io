@@ -86,7 +86,7 @@
                 Balance: <span id="selectedBal">0</span>
               </button>
             </div>
-            <input id="swapAmount" type="number" step="any" placeholder="0.0" />
+            <input id="swapAmount" type="number" step="any" placeholder="0.0" inputmode="decimal" />
           </div>
         </div>
 
@@ -101,7 +101,7 @@
           </div>
           <div style="width:220px">
             <label for="swapEst">Receive (AQUAm25)</label>
-            <input id="swapEst" type="number" step="any" placeholder="0.0" />
+            <input id="swapEst" type="number" step="any" placeholder="0.0" inputmode="decimal" />
           </div>
         </div>
 
@@ -132,7 +132,7 @@
         <p class="small">AQUAm25 Balance: <b id="aquaBal">-</b></p>
 
         <label for="amount">AQUAm25 Amount</label>
-        <input id="amount" type="number" step="any" placeholder="Amount to lock" />
+        <input id="amount" type="number" step="any" placeholder="Amount to lock" inputmode="decimal" />
         <div class="pct">
           <button data-pct="25">25%</button>
           <button data-pct="50">50%</button>
@@ -189,7 +189,7 @@
 
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- Failsafe: modal toggles even if module fails -->
+  <!-- Simple modal toggles as a failsafe -->
   <script>
     (function () {
       function openModal() {
@@ -220,7 +220,7 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // Surface fatal errors
+    // Bubble fatal errors to UI
     window.addEventListener("error", (e)=>{
       const s = document.getElementById("status");
       if (s && e?.error) s.textContent = "Load error: " + (e.error.message || "Unknown");
@@ -299,7 +299,11 @@
 
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
-    const cleanAmt = a => { const n=Number(a); if(!isFinite(n)||n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
+    const cleanAmt = a => {
+      const n=Number(a);
+      if(!isFinite(n) || n<=0) return null;
+      return n.toFixed(7).replace(/\.0+$/,"");
+    };
     const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
@@ -507,7 +511,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }catch(e){ console.error(e); }
     }
 
-    // ---------- Swap quoting (NO path passed to op constructors) ----------
+    // ---------- Swap quoting ----------
     let quoteMode = "send"; // "send" when user edits swapAmount, "receive" when user edits swapEst
 
     async function quoteStrictSend(){
@@ -537,7 +541,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           swapQuote.textContent = `No path found from ${sendLabel} → AQUAm25 for this amount.`;
           return;
         }
-        // pick max destination_amount
         records.sort((a,b)=> parseFloat(b.destination_amount) - parseFloat(a.destination_amount));
         const best = records[0];
         const destAmount = best.destination_amount;
@@ -553,13 +556,14 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
         if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
 
-        // IMPORTANT: do NOT pass `path` at all (SDK will default to [])
+        // CRITICAL: hard-force empty path array to avoid `.map` crashes
         txb.addOperation(SDK.Operation.pathPaymentStrictSend({
           sendAsset,
-          sendAmount: sendAmt,
+          sendAmount: String(sendAmt),
           destination: pk,
           destAsset: AQUAm25,
-          destMin: minOut
+          destMin: String(minOut),
+          path: []                // <— always an array
         })).setTimeout(180);
 
         xdrSwap.value = txb.build().toXDR();
@@ -572,7 +576,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
-    // Receive UX: quote with strictReceivePaths, but BUILD as strictSend (no `path` field)
+    // Receive UX: quote with strictReceivePaths, build as strict-send (with path: [])
     async function quoteStrictReceive(){
       disableSwapButtons();
       xdrSwap.value = "";
@@ -600,7 +604,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           swapQuote.textContent = `No path found to receive ${destAmt} AQUAm25 from ${sendLabel}.`;
           return;
         }
-        // pick min source_amount
         records.sort((a,b)=> parseFloat(a.source_amount) - parseFloat(b.source_amount));
         const best = records[0];
         const srcAmount = best.source_amount;
@@ -611,18 +614,18 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = `Mode: <b>Strict Receive (built as Strict Send)</b> · To receive <b>${destAmt}</b> AQUAm25, you'll send about <b>${plain(srcAmount)}</b> ${sendLabel}. We set send to <b>${sendMax}</b> and min receive to <b>${destAmt}</b>.`;
 
         const src = await getServer().loadAccount(pk);
-
         const txb = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK });
         const hasTrust = !!src.balances.find(b=>b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
         if(!hasTrust){ txb.addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 })); }
 
-        // Build TX as strict-send to guarantee destMin; DO NOT pass a `path` key
+        // Build as strict-send; path is hard-set to []
         txb.addOperation(SDK.Operation.pathPaymentStrictSend({
           sendAsset,
-          sendAmount: sendMax,     // cap spend
+          sendAmount: String(sendMax),   // cap spend
           destination: pk,
           destAsset: AQUAm25,
-          destMin: destAmt         // guarantee requested receive
+          destMin: String(destAmt),      // guarantee requested receive
+          path: []                       // <— always []
         })).setTimeout(180);
 
         xdrSwap.value = txb.build().toXDR();
@@ -649,11 +652,14 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     on(swapAmount,"input", ()=>{
       quoteMode = "send";
+      // avoid firing on "0", ".", empty etc. (mobile keyboards)
+      if(!swapAmount.value || Number(swapAmount.value) <= 0){ xdrSwap.value=""; swapQuote.textContent=""; disableSwapButtons(); return; }
       debounceQuote(quoteStrictSend);
     });
 
     on(swapEst,"input", ()=>{
       quoteMode = "receive";
+      if(!swapEst.value || Number(swapEst.value) <= 0){ xdrSwap.value=""; swapQuote.textContent=""; disableSwapButtons(); return; }
       debounceQuote(quoteStrictReceive);
     });
 
@@ -686,8 +692,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     function openLobstrApp(uri){
       const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const store  = isIOS ? "https://apps.apple.com/app/id1404357892" : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const store  = isIOS()? "https://apps.apple.com/app/id1404357892" : "https://play.google.com/store/apps/details?id=com.lobstr.client";
       const t0 = Date.now();
       window.location.href = scheme;
       setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
@@ -712,8 +717,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
     }
     function openFreighterSmart(links, wcUri){
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const store = isIOS ? "https://apps.apple.com/app/freighter/id6743947720" : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
+      const store = isIOS()? "https://apps.apple.com/app/freighter/id6743947720" : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
       const natives = buildCandidates(links.native, wcUri);
       const universals = buildCandidates(links.universal, wcUri);
       let attempted=false;
