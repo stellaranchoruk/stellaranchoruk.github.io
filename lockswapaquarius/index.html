@@ -8,7 +8,7 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v14) — gives window.StellarSdk (incl. SorobanRpc) -->
+  <!-- Stellar SDK (UMD v14) -->
   <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 
   <style>
@@ -173,7 +173,7 @@
           <button data-pct="25">25%</button>
           <button data-pct="50">50%</button>
           <button data-pct="75">75%</button>
-          <button data-pct="100%">100%</button>
+          <button data-pct="100">100%</button>
         </div>
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
@@ -225,11 +225,11 @@
 
   <script>window.process = window.process || { env: {} };</script>
 
-<!-- Soroban Client Fallback (modern UMD) -->
-<script src="https://cdn.jsdelivr.net/npm/@stellar/soroban-client@2.4.0/dist/soroban-client.umd.js" crossorigin="anonymous"></script>
+  <!-- Soroban Client Fallback (modern UMD from cdnjs) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/soroban-client/1.0.1/soroban-client.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <script type="module">
-    /* ===== ESM imports (no SorobanRpc import here) ===== */
+    /* ===== ESM imports ===== */
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
@@ -302,27 +302,25 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-// ---------- Soroban RPC (prefer Stellar SDK UMD; fallback to @stellar/soroban-client UMD) ----------
-let _soro = null;
-function rpc() {
-  if (_soro) return _soro;
+    // ---------- Soroban RPC (prefer Stellar SDK UMD; fallback to soroban-client UMD) ----------
+    let _soro = null;
+    function rpc() {
+      if (_soro) return _soro;
 
-  // Preferred: Stellar SDK UMD (if exposed in this CDN build)
-  const SdkServer = window.StellarSdk?.SorobanRpc?.Server;
-  if (SdkServer) {
-    _soro = new SdkServer("https://mainnet.sorobanrpc.com", { allowHttp: false });
-    return _soro;
-  }
+      const SdkServer = window.StellarSdk?.SorobanRpc?.Server;
+      if (SdkServer) {
+        _soro = new SdkServer(sorobanRpcUrl, { allowHttp: false });
+        return _soro;
+      }
 
-  // Fallback: modern @stellar/soroban-client (v2.x) UMD
-  const FallbackServer = window.SorobanClient?.Server;
-  if (FallbackServer) {
-    _soro = new FallbackServer("https://mainnet.sorobanrpc.com", { allowHttp: false });
-    return _soro;
-  }
+      const FallbackServer = window.SorobanClient?.Server;
+      if (FallbackServer) {
+        _soro = new FallbackServer(sorobanRpcUrl, { allowHttp: false });
+        return _soro;
+      }
 
-  throw new Error("SorobanRpc unavailable: neither StellarSdk.SorobanRpc nor @stellar/soroban-client present.");
-}
+      throw new Error("SorobanRpc unavailable: neither StellarSdk.SorobanRpc nor soroban-client UMD present.");
+    }
 
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
@@ -1034,7 +1032,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const xdr = xdrOut.value.trim(); if(!xdr) return;
       let enc = encodeURIComponent(xdr).replace(/%2F/g,'/').replace(/%2B/g,'+').replace(/%3D/g,'=');
       enc = enc.replace(/\//g,'//') + ';;';
-      window.open('https://lab.stellar.org/transaction/sign?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=https:////mainnet.sorobanrpc.com&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr='+enc, "_blank");
+      window.open('https://lab.stellar.org/transaction/sign?$=network&id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=https:////mainnet.sorobanrpc.com&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr='+enc, "_blank");
     });
 
     // ---------- Validate / Quote buttons ----------
