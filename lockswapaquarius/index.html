@@ -229,8 +229,20 @@
     /* ===== ESM imports ===== */
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
-    // ESM soroban-client v2 (CORS-safe & proper MIME)
-    const SorobanMod = await import("https://esm.sh/@stellar/soroban-client@2.6.1");
+
+    // Try jsDelivr +esm first; if it fails, fallback to esm.sh with ?bundle
+    let SorobanMod = null;
+    try {
+      SorobanMod = await import("https://cdn.jsdelivr.net/npm/@stellar/soroban-client@2.6.1/+esm");
+    } catch (e1) {
+      console.warn("soroban-client via jsDelivr failed, trying esm.sh…", e1);
+      try {
+        SorobanMod = await import("https://esm.sh/@stellar/soroban-client@2.6.1?bundle");
+      } catch (e2) {
+        console.warn("soroban-client via esm.sh failed", e2);
+        SorobanMod = null; // we still allow the page to run; rpc() will error only when needed
+      }
+    }
 
     // ---------- Shortcuts ----------
     const SDK = window.StellarSdk;
@@ -269,8 +281,10 @@
         _soro = new SdkServer(sorobanRpcUrl, { allowHttp: false });
         return _soro;
       }
-      const ServerCtor2 = SorobanMod.Server || SorobanMod.default?.Server;
-      if (!ServerCtor2) throw new Error("SorobanRpc unavailable: @stellar/soroban-client v2 ESM did not expose Server");
+      const ServerCtor2 = SorobanMod?.Server || SorobanMod?.default?.Server;
+      if (!ServerCtor2) {
+        throw new Error("Soroban client not available (both StellarSdk.SorobanRpc and @stellar/soroban-client ESM failed to load).");
+      }
       _soro = new ServerCtor2(sorobanRpcUrl, { allowHttp: false });
       return _soro;
     }
