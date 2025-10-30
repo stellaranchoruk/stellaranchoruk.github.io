@@ -8,8 +8,8 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v17) — exposes window.StellarSdk + window.StellarSdk.SorobanRpc -->
-  <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@17/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
+  <!-- Stellar SDK (UMD) — includes SorobanRpc -->
+  <script src="https://cdn.jsdelivr.net/npm/stellar-sdk@13.3.0/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -118,7 +118,7 @@
           </div>
         </div>
 
-        <!-- Aquarius helpers -->
+        <!-- Aquarius validators -->
         <div class="row" style="gap:10px;margin-top:10px">
           <button id="btnValidate" class="ghost">Validate Tokens & Trustline</button>
           <button id="btnQuote" class="ghost">Quote via Aquarius</button>
@@ -226,7 +226,7 @@
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
-    /* ===== ESM imports (no soroban-client) ===== */
+    /* ===== ESM imports ===== */
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
@@ -244,7 +244,6 @@
     const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
     const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
     const baseApi           = "https://amm-api.aqua.network/api/external/v1";
-    const networkPassphrase = NETWORK;
 
     // AQUA / AQUAm25
     const AQUA_CODE   = "AQUA";
@@ -257,16 +256,6 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
-    // ---------- Soroban RPC (via Stellar SDK UMD v17) ----------
-    let _soro = null;
-    function rpc() {
-      if (_soro) return _soro;
-      const SdkServer = window.StellarSdk?.SorobanRpc?.Server;
-      if (!SdkServer) throw new Error("This stellar-sdk build doesn’t expose SorobanRpc. Hard-refresh and ensure v17 UMD is loaded.");
-      _soro = new SdkServer(sorobanRpcUrl, { allowHttp: false });
-      return _soro;
-    }
-
     // ---------- DOM ----------
     const $=(id)=>document.getElementById(id);
     const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
@@ -275,7 +264,6 @@
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
     const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal");
     const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus"), rawWcLink=$("rawWcLink");
-
     const pubkeyEl=$("pubkey"), aquaBalEl=$("aquaBal"), amountEl=$("amount"), lockInfoEl=$("lockInfo");
     const xdrOut=$("xdrOut"), actionResult=$("actionResult");
     const signSubmitBtn=$("signSubmitBtn"), signOnlyBtn=$("signOnlyBtn"), copyBtn=$("copyBtn"), labBtn=$("labBtn");
@@ -310,6 +298,16 @@
     let quoteMode="send";
     let lastIsSend=true;
 
+    // ---------- Soroban RPC via stellar-sdk UMD ----------
+    let _soro = null;
+    function rpc() {
+      if (_soro) return _soro;
+      const SdkServer = window.StellarSdk?.SorobanRpc?.Server;
+      if (!SdkServer) throw new Error("SorobanRpc unavailable from stellar-sdk UMD.");
+      _soro = new SdkServer(sorobanRpcUrl, { allowHttp: false });
+      return _soro;
+    }
+
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
 
@@ -320,6 +318,7 @@
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
     function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
+
     function contractId(asset){ return asset.contractId(NETWORK); }
 
     // ---------- Connection UI ----------
@@ -409,10 +408,10 @@
     function openFreighterSmart(links, wcUri){
       const store = isIOS()? "https://apps.apple.com/app/freighter/id6743947720" : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
       const natives = buildCandidates(links.native, wcUri);
-      const universals = buildCandidates(links.universal);
+      const universals = buildCandidates(links.universal, wcUri);
       let attempted=false;
       for(const href of natives){ attempted=true; window.location.href = href; setTimeout(()=>{},350); }
-      if(universals && universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+      if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
       if(!attempted){ window.open(store, "_blank", "noopener"); }
     }
     function openLobstrApp(uri){
@@ -619,10 +618,11 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       fillMaxBtn.style.display = parseFloat(bal)>0 ? "inline-flex" : "none";
     }
     async function updateToBoxDomain(){
-      if(!DOMAIN_CACHE.has(AQUAm25_ISSUER)){
-        await fetchDomainsForIssuers([AQUAm25_ISSUER]);
+      const issuer = AQUAm25_ISSUER;
+      if(!DOMAIN_CACHE.has(issuer)){
+        await fetchDomainsForIssuers([issuer]);
       }
-      const dom = DOMAIN_CACHE.get(AQUAm25_ISSUER) || shortG(AQUAm25_ISSUER);
+      const dom = DOMAIN_CACHE.get(issuer) || shortG(issuer);
       toIssuerMeta.textContent = dom;
     }
 
@@ -648,7 +648,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }catch(e){ console.error(e); }
     }
 
-    // ---------- Aquarius helpers ----------
+    // ---------- Aquarius validators ----------
     function showContracts(){
       const tokenIn = getCurrentSendAsset();
       const data = {
@@ -746,7 +746,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           xdrSwap.value = tx.toXDR();
           enableSwapButtons();
         } else {
-          swapQuote.innerHTML += " · <i>Connect to build XDR</i>`;
+          swapQuote.innerHTML += " · <i>Connect to build XDR</i>";
         }
       }catch(e){
         console.error(e);
@@ -800,7 +800,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
-    // Build Soroban swap tx (prepare via Soroban RPC)
+    // Build Soroban swap tx (using stellar-sdk UMD + SorobanRpc)
     async function buildSorobanSwapTx({ account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr }){
       const acc = await rpc().getAccount(account);
       const fn  = isSend ? "swap_chained" : "swap_chained_strict_receive";
@@ -813,7 +813,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         SDK.scVal.toU128(limitOutOrExact.toString())
       ];
 
-      let tx = new SDK.TransactionBuilder(acc, { fee:"10000", networkPassphrase })
+      // Using low-level operation shape for compatibility with v13 UMD
+      let tx = new SDK.TransactionBuilder(acc, { fee:"10000", networkPassphrase: NETWORK })
         .setTimeout(300)
         .addOperation({
           type: "invokeHostFunction",
@@ -958,7 +959,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const final = await submitToSoroban(xdrToSubmit);
         const u = BigInt(final.returnValue?.u128 ?? 0n);
         const sentOrRecv = lastIsSend ? `Amount OUT: ${plain(Number(u)/1e7)} ${AQUAm25_CODE}` :
-                                        `Amount IN: ${plain(Number(u)/1e7)} ${getSelectedOption()?.dataset.code||"asset"}`;
+                                        `Amount IN: ${plain(Number(u)/1e7)} ${(getSelectedOption()?.dataset.code||"asset")}`;
         swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${sentOrRecv}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
 
         // refresh AQUAm25 balance after swap
