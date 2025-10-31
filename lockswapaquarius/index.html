@@ -298,15 +298,29 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Soroban RPC (SDK 14.3.0) ----------
-    let _soro = null;
-    function rpc() {
-      if (_soro) return _soro;
-      const Server = window.StellarSdk?.SorobanRpc?.Server;
-      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk (check SDK 14.3.0 tag).");
-      _soro = new Server(sorobanRpcUrl, { allowHttp: false });
-      return _soro;
-    }
+// ---------- Soroban RPC (SDK v14 UMD) ----------
+let _soro = null;
+function rpc() {
+  if (_soro) return _soro;
+
+  // Primary (correct for v14 UMD)
+  const RpcServer = window.StellarSdk?.rpc?.Server;
+  if (RpcServer) {
+    _soro = new RpcServer(sorobanRpcUrl, { allowHttp: false });
+    return _soro;
+  }
+
+  // Fallback (older builds that used SorobanRpc namespace)
+  const LegacyServer = window.StellarSdk?.SorobanRpc?.Server;
+  if (LegacyServer) {
+    _soro = new LegacyServer(sorobanRpcUrl, { allowHttp: false });
+    return _soro;
+  }
+
+  throw new Error(
+    "Soroban RPC client not found on StellarSdk. Ensure @stellar/stellar-sdk UMD v14.x is loaded before this script."
+  );
+}
 
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
