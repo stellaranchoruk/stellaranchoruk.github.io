@@ -301,15 +301,61 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Soroban RPC (SDK 14.3.0) ----------
-    let _soro = null;
-    function rpc() {
-      if (_soro) return _soro;
-      const Server = window.StellarSdk?.SorobanRpc?.Server;
-      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk (check SDK 14.3.0 tag).");
-      _soro = new Server(sorobanRpcUrl, { allowHttp: false });
-      return _soro;
+// ---------- Soroban RPC (portable JSON-RPC fallback; no SDK SorobanRpc needed) ----------
+let _soro = null;
+function rpc() {
+  if (_soro) return _soro;
+
+  const endpoint = sorobanRpcUrl; // "https://mainnet.sorobanrpc.com"
+  let _id = 0;
+
+  async function rpcCall(method, params) {
+    const body = { jsonrpc: "2.0", id: ++_id, method, params };
+    const res  = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || j.error) {
+      const msg = j?.error?.message || `${method} failed (${res.status})`;
+      throw new Error(msg);
     }
+    return j.result;
+  }
+
+  // Match the minimal surface your app expects from SorobanRpc.Server
+  async function getAccount(address) {
+    // Soroban RPC getAccount returns { sequence, ... }
+    const r = await rpcCall("getAccount", { address });
+    // Build an Account object compatible with TransactionBuilder
+    // sequence must be a string
+    return new SDK.Account(address, String(r.sequence));
+  }
+
+  async function prepareTransaction(tx) {
+    const xdr = typeof tx === "string" ? tx : tx.toXDR();
+    // Let the node attach footprint + resource fees
+    const r = await rpcCall("prepareTransaction", { transaction: xdr });
+    // Return a Transaction instance, just like SDK.Server.prepareTransaction
+    return SDK.TransactionBuilder.fromXDR(r.transaction, NETWORK);
+  }
+
+  async function sendTransaction(txOrXdr) {
+    const xdr = typeof txOrXdr === "string" ? txOrXdr : txOrXdr.toXDR();
+    // Returns { hash, status }
+    return rpcCall("sendTransaction", { transaction: xdr });
+  }
+
+  async function getTransaction(hashOrObj) {
+    const hash = typeof hashOrObj === "string" ? hashOrObj : hashOrObj.hash;
+    // Returns { status, hash, ... }
+    return rpcCall("getTransaction", { hash });
+  }
+
+  _soro = { getAccount, prepareTransaction, sendTransaction, getTransaction };
+  return _soro;
+}
 
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
