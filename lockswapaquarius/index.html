@@ -6,26 +6,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Freighter API (UMD) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v14.3.0) with robust fallback -->
+  <!-- Stellar SDK (UMD v14.3.0, correct path). No crossorigin needed. -->
   <script id="stellar-umd"
-          src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.umd.js"
-          crossorigin="anonymous"></script>
+          src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js"></script>
+
+  <!-- Robust loader: jsDelivr → unpkg → ESM (no CORS on the dynamic UMD load) -->
   <script>
-    // Promise you can await inside the module script
     window.waitForStellarSdk = (async function(){
-      // 1) Try primary UMD for ~4s
-      for (let i = 0; i < 40; i++) {
+      // 1) Give the primary UMD up to ~5s to appear
+      for (let i = 0; i < 50; i++) {
         if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
         await new Promise(r => setTimeout(r, 100));
       }
 
-      // 2) Try alternate UMD from unpkg
+      // 2) Try alternate UMD from unpkg (NO crossorigin to avoid CORS enforcement)
       const tryAltUmd = () => new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        s.src = "https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.umd.js";
-        s.crossOrigin = "anonymous";
+        s.src = "https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js";
         s.onload = () => {
           if (window.StellarSdk?.SorobanRpc?.Server) resolve(window.StellarSdk);
           else reject(new Error("Alt UMD loaded but SorobanRpc missing"));
@@ -268,22 +267,24 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // ---------- Bootstrap SDK safely (no top-level throws) ----------
+    // ---------- Bootstrap SDK safely ----------
     let SDK;
     try {
       SDK = await window.waitForStellarSdk;
-      console.log("Stellar SDK ready:", { version: SDK?.version, hasSorobanRpc: !!SDK?.SorobanRpc?.Server });
+      console.log("Stellar SDK ready:", {
+        version: SDK?.version,
+        hasSorobanRpc: !!SDK?.SorobanRpc?.Server
+      });
     } catch (e) {
       console.error(e);
-      // Keep UI alive; we'll guard Soroban-dependent actions later
     }
 
-    // If SDK is still unavailable, we bail out of app logic gracefully.
     if (!SDK) {
-      // Bind minimal UI so the page isn't inert
+      // Keep UI clickable so users see why it’s not working
       const $=(id)=>document.getElementById(id);
       const connectBtn=$("connectBtn");
       if (connectBtn) connectBtn.addEventListener("click", ()=>alert("Stellar SDK failed to load. Check network/CDN/CSP and reload."));
+      // Stop executing app logic here
       throw new Error("Stellar SDK (UMD/ESM) didn’t load. Check network/CDN and CSP.");
     }
 
@@ -294,8 +295,37 @@
 
     // Aquarius / Soroban
     const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
-    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
-    const baseApi           = "https://amm-api.aqua.network/api/external/v1";
+
+    // Prefer AQUA RPC, fallback to SDF
+    const SORO_RPCS = [
+      "https://soroban-rpc.aqua.network",
+      "https://mainnet.sorobanrpc.com"
+    ];
+    let _soro = null;
+    let _soroUrl = null;
+
+    async function pickHealthyRpc() {
+      const Rc = SDK?.SorobanRpc?.Server;
+      if (!Rc) throw new Error("SorobanRpc unavailable in StellarSdk.");
+      for (const url of SORO_RPCS) {
+        try {
+          const srv = new Rc(url, { allowHttp: false });
+          if (typeof srv.getHealth === "function") {
+            const h = await srv.getHealth();
+            if (h && (h.status === "healthy" || h.status === "OK")) { _soroUrl = url; return srv; }
+          } else {
+            const info = await srv.getLatestLedger();
+            if (info?.sequence) { _soroUrl = url; return srv; }
+          }
+        } catch (e) {
+          console.warn("[RPC] Unhealthy:", url, e?.message || e);
+        }
+      }
+      throw new Error("No healthy Soroban RPC found.");
+    }
+    async function rpc() { if (_soro) return _soro; _soro = await pickHealthyRpc(); console.log("Using Soroban RPC:", _soroUrl); return _soro; }
+
+    const baseApi           = "https://amm-api.aqua.network";
     const networkPassphrase = NETWORK;
 
     // AQUA / AQUAm25
@@ -361,18 +391,11 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Soroban RPC (via SDK) ----------
-    let _soro = null;
-    function rpc() {
-      if (_soro) return _soro;
-      const ServerCtorRPC = SDK?.SorobanRpc?.Server;
-      if (!ServerCtorRPC) {
-        throw new Error(
-          "SorobanRpc unavailable from StellarSdk. Ensure the SDK loaded with Soroban."
-        );
-      }
-      _soro = new ServerCtorRPC(sorobanRpcUrl, { allowHttp: false });
-      return _soro;
+    // ---------- RPC Account loader for TransactionBuilder ----------
+    async function loadAccountForTx(address) {
+      const srv = await rpc();
+      const r = await srv.getAccount(address); // { sequence, ... }
+      return new SDK.Account(address, String(r.sequence));
     }
 
     // Cache for issuer -> domain
@@ -704,7 +727,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     }
     async function softTokenCheck(asset){
       const probe = { token_in_address:  contractId(asset), token_out_address: contractId(SDK.Asset.native()), amount: "1" };
-      const r = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(probe) });
+      const r = await fetch(`${baseApi}/pools/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(probe) });
       const j = await r.json().catch(()=>null);
       return !!j && (typeof j.success === "boolean");
     }
@@ -763,7 +786,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           token_out_address: contractId(AQUAm25),
           amount: String(Math.round(parseFloat(sendAmt)*1e7))
         };
-        const res = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+        const res = await fetch(`${baseApi}/pools/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
         const j = await res.json();
         if(!j?.success) throw new Error("No route from Aquarius AMM");
 
@@ -815,6 +838,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           token_out_address: contractId(AQUAm25),
           amount: String(Math.round(parseFloat(wantOut)*1e7)) // desired out
         };
+        // keep the known strict-receive endpoint you already had
         const res = await fetch(`${baseApi}/find-path-strict-receive/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
         const j = await res.json();
         if(!j?.success) throw new Error("No route from Aquarius AMM");
@@ -862,13 +886,12 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       swapChainXdr,     // base64 ScVal from Aquarius API
       addTrustlineFirst // boolean
     }){
-      // If trustline missing, stop here with explicit guidance.
       if (addTrustlineFirst) {
         throw new Error("Missing AQUAm25 trustline. Click “Add AQUAm25 Trustline” first, then retry the swap.");
       }
 
-      const server = rpc();
-      const acc = await server.getAccount(account);
+      const server = await rpc();
+      const acc = await loadAccountForTx(account);
       const c = new SDK.Contract(routerContractId);
       const fn = isSend ? "swap_chained" : "swap_chained_strict_receive";
 
@@ -950,15 +973,15 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     // Submit Soroban
     async function submitToSoroban(signedXdr){
       const tx = SDK.TransactionBuilder.fromXDR(signedXdr, NETWORK);
-      const send = await rpc().sendTransaction(tx);
+      const send = await (await rpc()).sendTransaction(tx);
       if (send.status !== "PENDING" && send.status !== "SUCCESS")
         throw new Error(`Soroban send failed: ${send.status}`);
 
-      let final = await rpc().getTransaction(send.hash);
+      let final = await (await rpc()).getTransaction(send.hash);
       let tries = 0;
       while(final.status === "NOT_FOUND" && tries < 10){
         await new Promise(r=>setTimeout(r, 800));
-        final = await rpc().getTransaction(send.hash);
+        final = await (await rpc()).getTransaction(send.hash);
         tries++;
       }
       if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
@@ -1160,7 +1183,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const xdr = xdrOut.value.trim(); if(!xdr) return;
       let enc = encodeURIComponent(xdr).replace(/%2F/g,'/').replace(/%2B/g,'+').replace(/%3D/g,'=');
       enc = enc.replace(/\//g,'//') + ';;';
-      window.open('https://lab.stellar.org/transaction/sign?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=https:////mainnet.sorobanrpc.com&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr='+enc, "_blank");
+      window.open('https://lab.stellar.org/transaction/sign?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=https:////soroban-rpc.aqua.network&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr='+enc, "_blank");
     });
 
     // ---------- Validate / Quote buttons ----------
