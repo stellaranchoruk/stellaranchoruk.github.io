@@ -8,8 +8,8 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v14.3.0) — includes SorobanRpc -->
-  <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
+<!-- Stellar SDK (UMD v14.3.0 non-min) — exposes SorobanRpc -->
+<script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js" crossorigin="anonymous"></script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -301,28 +301,22 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-// ---------- Soroban RPC (portable JSON-RPC fallback; no SDK SorobanRpc needed) ----------
+// ---------- Soroban RPC (use SDK 14.3.0 SorobanRpc.Server) ----------
 let _soro = null;
 function rpc() {
   if (_soro) return _soro;
 
-  const endpoint = sorobanRpcUrl; // "https://mainnet.sorobanrpc.com"
-  let _id = 0;
-
-  async function rpcCall(method, params) {
-    const body = { jsonrpc: "2.0", id: ++_id, method, params };
-    const res  = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify(body),
-    });
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok || j.error) {
-      const msg = j?.error?.message || `${method} failed (${res.status})`;
-      throw new Error(msg);
-    }
-    return j.result;
+  const ServerCtor = window.StellarSdk?.SorobanRpc?.Server;
+  if (!ServerCtor) {
+    throw new Error(
+      "SorobanRpc unavailable from StellarSdk. " +
+      "Ensure the non-min SDK is loaded: @stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js"
+    );
   }
+
+  _soro = new ServerCtor("https://mainnet.sorobanrpc.com", { allowHttp: false });
+  return _soro;
+}
 
   // Match the minimal surface your app expects from SorobanRpc.Server
   async function getAccount(address) {
