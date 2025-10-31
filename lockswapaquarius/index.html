@@ -8,45 +8,62 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v14.3.0, correct path). No crossorigin needed. -->
-  <script id="stellar-umd"
-          src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js"></script>
+  <!-- Stellar SDK: ESM-first (jspm -> esm.sh) then UMD (jsDelivr -> unpkg).
+     Never hard-crash; resolve to `null` if everything is blocked. -->
+<script>
+  window.waitForStellarSdk = (async function loadStellarSdk(){
+    // 0) If already present (some bundler/page added it), use it
+    if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
 
-  <!-- Robust loader: jsDelivr → unpkg → ESM (no CORS on the dynamic UMD load) -->
-  <script>
-    window.waitForStellarSdk = (async function(){
-      // 1) Give the primary UMD up to ~5s to appear
-      for (let i = 0; i < 50; i++) {
-        if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
-        await new Promise(r => setTimeout(r, 100));
-      }
-
-      // 2) Try alternate UMD from unpkg (NO crossorigin to avoid CORS enforcement)
-      const tryAltUmd = () => new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = "https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js";
-        s.onload = () => {
-          if (window.StellarSdk?.SorobanRpc?.Server) resolve(window.StellarSdk);
-          else reject(new Error("Alt UMD loaded but SorobanRpc missing"));
-        };
-        s.onerror = () => reject(new Error("Alt UMD failed to load"));
-        document.head.appendChild(s);
-      });
-
+    async function tryImport(url) {
       try {
-        return await tryAltUmd();
+        const mod = await import(url);
+        // jspm/+esm returns named exports; esm.sh usually gives default
+        const sdk = mod?.default || mod?.StellarSdk || mod;
+        if (sdk?.SorobanRpc?.Server) {
+          window.StellarSdk = sdk;
+          return sdk;
+        }
       } catch (_) {}
+      return null;
+    }
 
-      // 3) Final fallback: ESM -> attach to window
+    async function tryUmd(url) {
       try {
-        const mod = await import('https://esm.sh/@stellar/stellar-sdk@14.3.0?bundle');
-        window.StellarSdk = mod?.StellarSdk || mod?.default || mod;
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = url;                // no crossorigin to avoid CORS MIME traps
+          s.async = true;
+          s.onload  = () => resolve();
+          s.onerror = () => reject(new Error("UMD failed: " + url));
+          document.head.appendChild(s);
+        });
         if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
       } catch (_) {}
+      return null;
+    }
 
-      throw new Error("Stellar SDK (UMD/ESM) didn’t load. Check network/CDN and CSP.");
-    })();
-  </script>
+    // 1) ESM (most robust)
+    // jspm (great for npm packages as ESM)
+    let sdk = await tryImport("https://ga.jspm.io/npm:@stellar/stellar-sdk@14.3.0/+esm");
+    if (sdk) return sdk;
+    // esm.sh fallback
+    sdk = await tryImport("https://esm.sh/@stellar/stellar-sdk@14.3.0?bundle");
+    if (sdk) return sdk;
+
+    // 2) UMD (if ESM blocked by CSP)
+    // jsDelivr: correct file is `dist/stellar-sdk.js` for 14.3.0
+    sdk = await tryUmd("https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js");
+    if (sdk) return sdk;
+
+    // unpkg fallback
+    sdk = await tryUmd("https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js");
+    if (sdk) return sdk;
+
+    // 3) Give up gracefully — caller can show a friendly message
+    return null;
+  })();
+</script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -267,26 +284,23 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // ---------- Bootstrap SDK safely ----------
-    let SDK;
-    try {
-      SDK = await window.waitForStellarSdk;
-      console.log("Stellar SDK ready:", {
-        version: SDK?.version,
-        hasSorobanRpc: !!SDK?.SorobanRpc?.Server
-      });
-    } catch (e) {
-      console.error(e);
-    }
-
-    if (!SDK) {
-      // Keep UI clickable so users see why it’s not working
-      const $=(id)=>document.getElementById(id);
-      const connectBtn=$("connectBtn");
-      if (connectBtn) connectBtn.addEventListener("click", ()=>alert("Stellar SDK failed to load. Check network/CDN/CSP and reload."));
-      // Stop executing app logic here
-      throw new Error("Stellar SDK (UMD/ESM) didn’t load. Check network/CDN and CSP.");
-    }
+// ---------- Bootstrap SDK safely ----------
+let SDK = await window.waitForStellarSdk;
+if (!SDK) {
+  console.error("Stellar SDK did not load from any source (CSP/CDN).");
+  // Keep the UI alive so the user can see the reason and retry
+  const $=(id)=>document.getElementById(id);
+  const connectBtn=$("connectBtn");
+  if (connectBtn) connectBtn.addEventListener("click", ()=>alert(
+    "Stellar SDK failed to load.\n\nCheck:\n• CSP allows https://ga.jspm.io and https://esm.sh\n• Or allow https://cdn.jsdelivr.net and https://unpkg.com\n• Then reload."
+  ));
+  // DO NOT throw — let the rest of the page render.
+} else {
+  console.log("Stellar SDK ready:", {
+    version: SDK.version,
+    hasSorobanRpc: !!SDK.SorobanRpc?.Server
+  });
+}
 
     // ---------- Shortcuts ----------
     const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
