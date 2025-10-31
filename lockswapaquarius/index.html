@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Mirrasets — AQUAm25 Locker + Aquarius AMM Router Swap</title>
+  <title>Mirrasets — AQUAm25 Locker + Aquarius AMM Router Swap (Atomic Trustline)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD) -->
+  <!-- Stellar SDK (UMD v14) -->
   <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 
   <style>
@@ -45,19 +45,6 @@
     .pill.ok { border-color:#234b3b; color:var(--ok); }
     .pill.warn { border-color:#4a2a2a; color:var(--err); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-
-    /* Modal (WalletConnect) */
-    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
-    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
-    .open{display:flex}
-    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-    .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
-    .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
-    .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
-    .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-    .wallet-choices button{background:#162554;border:1px solid #344a8a}
-    a.link{color:#9ab0ff;text-decoration:underline}
   </style>
 </head>
 <body>
@@ -75,13 +62,17 @@
       <!-- Swap (Aquarius AMM Router) -->
       <div class="section box" id="swapBox">
         <h2>Swap (Aquarius AMM Router)</h2>
-        <p class="small">Swap any Stellar token you hold into <b>AQUAm25</b> via Aquarius AMMs (multi-hop). Type either how much you’ll <b>send</b> or how much AQUAm25 you want to <b>receive</b>. We only build the transaction when you tap <i>Sign</i>.</p>
+        <p class="small">
+          Swap any Stellar token you hold into <b>AQUAm25</b> via Aquarius AMMs (multi-hop).
+          If you don’t have an AQUAm25 trustline, we’ll add it automatically and then perform the swap
+          in the <b>same transaction</b> (creating a trustline increases your minimum reserve by about <b>0.5 XLM</b> + fees).
+        </p>
 
         <!-- Mode -->
         <div class="row" style="gap:10px;margin:4px 0 8px;">
           <button class="ghost" id="btnModeSend" style="border-color:#2a6f7c;background:#0c3137;color:#d9f6ff">Strict-Send (fix input)</button>
           <button class="ghost" id="btnModeRecv">Strict-Receive (fix output)</button>
-          <span class="pill">Router: <span class="mono">CBQD…QUK</span></span>
+          <span class="pill">Router: <span class="mono">CBQ…QUK</span></span>
           <span class="pill">Network: <span class="mono">Mainnet</span></span>
         </div>
 
@@ -118,6 +109,7 @@
           </div>
         </div>
 
+        <!-- Actions -->
         <div class="row" style="gap:10px;margin-top:10px">
           <button id="btnValidate" class="ghost">Validate Tokens & Trustline</button>
           <button id="btnQuote" class="ghost">Quote via Aquarius</button>
@@ -184,7 +176,7 @@
         <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here" readonly style="display:none"></textarea>
 
         <div class="row" style="margin-top:10px;flex-wrap:wrap">
-          <button id="signSubmitBtn">Sign &amp; Submit</button>
+          <button id="signSubmitBtn">Sign &amp; Submit (current wallet)</button>
           <button id="signOnlyBtn" class="ghost">Sign (don’t submit)</button>
           <button id="copyBtn" class="ghost">Copy XDR</button>
           <button id="labBtn" class="ghost">Open in Stellar Lab</button>
@@ -196,28 +188,28 @@
   </div>
 
   <!-- Connect Modal -->
-  <div id="backdrop" class="backdrop"></div>
-  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-    <div class="modal-inner">
-      <div class="modal-header">
+  <div id="backdrop" class="backdrop" style="position:fixed;inset:0;background:rgba(0,0,0,.55);display:none"></div>
+  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center">
+    <div class="modal-inner" style="width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)">
+      <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <h2 id="loginTitle" style="font-size:18px;margin:0">Connect Wallet</h2>
-        <button class="x" id="closeModal" aria-label="Close">×</button>
+        <button class="x" id="closeModal" aria-label="Close" style="background:none;border:none;color:#94a3ad;font-size:22px;line-height:1;cursor:pointer">×</button>
       </div>
       <p>Select a login method:</p>
-      <button class="wallet-btn" id="wcBtn">🔗 WalletConnect (mobile)</button>
-      <button class="wallet-btn" id="freighterExtBtn">🧩 Freighter (browser extension)</button>
+      <button class="wallet-btn" id="wcBtn" style="width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;background:#162554;border:1px solid #344a8a">🔗 WalletConnect (mobile)</button>
+      <button class="wallet-btn" id="freighterExtBtn" style="width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;background:#162554;border:1px solid #344a8a">🧩 Freighter (browser extension)</button>
 
-      <div id="qrArea" class="qr-wrap" style="display:none">
+      <div id="qrArea" class="qr-wrap" style="display:none;flex-direction:column;align-items:center;gap:12px;margin-top:12px">
         <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
-        <div class="wallet-choices">
-          <button id="btnLobstr">Open in LOBSTR</button>
-          <button id="btnFreighter">Open in Freighter</button>
+        <div class="wallet-choices" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+          <button id="btnLobstr" style="background:#162554;border:1px solid #344a8a;color:#fff;padding:8px 10px;border-radius:8px">Open in LOBSTR</button>
+          <button id="btnFreighter" style="background:#162554;border:1px solid #344a8a;color:#fff;padding:8px 10px;border-radius:8px">Open in Freighter</button>
         </div>
-        <div class="small">
+        <div class="small" style="color:#94a3ad">
           Scan with your wallet app (LOBSTR / Freighter), or tap a button above on mobile. ·
-          <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
+          <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer" style="color:#9ab0ff;text-decoration:underline">raw wc link</a>
         </div>
-        <p id="linkStatus" class="small" style="margin:0;text-align:center;opacity:.8"></p>
+        <p id="linkStatus" class="small" style="margin:0;text-align:center;opacity:.8;color:#94a3ad"></p>
       </div>
     </div>
   </div>
@@ -228,7 +220,7 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // ---------- Shortcuts ----------
+    // ---------- SDK ----------
     const SDK = window.StellarSdk;
     if(!SDK) throw new Error("Stellar SDK failed to load.");
     const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
@@ -236,7 +228,7 @@
 
     // ---------- Config ----------
     const HORIZON    = "https://horizon.stellar.org";
-    const NETWORK    = SDK.Networks.PUBLIC;
+    const NETWORK    = SDK.Networks.PUBLIC; // passphrase
     const NETWORK_PASSPHRASE = NETWORK;
 
     // Aquarius / Soroban
@@ -248,7 +240,7 @@
     const AQUA_CODE   = "AQUA";
     const AQUA_ISSUER = "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA";
     const AQUAm25_CODE   = "AQUAm25";
-    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"; // <- change if needed
+    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
     const TRACKER_KEY    = "GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP";
 
     // WalletConnect
@@ -297,36 +289,6 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Simple Soroban JSON-RPC client (no external libs) ----------
-    let _rpcId = 1;
-    async function soroCall(method, params){
-      const body = { jsonrpc:"2.0", id: (_rpcId++), method, params };
-      const res = await fetch(sorobanRpcUrl, {
-        method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body)
-      });
-      const j = await res.json().catch(()=> ({}));
-      if(j.error){
-        const err = new Error(j.error.message || "Soroban RPC error");
-        err.code = j.error.code;
-        err.data = j.error.data;
-        throw err;
-      }
-      return j.result;
-    }
-    async function soroPrepare(envelopeXdr){ // returns prepared envelopeXdr
-      const r = await soroCall("prepareTransaction", { transaction: envelopeXdr });
-      return r.envelopeXdr; // prepared tx to sign
-    }
-    async function soroSend(envelopeXdr){ // returns {status, hash}
-      return await soroCall("sendTransaction", { transaction: envelopeXdr });
-    }
-    async function soroGet(hash){ // returns {status, ... , returnValue?}
-      return await soroCall("getTransaction", { hash });
-    }
-
-    // Cache for issuer -> domain
-    const DOMAIN_CACHE = new Map();
-
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
     const cleanAmt = a => { const n=Number(a); if(!isFinite(n) || n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
@@ -336,31 +298,14 @@
     function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
     function contractId(asset){ return asset.contractId(NETWORK_PASSPHRASE); }
 
-    function disableSwapButtons(){
-      swapSignSubmit.disabled = true;
-      swapSignOnly.disabled   = true;
-      swapCopy.disabled       = true;
-    }
-    function enableSwapButtons(){
-      swapSignSubmit.disabled = false;
-      swapSignOnly.disabled   = false;
-      swapCopy.disabled       = !xdrSwap.value.trim();
-    }
-    function updateSwapButtonsAfterQuote() {
-      const connected = !!pubkey && isValidG(pubkey);
-      const haveQuote = !!lastQuote;
-      swapSignSubmit.disabled = !(connected && haveQuote);
-      swapSignOnly.disabled   = !(connected && haveQuote);
-      swapCopy.disabled       = !xdrSwap.value.trim();
-    }
-
-    // ---------- Connection UI ----------
-    function openModal()  { backdrop.classList.add('open'); loginModal.classList.add('open'); }
-    function closeModal() { backdrop.classList.remove('open'); loginModal.classList.remove('open'); }
+    // ---------- Modal ----------
+    function openModal(){ backdrop.style.display='block'; loginModal.style.display='flex'; }
+    function closeModal(){ backdrop.style.display='none'; loginModal.style.display='none'; }
     on(connectBtn,"click",openModal);
     on(closeModalBtn,"click",closeModal);
     on(backdrop,"click",closeModal);
 
+    // ---------- Connect / Disconnect ----------
     function setConnected(address, mode){
       statusEl.textContent = address ? `Connected (${mode==="wc"?"WalletConnect":"Freighter"})` : "Not connected";
       disconnectBtn.disabled = !address;
@@ -376,7 +321,6 @@
         pubkeyEl.readOnly = false;
         stopLockerAutoRefresh();
       }
-      updateSwapButtonsAfterQuote();
     }
 
     on(disconnectBtn,"click", async ()=>{
@@ -388,10 +332,10 @@
       session=null; connectionMode="none"; setConnected("", "none");
       xdrOut.value = ""; xdrSwap.value = ""; swapEst.value = "";
       actionResult.textContent = ""; swapResult.textContent = ""; swapQuote.textContent = "";
-      disableSwapButtons();
+      disableLockerButtons(); disableSwapButtons();
     });
 
-    // ---------- Freighter connect ----------
+    // ---------- Freighter ----------
     async function ensureFreighterApi(){
       if (window.freighterApi) return window.freighterApi;
       try{
@@ -425,8 +369,7 @@
       try{
         const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
         const res = await fetch(url); const data = await res.json();
-        const raw = data?.listings ?? data?.data ?? [];
-        const arr = Array.isArray(raw) ? raw : Object.values(raw);
+        const arr = Array.isArray(data?.listings ?? data?.data) ? (data.listings ?? data.data) : Object.values(data?.listings ?? {});
         const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
         const mobile = w?.mobile || w?.app?.mobile || {};
         return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
@@ -497,7 +440,7 @@
       }
     });
 
-    // ---------- Signing helpers ----------
+    // ---------- Signing ----------
     const wcRequest = (method, xdr) => client.request({
       topic: session.topic, chainId: "stellar:pubnet",
       request: { jsonrpc:"2.0", method, params:{ xdr } }
@@ -594,7 +537,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       scheduleLockerBuild();
     }));
 
-    // ---------- Swap balances + dropdown ----------
+    // ---------- Balances + dropdown ----------
+    const DOMAIN_CACHE = new Map();
     async function loadAllBalances(pk){
       const acct = await getServer().loadAccount(pk);
       const items = [];
@@ -616,8 +560,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         try{
           const r = await fetch(`${HORIZON}/accounts/${issuer}`);
           const j = await r.json();
-          const d = (j && j.home_domain) ? j.home_domain : "";
-          DOMAIN_CACHE.set(issuer, d);
+          DOMAIN_CACHE.set(issuer, (j && j.home_domain) ? j.home_domain : "");
         }catch(_){ DOMAIN_CACHE.set(issuer, ""); }
       }));
     }
@@ -646,10 +589,10 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     function getSelectedOption(){ return swapFrom.options[swapFrom.selectedIndex] || null; }
     function updateSelectedAssetUI(){
       const opt = getSelectedOption();
-      if(!opt){ fillMaxBtn.style.display="none"; return; }
+      if(!opt){ fillMaxBtn && (fillMaxBtn.style.display="none"); return; }
       const bal = opt.dataset.balance || "0";
-      selectedBal.textContent = plain(bal);
-      fillMaxBtn.style.display = parseFloat(bal)>0 ? "inline-flex" : "none";
+      if(selectedBal) selectedBal.textContent = plain(bal);
+      if(fillMaxBtn) fillMaxBtn.style.display = parseFloat(bal)>0 ? "inline-flex" : "none";
     }
     async function updateToBoxDomain(){
       if(!DOMAIN_CACHE.has(AQUAm25_ISSUER)){
@@ -718,7 +661,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
         if(pubkey){
           const tl = await hasTrustline(pubkey, tokenOut);
-          bits.push(tl ? `<div class="pill ok">Trustline: OK for output asset</div>` : `<div class="pill warn">No trustline for output asset</div>`);
+          bits.push(tl ? `<div class="pill ok">Trustline: OK for output asset</div>` : `<div class="pill warn">No trustline for output asset (will be added automatically)</div>`);
         } else {
           bits.push(`<div class="pill">Connect to check trustline</div>`);
         }
@@ -731,7 +674,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
-    // ---------- Aquarius quotes (DECOUPLED) ----------
+    // ---------- Aquarius quotes ----------
     function getCurrentSendAsset(){
       if(!swapFrom.value || swapFrom.value === "XLM") return SDK.Asset.native();
       const [code, issuer] = (swapFrom.value||"").split(":");
@@ -743,9 +686,9 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         ? `Mode: <b>Strict Send</b> · You send <b>${swapAmount.value}</b> ${sendLabel}. Estimated receive: <b>${plain(est)}</b> AQUAm25`
         : `Mode: <b>Strict Receive</b> · To receive <b>${swapEst.value}</b> AQUAm25, estimated spend: <b>${plain(est)}</b> ${sendLabel}`;
     }
-
     async function quoteStrictSend(){
-      swapQuote.textContent=""; xdrSwap.value=""; disableSwapButtons();
+      disableSwapButtons();
+      xdrSwap.value=""; swapQuote.textContent="";
       const pk = pubkeyEl.value.trim();
       const sendAmt = cleanAmt(swapAmount.value.trim());
       if(!isValidG(pk) || !sendAmt) return;
@@ -764,24 +707,32 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         if(!j?.success) throw new Error("No route from Aquarius AMM");
 
         lastQuote = j; lastIsSend = true;
+
         const estOut = Number(j.amount)/1e7;
         swapEst.value = plain(estOut);
         swapQuote.innerHTML = routeSummary(true, j, sendLabel);
 
-        // Show route details in dev box
-        quoteBox.textContent = JSON.stringify({ pools: j.pools, tokens: j.tokens, est: estOut }, null, 2);
-
-        updateSwapButtonsAfterQuote();
+        if(isValidG(pk)){
+          const txXdr = await buildSorobanSwapTx({
+            account: pk, isSend: true, tokenIn: sendAsset,
+            inAmountStroops: BigInt(Math.round(parseFloat(sendAmt)*1e7)),
+            limitOutOrExact: BigInt(Math.floor(Number(j.amount)*0.99)), // out_min
+            swapChainXdr: j.swap_chain_xdr
+          });
+          xdrSwap.value = txXdr;
+          enableSwapButtons();
+        } else {
+          swapQuote.innerHTML += " · <i>Connect to build XDR</i>";
+        }
       }catch(e){
-        console.error("[quoteStrictSend]", e);
-        lastQuote=null; swapQuote.textContent = "Aquarius quote failed (strict send).";
-        quoteBox.textContent = e?.data ? `${e.message} — ${e.data}` : (e.message||"Quote error");
-        disableSwapButtons();
+        console.error(e);
+        swapQuote.textContent = "Aquarius quote failed (strict send).";
+        lastQuote=null; xdrSwap.value=""; disableSwapButtons();
       }
     }
-
     async function quoteStrictReceive(){
-      swapQuote.textContent=""; xdrSwap.value=""; disableSwapButtons();
+      disableSwapButtons();
+      xdrSwap.value=""; swapQuote.textContent="";
       const pk = pubkeyEl.value.trim();
       const wantOut = cleanAmt(swapEst.value.trim());
       if(!isValidG(pk) || !wantOut) return;
@@ -793,33 +744,79 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const body = {
           token_in_address:  contractId(sendAsset),
           token_out_address: contractId(AQUAm25),
-          amount: String(Math.round(parseFloat(wantOut)*1e7))
+          amount: String(Math.round(parseFloat(wantOut)*1e7)) // desired out
         };
         const res = await fetch(`${baseApi}/find-path-strict-receive/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
         const j = await res.json();
         if(!j?.success) throw new Error("No route from Aquarius AMM");
 
         lastQuote = j; lastIsSend = false;
+
         const estIn = Number(j.amount)/1e7;
         swapAmount.value = plain(estIn);
         swapQuote.innerHTML = routeSummary(false, j, sendLabel);
 
-        quoteBox.textContent = JSON.stringify({ pools: j.pools, tokens: j.tokens, est: estIn }, null, 2);
-
-        updateSwapButtonsAfterQuote();
+        if(isValidG(pk)){
+          const cushion = 1.01;
+          const txXdr = await buildSorobanSwapTx({
+            account: pk, isSend: false, tokenIn: sendAsset,
+            inAmountStroops: BigInt(Math.ceil(Number(j.amount)*cushion)), // max input
+            limitOutOrExact: BigInt(Math.round(parseFloat(wantOut)*1e7)), // exact out
+            swapChainXdr: j.swap_chain_xdr
+          });
+          xdrSwap.value = txXdr;
+          enableSwapButtons();
+        } else {
+          swapQuote.innerHTML += " · <i>Connect to build XDR</i>";
+        }
       }catch(e){
-        console.error("[quoteStrictReceive]", e);
-        lastQuote=null; swapQuote.textContent = "Aquarius quote failed (strict receive).";
-        quoteBox.textContent = e?.data ? `${e.message} — ${e.data}` : (e.message||"Quote error");
-        disableSwapButtons();
+        console.error(e);
+        swapQuote.textContent = "Aquarius quote failed (strict receive).";
+        lastQuote=null; xdrSwap.value=""; disableSwapButtons();
       }
     }
 
-    // ---------- Build Soroban swap tx (ON DEMAND) ----------
-    async function buildSorobanSwapTx({ account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr }){
-      // Source from Horizon (sequence)
-      const srcResp = await getServer().loadAccount(account);
+    // ---------- Soroban JSON-RPC helpers (no external soroban-client) ----------
+    async function soroRpc(method, params){
+      const body = { jsonrpc:"2.0", id: Date.now(), method, params };
+      const r = await fetch(sorobanRpcUrl, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+      const j = await r.json().catch(()=> ({}));
+      if(j.error) throw j.error;
+      return j.result;
+    }
+    async function soroSimulate(xdr){ return soroRpc("simulateTransaction", { transaction: xdr }); }
+    async function soroPrepare(xdr){ const res = await soroRpc("prepareTransaction", { transaction: xdr }); return res?.transaction ?? xdr; }
+    async function soroSend(xdr){ return soroRpc("sendTransaction", { transaction: xdr }); }
+    async function soroGetTx(hash){ return soroRpc("getTransaction", { hash }); }
 
+    // ---------- Atomic trustline inserter ----------
+    async function trustlineOpsIfNeeded(accountG) {
+      const acc = await fetch(`${HORIZON}/accounts/${accountG}`).then(r=>r.json());
+      const has = (acc.balances||[]).some(b => b.asset_code === AQUAm25_CODE && b.asset_issuer === AQUAm25_ISSUER);
+      if (has) return [];
+
+      // optional sanity: warn low XLM
+      const native = (acc.balances||[]).find(b=>b.asset_type==="native");
+      const spendable = native ? parseFloat(native.balance) - (parseFloat(native.selling_liabilities||"0")||0) : 0;
+      if (spendable < 1) {
+        console.warn("Low XLM balance; creating a trustline increases min reserve by ~0.5 XLM.");
+      }
+
+      const op = SDK.Operation.changeTrust({
+        asset: new SDK.Asset(AQUAm25_CODE, AQUAm25_ISSUER),
+      });
+      return [op];
+    }
+
+    // ---------- Build Soroban swap (with atomic trustline) ----------
+    async function buildSorobanSwapTx({ account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr }){
+      // 1) Load classic account (sequence etc.)
+      const src = await getServer().loadAccount(account);
+
+      // 2) Prepend ChangeTrust if needed
+      const tlOps = await trustlineOpsIfNeeded(account);
+
+      // 3) Build host function params
       const params = [
         SDK.scVal.toAddress(account),
         SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64"),
@@ -829,72 +826,74 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       ];
       const fn  = isSend ? "swap_chained" : "swap_chained_strict_receive";
 
-      // Build classic envelope (no footprint yet)
-      let tx = new SDK.TransactionBuilder(srcResp, { fee:"10000", networkPassphrase: NETWORK_PASSPHRASE })
-        .setTimeout(300)
-        .addOperation({
-          type: "invokeHostFunction",
-          invokeHostFunction: {
-            type: SDK.xdr.HostFunctionType.hostFunctionTypeInvokeContract(),
-            invokeContract: { contractId: routerContractId, functionName: fn, args: params }
-          }
-        })
-        .build();
+      // 4) Build classic+hostFunction tx
+      let tb = new SDK.TransactionBuilder(src, { fee:"10000", networkPassphrase: NETWORK_PASSPHRASE })
+        .setTimeout(300);
 
-      // Prepare on Soroban RPC -> returns prepared envelope XDR
-      const preparedXdr = await soroPrepare(tx.toXDR());
-      return preparedXdr; // prepared envelope XDR (ready to sign)
+      // Add trustline if missing
+      for (const op of tlOps) tb = tb.addOperation(op);
+
+      // Add router call
+      tb = tb.addOperation({
+        type: "invokeHostFunction",
+        invokeHostFunction: {
+          type: SDK.xdr.HostFunctionType.hostFunctionTypeInvokeContract(),
+          invokeContract: { contractId: routerContractId, functionName: fn, args: params }
+        }
+      });
+
+      const built = tb.build();
+      const builtXdr = built.toXDR();
+
+      // 5) Soroban: simulate + prepare (returns prepared XDR)
+      // (simulate is optional here, but helpful to surface early issues; we still call prepare)
+      try { await soroSimulate(builtXdr); } catch(_) {}
+      const preparedXdr = await soroPrepare(builtXdr);
+      return preparedXdr; // ready to sign
     }
 
-    // Submit Soroban
+    // ---------- Soroban submission ----------
     async function submitToSoroban(signedXdr){
       const send = await soroSend(signedXdr);
       if (send.status !== "PENDING" && send.status !== "SUCCESS")
         throw new Error(`Soroban send failed: ${send.status}`);
 
-      let final = await soroGet(send.hash);
+      let final = await soroGetTx(send.hash);
       let tries = 0;
       while(final.status === "NOT_FOUND" && tries < 12){
         await new Promise(r=>setTimeout(r, 800));
-        final = await soroGet(send.hash);
+        final = await soroGetTx(send.hash);
         tries++;
       }
       if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
       return final;
     }
 
-    // ---------- Swap UI wiring ----------
-    function disableSwapUI(){ xdrSwap.value=""; disableSwapButtons(); }
-    function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 350); }
+    // ---------- Swap buttons ----------
+    function disableSwapButtons(){ [swapSignSubmit,swapSignOnly,swapCopy].forEach(b=>b.disabled=true); }
+    function enableSwapButtons(){ const ok=!!xdrSwap.value.trim(); [swapSignSubmit,swapSignOnly,swapCopy].forEach(b=>b.disabled=!ok); }
 
-    function getSelectedOption(){ return swapFrom.options[swapFrom.selectedIndex] || null; }
+    function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 400); }
 
     on(swapFrom,"change", ()=>{
       updateSelectedAssetUI();
-      disableSwapUI();
       if(quoteMode==="send" && swapAmount.value.trim()) debounceQuote(quoteStrictSend);
       else if(quoteMode==="receive" && swapEst.value.trim()) debounceQuote(quoteStrictReceive);
-      showContracts();
     });
 
     on(swapAmount,"input", ()=>{
       quoteMode = "send";
-      xdrSwap.value="";
-      if(!swapAmount.value || Number(swapAmount.value) <= 0){ swapQuote.textContent=""; disableSwapButtons(); return; }
+      if(!swapAmount.value || Number(swapAmount.value) <= 0){ xdrSwap.value=""; swapQuote.textContent=""; disableSwapButtons(); return; }
       debounceQuote(quoteStrictSend);
     });
 
     on(swapEst,"input", ()=>{
       quoteMode = "receive";
-      xdrSwap.value="";
-      if(!swapEst.value || Number(swapEst.value) <= 0){ swapQuote.textContent=""; disableSwapButtons(); return; }
+      if(!swapEst.value || Number(swapEst.value) <= 0){ xdrSwap.value=""; swapQuote.textContent=""; disableSwapButtons(); return; }
       debounceQuote(quoteStrictReceive);
     });
 
-    on($("btnQuote"),"click", ()=>{ if(lastIsSend) quoteStrictSend(); else quoteStrictReceive(); });
-
-    // Fill max
-    on($("fillMaxBtn"),"click", ()=>{
+    on(fillMaxBtn,"click", ()=>{
       const opt = getSelectedOption();
       if(!opt) return;
       const bal = parseFloat(opt.dataset.balance || "0");
@@ -933,7 +932,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     on(btnModeSend,"click", ()=>setMode("send"));
     on(btnModeRecv,"click", ()=>setMode("recv"));
 
-    // Swap signing (build on demand)
+    // Ensure prepared XDR exists
     async function ensurePreparedSwapXdr(){
       if(xdrSwap.value.trim()) return xdrSwap.value.trim();
       const pk = pubkeyEl.value.trim();
@@ -946,13 +945,13 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(isSend){
         const inStroops = BigInt(Math.round(parseFloat(swapAmount.value)*1e7));
         const outMin    = BigInt(Math.floor(Number(lastQuote.amount)*0.99));
-        const prepared = await buildSorobanSwapTx({ account: pk, isSend: true, tokenIn: sendAsset, inAmountStroops: inStroops, limitOutOrExact: outMin, swapChainXdr: lastQuote.swap_chain_xdr });
-        xdrSwap.value = prepared;
+        const txXdr = await buildSorobanSwapTx({ account: pk, isSend: true, tokenIn: sendAsset, inAmountStroops: inStroops, limitOutOrExact: outMin, swapChainXdr: lastQuote.swap_chain_xdr });
+        xdrSwap.value = txXdr;
       } else {
         const outWanted = BigInt(Math.round(parseFloat(swapEst.value)*1e7));
         const inMax     = BigInt(Math.ceil(Number(lastQuote.amount)*1.01));
-        const prepared = await buildSorobanSwapTx({ account: pk, isSend: false, tokenIn: sendAsset, inAmountStroops: inMax, limitOutOrExact: outWanted, swapChainXdr: lastQuote.swap_chain_xdr });
-        xdrSwap.value = prepared;
+        const txXdr = await buildSorobanSwapTx({ account: pk, isSend: false, tokenIn: sendAsset, inAmountStroops: inMax, limitOutOrExact: outWanted, swapChainXdr: lastQuote.swap_chain_xdr });
+        xdrSwap.value = txXdr;
       }
       return xdrSwap.value.trim();
     }
@@ -965,12 +964,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const signed = await signCurrent(preparedXdr);
         xdrSwap.value = signed;
         swapResult.textContent="Signed XDR ✓";
-      }catch(e){
-        console.error(e);
-        swapResult.textContent = e?.data ? `${e.message} — ${e.data}` : (e.message || "Signing failed.");
-      } finally {
-        updateSwapButtonsAfterQuote();
-      }
+        enableSwapButtons();
+      }catch(e){ console.error(e); swapResult.textContent=e.message||"Signing failed."; }
     });
 
     on(swapSignSubmit,"click", async ()=>{
@@ -986,7 +981,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const final = await submitToSoroban(xdrToSubmit);
         const u = BigInt(final.returnValue?.u128 ?? 0n);
         const sentOrRecv = lastIsSend ? `Amount OUT: ${plain(Number(u)/1e7)} ${AQUAm25_CODE}` :
-                                        `Amount IN: ${plain(Number(u)/1e7)} ${(getSelectedOption()?.dataset.code||"asset")}`;
+                                        `Amount IN: ${plain(Number(u)/1e7)} ${(getSelectedOption()?.dataset.code)||"asset"}`;
         swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${sentOrRecv}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
 
         // refresh AQUAm25 balance after swap
@@ -996,15 +991,10 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
             try{ const { balance } = await loadAquaM25Balance(pk); aquaBalEl.textContent = plain(balance); }catch{}
           }
         }, 1200);
-      }catch(e){
-        console.error(e);
-        swapResult.textContent = e?.data ? `${e.message} — ${e.data}` : (e.message || "Sign/submit failed.");
-      } finally {
-        updateSwapButtonsAfterQuote();
-      }
+      }catch(e){ console.error(e); swapResult.textContent=e.message||"Sign/submit failed."; }
     });
 
-    // ---------- Locker submit (classic) ----------
+    // ---------- Locker submission (classic) ----------
     async function submitToHorizon(signedXdr){
       const resp = await fetch(`${HORIZON}/transactions`,{
         method:"POST",
@@ -1057,6 +1047,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     // ---------- Validate / Quote buttons ----------
     on(btnValidate,"click", onValidate);
+    on(btnQuote,"click", ()=>{ if(lastIsSend) quoteStrictSend(); else quoteStrictReceive(); });
 
     // ---------- First-load ----------
     window.addEventListener("load", ()=>{
@@ -1065,7 +1056,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(isValidG(pk)){ initForNewAccount(); startLockerAutoRefresh(); }
       disableLockerButtons();
       disableSwapButtons();
-      showContracts(); // SAC IDs for defaults
+      showContracts();
     });
   </script>
 
