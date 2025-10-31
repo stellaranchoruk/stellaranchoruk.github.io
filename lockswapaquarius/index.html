@@ -8,15 +8,8 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v14.3.0) — includes SorobanRpc -->
-<script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="
-  (function(){
-    var s=document.createElement('script');
-    s.src='https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js';
-    s.crossOrigin='anonymous';
-    document.head.appendChild(s);
-  })();
-"></script>
+  <!-- Stellar SDK (UMD v14.3.0 non-min) — exposes window.StellarSdk -->
+  <script id="stellar-umd" src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js" crossorigin="anonymous"></script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -84,7 +77,6 @@
         <h2>Swap (Aquarius AMM Router)</h2>
         <p class="small">Swap any Stellar token you hold into <b>AQUAm25</b> via Aquarius AMMs (multi-hop). Type either how much you’ll <b>send</b> or how much AQUAm25 you want to <b>receive</b>. If you don’t have an AQUAm25 trustline yet, add it first (uses ~1 XLM reserve).</p>
 
-        <!-- Mode -->
         <div class="row" style="gap:10px;margin:4px 0 8px;">
           <button class="ghost" id="btnModeSend" style="border-color:#2a6f7c;background:#0c3137;color:#d9f6ff">Strict-Send (fix input)</button>
           <button class="ghost" id="btnModeRecv">Strict-Receive (fix output)</button>
@@ -132,7 +124,6 @@
           <button id="swapSignSubmit">Sign &amp; Submit (current wallet)</button>
           <button id="swapSignOnly" class="ghost">Sign (don’t submit)</button>
           <button id="swapCopy" class="ghost">Copy XDR</button>
-          <!-- New: trustline helper -->
           <button id="btnAddTrustline" class="ghost">Add AQUAm25 Trustline</button>
         </div>
 
@@ -234,26 +225,73 @@
 
   <script>window.process = window.process || { env: {} };</script>
 
+  <!-- Bootstrap the UMD loader with automatic CDN fallback -->
+  <script>
+    (function () {
+      const primary = "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js";
+      const fallback = "https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js";
+      const tag = document.getElementById("stellar-umd");
+
+      function swapToFallback() {
+        if (!tag || tag.dataset.triedFallback === "1") return;
+        tag.dataset.triedFallback = "1";
+        console.warn("[StellarSdk] primary failed, switching to unpkg…");
+        tag.src = fallback;
+        tag.removeAttribute("integrity");
+        tag.crossOrigin = "anonymous";
+      }
+
+      if (tag) {
+        if (!tag.src.includes("@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js")) {
+          tag.src = primary;
+        }
+        tag.addEventListener("error", swapToFallback, { once: true });
+      }
+    })();
+  </script>
+
   <script type="module">
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-// ---------- Shortcuts (wait for UMD to be ready) ----------
-async function waitForStellarSdk(timeoutMs = 4000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < timeoutMs) {
-    const SDK = window.StellarSdk;
-    if (SDK?.SorobanRpc?.Server) return SDK;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  throw new Error("Stellar SDK (UMD) didn't load in time.");
-}
+    // ---------- Robust Stellar SDK ensure (UMD → fallback UMD → ESM) ----------
+    async function ensureStellarSdk() {
+      if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
 
-const SDK = await waitForStellarSdk();
-console.log("SDK version:", SDK.version, "SorobanRpc?", !!SDK.SorobanRpc?.Server);
+      const tag = document.getElementById("stellar-umd");
+      if (tag && !window.StellarSdk) {
+        await new Promise((resolve) => {
+          const done = () => resolve();
+          tag.addEventListener("load", done, { once: true });
+          tag.addEventListener("error", done, { once: true });
+          if (tag.readyState === "complete") setTimeout(done, 0);
+          // grace period in case the browser delays executing the UMD
+          setTimeout(done, 15000);
+        });
+      }
 
-const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
-if (!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
+      if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
+
+      // Last resort: ESM fallback and pin to window for UMD-style usage.
+      try {
+        const mod = await import("https://esm.sh/@stellar/stellar-sdk@14.3.0?bundle");
+        window.StellarSdk = mod;
+      } catch (e) {
+        console.error("ESM fallback failed:", e);
+      }
+
+      if (!window.StellarSdk?.SorobanRpc?.Server) {
+        throw new Error("Stellar SDK (UMD/ESM) didn’t load. Check network/CDN and CSP.");
+      }
+      return window.StellarSdk;
+    }
+
+    // ---------- Shortcuts (after SDK is guaranteed) ----------
+    const SDK = await ensureStellarSdk();
+    console.log("SDK version:", SDK?.version, "SorobanRpc?", !!SDK?.SorobanRpc?.Server);
+
+    const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
+    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
 
     // ---------- Config ----------
     const HORIZON    = "https://horizon.stellar.org";
@@ -319,22 +357,17 @@ if (!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
     let quoteMode="send";
     let lastIsSend=true;
 
-// ---------- Soroban RPC (use SDK 14.3.0 SorobanRpc.Server) ----------
-let _soro = null;
-function rpc() {
-  if (_soro) return _soro;
-
-  const ServerCtor = window.StellarSdk?.SorobanRpc?.Server;
-  if (!ServerCtor) {
-    throw new Error(
-      "SorobanRpc unavailable from StellarSdk. " +
-      "Ensure the non-min SDK is loaded: @stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js"
-    );
-  }
-
-  _soro = new ServerCtor("https://mainnet.sorobanrpc.com", { allowHttp: false });
-  return _soro;
-}
+    // ---------- Soroban RPC via SDK ----------
+    let _soroServer=null;
+    function rpc() {
+      if (_soroServer) return _soroServer;
+      const RpcServer = SDK?.SorobanRpc?.Server;
+      if (!RpcServer) {
+        throw new Error("SorobanRpc unavailable from StellarSdk. Ensure the non-min SDK is loaded: @stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js");
+      }
+      _soroServer = new RpcServer(sorobanRpcUrl, { allowHttp: false });
+      return _soroServer;
+    }
 
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
@@ -844,15 +877,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     // ---------- Build Soroban swap tx (NO inline trustline) ----------
     async function buildSorobanSwapTx({
-      account,          // G...
-      isSend,           // true -> swap_chained, false -> swap_chained_strict_receive
-      tokenIn,          // SDK.Asset
-      inAmountStroops,  // BigInt
-      limitOutOrExact,  // BigInt
-      swapChainXdr,     // base64 ScVal from Aquarius API
-      addTrustlineFirst // boolean
+      account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr, addTrustlineFirst
     }){
-      // If trustline missing, stop here with explicit guidance.
       if (addTrustlineFirst) {
         throw new Error("Missing AQUAm25 trustline. Click “Add AQUAm25 Trustline” first, then retry the swap.");
       }
@@ -923,10 +949,9 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const hash = await submitToHorizon(signed);
 
         toast(`Trustline added ✓ tx: ${hash}`);
-        // Refresh balances / UI
         await initForNewAccount();
 
-        // If user had a quote, rebuild XDR automatically
+        // Rebuild swap XDR automatically if a quote exists
         try {
           if (lastQuote) {
             if (lastIsSend) await quoteStrictSend();
@@ -1074,7 +1099,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
                                         `Amount IN: ${plain(Number(u)/1e7)} ${getSelectedOption()?.dataset.code||"asset"}`;
         swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${sentOrRecv}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
 
-        // refresh AQUAm25 balance after swap
         setTimeout(async ()=>{
           const pk = pubkeyEl.value.trim();
           if(isValidG(pk)){
@@ -1148,7 +1172,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       disableSwapButtons();
       showContracts(); // SAC IDs for defaults
     });
-
   </script>
 
   <!-- Freighter UMD fallback -->
