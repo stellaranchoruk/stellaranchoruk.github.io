@@ -8,62 +8,42 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK: ESM-first (jspm -> esm.sh) then UMD (jsDelivr -> unpkg).
-     Never hard-crash; resolve to `null` if everything is blocked. -->
-<script>
-  window.waitForStellarSdk = (async function loadStellarSdk(){
-    // 0) If already present (some bundler/page added it), use it
-    if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
+  <!-- Stellar SDK: ESM-first (esm.sh primary). Never hard-crash; resolve to `null` if blocked. -->
+  <script>
+    window.waitForStellarSdk = (async function loadStellarSdk(){
+      // If already present, use it
+      if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
 
-    async function tryImport(url) {
-      try {
-        const mod = await import(url);
-        // jspm/+esm returns named exports; esm.sh usually gives default
-        const sdk = mod?.default || mod?.StellarSdk || mod;
-        if (sdk?.SorobanRpc?.Server) {
-          window.StellarSdk = sdk;
-          return sdk;
+      async function tryImport(url) {
+        try {
+          const mod = await import(url);
+          // esm.sh exports default; unpkg/jsDelivr (module) may export default too
+          const sdk = mod?.default || mod?.StellarSdk || mod;
+          if (sdk?.Contract && sdk?.SorobanRpc) {
+            window.StellarSdk = sdk;
+            return sdk;
+          }
+        } catch (e) {
+          console.warn("SDK import failed:", url, e?.message || e);
         }
-      } catch (_) {}
+        return null;
+      }
+
+      // 1) ESM (most reliable + permissive CORS)
+      let sdk = await tryImport("https://esm.sh/@stellar/stellar-sdk@14.3.0?bundle");
+      if (sdk) return sdk;
+
+      // 2) Soft “module” fallbacks (often CSP-blocked; keep non-fatal)
+      sdk = await tryImport("https://unpkg.com/@stellar/stellar-sdk@14.3.0?module");
+      if (sdk) return sdk;
+
+      sdk = await tryImport("https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm");
+      if (sdk) return sdk;
+
+      // 3) Give up gracefully — caller can show a friendly message
       return null;
-    }
-
-    async function tryUmd(url) {
-      try {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = url;                // no crossorigin to avoid CORS MIME traps
-          s.async = true;
-          s.onload  = () => resolve();
-          s.onerror = () => reject(new Error("UMD failed: " + url));
-          document.head.appendChild(s);
-        });
-        if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
-      } catch (_) {}
-      return null;
-    }
-
-    // 1) ESM (most robust)
-    // jspm (great for npm packages as ESM)
-    let sdk = await tryImport("https://ga.jspm.io/npm:@stellar/stellar-sdk@14.3.0/+esm");
-    if (sdk) return sdk;
-    // esm.sh fallback
-    sdk = await tryImport("https://esm.sh/@stellar/stellar-sdk@14.3.0?bundle");
-    if (sdk) return sdk;
-
-    // 2) UMD (if ESM blocked by CSP)
-    // jsDelivr: correct file is `dist/stellar-sdk.js` for 14.3.0
-    sdk = await tryUmd("https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js");
-    if (sdk) return sdk;
-
-    // unpkg fallback
-    sdk = await tryUmd("https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js");
-    if (sdk) return sdk;
-
-    // 3) Give up gracefully — caller can show a friendly message
-    return null;
-  })();
-</script>
+    })();
+  </script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -284,23 +264,23 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-// ---------- Bootstrap SDK safely ----------
-let SDK = await window.waitForStellarSdk;
-if (!SDK) {
-  console.error("Stellar SDK did not load from any source (CSP/CDN).");
-  // Keep the UI alive so the user can see the reason and retry
-  const $=(id)=>document.getElementById(id);
-  const connectBtn=$("connectBtn");
-  if (connectBtn) connectBtn.addEventListener("click", ()=>alert(
-    "Stellar SDK failed to load.\n\nCheck:\n• CSP allows https://ga.jspm.io and https://esm.sh\n• Or allow https://cdn.jsdelivr.net and https://unpkg.com\n• Then reload."
-  ));
-  // DO NOT throw — let the rest of the page render.
-} else {
-  console.log("Stellar SDK ready:", {
-    version: SDK.version,
-    hasSorobanRpc: !!SDK.SorobanRpc?.Server
-  });
-}
+    // ---------- Bootstrap SDK safely ----------
+    let SDK = await window.waitForStellarSdk;
+    if (!SDK) {
+      console.error("Stellar SDK did not load from any source (CSP/CDN).");
+      // Keep the UI alive so the user can see the reason and retry
+      const $=(id)=>document.getElementById(id);
+      const connectBtn=$("connectBtn");
+      if (connectBtn) connectBtn.addEventListener("click", ()=>alert(
+        "Stellar SDK failed to load.\n\nCheck:\n• CSP allows https://esm.sh\n• (Optional) allow module fallbacks (unpkg/jsDelivr)\n• Then reload."
+      ));
+      // DO NOT throw — let the rest of the page render.
+    } else {
+      console.log("Stellar SDK ready:", {
+        version: SDK.version,
+        hasSorobanRpc: !!SDK.SorobanRpc?.Server
+      });
+    }
 
     // ---------- Shortcuts ----------
     const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
@@ -852,7 +832,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           token_out_address: contractId(AQUAm25),
           amount: String(Math.round(parseFloat(wantOut)*1e7)) // desired out
         };
-        // keep the known strict-receive endpoint you already had
+        // strict-receive endpoint
         const res = await fetch(`${baseApi}/find-path-strict-receive/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
         const j = await res.json();
         if(!j?.success) throw new Error("No route from Aquarius AMM");
