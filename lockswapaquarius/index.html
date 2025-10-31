@@ -8,8 +8,46 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v14.3.0 non-min) — exposes window.StellarSdk -->
-  <script id="stellar-umd" src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js" crossorigin="anonymous"></script>
+  <!-- Stellar SDK (UMD v14.3.0) with robust fallback -->
+  <script id="stellar-umd"
+          src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.umd.js"
+          crossorigin="anonymous"></script>
+  <script>
+    // Promise you can await inside the module script
+    window.waitForStellarSdk = (async function(){
+      // 1) Try primary UMD for ~4s
+      for (let i = 0; i < 40; i++) {
+        if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      // 2) Try alternate UMD from unpkg
+      const tryAltUmd = () => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = "https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.umd.js";
+        s.crossOrigin = "anonymous";
+        s.onload = () => {
+          if (window.StellarSdk?.SorobanRpc?.Server) resolve(window.StellarSdk);
+          else reject(new Error("Alt UMD loaded but SorobanRpc missing"));
+        };
+        s.onerror = () => reject(new Error("Alt UMD failed to load"));
+        document.head.appendChild(s);
+      });
+
+      try {
+        return await tryAltUmd();
+      } catch (_) {}
+
+      // 3) Final fallback: ESM -> attach to window
+      try {
+        const mod = await import('https://esm.sh/@stellar/stellar-sdk@14.3.0?bundle');
+        window.StellarSdk = mod?.StellarSdk || mod?.default || mod;
+        if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
+      } catch (_) {}
+
+      throw new Error("Stellar SDK (UMD/ESM) didn’t load. Check network/CDN and CSP.");
+    })();
+  </script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -77,6 +115,7 @@
         <h2>Swap (Aquarius AMM Router)</h2>
         <p class="small">Swap any Stellar token you hold into <b>AQUAm25</b> via Aquarius AMMs (multi-hop). Type either how much you’ll <b>send</b> or how much AQUAm25 you want to <b>receive</b>. If you don’t have an AQUAm25 trustline yet, add it first (uses ~1 XLM reserve).</p>
 
+        <!-- Mode -->
         <div class="row" style="gap:10px;margin:4px 0 8px;">
           <button class="ghost" id="btnModeSend" style="border-color:#2a6f7c;background:#0c3137;color:#d9f6ff">Strict-Send (fix input)</button>
           <button class="ghost" id="btnModeRecv">Strict-Receive (fix output)</button>
@@ -225,75 +264,31 @@
 
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- Bootstrap the UMD loader with automatic CDN fallback -->
-  <script>
-    (function () {
-      const primary = "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js";
-      const fallback = "https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js";
-      const tag = document.getElementById("stellar-umd");
-
-      function swapToFallback() {
-        if (!tag || tag.dataset.triedFallback === "1") return;
-        tag.dataset.triedFallback = "1";
-        console.warn("[StellarSdk] primary failed, switching to unpkg…");
-        tag.src = fallback;
-        tag.removeAttribute("integrity");
-        tag.crossOrigin = "anonymous";
-      }
-
-      if (tag) {
-        if (!tag.src.includes("@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js")) {
-          tag.src = primary;
-        }
-        tag.addEventListener("error", swapToFallback, { once: true });
-      }
-    })();
-  </script>
-
   <script type="module">
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // ---------- Robust Stellar SDK ensure (UMD → fallback UMD → ESM) ----------
-    async function ensureStellarSdk() {
-      if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
-
-      const tag = document.getElementById("stellar-umd");
-      if (tag && !window.StellarSdk) {
-        await new Promise((resolve) => {
-          const done = () => resolve();
-          tag.addEventListener("load", done, { once: true });
-          tag.addEventListener("error", done, { once: true });
-          if (tag.readyState === "complete") setTimeout(done, 0);
-          // grace period in case the browser delays executing the UMD
-          setTimeout(done, 15000);
-        });
-      }
-
-      if (window.StellarSdk?.SorobanRpc?.Server) return window.StellarSdk;
-
-      // Last resort: ESM fallback and pin to window for UMD-style usage.
-      try {
-        const mod = await import("https://esm.sh/@stellar/stellar-sdk@14.3.0?bundle");
-        window.StellarSdk = mod;
-      } catch (e) {
-        console.error("ESM fallback failed:", e);
-      }
-
-      if (!window.StellarSdk?.SorobanRpc?.Server) {
-        throw new Error("Stellar SDK (UMD/ESM) didn’t load. Check network/CDN and CSP.");
-      }
-      return window.StellarSdk;
+    // ---------- Bootstrap SDK safely (no top-level throws) ----------
+    let SDK;
+    try {
+      SDK = await window.waitForStellarSdk;
+      console.log("Stellar SDK ready:", { version: SDK?.version, hasSorobanRpc: !!SDK?.SorobanRpc?.Server });
+    } catch (e) {
+      console.error(e);
+      // Keep UI alive; we'll guard Soroban-dependent actions later
     }
 
-    // ---------- Shortcuts (after SDK is guaranteed) ----------
-    const SDK = await ensureStellarSdk();
-    console.log("SDK version:", SDK?.version, "SorobanRpc?", !!SDK?.SorobanRpc?.Server);
+    // If SDK is still unavailable, we bail out of app logic gracefully.
+    if (!SDK) {
+      // Bind minimal UI so the page isn't inert
+      const $=(id)=>document.getElementById(id);
+      const connectBtn=$("connectBtn");
+      if (connectBtn) connectBtn.addEventListener("click", ()=>alert("Stellar SDK failed to load. Check network/CDN/CSP and reload."));
+      throw new Error("Stellar SDK (UMD/ESM) didn’t load. Check network/CDN and CSP.");
+    }
 
+    // ---------- Shortcuts ----------
     const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
-    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
-
-    // ---------- Config ----------
     const HORIZON    = "https://horizon.stellar.org";
     const NETWORK    = SDK.Networks.PUBLIC;
 
@@ -339,14 +334,23 @@
           quoteBox=$("quoteBox"),
           btnAddTrustline=$("btnAddTrustline");
 
-    // ---------- State ----------
-    let connectionMode="none"; // 'none' | 'wc' | 'freighter'
-    let client=null, session=null, latestWcUri=null;
-    let pubkey=null;
+    // ---------- Helpers ----------
+    function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
+    const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
+    const cleanAmt = a => { const n=Number(a); if(!isFinite(n) || n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
+    const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
+    const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
+    const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
 
     let _server=null; const getServer=()=>(_server ||= new ServerCtor(HORIZON));
     const AQUA     = new SDK.Asset(AQUA_CODE, AQUA_ISSUER);
     const AQUAm25  = new SDK.Asset(AQUAm25_CODE, AQUAm25_ISSUER);
+    function contractId(asset){ return asset.contractId(NETWORK); }
+
+    // ---------- State ----------
+    let connectionMode="none"; // 'none' | 'wc' | 'freighter'
+    let client=null, session=null, latestWcUri=null;
+    let pubkey=null;
 
     let buildTimer=null;       // locker debounce
     let swapTimer=null;        // swap debounce
@@ -357,29 +361,22 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Soroban RPC via SDK ----------
-    let _soroServer=null;
+    // ---------- Soroban RPC (via SDK) ----------
+    let _soro = null;
     function rpc() {
-      if (_soroServer) return _soroServer;
-      const RpcServer = SDK?.SorobanRpc?.Server;
-      if (!RpcServer) {
-        throw new Error("SorobanRpc unavailable from StellarSdk. Ensure the non-min SDK is loaded: @stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js");
+      if (_soro) return _soro;
+      const ServerCtorRPC = SDK?.SorobanRpc?.Server;
+      if (!ServerCtorRPC) {
+        throw new Error(
+          "SorobanRpc unavailable from StellarSdk. Ensure the SDK loaded with Soroban."
+        );
       }
-      _soroServer = new RpcServer(sorobanRpcUrl, { allowHttp: false });
-      return _soroServer;
+      _soro = new ServerCtorRPC(sorobanRpcUrl, { allowHttp: false });
+      return _soro;
     }
 
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
-
-    // ---------- Helpers ----------
-    const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
-    const cleanAmt = a => { const n=Number(a); if(!isFinite(n) || n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
-    const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
-    const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
-    const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
-    function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
-    function contractId(asset){ return asset.contractId(NETWORK); }
 
     // ---------- Connection UI ----------
     function openModal()  { backdrop.classList.add('open'); loginModal.classList.add('open'); }
@@ -522,26 +519,6 @@
         toast("Connection canceled or failed.", true);
       }
     });
-
-    // ---------- Signing helpers ----------
-    const wcRequest = (method, xdr) => client.request({
-      topic: session.topic, chainId: "stellar:pubnet",
-      request: { jsonrpc:"2.0", method, params:{ xdr } }
-    });
-    async function signCurrent(xdr){
-      if(connectionMode==="wc"){
-        const r = await wcRequest("stellar_signXDR", xdr);
-        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
-        return r.signedXDR;
-      }
-      if(connectionMode==="freighter"){
-        const api = await ensureFreighterApi();
-        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
-        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
-        return res.signedTxXdr || res.signedXDR || res;
-      }
-      throw new Error("Not connected");
-    }
 
     // ---------- Locker ----------
     function disableLockerButtons(){ [signSubmitBtn,signOnlyBtn,copyBtn,labBtn].forEach(b=>b.disabled=true); }
@@ -877,8 +854,15 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     // ---------- Build Soroban swap tx (NO inline trustline) ----------
     async function buildSorobanSwapTx({
-      account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr, addTrustlineFirst
+      account,          // G...
+      isSend,           // true -> swap_chained, false -> swap_chained_strict_receive
+      tokenIn,          // SDK.Asset
+      inAmountStroops,  // BigInt
+      limitOutOrExact,  // BigInt
+      swapChainXdr,     // base64 ScVal from Aquarius API
+      addTrustlineFirst // boolean
     }){
+      // If trustline missing, stop here with explicit guidance.
       if (addTrustlineFirst) {
         throw new Error("Missing AQUAm25 trustline. Click “Add AQUAm25 Trustline” first, then retry the swap.");
       }
@@ -951,7 +935,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         toast(`Trustline added ✓ tx: ${hash}`);
         await initForNewAccount();
 
-        // Rebuild swap XDR automatically if a quote exists
         try {
           if (lastQuote) {
             if (lastIsSend) await quoteStrictSend();
@@ -1045,30 +1028,24 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     on(btnModeSend,"click", ()=>setMode("send"));
     on(btnModeRecv,"click", ()=>setMode("recv"));
 
-    // Swap signing
-    async function ensurePreparedSwapXdr(){
-      if(xdrSwap.value.trim()) return xdrSwap.value.trim();
-      const pk = pubkeyEl.value.trim();
-      if(!isValidG(pk)) throw new Error("No public key");
-      if(!lastQuote) throw new Error("No quote");
-
-      const isSend = lastIsSend;
-      const sendAsset = getCurrentSendAsset();
-
-      if(isSend){
-        const inStroops = BigInt(Math.round(parseFloat(swapAmount.value)*1e7));
-        const outMin    = BigInt(Math.floor(Number(lastQuote.amount)*0.99));
-        const needTL = !(await hasTrustline(pk, AQUAm25));
-        const tx = await buildSorobanSwapTx({ account: pk, isSend: true, tokenIn: sendAsset, inAmountStroops: inStroops, limitOutOrExact: outMin, swapChainXdr: lastQuote.swap_chain_xdr, addTrustlineFirst: needTL });
-        xdrSwap.value = tx.toXDR();
-      } else {
-        const outWanted = BigInt(Math.round(parseFloat(swapEst.value)*1e7));
-        const inMax     = BigInt(Math.ceil(Number(lastQuote.amount)*1.01));
-        const needTL = !(await hasTrustline(pk, AQUAm25));
-        const tx = await buildSorobanSwapTx({ account: pk, isSend: false, tokenIn: sendAsset, inAmountStroops: inMax, limitOutOrExact: outWanted, swapChainXdr: lastQuote.swap_chain_xdr, addTrustlineFirst: needTL });
-        xdrSwap.value = tx.toXDR();
+    // ---------- Signing helpers ----------
+    const wcRequest = (method, xdr) => client.request({
+      topic: session.topic, chainId: "stellar:pubnet",
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
+    });
+    async function signCurrent(xdr){
+      if(connectionMode==="wc"){
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
       }
-      return xdrSwap.value.trim();
+      if(connectionMode==="freighter"){
+        const api = await ensureFreighterApi();
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
+        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      throw new Error("Not connected");
     }
 
     on(swapSignOnly,"click", async ()=>{
@@ -1099,6 +1076,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
                                         `Amount IN: ${plain(Number(u)/1e7)} ${getSelectedOption()?.dataset.code||"asset"}`;
         swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${sentOrRecv}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
 
+        // refresh AQUAm25 balance after swap
         setTimeout(async ()=>{
           const pk = pubkeyEl.value.trim();
           if(isValidG(pk)){
@@ -1107,6 +1085,32 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         }, 1200);
       }catch(e){ console.error(e); swapResult.textContent=e.message||"Sign/submit failed."; }
     });
+
+    // Ensure a prepared XDR exists (quote → build → place in textarea)
+    async function ensurePreparedSwapXdr(){
+      if(xdrSwap.value.trim()) return xdrSwap.value.trim();
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)) throw new Error("No public key");
+      if(!lastQuote) throw new Error("No quote");
+
+      const isSend = lastIsSend;
+      const sendAsset = getCurrentSendAsset();
+
+      if(isSend){
+        const inStroops = BigInt(Math.round(parseFloat(swapAmount.value)*1e7));
+        const outMin    = BigInt(Math.floor(Number(lastQuote.amount)*0.99));
+        const needTL = !(await hasTrustline(pk, AQUAm25));
+        const tx = await buildSorobanSwapTx({ account: pk, isSend: true, tokenIn: sendAsset, inAmountStroops: inStroops, limitOutOrExact: outMin, swapChainXdr: lastQuote.swap_chain_xdr, addTrustlineFirst: needTL });
+        xdrSwap.value = tx.toXDR();
+      } else {
+        const outWanted = BigInt(Math.round(parseFloat(swapEst.value)*1e7));
+        const inMax     = BigInt(Math.ceil(Number(lastQuote.amount)*1.01));
+        const needTL = !(await hasTrustline(pk, AQUAm25));
+        const tx = await buildSorobanSwapTx({ account: pk, isSend: false, tokenIn: sendAsset, inAmountStroops: inMax, limitOutOrExact: outWanted, swapChainXdr: lastQuote.swap_chain_xdr, addTrustlineFirst: needTL });
+        xdrSwap.value = tx.toXDR();
+      }
+      return xdrSwap.value.trim();
+    }
 
     // ---------- Locker submit (classic) ----------
     async function submitToHorizon(signedXdr){
@@ -1172,6 +1176,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       disableSwapButtons();
       showContracts(); // SAC IDs for defaults
     });
+
   </script>
 
   <!-- Freighter UMD fallback -->
