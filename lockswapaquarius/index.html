@@ -8,8 +8,17 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-<!-- Stellar SDK (UMD v14.3.0 non-min) — exposes SorobanRpc -->
-<script src="https://cdn.jsdelivr.net/npm/stellar-sdk@14.3.0/dist/stellar-sdk.js" crossorigin="anonymous"></script>
+  <!-- Stellar SDK (UMD v14.3.0 non-min) — exposes SorobanRpc -->
+<script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+  // Fallback to unpkg if jsDelivr fails
+  if (!window.StellarSdk) {
+    var s = document.createElement('script');
+    s.src = "https://unpkg.com/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.js";
+    s.crossOrigin = "anonymous";
+    document.head.appendChild(s);
+  }
+</script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
