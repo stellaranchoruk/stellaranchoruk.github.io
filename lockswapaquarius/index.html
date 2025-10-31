@@ -318,39 +318,6 @@ function rpc() {
   return _soro;
 }
 
-  // Match the minimal surface your app expects from SorobanRpc.Server
-  async function getAccount(address) {
-    // Soroban RPC getAccount returns { sequence, ... }
-    const r = await rpcCall("getAccount", { address });
-    // Build an Account object compatible with TransactionBuilder
-    // sequence must be a string
-    return new SDK.Account(address, String(r.sequence));
-  }
-
-  async function prepareTransaction(tx) {
-    const xdr = typeof tx === "string" ? tx : tx.toXDR();
-    // Let the node attach footprint + resource fees
-    const r = await rpcCall("prepareTransaction", { transaction: xdr });
-    // Return a Transaction instance, just like SDK.Server.prepareTransaction
-    return SDK.TransactionBuilder.fromXDR(r.transaction, NETWORK);
-  }
-
-  async function sendTransaction(txOrXdr) {
-    const xdr = typeof txOrXdr === "string" ? txOrXdr : txOrXdr.toXDR();
-    // Returns { hash, status }
-    return rpcCall("sendTransaction", { transaction: xdr });
-  }
-
-  async function getTransaction(hashOrObj) {
-    const hash = typeof hashOrObj === "string" ? hashOrObj : hashOrObj.hash;
-    // Returns { status, hash, ... }
-    return rpcCall("getTransaction", { hash });
-  }
-
-  _soro = { getAccount, prepareTransaction, sendTransaction, getTransaction };
-  return _soro;
-}
-
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
 
