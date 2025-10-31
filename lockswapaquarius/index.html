@@ -845,14 +845,14 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const c = new SDK.Contract(routerContractId);
       const fn = isSend ? "swap_chained" : "swap_chained_strict_receive";
 
-      const swapOp = c.call(
-        fn,
-        SDK.scVal.toAddress(account),
-        SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64"),
-        SDK.scVal.toAddress(tokenIn.contractId(NETWORK)),
-        SDK.scVal.toU128(inAmountStroops.toString()),
-        SDK.scVal.toU128(limitOutOrExact.toString())
-      );
+// v14 UMD: use Address + nativeToScVal instead of scVal helpers
+const acctAddr     = SDK.Address.fromString(account).toScVal();
+const swapChainVal = SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64");
+const tokenInAddr  = SDK.Address.fromString(tokenIn.contractId(NETWORK)).toScVal();
+const inU128       = SDK.nativeToScVal(BigInt(inAmountStroops), { type: "u128" });
+const limitU128    = SDK.nativeToScVal(BigInt(limitOutOrExact), { type: "u128" });
+
+const swapOp = c.call(fn, acctAddr, swapChainVal, tokenInAddr, inU128, limitU128);
 
       let tb = new SDK.TransactionBuilder(acc, { fee: "20000", networkPassphrase })
         .setTimeout(300);
