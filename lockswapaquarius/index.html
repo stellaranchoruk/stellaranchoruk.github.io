@@ -8,8 +8,8 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD) — includes SorobanRpc -->
-  <script src="https://cdn.jsdelivr.net/npm/stellar-sdk@13.3.0/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
+  <!-- Stellar SDK (UMD v14) -->
+  <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -118,7 +118,6 @@
           </div>
         </div>
 
-        <!-- Aquarius validators -->
         <div class="row" style="gap:10px;margin-top:10px">
           <button id="btnValidate" class="ghost">Validate Tokens & Trustline</button>
           <button id="btnQuote" class="ghost">Quote via Aquarius</button>
@@ -226,7 +225,6 @@
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
-    /* ===== ESM imports ===== */
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
@@ -239,11 +237,12 @@
     // ---------- Config ----------
     const HORIZON    = "https://horizon.stellar.org";
     const NETWORK    = SDK.Networks.PUBLIC;
+    const networkPassphrase = NETWORK;
 
     // Aquarius / Soroban
     const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
-    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
-    const baseApi           = "https://amm-api.aqua.network/api/external/v1";
+    const SOROBAN_RPC      = "https://mainnet.sorobanrpc.com";
+    const baseApi          = "https://amm-api.aqua.network/api/external/v1";
 
     // AQUA / AQUAm25
     const AQUA_CODE   = "AQUA";
@@ -282,7 +281,7 @@
 
     // ---------- State ----------
     let connectionMode="none"; // 'none' | 'wc' | 'freighter'
-    let client=null, session=null, latestWcUri=null;
+    let wcClient=null, session=null, latestWcUri=null;
     let pubkey=null;
 
     let _server=null; const getServer=()=>(_server ||= new ServerCtor(HORIZON));
@@ -293,19 +292,36 @@
     let swapTimer=null;        // swap debounce
     let lockerRefreshTimer=null;
 
-    // Aquarius swap state
     let lastQuote=null;
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Soroban RPC via stellar-sdk UMD ----------
-    let _soro = null;
-    function rpc() {
-      if (_soro) return _soro;
-      const SdkServer = window.StellarSdk?.SorobanRpc?.Server;
-      if (!SdkServer) throw new Error("SorobanRpc unavailable from stellar-sdk UMD.");
-      _soro = new SdkServer(sorobanRpcUrl, { allowHttp: false });
-      return _soro;
+    /* ===== Minimal Soroban JSON-RPC shim (no external lib) ===== */
+    let _rpcId = 1;
+    async function soro(method, params) {
+      const res = await fetch(SOROBAN_RPC, {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({ jsonrpc:"2.0", id:_rpcId++, method, params })
+      });
+      const j = await res.json();
+      if (j.error) throw Object.assign(new Error(j.error.message||"Soroban RPC error"), j.error);
+      return j.result;
+    }
+    async function soroGetAccount(address){
+      const r = await soro("getAccount",{address});
+      // Build an Account object for TransactionBuilder
+      return new SDK.Account(r.id || address, r.sequence);
+    }
+    async function soroPrepareTransaction(tx){
+      const { transaction } = await soro("prepareTransaction",{ transaction: tx.toXDR() });
+      return SDK.TransactionBuilder.fromXDR(transaction, NETWORK);
+    }
+    async function soroSendTransaction(xdr){
+      return soro("sendTransaction",{ transaction: (typeof xdr==="string"? xdr : xdr.toXDR()) });
+    }
+    async function soroGetTransaction(hash){
+      return soro("getTransaction",{ hash });
     }
 
     // Cache for issuer -> domain
@@ -347,8 +363,8 @@
 
     on(disconnectBtn,"click", async ()=>{
       try{
-        if(connectionMode==="wc" && client && session){
-          await client.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
+        if(connectionMode==="wc" && wcClient && session){
+          await wcClient.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
         }
       }catch(e){ console.warn(e); }
       session=null; connectionMode="none"; setConnected("", "none");
@@ -385,8 +401,7 @@
     });
 
     // ---------- WalletConnect ----------
-    let wcClient=null;
-    async function ensureClient(){ if(!wcClient){ wcClient = await SignClient.init({ projectId: PROJECT_ID }); } return wcClient; }
+    async function ensureWcClient(){ if(!wcClient){ wcClient = await SignClient.init({ projectId: PROJECT_ID }); } return wcClient; }
     async function getFreighterLinks(){
       try{
         const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
@@ -421,10 +436,9 @@
       window.location.href = scheme;
       setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
     }
-
     on($("wcBtn"),"click", async ()=>{
       try{
-        const sc = await ensureClient();
+        const sc = await ensureWcClient();
         toast("Starting WalletConnect…");
         const { uri, approval } = await sc.connect({
           optionalNamespaces: {
@@ -456,7 +470,6 @@
         const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
         const address = first.split(":")[2] || "";
         setConnected(address, "wc");
-        client = sc;
       }catch(e){
         console.error(e);
         toast("Connection canceled or failed.", true);
@@ -464,7 +477,7 @@
     });
 
     // ---------- Signing helpers ----------
-    const wcRequest = (method, xdr) => client.request({
+    const wcRequest = (method, xdr) => wcClient.request({
       topic: session.topic, chainId: "stellar:pubnet",
       request: { jsonrpc:"2.0", method, params:{ xdr } }
     });
@@ -618,11 +631,10 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       fillMaxBtn.style.display = parseFloat(bal)>0 ? "inline-flex" : "none";
     }
     async function updateToBoxDomain(){
-      const issuer = AQUAm25_ISSUER;
-      if(!DOMAIN_CACHE.has(issuer)){
-        await fetchDomainsForIssuers([issuer]);
+      if(!DOMAIN_CACHE.has(AQUAm25_ISSUER)){
+        await fetchDomainsForIssuers([AQUAm25_ISSUER]);
       }
-      const dom = DOMAIN_CACHE.get(issuer) || shortG(issuer);
+      const dom = DOMAIN_CACHE.get(AQUAm25_ISSUER) || shortG(AQUAm25_ISSUER);
       toIssuerMeta.textContent = dom;
     }
 
@@ -736,18 +748,16 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapEst.value = plain(estOut);
         swapQuote.innerHTML = routeSummary(true, j, sendLabel);
 
-        if(isValidG(pk)){
-          const tx = await buildSorobanSwapTx({
-            account: pk, isSend: true, tokenIn: sendAsset,
-            inAmountStroops: BigInt(Math.round(parseFloat(sendAmt)*1e7)),
-            limitOutOrExact: BigInt(Math.floor(Number(j.amount)*0.99)), // out_min
-            swapChainXdr: j.swap_chain_xdr
-          });
-          xdrSwap.value = tx.toXDR();
-          enableSwapButtons();
-        } else {
-          swapQuote.innerHTML += " · <i>Connect to build XDR</i>";
-        }
+        // Build Soroban tx
+        const tx = await buildSorobanSwapTx({
+          account: pk, isSend: true, tokenIn: sendAsset,
+          inAmountStroops: BigInt(Math.round(parseFloat(sendAmt)*1e7)),
+          limitOutOrExact: BigInt(Math.floor(Number(j.amount)*0.99)), // out_min with 1% slippage
+          swapChainXdr: j.swap_chain_xdr
+        });
+        xdrSwap.value = tx.toXDR();
+        enableSwapButtons();
+
       }catch(e){
         console.error(e);
         swapQuote.textContent = "Aquarius quote failed (strict send).";
@@ -780,19 +790,16 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapAmount.value = plain(estIn);
         swapQuote.innerHTML = routeSummary(false, j, sendLabel);
 
-        if(isValidG(pk)){
-          const cushion = 1.01;
-          const tx = await buildSorobanSwapTx({
-            account: pk, isSend: false, tokenIn: sendAsset,
-            inAmountStroops: BigInt(Math.ceil(Number(j.amount)*cushion)), // max input
-            limitOutOrExact: BigInt(Math.round(parseFloat(wantOut)*1e7)), // exact out
-            swapChainXdr: j.swap_chain_xdr
-          });
-          xdrSwap.value = tx.toXDR();
-          enableSwapButtons();
-        } else {
-          swapQuote.innerHTML += " · <i>Connect to build XDR</i>";
-        }
+        const cushion = 1.01; // 1% max-in cushion
+        const tx = await buildSorobanSwapTx({
+          account: pk, isSend: false, tokenIn: sendAsset,
+          inAmountStroops: BigInt(Math.ceil(Number(j.amount)*cushion)), // max input
+          limitOutOrExact: BigInt(Math.round(parseFloat(wantOut)*1e7)), // exact out
+          swapChainXdr: j.swap_chain_xdr
+        });
+        xdrSwap.value = tx.toXDR();
+        enableSwapButtons();
+
       }catch(e){
         console.error(e);
         swapQuote.textContent = "Aquarius quote failed (strict receive).";
@@ -800,9 +807,9 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
-    // Build Soroban swap tx (using stellar-sdk UMD + SorobanRpc)
+    // Build Soroban swap tx (using raw JSON-RPC shim)
     async function buildSorobanSwapTx({ account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr }){
-      const acc = await rpc().getAccount(account);
+      const acc = await soroGetAccount(account);
       const fn  = isSend ? "swap_chained" : "swap_chained_strict_receive";
 
       const params = [
@@ -813,8 +820,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         SDK.scVal.toU128(limitOutOrExact.toString())
       ];
 
-      // Using low-level operation shape for compatibility with v13 UMD
-      let tx = new SDK.TransactionBuilder(acc, { fee:"10000", networkPassphrase: NETWORK })
+      let tx = new SDK.TransactionBuilder(acc, { fee:"10000", networkPassphrase })
         .setTimeout(300)
         .addOperation({
           type: "invokeHostFunction",
@@ -825,22 +831,22 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         })
         .build();
 
-      tx = await rpc().prepareTransaction(tx);
+      // Prepare (footprint, auth, etc.)
+      tx = await soroPrepareTransaction(tx);
       return tx;
     }
 
-    // Submit Soroban
+    // Submit to Soroban and poll
     async function submitToSoroban(signedXdr){
-      const tx = SDK.TransactionBuilder.fromXDR(signedXdr, NETWORK);
-      const send = await rpc().sendTransaction(tx);
-      if (send.status !== "PENDING" && send.status !== "SUCCESS")
-        throw new Error(`Soroban send failed: ${send.status}`);
+      const sendRes = await soroSendTransaction(signedXdr);
+      if (sendRes.status !== "PENDING" && sendRes.status !== "SUCCESS")
+        throw new Error(`Soroban send failed: ${sendRes.status}`);
 
-      let final = await rpc().getTransaction(send.hash);
+      let final = await soroGetTransaction(sendRes.hash);
       let tries = 0;
-      while(final.status === "NOT_FOUND" && tries < 10){
+      while(final.status === "NOT_FOUND" && tries < 12){
         await new Promise(r=>setTimeout(r, 800));
-        final = await rpc().getTransaction(send.hash);
+        final = await soroGetTransaction(sendRes.hash);
         tries++;
       }
       if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
@@ -1035,6 +1041,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       disableLockerButtons();
       disableSwapButtons();
       showContracts(); // SAC IDs for defaults
+      toast("Ready.");
     });
   </script>
 
