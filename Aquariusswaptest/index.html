@@ -8,8 +8,14 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Stellar SDK (UMD v14.3.0) — includes SorobanRpc -->
-  <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
+  <!-- IMPORTANT: Load Stellar SDK (ESM) and expose as window.StellarSdk -->
+  <script type="module">
+    import * as StellarSdk from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm";
+    window.StellarSdk = StellarSdk;
+    if (!StellarSdk?.SorobanRpc?.Server) {
+      throw new Error("Stellar SDK ESM loaded but SorobanRpc missing");
+    }
+  </script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -125,7 +131,6 @@
           <button id="swapSignSubmit">Sign &amp; Submit (current wallet)</button>
           <button id="swapSignOnly" class="ghost">Sign (don’t submit)</button>
           <button id="swapCopy" class="ghost">Copy XDR</button>
-          <!-- New: trustline helper -->
           <button id="btnAddTrustline" class="ghost">Add AQUAm25 Trustline</button>
         </div>
 
@@ -175,7 +180,7 @@
           <button data-pct="25">25%</button>
           <button data-pct="50">50%</button>
           <button data-pct="75">75%</button>
-          <button data-pct="100">100%</button>
+          <button data-pct="100%">100%</button>
         </div>
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
@@ -301,12 +306,12 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Soroban RPC (SDK 14.3.0) ----------
+    // ---------- Soroban RPC (SDK 14.3.0 via ESM) ----------
     let _soro = null;
     function rpc() {
       if (_soro) return _soro;
-      const Server = window.StellarSdk?.SorobanRpc?.Server;
-      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk (check SDK 14.3.0 tag).");
+      const Server = SDK?.SorobanRpc?.Server;
+      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk (ESM load failed?)");
       _soro = new Server(sorobanRpcUrl, { allowHttp: false });
       return _soro;
     }
@@ -591,7 +596,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       await Promise.all(need.map(async (issuer)=>{
         try{
           const r = await fetch(`${HORIZON}/accounts/${issuer}`);
-        const j = await r.json();
+          const j = await r.json();
           const d = (j && j.home_domain) ? j.home_domain : "";
           DOMAIN_CACHE.set(issuer, d);
         }catch(_){ DOMAIN_CACHE.set(issuer, ""); }
@@ -742,8 +747,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
         lastQuote = j; lastIsSend = true;
 
-        const outStroops = BigInt(j.amount);              // OUT min basis (before slippage)
-        const estOut = Number(outStroops) / 1e7;          // display only
+        const outStroops = BigInt(j.amount);
+        const estOut = Number(outStroops) / 1e7;
 
         swapEst.value = plain(estOut);
         swapQuote.innerHTML = routeSummary(true, j, sendLabel);
@@ -792,8 +797,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
         lastQuote = j; lastIsSend = false;
 
-        const inNeeded = BigInt(j.amount);                // IN needed in stroops
-        const estIn = Number(inNeeded) / 1e7;             // display only
+        const inNeeded = BigInt(j.amount);
+        const estIn = Number(inNeeded) / 1e7;
 
         swapAmount.value = plain(estIn);
         swapQuote.innerHTML = routeSummary(false, j, sendLabel);
@@ -1000,7 +1005,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     on($("copyQuote"),"click", async ()=>{ try{ await navigator.clipboard.writeText(quoteBox.textContent); toast("Copied."); }catch{} });
     on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
 
-    // Mode toggle (fix label)
+    // Mode toggle
     function setMode(m){
       if(m==="send"){ btnModeSend.style.background="#0c3137"; btnModeSend.style.borderColor="#2a6f7c"; btnModeRecv.style.background="#141b22"; btnModeRecv.style.borderColor="#2a3340"; }
       else { btnModeRecv.style.background="#0c3137"; btnModeRecv.style.borderColor="#2a6f7c"; btnModeSend.style.background="#141b22"; btnModeSend.style.borderColor="#2a3340"; }
