@@ -8,6 +8,10 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
+  <!-- Stellar SDK UMD (includes SorobanRpc). This avoids CORS issues entirely. -->
+  <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.min.js"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
     * { box-sizing: border-box; }
@@ -66,7 +70,7 @@
         </div>
       </div>
 
-      <!-- Swap -->
+      <!-- Swap (Aquarius AMM Router) -->
       <div class="section box" id="swapBox">
         <h2>Swap (Aquarius AMM Router)</h2>
         <p class="small">Swap any Stellar token you hold into <b>AQUAm25</b> via Aquarius AMMs (multi-hop). Type either how much you’ll <b>send</b> or how much AQUAm25 you want to <b>receive</b>. If you don’t have an AQUAm25 trustline yet, add it first (uses ~1 XLM reserve).</p>
@@ -163,7 +167,7 @@
           <button data-pct="25">25%</button>
           <button data-pct="50">50%</button>
           <button data-pct="75">75%</button>
-          <button data-pct="100">100%</button>
+          <button data-pct="100%">100%</button>
         </div>
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
@@ -215,37 +219,33 @@
 
   <script>window.process = window.process || { env: {} };</script>
 
-  <!-- Single module that first ensures a working Stellar SDK, then runs the app -->
+  <!-- App bootstrap (waits for SDK UMD first, then has esm.sh fallback) -->
   <script type="module">
-    // ---------- Robust Stellar SDK loader with fallbacks ----------
-    async function loadStellarSdk() {
-      const tries = [
-        "https://esm.sh/@stellar/stellar-sdk@14.3.0",                    // esm.sh
-        "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm", // jsDelivr +esm
-        "https://unpkg.com/@stellar/stellar-sdk@14.3.0/+esm"             // unpkg +esm
-      ];
-      let mod = null, lastErr = null;
-      for (const url of tries) {
-        try {
-          mod = await import(url);
-          // Some CDNs put the module under default; normalize
-          const ns = (mod && Object.keys(mod).length) ? mod : (mod?.default || null);
-          const hasServer = !!(ns?.Server) || !!(ns?.Horizon?.Server);
-          const hasSoroban = !!(ns?.SorobanRpc?.Server);
-          if (hasServer && hasSoroban) {
-            return ns;
-          }
-        } catch (e) { lastErr = e; }
+    // --- Resolve Stellar SDK with SorobanRpc: prefer global UMD, fallback to esm.sh ESM ---
+    async function resolveStellarSdk() {
+      // 1) UMD path (no CORS).
+      if (window.StellarSdk?.Server && window.StellarSdk?.SorobanRpc?.Server) {
+        return window.StellarSdk;
       }
-      throw new Error("Failed to load Stellar SDK with SorobanRpc from all CDNs" + (lastErr ? `: ${lastErr.message||lastErr}` : ""));
+      // 2) esm.sh fallback (CORS ok).
+      try {
+        const m = await import("https://esm.sh/@stellar/stellar-sdk@14.3.0");
+        const ns = m?.default ?? m;
+        if (ns?.Server && ns?.SorobanRpc?.Server) {
+          // attach to window for the rest of the code that expects it
+          window.StellarSdk = ns;
+          return ns;
+        }
+      } catch (e) {
+        console.warn("esm.sh fallback failed:", e);
+      }
+      throw new Error("Could not load Stellar SDK with SorobanRpc (UMD and esm.sh both unavailable).");
     }
 
-    // Gate the entire app until SDK is ready
-    const SDK = await loadStellarSdk();
-    window.StellarSdk = SDK;
+    // Gate the app
+    const SDK = await resolveStellarSdk();
 
-    // After this point, SDK.Server and SDK.SorobanRpc.Server are guaranteed.
-    // Import the other ESM deps (kept here to avoid racing the SDK)
+    // Import other deps after SDK is ready
     const [{ default: SignClient }, { default: QRCode }] = await Promise.all([
       import("https://esm.sh/@walletconnect/sign-client@2.21.8"),
       import("https://esm.sh/qrcode@1.5.3")
@@ -253,7 +253,7 @@
 
     // ---------- Shortcuts ----------
     const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
-    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found (post-load).");
+    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
 
     // ---------- Config ----------
     const HORIZON    = "https://horizon.stellar.org";
@@ -276,7 +276,7 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
-    // ---------- DOM ----------
+    // ---------- DOM helpers ----------
     const $=(id)=>document.getElementById(id);
     const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
     const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -302,7 +302,7 @@
           btnAddTrustline=$("btnAddTrustline");
 
     // ---------- State ----------
-    let connectionMode="none"; // 'none' | 'wc' | 'freighter'
+    let connectionMode="none";
     let client=null, session=null, latestWcUri=null;
     let pubkey=null;
 
@@ -310,11 +310,10 @@
     const AQUA     = new SDK.Asset(AQUA_CODE, AQUA_ISSUER);
     const AQUAm25  = new SDK.Asset(AQUAm25_CODE, AQUAm25_ISSUER);
 
-    let buildTimer=null;       // locker debounce
-    let swapTimer=null;        // swap debounce
+    let buildTimer=null;
+    let swapTimer=null;
     let lockerRefreshTimer=null;
 
-    // Aquarius swap state
     let lastQuote=null;
     let quoteMode="send";
     let lastIsSend=true;
@@ -339,15 +338,7 @@
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
     function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
-    function contractId(asset){ return asset.contractId(NETWORK); }
-
-    async function getLatestLedgerSeq() {
-      const r = await fetch(`${HORIZON}/ledgers?order=desc&limit=1`);
-      const j = await r.json().catch(()=>null);
-      const seq = parseInt(j?._embedded?.records?.[0]?.sequence, 10);
-      if (!Number.isFinite(seq)) throw new Error("Failed to fetch latest ledger sequence");
-      return seq;
-    }
+    function contractId(asset){ return asset.contractId(SDK.Networks.PUBLIC); }
 
     // ---------- Connection UI ----------
     function openModal()  { backdrop.classList.add('open'); loginModal.classList.add('open'); }
@@ -462,10 +453,7 @@
         if(!uri) throw new Error("No WC URI");
         latestWcUri = uri;
 
-        try {
-          const QR = (await import("https://esm.sh/qrcode@1.5.3")).default;
-          await QR.toCanvas(qrCanvas, uri, { width:256, margin:1 });
-        } catch {}
+        try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); } catch {}
         qrArea.style.display = "flex";
         rawWcLink.href = uri;
 
@@ -493,26 +481,6 @@
         toast("Connection canceled or failed.", true);
       }
     });
-
-    // ---------- Signing helpers ----------
-    const wcRequest = (method, xdr) => client.request({
-      topic: session.topic, chainId: "stellar:pubnet",
-      request: { jsonrpc:"2.0", method, params:{ xdr } }
-    });
-    async function signCurrent(xdr){
-      if(connectionMode==="wc"){
-        const r = await wcRequest("stellar_signXDR", xdr);
-        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
-        return r.signedXDR;
-      }
-      if(connectionMode==="freighter"){
-        const api = await ensureFreighterApi();
-        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
-        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
-        return res.signedTxXdr || res.signedXDR || res;
-      }
-      throw new Error("Not connected");
-    }
 
     // ---------- Locker ----------
     function disableLockerButtons(){ [signSubmitBtn,signOnlyBtn,copyBtn,labBtn].forEach(b=>b.disabled=true); }
@@ -770,7 +738,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = routeSummary(true, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-send", estimate_out:estOut, pools:j.pools, tokens:j.tokens}, null, 2);
 
-        // Build XDR
         const needTL = !(await hasTrustline(pk, AQUAm25));
         const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
         const outMin = outStroops - (outStroops / 100n);  // 1% slippage
@@ -820,7 +787,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = routeSummary(false, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-receive", estimate_in:estIn, pools:j.pools, tokens:j.tokens}, null, 2);
 
-        // Build XDR
         const needTL = !(await hasTrustline(pk, AQUAm25));
         const inMax = inNeeded + (inNeeded / 100n);       // +1% cushion
         const outExact = BigInt(Math.round(parseFloat(wantOut)*1e7));
@@ -852,13 +818,14 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const server = rpc();
       const acc = await server.getAccount(account);
 
-      // Approve spend to router
       const tokenInCid = tokenIn.contractId(NETWORK);
       const token = new SDK.Contract(tokenInCid);
       const router = new SDK.Contract(routerContractId);
 
-      const latest = await getLatestLedgerSeq();
-      const expiration = latest + 1000; // ~ an hour
+      // fetch recent ledger for approve expiration
+      const ledgers = await fetch(`${HORIZON}/ledgers?order=desc&limit=1`).then(r=>r.json()).catch(()=>null);
+      const latestSeq = parseInt(ledgers?._embedded?.records?.[0]?.sequence||"0",10) || 0;
+      const expiration = latestSeq + 1000;
 
       const approveOp = token.call(
         "approve",
@@ -868,7 +835,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         SDK.scVal.toU32(expiration)
       );
 
-      // Swap op
       const swapFn = isSend ? "swap_chained" : "swap_chained_strict_receive";
       const swapOp = router.call(
         swapFn,
@@ -911,7 +877,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return tx.toXDR();
     }
 
-    on(btnAddTrustline, "click", async ()=>{
+    on($("btnAddTrustline"), "click", async ()=>{
       try{
         const pk = pubkeyEl.value.trim();
         if(!isValidG(pk)) { toast("Connect a wallet first.", true); return; }
