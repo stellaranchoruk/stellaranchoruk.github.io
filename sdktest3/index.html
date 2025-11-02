@@ -5,11 +5,18 @@
   <title>Mirrasets — AQUAm25 Locker + Aquarius AMM Router Swap</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Freighter API (UMD) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Host canonicalization (optional; keep asset origin consistent) -->
+  <script>
+    if (location.hostname === 'www.mirrasets.com') {
+      location.replace(location.href.replace('//www.mirrasets.com', '//mirrasets.com'));
+    }
+  </script>
 
-<!-- Stellar SDK (UMD v14.3.0) — self-hosted, same-origin to avoid CORS -->
-<script src="/sdk/stellar-sdk-14.3.0.min.js?v=4"></script>
+  <!-- Freighter API (UMD) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" referrerpolicy="no-referrer"></script>
+
+  <!-- Stellar SDK (UMD v14.3.0) — self-hosted SAME ORIGIN (no crossorigin attr) -->
+  <script src="/sdk/stellar-sdk-14.3.0.min.js?v=6"></script>
 
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
@@ -45,8 +52,6 @@
     .pill.ok { border-color:#234b3b; color:var(--ok); }
     .pill.warn { border-color:#4a2a2a; color:var(--err); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-
-    /* Modal (WalletConnect) */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
     .open{display:flex}
@@ -72,30 +77,27 @@
         </div>
       </div>
 
-      <!-- Swap (Aquarius AMM Router) -->
+      <!-- Swap -->
       <div class="section box" id="swapBox">
         <h2>Swap (Aquarius AMM Router)</h2>
-        <p class="small">Swap any Stellar token you hold into <b>AQUAm25</b> via Aquarius AMMs (multi-hop). Type either how much you’ll <b>send</b> or how much AQUAm25 you want to <b>receive</b>. If you don’t have an AQUAm25 trustline yet, add it first (uses ~1 XLM reserve).</p>
+        <p class="small">Swap anything into <b>AQUAm25</b> via Aquarius (multi-hop). Type what you’ll <b>send</b> or target <b>receive</b>. Add the trustline first if missing.</p>
 
-        <!-- Mode -->
         <div class="row" style="gap:10px;margin:4px 0 8px;">
-          <button class="ghost" id="btnModeSend" style="border-color:#2a6f7c;background:#0c3137;color:#d9f6ff">Strict-Send (fix input)</button>
-          <button class="ghost" id="btnModeRecv">Strict-Receive (fix output)</button>
+          <button class="ghost" id="btnModeSend" style="border-color:#2a6f7c;background:#0c3137;color:#d9f6ff">Strict-Send</button>
+          <button class="ghost" id="btnModeRecv">Strict-Receive</button>
           <span class="pill">Router: <span class="mono">CBQ…QUK</span></span>
           <span class="pill">Network: <span class="mono">Mainnet</span></span>
         </div>
 
-        <!-- Row 1: From & Amount -->
         <div class="row" style="gap:14px">
           <div style="flex:1;min-width:260px">
             <label for="swapFrom" style="margin-bottom:0">From</label>
             <select id="swapFrom"></select>
           </div>
-
           <div style="width:260px;max-width:100%">
             <div class="label-row">
               <label for="swapAmount" style="margin-bottom:0">Amount to send</label>
-              <button id="fillMaxBtn" class="chip linkish" title="Autofill your full balance" style="display:none">
+              <button id="fillMaxBtn" class="chip linkish" title="Autofill" style="display:none">
                 Balance: <span id="selectedBal">0</span>
               </button>
             </div>
@@ -103,7 +105,6 @@
           </div>
         </div>
 
-        <!-- Row 2: To & Estimated -->
         <div class="row" style="gap:14px;margin-top:6px">
           <div style="flex:1;min-width:260px">
             <label>To</label>
@@ -118,14 +119,12 @@
           </div>
         </div>
 
-        <!-- Actions -->
         <div class="row" style="gap:10px;margin-top:10px">
           <button id="btnValidate" class="ghost">Validate Tokens & Trustline</button>
           <button id="btnQuote" class="ghost">Quote via Aquarius</button>
-          <button id="swapSignSubmit">Sign &amp; Submit (current wallet)</button>
-          <button id="swapSignOnly" class="ghost">Sign (don’t submit)</button>
+          <button id="swapSignSubmit">Sign &amp; Submit</button>
+          <button id="swapSignOnly" class="ghost">Sign only</button>
           <button id="swapCopy" class="ghost">Copy XDR</button>
-          <!-- New: trustline helper -->
           <button id="btnAddTrustline" class="ghost">Add AQUAm25 Trustline</button>
         </div>
 
@@ -139,7 +138,6 @@
 
         <p id="swapResult" class="small" style="margin-top:6px" aria-live="polite"></p>
 
-        <!-- Dev readouts -->
         <div class="section">
           <div class="row" style="gap:10px;margin-bottom:6px">
             <span class="muted">Soroban Contract IDs (SAC)</span>
@@ -163,10 +161,8 @@
       <!-- Locker -->
       <div class="section box" id="lockerBox">
         <h2>Locker</h2>
-
         <label for="pubkey">Public Key</label>
         <input id="pubkey" placeholder="G… (manual entry allowed if not connected)" />
-
         <p class="small">AQUAm25 Balance: <b id="aquaBal">-</b></p>
 
         <label for="amount">AQUAm25 Amount</label>
@@ -187,8 +183,8 @@
         <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here" readonly style="display:none"></textarea>
 
         <div class="row" style="margin-top:10px;flex-wrap:wrap">
-          <button id="signSubmitBtn">Sign &amp; Submit (current wallet)</button>
-          <button id="signOnlyBtn" class="ghost">Sign (don’t submit)</button>
+          <button id="signSubmitBtn">Sign &amp; Submit</button>
+          <button id="signOnlyBtn" class="ghost">Sign only</button>
           <button id="copyBtn" class="ghost">Copy XDR</button>
           <button id="labBtn" class="ghost">Open in Stellar Lab</button>
         </div>
@@ -217,7 +213,7 @@
           <button id="btnFreighter">Open in Freighter</button>
         </div>
         <div class="small">
-          Scan with your wallet app (LOBSTR / Freighter), or tap a button above on mobile. ·
+          Scan with your wallet app (LOBSTR / Freighter), or tap above on mobile ·
           <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
         </div>
         <p id="linkStatus" class="small" style="margin:0;text-align:center;opacity:.8"></p>
@@ -231,14 +227,14 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // ---------- Shortcuts ----------
+    // ---------- SDK presence checks ----------
     const SDK = window.StellarSdk;
-    if(!SDK) throw new Error("Stellar SDK failed to load.");
+    if (!SDK) throw new Error("Stellar SDK failed to load.");
+    if (!SDK.SorobanRpc || !SDK.Contract || !SDK.Address || !SDK.nativeToScVal) {
+      throw new Error("Stellar SDK UMD present but Soroban helpers missing");
+    }
     const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
     if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
-
-    // Soroban RPC ctor (covers both export shapes: SorobanRpc.Server OR rpc.Server)
-    const SorobanServerCtor = (SDK.SorobanRpc && SDK.SorobanRpc.Server) || (SDK.rpc && SDK.rpc.Server) || null;
 
     // ---------- Config ----------
     const HORIZON    = "https://horizon.stellar.org";
@@ -246,8 +242,8 @@
 
     // Aquarius / Soroban
     const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
-    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
-    const baseApi           = "https://amm-api.aqua.network/api/external/v1";
+    const sorobanRpcUrl    = "https://mainnet.sorobanrpc.com"; // CORS-friendly
+    const baseApi          = "https://amm-api.aqua.network/api/external/v1";
     const networkPassphrase = NETWORK;
 
     // AQUA / AQUAm25
@@ -261,7 +257,7 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
-    // ---------- DOM helpers ----------
+    // ---------- DOM ----------
     const $=(id)=>document.getElementById(id);
     const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
     const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -308,10 +304,17 @@
     let _soro = null;
     function rpc() {
       if (_soro) return _soro;
-      if (!SorobanServerCtor) throw new Error("Soroban RPC client not found on StellarSdk (need SorobanRpc.Server or rpc.Server).");
-      _soro = new SorobanServerCtor(sorobanRpcUrl, { allowHttp: false });
+      const Server = SDK.SorobanRpc.Server;
+      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk.");
+      _soro = new Server(sorobanRpcUrl, { allowHttp: false });
       return _soro;
     }
+
+    // ---------- ScVal helpers for UMD v14 ----------
+    const scAddr = (s) => new SDK.Address(s).toScVal();
+    const scU128 = (n) => SDK.nativeToScVal(BigInt(n), { type: 'u128' });
+    const scI128 = (n) => SDK.nativeToScVal(BigInt(n), { type: 'i128' });
+    const scU32  = (n) => SDK.nativeToScVal(Number(n), { type: 'u32' });
 
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
@@ -664,7 +667,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const tokenIn = getCurrentSendAsset();
       const data = {
         token_in: { code: tokenIn.isNative ? "XLM" : tokenIn.code, issuer: tokenIn.isNative ? "(native)" : tokenIn.issuer, contract_id: contractId(tokenIn) },
-        token_out:{ code: AQUAm25.isNative ? "XLM" : AQUAm25.code, issuer: AQUAm25.isNative ? "(native)" : AQUAm25.issuer, contract_id: contractId(AQUAm25) },
+        token_out:{ code: AQUAm25.code, issuer: AQUAm25.issuer, contract_id: contractId(AQUAm25) },
         router_contract_id: routerContractId
       };
       contractsBox.textContent = JSON.stringify(data, null, 2);
@@ -696,7 +699,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
         if(pubkey){
           const tl = await hasTrustline(pubkey, tokenOut);
-          bits.push(tl ? `<div class="pill ok">Trustline: OK for output asset</div>` : `<div class="pill warn">No trustline for output asset — click “Add AQUAm25 Trustline”</div>`);
+          bits.push(tl ? `<div class="pill ok">Trustline: OK for output asset</div>` : `<div class="pill warn">No trustline — click “Add AQUAm25 Trustline”</div>`);
         } else {
           bits.push(`<div class="pill">Connect to check trustline</div>`);
         }
@@ -753,7 +756,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
         const needTL = !(await hasTrustline(pk, AQUAm25));
         const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
-        const outMin = outStroops - (outStroops / 100n);  // -1%
+        const outMin = outStroops - (outStroops / 100n);  // 1% slippage
 
         const tx = await buildSorobanSwapTx({
           account: pk, isSend: true, tokenIn: sendAsset,
@@ -785,7 +788,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const body = {
           token_in_address:  contractId(sendAsset),
           token_out_address: contractId(AQUAm25),
-          amount: String(Math.round(parseFloat(wantOut)*1e7)) // exact out
+          amount: String(Math.round(parseFloat(wantOut)*1e7)) // desired out (stroops)
         };
         const res = await fetch(`${baseApi}/find-path-strict-receive/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
         const j = await res.json();
@@ -837,31 +840,31 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const server = rpc();
       const acc = await server.getAccount(account);
 
-      // Approve spend to router
       const tokenInCid = tokenIn.contractId(NETWORK);
       const token = new SDK.Contract(tokenInCid);
       const router = new SDK.Contract(routerContractId);
 
       const latest = await getLatestLedgerSeq();
-      const expiration = latest + 1000; // ~ an hour
+      const expiration = latest + 1000; // ~an hour (ledgers)
 
+      // Approve (i128)
       const approveOp = token.call(
         "approve",
-        SDK.scVal.toAddress(account),
-        SDK.scVal.toAddress(routerContractId),
-        SDK.scVal.toI128(inAmountStroops.toString()),
-        SDK.scVal.toU32(expiration)
+        scAddr(account),                // Address
+        scAddr(routerContractId),       // Address
+        scI128(inAmountStroops),        // i128
+        scU32(expiration)               // u32
       );
 
-      // Swap op
+      // Swap op (u128)
       const swapFn = isSend ? "swap_chained" : "swap_chained_strict_receive";
       const swapOp = router.call(
         swapFn,
-        SDK.scVal.toAddress(account),
-        SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64"),
-        SDK.scVal.toAddress(tokenInCid),
-        SDK.scVal.toU128(inAmountStroops.toString()),
-        SDK.scVal.toU128(limitOutOrExact.toString())
+        scAddr(account),                                       // Address
+        SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64"),         // swap chain from API
+        scAddr(tokenInCid),                                    // token_in contract address
+        scU128(inAmountStroops),                               // in amount
+        scU128(limitOutOrExact)                                // out min (send) or out exact (receive)
       );
 
       let tx = new SDK.TransactionBuilder(acc, { fee: "40000", networkPassphrase })
@@ -1000,7 +1003,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     on($("copyQuote"),"click", async ()=>{ try{ await navigator.clipboard.writeText(quoteBox.textContent); toast("Copied."); }catch{} });
     on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
 
-    // Mode toggle (fix label)
+    // Mode toggle
     function setMode(m){
       if(m==="send"){ btnModeSend.style.background="#0c3137"; btnModeSend.style.borderColor="#2a6f7c"; btnModeRecv.style.background="#141b22"; btnModeRecv.style.borderColor="#2a3340"; }
       else { btnModeRecv.style.background="#0c3137"; btnModeRecv.style.borderColor="#2a6f7c"; btnModeSend.style.background="#141b22"; btnModeSend.style.borderColor="#2a3340"; }
@@ -1148,6 +1151,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       disableSwapButtons();
       showContracts(); // SAC IDs for defaults
     });
+
   </script>
 
   <!-- Freighter UMD fallback -->
