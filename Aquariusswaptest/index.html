@@ -8,21 +8,12 @@
   <!-- Freighter API (UMD) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- IMPORTANT: Load Stellar SDK (ESM) and expose as window.StellarSdk -->
-  <script type="module">
-    import * as StellarSdk from "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm";
-    window.StellarSdk = StellarSdk;
-    if (!StellarSdk?.SorobanRpc?.Server) {
-      throw new Error("Stellar SDK ESM loaded but SorobanRpc missing");
-    }
-  </script>
-
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
     * { box-sizing: border-box; }
     html,body { margin:0; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
     .wrap{max-width:980px;margin:28px auto;padding:0 16px}
-    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px}
+    .card{background:var(--panel);border:1px solid #1c242c;border-radius:16px;padding:22px}
     h1{margin:0 0 10px;font-size:20px;letter-spacing:.3px}
     h2{margin:18px 0 8px}
     p{margin:.25rem 0 .75rem;opacity:.96}
@@ -45,14 +36,11 @@
     .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #2a3340;background:#141b22;border-radius:999px;padding:6px 10px;font-size:12px}
     .label-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
     .linkish{border:none;background:transparent;color:#9ab0ff;text-decoration:underline;padding:0;cursor:pointer}
-    .grid { display:grid; grid-template-columns: 1fr; gap: 12px; }
-    @media (min-width:880px){ .grid { grid-template-columns: 1fr 1fr; } }
     .pill { display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:6px 10px; border-radius:999px; background:#0e151a; border:1px solid #1e2831; }
     .pill.ok { border-color:#234b3b; color:var(--ok); }
     .pill.warn { border-color:#4a2a2a; color:var(--err); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-
-    /* Modal (WalletConnect) */
+    /* Modal */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
     .open{display:flex}
@@ -78,12 +66,11 @@
         </div>
       </div>
 
-      <!-- Swap (Aquarius AMM Router) -->
+      <!-- Swap -->
       <div class="section box" id="swapBox">
         <h2>Swap (Aquarius AMM Router)</h2>
         <p class="small">Swap any Stellar token you hold into <b>AQUAm25</b> via Aquarius AMMs (multi-hop). Type either how much you’ll <b>send</b> or how much AQUAm25 you want to <b>receive</b>. If you don’t have an AQUAm25 trustline yet, add it first (uses ~1 XLM reserve).</p>
 
-        <!-- Mode -->
         <div class="row" style="gap:10px;margin:4px 0 8px;">
           <button class="ghost" id="btnModeSend" style="border-color:#2a6f7c;background:#0c3137;color:#d9f6ff">Strict-Send (fix input)</button>
           <button class="ghost" id="btnModeRecv">Strict-Receive (fix output)</button>
@@ -91,7 +78,6 @@
           <span class="pill">Network: <span class="mono">Mainnet</span></span>
         </div>
 
-        <!-- Row 1: From & Amount -->
         <div class="row" style="gap:14px">
           <div style="flex:1;min-width:260px">
             <label for="swapFrom" style="margin-bottom:0">From</label>
@@ -109,7 +95,6 @@
           </div>
         </div>
 
-        <!-- Row 2: To & Estimated -->
         <div class="row" style="gap:14px;margin-top:6px">
           <div style="flex:1;min-width:260px">
             <label>To</label>
@@ -124,7 +109,6 @@
           </div>
         </div>
 
-        <!-- Actions -->
         <div class="row" style="gap:10px;margin-top:10px">
           <button id="btnValidate" class="ghost">Validate Tokens & Trustline</button>
           <button id="btnQuote" class="ghost">Quote via Aquarius</button>
@@ -144,7 +128,6 @@
 
         <p id="swapResult" class="small" style="margin-top:6px" aria-live="polite"></p>
 
-        <!-- Dev readouts -->
         <div class="section">
           <div class="row" style="gap:10px;margin-bottom:6px">
             <span class="muted">Soroban Contract IDs (SAC)</span>
@@ -180,7 +163,7 @@
           <button data-pct="25">25%</button>
           <button data-pct="50">50%</button>
           <button data-pct="75">75%</button>
-          <button data-pct="100%">100%</button>
+          <button data-pct="100">100%</button>
         </div>
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
@@ -232,15 +215,45 @@
 
   <script>window.process = window.process || { env: {} };</script>
 
+  <!-- Single module that first ensures a working Stellar SDK, then runs the app -->
   <script type="module">
-    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
-    import QRCode     from "https://esm.sh/qrcode@1.5.3";
+    // ---------- Robust Stellar SDK loader with fallbacks ----------
+    async function loadStellarSdk() {
+      const tries = [
+        "https://esm.sh/@stellar/stellar-sdk@14.3.0",                    // esm.sh
+        "https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/+esm", // jsDelivr +esm
+        "https://unpkg.com/@stellar/stellar-sdk@14.3.0/+esm"             // unpkg +esm
+      ];
+      let mod = null, lastErr = null;
+      for (const url of tries) {
+        try {
+          mod = await import(url);
+          // Some CDNs put the module under default; normalize
+          const ns = (mod && Object.keys(mod).length) ? mod : (mod?.default || null);
+          const hasServer = !!(ns?.Server) || !!(ns?.Horizon?.Server);
+          const hasSoroban = !!(ns?.SorobanRpc?.Server);
+          if (hasServer && hasSoroban) {
+            return ns;
+          }
+        } catch (e) { lastErr = e; }
+      }
+      throw new Error("Failed to load Stellar SDK with SorobanRpc from all CDNs" + (lastErr ? `: ${lastErr.message||lastErr}` : ""));
+    }
+
+    // Gate the entire app until SDK is ready
+    const SDK = await loadStellarSdk();
+    window.StellarSdk = SDK;
+
+    // After this point, SDK.Server and SDK.SorobanRpc.Server are guaranteed.
+    // Import the other ESM deps (kept here to avoid racing the SDK)
+    const [{ default: SignClient }, { default: QRCode }] = await Promise.all([
+      import("https://esm.sh/@walletconnect/sign-client@2.21.8"),
+      import("https://esm.sh/qrcode@1.5.3")
+    ]);
 
     // ---------- Shortcuts ----------
-    const SDK = window.StellarSdk;
-    if(!SDK) throw new Error("Stellar SDK failed to load.");
     const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
-    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
+    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found (post-load).");
 
     // ---------- Config ----------
     const HORIZON    = "https://horizon.stellar.org";
@@ -306,12 +319,12 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Soroban RPC (SDK 14.3.0 via ESM) ----------
+    // ---------- Soroban RPC ----------
     let _soro = null;
     function rpc() {
       if (_soro) return _soro;
       const Server = SDK?.SorobanRpc?.Server;
-      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk (ESM load failed?)");
+      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk");
       _soro = new Server(sorobanRpcUrl, { allowHttp: false });
       return _soro;
     }
@@ -449,7 +462,10 @@
         if(!uri) throw new Error("No WC URI");
         latestWcUri = uri;
 
-        try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); } catch {}
+        try {
+          const QR = (await import("https://esm.sh/qrcode@1.5.3")).default;
+          await QR.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        } catch {}
         qrArea.style.display = "flex";
         rawWcLink.href = uri;
 
@@ -757,7 +773,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         // Build XDR
         const needTL = !(await hasTrustline(pk, AQUAm25));
         const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
-        const outMin = outStroops - (outStroops / 100n);  // 1% slippage buffer
+        const outMin = outStroops - (outStroops / 100n);  // 1% slippage
 
         const tx = await buildSorobanSwapTx({
           account: pk, isSend: true, tokenIn: sendAsset,
@@ -827,13 +843,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     // ---------- Build Soroban swap tx (approve + swap) ----------
     async function buildSorobanSwapTx({
-      account,          // G...
-      isSend,           // true -> swap_chained, false -> swap_chained_strict_receive
-      tokenIn,          // SDK.Asset
-      inAmountStroops,  // BigInt
-      limitOutOrExact,  // BigInt
-      swapChainXdr,     // base64 ScVal from Aquarius API
-      addTrustlineFirst // boolean
+      account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr, addTrustlineFirst
     }){
       if (addTrustlineFirst) {
         throw new Error("Missing AQUAm25 trustline. Click “Add AQUAm25 Trustline” first, then retry the swap.");
@@ -1151,9 +1161,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(isValidG(pk)){ initForNewAccount(); startLockerAutoRefresh(); }
       disableLockerButtons();
       disableSwapButtons();
-      showContracts(); // SAC IDs for defaults
+      showContracts();
     });
-
   </script>
 
   <!-- Freighter UMD fallback -->
