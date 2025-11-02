@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mirrasets — AQUAm25 Swap Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- ✅ Self-hosted Stellar SDK (Soroban-ready) -->
+  <script src="https://mirrasets.com/sdk/stellar-sdk-14.3.0.min.js"></script>
+
+  <!-- Freighter wallet API (for connect button) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <style>
+    body { font-family: system-ui, sans-serif; background:#0c0f18; color:#fff; padding:20px; }
+    button { background:#1a73e8; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; }
+  </style>
+</head>
+
+<body>
+  <h1>AQUAm25 Router Swap (Mirrasets)</h1>
+  <button id="btnConnect">Connect Wallet</button>
+  <div id="status"></div>
+
+  <script type="module">
+    // --- Ensure SDK is loaded ---
+    const SDK = window.StellarSdk;
+    if (!SDK || !SDK.SorobanRpc?.Server) {
+      document.getElementById('status').textContent =
+        '❌ Stellar SDK failed to load (SorobanRpc missing).';
+      throw new Error('Stellar SDK not loaded or SorobanRpc missing.');
+    }
+
+    // --- Example RPC + connect button ---
+    const networkPassphrase = SDK.Networks.PUBLIC;
+    const HORIZON = "https://horizon.stellar.org";
+    const sorobanRpcUrl = "https://soroban.stellar.org";
+
+    // verify RPC availability
+    const rpc = new SDK.SorobanRpc.Server(sorobanRpcUrl, { allowHttp: false });
+
+    const btn = document.getElementById("btnConnect");
+    const status = document.getElementById("status");
+
+    btn.onclick = async () => {
+      if (!window.freighterApi) {
+        status.textContent = "❌ Freighter not installed.";
+        return;
+      }
+      try {
+        const pk = await window.freighterApi.getPublicKey();
+        status.textContent = `✅ Connected: ${pk}`;
+      } catch (e) {
+        status.textContent = `❌ Connection failed: ${e.message}`;
+      }
+    };
+  </script>
+</body>
+</html>
