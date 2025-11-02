@@ -2,57 +2,171 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Mirrasets — AQUAm25 Swap Test</title>
+  <title>Mirrasets — Soroban SDK Quick Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- ✅ Self-hosted Stellar SDK (Soroban-ready) -->
-  <script src="https://mirrasets.com/sdk/stellar-sdk-14.3.0.min.js"></script>
+  <!-- ✅ Your self-hosted Stellar SDK (UMD) -->
+  <script src="https://mirrasets.com/sdk/stellar-sdk-14.3.0.min.js?v=1"></script>
 
-  <!-- Freighter wallet API (for connect button) -->
+  <!-- Freighter (for connect) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
           crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <style>
-    body { font-family: system-ui, sans-serif; background:#0c0f18; color:#fff; padding:20px; }
-    button { background:#1a73e8; border:none; color:white; padding:10px 20px; border-radius:8px; cursor:pointer; }
+    :root{--bg:#0c0f18;--ink:#e8f0f6;--panel:#121624;--muted:#93a0b4;--ok:#57d29a;--err:#ff6b6b}
+    html,body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:880px;margin:28px auto;padding:0 16px}
+    .card{background:var(--panel);border:1px solid #1a2336;border-radius:14px;padding:18px}
+    h1{margin:0 0 8px;font-size:18px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    button{cursor:pointer;border-radius:10px;border:1px solid #2c3b66;background:#142041;color:#e8f0f6;padding:10px 14px;font-weight:600}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    input{padding:10px 12px;border-radius:10px;border:1px solid #22304f;background:#0e1528;color:#fff;min-width:300px}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:12px}
+    .ok{color:var(--ok)} .err{color:var(--err)}
+    .box{background:#0f162c;border:1px solid #1b2948;border-radius:10px;padding:12px;margin-top:12px}
+    .small{font-size:12px;color:var(--muted)}
+    pre{white-space:pre-wrap;word-break:break-word}
   </style>
 </head>
-
 <body>
-  <h1>AQUAm25 Router Swap (Mirrasets)</h1>
-  <button id="btnConnect">Connect Wallet</button>
-  <div id="status"></div>
+  <div class="wrap">
+    <div class="card">
+      <h1>Mirrasets — Soroban SDK Quick Test</h1>
+
+      <div class="row">
+        <button id="btnConnect">Connect Freighter</button>
+        <input id="pubkey" placeholder="G… (auto-fills after connect)" />
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnProbe">Probe SDK & SorobanRpc</button>
+        <button id="btnHealth">Soroban getHealth()</button>
+        <button id="btnBuild">Build dummy Soroban tx</button>
+      </div>
+
+      <div id="status" class="box mono small">Ready.</div>
+      <div id="out" class="box mono" style="min-height:80px">Output…</div>
+    </div>
+  </div>
 
   <script type="module">
-    // --- Ensure SDK is loaded ---
+    const $ = (id)=>document.getElementById(id);
+    const status = $("status");
+    const out = $("out");
+
+    // ---------------- Compatibility shim ----------------
     const SDK = window.StellarSdk;
-    if (!SDK || !SDK.SorobanRpc?.Server) {
-      document.getElementById('status').textContent =
-        '❌ Stellar SDK failed to load (SorobanRpc missing).';
-      throw new Error('Stellar SDK not loaded or SorobanRpc missing.');
+    if (!SDK) {
+      status.innerHTML = '<span class="err">❌ StellarSdk is undefined. Check the <script src> URL (HTTPS) and load order.</span>';
+      throw new Error("Stellar SDK not loaded");
     }
 
-    // --- Example RPC + connect button ---
-    const networkPassphrase = SDK.Networks.PUBLIC;
+    // normalize Soroban RPC namespace
+    const SorobanRpcNs = SDK.SorobanRpc || SDK.rpc;
+    if (!SorobanRpcNs || !SorobanRpcNs.Server) {
+      status.innerHTML = '<span class="err">❌ SorobanRpc namespace missing on this SDK build.</span>';
+      console.log("StellarSdk keys:", Object.keys(SDK));
+      throw new Error("SorobanRpc missing");
+    }
+    // normalize scVal helpers
+    if (!SDK.scVal) {
+      SDK.scVal = {
+        toU32:  (n) => SDK.nativeToScVal(Number(n), { type: "u32" }),
+        toU128: (n) => SDK.nativeToScVal(BigInt(n),  { type: "u128" }),
+        toI128: (n) => SDK.nativeToScVal(BigInt(n),  { type: "i128" }),
+        toAddress: (addr) => SDK.Address.fromString(addr).toScVal(),
+      };
+    }
+    // expose normalized alias for consistency elsewhere
+    SDK.SorobanRpc = SDK.SorobanRpc || { Server: SorobanRpcNs.Server };
+
+    // ---------------- Config ----------------
     const HORIZON = "https://horizon.stellar.org";
-    const sorobanRpcUrl = "https://soroban.stellar.org";
+    const NETWORK = SDK.Networks.PUBLIC;
+    const SORO_RPC = "https://soroban.stellar.org"; // mainnet Soroban RPC
 
-    // verify RPC availability
-    const rpc = new SDK.SorobanRpc.Server(sorobanRpcUrl, { allowHttp: false });
+    const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
 
-    const btn = document.getElementById("btnConnect");
-    const status = document.getElementById("status");
+    // ---------------- Helpers ----------------
+    const server = new SDK.Server(HORIZON);
+    const rpc = new SDK.SorobanRpc.Server(SORO_RPC, { allowHttp: false });
 
-    btn.onclick = async () => {
+    function log(s) {
+      out.textContent = (typeof s === "string") ? s : JSON.stringify(s, null, 2);
+    }
+    function setOk(msg){ status.innerHTML = `<span class="ok">✅ ${msg}</span>`; }
+    function setErr(msg){ status.innerHTML = `<span class="err">❌ ${msg}</span>`; }
+
+    // ---------------- Buttons ----------------
+    $("btnProbe").onclick = () => {
+      const keys = Object.keys(SDK);
+      const hasSoroban = !!SDK.SorobanRpc?.Server || !!SDK.rpc?.Server;
+      const hasScVal = !!SDK.scVal || !!SDK.nativeToScVal;
+      log({ keys, hasSoroban, hasScVal });
+      if (hasSoroban && hasScVal) setOk("SDK present with SorobanRpc + scVal helpers");
+      else setErr("SDK present but missing Soroban/scVal");
+    };
+
+    $("btnHealth").onclick = async () => {
+      try {
+        // Many RPCs expose a /health; SDK method name is getHealth()
+        const h = await rpc.getHealth();
+        log(h);
+        setOk("Soroban RPC health OK");
+      } catch (e) {
+        log({ error: e?.message || String(e) });
+        setErr("Soroban RPC health call failed (but SDK loaded).");
+      }
+    };
+
+    $("btnConnect").onclick = async () => {
       if (!window.freighterApi) {
-        status.textContent = "❌ Freighter not installed.";
+        setErr("Freighter extension not detected.");
         return;
       }
       try {
         const pk = await window.freighterApi.getPublicKey();
-        status.textContent = `✅ Connected: ${pk}`;
+        $("pubkey").value = pk;
+        setOk(`Connected: ${pk.slice(0,6)}…${pk.slice(-6)}`);
       } catch (e) {
-        status.textContent = `❌ Connection failed: ${e.message}`;
+        setErr(`Connect failed: ${e?.message || e}`);
+      }
+    };
+
+    $("btnBuild").onclick = async () => {
+      const pk = $("pubkey").value.trim();
+      if (!pk || !SDK.StrKey.isValidEd25519PublicKey(pk)) {
+        setErr("Enter a valid G… public key (or Connect first).");
+        return;
+      }
+      try {
+        // Load account from Horizon to get a sequence number
+        const acc = await server.loadAccount(pk);
+
+        // Build a **dummy** router contract call just to prove Contract.call + scVal work.
+        // We won't submit or even prepare — just build XDR successfully.
+        const c = new SDK.Contract(routerContractId);
+        const op = c.call(
+          "swap_chained",                               // method name (not executed)
+          SDK.scVal.toAddress(pk),                      // as if 'user' address
+          SDK.xdr.ScVal.scvVoid(),                      // placeholder for swap_chain_xdr
+          SDK.scVal.toAddress(SDK.Asset.native().contractId(NETWORK)), // token in (XLM contract id)
+          SDK.scVal.toU128("1000"),                     // in amount
+          SDK.scVal.toU128("1")                         // limit/exact
+        );
+
+        const tx = new SDK.TransactionBuilder(acc, { fee:"20000", networkPassphrase: NETWORK })
+          .setTimeout(180)
+          .addOperation(op)
+          .build();
+
+        // If we got here, SDK + scVal + Contract.call + TxBuilder all worked.
+        log({ xdrLen: tx.toXDR().length, preview: tx.toXDR().slice(0, 48) + "…" });
+        setOk("Built unsigned Soroban tx (dummy) ✓");
+      } catch (e) {
+        log({ error: e?.response?.data?.error?.message || e?.message || String(e) });
+        setErr("Failed to build dummy Soroban tx");
       }
     };
   </script>
