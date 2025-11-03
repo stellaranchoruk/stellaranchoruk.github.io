@@ -58,16 +58,9 @@
     .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
     .wallet-choices button{background:#162554;border:1px solid #344a8a}
     a.link{color:#9ab0ff;text-decoration:underline}
-
-    /* Toasts (small top-corner popups) */
-    #toasts { position: fixed; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
-    .toast { background: #0f1a22; border: 1px solid #20303a; color: #d9f6ff; padding: 10px 12px; border-radius: 10px; font-size: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
-    .toast.err { border-color: #4a2a2a; color: #ffb3b3; }
   </style>
 </head>
 <body>
-  <div id="toasts" aria-live="polite" aria-atomic="true"></div>
-
   <div class="wrap">
     <div class="card">
       <div class="row" style="justify-content:space-between;">
@@ -270,15 +263,6 @@
     const $=(id)=>document.getElementById(id);
     const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
     const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const toastBox = $("toasts");
-    function pushToast(msg, isErr=false){
-      const d=document.createElement("div");
-      d.className="toast"+(isErr?" err":"");
-      d.textContent=msg;
-      toastBox.appendChild(d);
-      setTimeout(()=>{ d.style.opacity="0"; d.style.transform="translateY(-6px)"; }, 2800);
-      setTimeout(()=>{ d.remove(); }, 3300);
-    }
 
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
     const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal");
@@ -336,8 +320,20 @@
     const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
-    function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; pushToast(msg, err); }
+    function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
     function contractId(asset){ return asset.contractId(NETWORK); }
+    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
+
+    // NEW: clear amounts/XDR/quote when asset changes
+    function resetSwapInputs() {
+      swapAmount.value = "";
+      swapEst.value = "";
+      xdrSwap.value = "";
+      swapQuote.textContent = "";
+      quoteBox.textContent = "—";
+      lastQuote = null;
+      disableSwapButtons();
+    }
 
     // ---------- Spendable XLM (match aqua.network) ----------
     async function getNetworkBaseReserveXLM() {
@@ -346,7 +342,6 @@
       const stroops = parseInt(j?._embedded?.records?.[0]?.base_reserve_in_stroops || "5000000", 10);
       return stroops / 1e7;
     }
-    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
 
     async function getXlmBreakdown(pk) {
       const base = await getNetworkBaseReserveXLM();
@@ -432,7 +427,6 @@
 
     function setConnected(address, mode){
       statusEl.textContent = address ? `Connected (${mode==="wc"?"WalletConnect":"Freighter"})` : "Not connected";
-      statusEl.style.color = "";
       disconnectBtn.disabled = !address;
 
       if(address){
@@ -887,7 +881,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
         lastQuote = j; lastIsSend = false;
 
-        const inNeeded = BigInt(j.amount);            // IN required (stroops of token_in)
+        const inNeeded = BigInt(j.amount);
         const estIn = Number(inNeeded) / 1e7;
 
         swapAmount.value = plain(estIn);
@@ -895,7 +889,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         quoteBox.textContent = JSON.stringify({mode:"strict-receive", estimate_in:estIn, pools:j.pools, tokens:j.tokens}, null, 2);
 
         const needTL = !(await hasTrustline(pk, AQUAm25));
-        const inMax = inNeeded + (inNeeded / 100n);   // +1% cushion
+        const inMax = inNeeded + (inNeeded / 100n);       // +1% cushion
         const outExact = BigInt(Math.round(parseFloat(wantOut)*1e7));
 
         const tx = await buildSorobanSwapTx({
@@ -919,8 +913,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       account,          // G...
       isSend,           // true -> swap_chained, false -> swap_chained_strict_receive
       tokenIn,          // SDK.Asset
-      inAmountStroops,  // BigInt (strict-send: exact in; strict-receive: max in)
-      limitOutOrExact,  // BigInt (strict-send: min out; strict-receive: exact out)
+      inAmountStroops,  // BigInt
+      limitOutOrExact,  // BigInt
       swapChainXdr,     // base64 ScVal from Aquarius API
       addTrustlineFirst // boolean
     }){
@@ -932,32 +926,16 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const acc = await server.getAccount(account);
 
       const router = new SDK.Contract(routerContractId);
-
-      // Addresses & amounts
-      const tokenInCid   = tokenIn.contractId(NETWORK);
-      const tokenOutCid  = AQUAm25.contractId(NETWORK); // always AQUAm25 here
+      const tokenInCid = tokenIn.contractId(NETWORK);
 
       const addrAccount  = SDK.Address.fromString(account).toScVal();
       const addrTokenIn  = SDK.Address.fromString(tokenInCid).toScVal();
-      const addrTokenOut = SDK.Address.fromString(tokenOutCid).toScVal();
-
-      const u128In    = SDK.nativeToScVal(BigInt(inAmountStroops), { type: "u128" });
-      const u128Limit = SDK.nativeToScVal(BigInt(limitOutOrExact), { type: "u128" });
-
+      const u128In       = SDK.nativeToScVal(BigInt(inAmountStroops), { type: "u128" });
+      const u128Limit    = SDK.nativeToScVal(BigInt(limitOutOrExact), { type: "u128" });
       const swapChainVal = SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64");
 
-      // IMPORTANT: argument order differs between strict-send and strict-receive
-      // strict-send:    (account, swap_chain, token_in,  exact_in, min_out)
-      // strict-receive: (account, swap_chain, token_out, exact_out, token_in, max_in)
-      const swapOp = isSend
-        ? router.call("swap_chained",
-            addrAccount, swapChainVal,
-            addrTokenIn, u128In,      // exact in
-            u128Limit)                // min out
-        : router.call("swap_chained_strict_receive",
-            addrAccount, swapChainVal,
-            addrTokenOut, u128Limit,  // exact out
-            addrTokenIn,  u128In);    // max in
+      const fn = isSend ? "swap_chained" : "swap_chained_strict_receive";
+      const swapOp = router.call(fn, addrAccount, swapChainVal, addrTokenIn, u128In, u128Limit);
 
       let tx = new SDK.TransactionBuilder(acc, { fee: "20000", networkPassphrase })
         .setTimeout(300)
@@ -1042,10 +1020,11 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 400); }
 
-    on(swapFrom,"change", ()=>{
+    // UPDATED: asset change => reset inputs & state; no auto-quote
+    on(swapFrom, "change", () => {
+      resetSwapInputs();
       updateSelectedAssetUI();
-      if(quoteMode==="send" && swapAmount.value.trim()) debounceQuote(quoteStrictSend);
-      else if(quoteMode==="receive" && swapEst.value.trim()) debounceQuote(quoteStrictReceive);
+      try { showContracts(); } catch (_) {}
     });
 
     on(swapAmount,"input", ()=>{
@@ -1069,7 +1048,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(opt.value === "XLM"){
         try{
           const spendable = await getSpendableXLM(pk);
-          swapAmount.value = plain(spendable);          // hard-limit to spendable
+          swapAmount.value = plain(spendable);
           await refreshXlmBreakdownMaybe();
         }catch(e){
           console.error(e);
@@ -1128,14 +1107,13 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const sentOrRecv = lastIsSend ? `Amount OUT: ${plain(Number(u)/1e7)} ${AQUAm25_CODE}` :
                                         `Amount IN: ${plain(Number(u)/1e7)} ${getSelectedOption()?.dataset.code||"asset"}`;
         swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${sentOrRecv}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
-        pushToast("Swap confirmed ✓");
         setTimeout(async ()=>{
           const pk = pubkeyEl.value.trim();
           if(isValidG(pk)){
             try{ const { balance } = await loadAquaM25Balance(pk); aquaBalEl.textContent = plain(balance); }catch{}
           }
         }, 1200);
-      }catch(e){ console.error(e); pushToast(e.message||"Sign/submit failed.", true); swapResult.textContent=e.message||"Sign/submit failed."; }
+      }catch(e){ console.error(e); swapResult.textContent=e.message||"Sign/submit failed."; }
     });
 
     // ---------- Locker submit (classic) ----------
@@ -1164,8 +1142,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         actionResult.textContent="Submitting…";
         const hash = await submitToHorizon(signed);
         actionResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
-        pushToast("Locker tx submitted ✓");
-      }catch(e){ console.error(e); actionResult.textContent=e.message||"Sign/submit failed."; pushToast(e.message||"Sign/submit failed.", true); }
+      }catch(e){ console.error(e); actionResult.textContent=e.message||"Sign/submit failed."; }
     });
 
     on(copyBtn,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrOut.value); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy XDR",1500); } catch(e){ console.error(e); } });
