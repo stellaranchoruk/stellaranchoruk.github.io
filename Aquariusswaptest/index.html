@@ -103,7 +103,7 @@
           </div>
         </div>
 
-        <!-- Optional: XLM spendable breakdown (matches aqua.network) -->
+        <!-- XLM spendable breakdown -->
         <div id="xlmBreak" class="small" style="margin-top:8px;display:none"></div>
 
         <!-- Row 2: To & Estimated -->
@@ -322,18 +322,6 @@
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
     function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
     function contractId(asset){ return asset.contractId(NETWORK); }
-    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
-
-    // NEW: clear amounts/XDR/quote when asset changes
-    function resetSwapInputs() {
-      swapAmount.value = "";
-      swapEst.value = "";
-      xdrSwap.value = "";
-      swapQuote.textContent = "";
-      quoteBox.textContent = "—";
-      lastQuote = null;
-      disableSwapButtons();
-    }
 
     // ---------- Spendable XLM (match aqua.network) ----------
     async function getNetworkBaseReserveXLM() {
@@ -342,6 +330,7 @@
       const stroops = parseInt(j?._embedded?.records?.[0]?.base_reserve_in_stroops || "5000000", 10);
       return stroops / 1e7;
     }
+    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
 
     async function getXlmBreakdown(pk) {
       const base = await getNetworkBaseReserveXLM();
@@ -839,12 +828,12 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = routeSummary(true, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-send", estimate_out:estOut, pools:j.pools, tokens:j.tokens}, null, 2);
 
-        const needTL = !(await hasTrustline(pubkeyEl.value.trim(), AQUAm25));
+        const needTL = !(await hasTrustline(pk, AQUAm25));
         const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
         const outMin = outStroops - (outStroops / 100n);  // 1% slippage
 
         const tx = await buildSorobanSwapTx({
-          account: pubkeyEl.value.trim(), isSend: true, tokenIn: sendAsset,
+          account: pk, isSend: true, tokenIn: sendAsset,
           inAmountStroops: inStroops,
           limitOutOrExact: outMin,
           swapChainXdr: j.swap_chain_xdr,
@@ -888,14 +877,25 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = routeSummary(false, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-receive", estimate_in:estIn, pools:j.pools, tokens:j.tokens}, null, 2);
 
-        const needTL = !(await hasTrustline(pk, AQUAm25));
+        // Balance guard (use spendable XLM when XLM is input)
+        let available = parseFloat(getSelectedOption()?.dataset.balance || "0");
+        if (swapFrom.value === "XLM") {
+          try { available = await getSpendableXLM(pk); } catch {}
+        }
         const inMax = inNeeded + (inNeeded / 100n);       // +1% cushion
+        if (available * 1e7 < Number(inMax)) {
+          swapQuote.textContent = `Insufficient balance for this strict-receive target — need about ${plain(Number(inMax)/1e7)} ${sendLabel}, available ${plain(available)}.`;
+          lastQuote = null; xdrSwap.value = ""; disableSwapButtons();
+          return;
+        }
+
         const outExact = BigInt(Math.round(parseFloat(wantOut)*1e7));
+        const needTL = !(await hasTrustline(pk, AQUAm25));
 
         const tx = await buildSorobanSwapTx({
           account: pk, isSend: false, tokenIn: sendAsset,
-          inAmountStroops: inMax,
-          limitOutOrExact: outExact,
+          inAmountStroops: inMax,          // MAX IN
+          limitOutOrExact: outExact,       // EXACT OUT
           swapChainXdr: j.swap_chain_xdr,
           addTrustlineFirst: needTL
         });
@@ -908,13 +908,13 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
-    // ---------- Build Soroban swap tx (single op, no inline approve) ----------
+    // ---------- Build Soroban swap tx ----------
     async function buildSorobanSwapTx({
       account,          // G...
       isSend,           // true -> swap_chained, false -> swap_chained_strict_receive
       tokenIn,          // SDK.Asset
-      inAmountStroops,  // BigInt
-      limitOutOrExact,  // BigInt
+      inAmountStroops,  // BigInt  (send mode: amount_in; receive mode: max_amount_in)
+      limitOutOrExact,  // BigInt  (send mode: min_amount_out; receive mode: exact_amount_out)
       swapChainXdr,     // base64 ScVal from Aquarius API
       addTrustlineFirst // boolean
     }){
@@ -931,11 +931,22 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const addrAccount  = SDK.Address.fromString(account).toScVal();
       const addrTokenIn  = SDK.Address.fromString(tokenInCid).toScVal();
       const u128In       = SDK.nativeToScVal(BigInt(inAmountStroops), { type: "u128" });
-      const u128Limit    = SDK.nativeToScVal(BigInt(limitOutOrExact), { type: "u128" });
+      const u128LimOrEx  = SDK.nativeToScVal(BigInt(limitOutOrExact), { type: "u128" });
       const swapChainVal = SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64");
 
-      const fn = isSend ? "swap_chained" : "swap_chained_strict_receive";
-      const swapOp = router.call(fn, addrAccount, swapChainVal, addrTokenIn, u128In, u128Limit);
+      // IMPORTANT: strict-receive argument order differs
+      let swapOp;
+      if (isSend) {
+        // (account, swap_chain, token_in, amount_in, min_amount_out)
+        swapOp = router.call("swap_chained",
+          addrAccount, swapChainVal, addrTokenIn, u128In, u128LimOrEx
+        );
+      } else {
+        // (account, swap_chain, token_in, exact_amount_out, max_amount_in)
+        swapOp = router.call("swap_chained_strict_receive",
+          addrAccount, swapChainVal, addrTokenIn, u128LimOrEx /* exact out */, u128In /* max in */
+        );
+      }
 
       let tx = new SDK.TransactionBuilder(acc, { fee: "20000", networkPassphrase })
         .setTimeout(300)
@@ -1020,11 +1031,18 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 400); }
 
-    // UPDATED: asset change => reset inputs & state; no auto-quote
-    on(swapFrom, "change", () => {
-      resetSwapInputs();
+    on(swapFrom,"change", ()=>{
       updateSelectedAssetUI();
-      try { showContracts(); } catch (_) {}
+
+      // Reset values & UI to avoid invalid carry-over when changing assets
+      swapAmount.value = "";
+      swapEst.value = "";
+      xdrSwap.value = "";
+      swapQuote.textContent = "";
+      disableSwapButtons();
+
+      if(quoteMode==="send" && swapAmount.value.trim()) debounceQuote(quoteStrictSend);
+      else if(quoteMode==="receive" && swapEst.value.trim()) debounceQuote(quoteStrictReceive);
     });
 
     on(swapAmount,"input", ()=>{
@@ -1107,6 +1125,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const sentOrRecv = lastIsSend ? `Amount OUT: ${plain(Number(u)/1e7)} ${AQUAm25_CODE}` :
                                         `Amount IN: ${plain(Number(u)/1e7)} ${getSelectedOption()?.dataset.code||"asset"}`;
         swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${sentOrRecv}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
+
+        // refresh AQUAm25 balance after swap
         setTimeout(async ()=>{
           const pk = pubkeyEl.value.trim();
           if(isValidG(pk)){
