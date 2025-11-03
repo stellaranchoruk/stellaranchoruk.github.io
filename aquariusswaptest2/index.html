@@ -5,63 +5,152 @@
   <title>Mirrasets — AQUAm25 Locker + Aquarius AMM Router Swap</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Freighter API (UMD) -->
+  <!-- Freighter API -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <!-- Self-hosted Stellar SDK (UMD v14.3.0) — includes Soroban (SDK.rpc) -->
   <script src="/sdk/stellar-sdk-14.3.0.min.js?v=8"></script>
 
   <style>
-    :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
-    * { box-sizing: border-box; }
-    html,body { margin:0; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    /* === Mirrasets brand palette === */
+    :root{
+      --gold: rgb(240,203,120);
+      --blue: #363774;
+      --ink: #ffffff;
+      --bg: #000000;
+      --panel: #0b0b0f;
+      --panel-blue: #2c2d63;
+      --muted: rgba(255,255,255,.72);
+      --border: rgba(255,255,255,0.08);
+      --ok: #57d29a;
+      --err:#ff6b6b;
+    }
+
+    html,body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    }
+
+    a{color:var(--gold)}
+
     .wrap{max-width:980px;margin:28px auto;padding:0 16px}
-    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px}
-    h1{margin:0 0 10px;font-size:20px;letter-spacing:.3px}
-    h2{margin:18px 0 8px}
-    p{margin:.25rem 0 .75rem;opacity:.96}
+    .card{
+      background:linear-gradient(180deg, rgba(54,55,116,0.28), rgba(0,0,0,0.55)),var(--panel);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:22px;
+    }
+
+    h1{
+      margin:0 0 8px;
+      font-size:20px;
+      letter-spacing:.3px;
+      position:relative;
+      padding-bottom:6px;
+    }
+    h1::after{
+      content:"";
+      position:absolute; left:0; bottom:0;
+      width:72px; height:3px;
+      background: var(--gold);
+      border-radius:2px;
+    }
+
+    h2{margin:18px 0 10px}
+    p{margin:.25rem 0 .75rem}
     .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    .small{font-size:12px;opacity:.9}
+    .small{font-size:12px;opacity:.95}
     .muted{color:var(--muted)}
-    button{cursor:pointer;font-weight:600;border-radius:10px;border:1px solid #21464f;background:#0c1c20;color:#d9f6ff;padding:10px 14px;transition:.15s}
-    button:hover{filter:brightness(1.08)}
-    button.ghost{background:#141b22;border-color:#2a3340}
-    button:disabled{opacity:.5;cursor:not-allowed}
-    input,textarea,select{width:100%;padding:12px;border-radius:10px;border:1px solid #1e2831;background:#0e1419;color:#fff}
-    input[readonly]{opacity:.9;background:#0b1115;border-style:dashed}
+
+    button{
+      cursor:pointer;
+      font-weight:600;
+      border-radius:10px;
+      border:1px solid #23243e;
+      background:#0a0a10;
+      color:#fff;
+      padding:10px 14px;
+      transition:.15s;
+    }
+    button:hover{border-color:var(--gold);box-shadow:0 0 0 2px rgba(240,203,120,.12) inset;}
+    button.ghost{
+      background:#08080c;
+      border-color:#1b1c31;
+    }
+    button.ghost:hover{border-color:var(--gold);}
+    button:disabled{opacity:.55;cursor:not-allowed}
+
+    input,textarea,select{
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid #20213a;
+      background:#0a0a10;
+      color:#fff;
+    }
+    input[readonly]{opacity:.9;background:#0a0c14;border-style:dashed}
+    input:focus,textarea:focus,select:focus{
+      outline:none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px rgba(240,203,120,.18);
+    }
+
     label{display:block;margin:10px 0 6px;font-size:12px;color:var(--muted)}
-    .section{margin-top:20px;padding-top:14px;border-top:1px dashed #1a232c}
-    .box{background:#0e1620;border:1px solid #1c2430;border-radius:12px;padding:14px}
-    .pct{display:flex;gap:8px;margin-top:6px}
-    .pct button{flex:1;background:#141b22;border:1px solid #2a3340}
-    .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
-    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #2a3340;background:#141b22;border-radius:999px;padding:6px 10px;font-size:12px}
-    .pill { display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:6px 10px; border-radius:999px; background:#0e151a; border:1px solid #1e2831; }
-    .pill.ok { border-color:#234b3b; color:var(--ok); }
-    .pill.warn { border-color:#4a2a2a; color:var(--err); }
+    .section{margin-top:20px;padding-top:14px;border-top:1px dashed #242842}
+    .box{
+      background:linear-gradient(180deg, rgba(54,55,116,0.18), rgba(0,0,0,0.5));
+      border:1px solid #1d1e33;
+      border-radius:12px;
+      padding:14px;
+    }
+
+    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #2a2b4a;background:#0a0a12;border-radius:999px;padding:6px 10px;font-size:12px}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+    .pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;padding:6px 10px;border-radius:999px;background:#0a0a12;border:1px solid #2a2b4a;color:#fff}
+    .pill.ok{border-color:#244a33;color:var(--ok)}
+    .pill.warn{border-color:#4a2a2a;color:var(--err)}
     .label-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-    .linkish{border:none;background:transparent;color:#9ab0ff;text-decoration:underline;padding:0;cursor:pointer}
-    .grid { display:grid; grid-template-columns: 1fr; gap: 12px; }
-    @media (min-width:880px){ .grid { grid-template-columns: 1fr 1fr; } }
+    .linkish{border:none;background:transparent;color:var(--gold);text-decoration:underline;padding:0;cursor:pointer}
 
-    /* Toasts */
-    .toast { position: fixed; top: 14px; right: 14px; display: grid; gap: 8px; z-index: 9999; }
-    .toast .t { background: #0e1620; border: 1px solid #1c2430; color: #d7f3ff; padding: 10px 12px; border-radius: 10px; box-shadow: 0 6px 22px rgba(0,0,0,.35); max-width: 320px; }
-    .toast .t.err { border-color:#402424; color:#ffd0d0; }
+    /* Toast (top-right) */
+    .toast{position:fixed;right:16px;top:16px;display:flex;flex-direction:column;gap:8px;z-index:20}
+    .toast .t{background:#0a0a12;border:1px solid #2a2b4a;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .toast .err{border-color:#4a2a2a;color:#ffd2d2}
 
-    /* Modal (WalletConnect) */
+    /* Route card with Mirrasets styling */
+    .route-card{
+      background:linear-gradient(180deg, rgba(54,55,116,.35), rgba(0,0,0,.45));
+      border:1px solid rgba(240,203,120,.45);
+      border-radius:14px;
+      padding:12px 14px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .route-title{font-size:13px;letter-spacing:.2px;color:var(--gold);margin:0 0 6px}
+    .route-line{font-weight:600;color:#fff}
+    .route-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+    /* Modal */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
     .open{display:flex}
-    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .modal-inner{
+      width:min(560px,92vw);
+      background:linear-gradient(180deg, rgba(54,55,116,.25), rgba(0,0,0,.6));
+      border:1px solid #23244a;
+      border-radius:16px;
+      padding:22px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
     .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
     .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
-    .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
+    .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;background:#0a0a12;border:1px solid #2a2b4a;color:#fff}
+    .wallet-btn:hover{border-color:var(--gold);}
     .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
     .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-    .wallet-choices button{background:#162554;border:1px solid #344a8a}
-    a.link{color:#9ab0ff;text-decoration:underline}
+    .wallet-choices button{background:#0a0a12;border:1px solid #2a2b4a;color:#fff}
+    .wallet-choices button:hover{border-color:var(--gold);}
   </style>
 </head>
 <body>
