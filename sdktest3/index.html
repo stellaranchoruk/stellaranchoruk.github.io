@@ -227,14 +227,29 @@
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
     import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-    // ---------- SDK presence checks ----------
-    const SDK = window.StellarSdk;
-    if (!SDK) throw new Error("Stellar SDK failed to load.");
-    if (!SDK.SorobanRpc || !SDK.Contract || !SDK.Address || !SDK.nativeToScVal) {
-      throw new Error("Stellar SDK UMD present but Soroban helpers missing");
-    }
-    const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
-    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
+   // ---------- SDK presence checks (tolerant across UMD/ESM shapes) ----------
+const SDK = window.StellarSdk;
+if (!SDK) throw new Error("Stellar SDK failed to load.");
+
+const ContractCtor = SDK.Contract || (SDK.contract && SDK.contract.Contract) || null;
+const AddressCtor  = SDK.Address  || (SDK.contract && SDK.contract.Address)  || null;
+const nativeToScValFn = SDK.nativeToScVal || (SDK.Soroban && SDK.Soroban.nativeToScVal) || null;
+
+// Soroban RPC Server ctor can live in a few places depending on bundle:
+const SorobanServerCtor =
+  (SDK.SorobanRpc && SDK.SorobanRpc.Server) ||
+  (SDK.rpc && SDK.rpc.Server) ||
+  (SDK.rpc && SDK.rpc.SorobanRpc && SDK.rpc.SorobanRpc.Server) ||
+  null;
+
+if (!ContractCtor || !AddressCtor || !nativeToScValFn || !SorobanServerCtor) {
+  console.warn("StellarSdk keys:", Object.keys(SDK));
+  console.warn("SDK.rpc keys:", SDK.rpc ? Object.keys(SDK.rpc) : "(none)");
+  throw new Error("Stellar SDK UMD present but Soroban helpers not found on expected paths.");
+}
+
+const ServerCtor = SDK.Server || (SDK.Horizon && SDK.Horizon.Server);
+if (!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
 
     // ---------- Config ----------
     const HORIZON    = "https://horizon.stellar.org";
@@ -300,15 +315,19 @@
     let quoteMode="send";
     let lastIsSend=true;
 
-    // ---------- Soroban RPC ----------
-    let _soro = null;
-    function rpc() {
-      if (_soro) return _soro;
-      const Server = SDK.SorobanRpc.Server;
-      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk.");
-      _soro = new Server(sorobanRpcUrl, { allowHttp: false });
-      return _soro;
-    }
+// ---------- Soroban RPC (constructor-agnostic) ----------
+let _soro = null;
+function rpc() {
+  if (_soro) return _soro;
+  _soro = new SorobanServerCtor("https://mainnet.sorobanrpc.com", { allowHttp: false });
+  return _soro;
+}
+
+    // ---------- ScVal helpers (work even if SDK.scVal isn't exported) ----------
+const scAddr = (s) => new AddressCtor(s).toScVal();
+const scU128 = (n) => nativeToScValFn(BigInt(n), { type: "u128" });
+const scI128 = (n) => nativeToScValFn(BigInt(n), { type: "i128" });
+const scU32  = (n) => nativeToScValFn(Number(n), { type: "u32" });
 
     // ---------- ScVal helpers for UMD v14 ----------
     const scAddr = (s) => new SDK.Address(s).toScVal();
