@@ -329,12 +329,6 @@ const scU128 = (n) => nativeToScValFn(BigInt(n), { type: "u128" });
 const scI128 = (n) => nativeToScValFn(BigInt(n), { type: "i128" });
 const scU32  = (n) => nativeToScValFn(Number(n), { type: "u32" });
 
-    // ---------- ScVal helpers for UMD v14 ----------
-    const scAddr = (s) => new SDK.Address(s).toScVal();
-    const scU128 = (n) => SDK.nativeToScVal(BigInt(n), { type: 'u128' });
-    const scI128 = (n) => SDK.nativeToScVal(BigInt(n), { type: 'i128' });
-    const scU32  = (n) => SDK.nativeToScVal(Number(n), { type: 'u32' });
-
     // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
 
