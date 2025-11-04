@@ -2,92 +2,113 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>SEP-1 Icon Pills (TOML via Horizon + Proxy Fallback)</title>
+<title>Asset icon pills via issuer TOML (robust, CORS-safe)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 <script type="module">
   import * as TOML from "https://esm.sh/toml@3.0.0";
-
-  window.TOML_PARSE = TOML.parse;
+  window.__TOML_PARSE__ = TOML.parse;
 </script>
 <style>
   :root{--bg:#0b0f12;--panel:#12181d;--ink:#e8f0f6;--muted:#8aa0ac;--border:#1c242c;--pill:#0f1620}
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  .wrap{max-width:740px;margin:28px auto;padding:0 16px}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px}
-  h1{margin:0 0 14px;font-size:18px}
-  label{display:block;margin:12px 0 6px;color:var(--muted);font-size:12px}
+  .wrap{max-width:760px;margin:28px auto;padding:0 16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px}
+  h1{margin:0 0 12px;font-size:18px}
+  label{display:block;margin:10px 0 6px;color:var(--muted);font-size:12px}
   select{width:100%;padding:12px;border-radius:10px;border:1px solid #1e2831;background:#0e1419;color:#fff}
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .pill{display:inline-flex;align-items:center;gap:10px;padding:10px 12px;border-radius:999px;background:var(--pill);border:1px solid #1e2831}
-  .pill .ico{width:22px;height:22px;border-radius:999px;overflow:hidden;flex:0 0 22px;background:#101822;display:grid;place-items:center}
-  .pill .ico img{width:100%;height:100%;display:block}
-  .pill .t{font-weight:700;letter-spacing:.2px}
-  .box{background:#0d141b;border:1px solid #1b2531;border-radius:12px;padding:16px}
+  .ico{width:22px;height:22px;border-radius:999px;overflow:hidden;flex:0 0 22px;background:#101822;display:grid;place-items:center}
+  .ico img{width:100%;height:100%;display:block}
+  .t{font-weight:700;letter-spacing:.2px}
+  .box{background:#0d141b;border:1px solid #1b2531;border-radius:12px;padding:12px;margin-top:12px}
   .muted{color:var(--muted)}
-  .preview{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .tip{margin-top:8px;font-size:12px;color:var(--muted)}
   .btn{cursor:pointer;font-weight:700;border-radius:10px;border:1px solid #28414d;background:#0c1c20;color:#d9f6ff;padding:10px 14px}
   .btn:hover{filter:brightness(1.06)}
-  .tip{margin-top:10px;font-size:12px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr;gap:10px}
+  @media(min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+  code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>Asset pills with issuer icons (stellar.toml)</h1>
+    <h1>Issuer logos from <code>.well-known/stellar.toml</code> (browser-safe)</h1>
 
-    <div class="row">
-      <div style="flex:1;min-width:260px">
+    <div class="grid">
+      <div>
         <label>From (Code:Issuer or XLM)</label>
-        <select id="from">
+        <select id="assetSel">
           <option value="XLM">XLM (native)</option>
           <option value="AQUA:GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA">AQUA</option>
           <option value="AQUAm25:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC">AQUAm25</option>
-          <option value="USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN">USDC (centre.io)</option>
+          <option value="USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN">USDC</option>
         </select>
       </div>
-
-      <div style="flex:1;min-width:260px">
-        <label>To (fixed for demo)</label>
-        <div class="pill" id="toPill">
-          <span class="ico" id="toIcon"></span>
-          <span class="t" id="toTicker">AQUAm25</span>
+      <div>
+        <label>Preview</label>
+        <div class="pill">
+          <span class="ico" id="icon"></span>
+          <span class="t" id="ticker">XLM</span>
         </div>
       </div>
     </div>
 
     <div class="box">
-      <div class="muted" style="margin-bottom:8px">Preview</div>
-      <div class="preview">
-        <div class="pill" id="fromPill">
-          <span class="ico" id="fromIcon"></span>
-          <span class="t" id="fromTicker">XLM</span>
-        </div>
-        <div class="pill" title="to">
-          <span class="ico" style="background:#151c2a; font-size:12px; font-weight:800; color:#bcd;line-height:1">→</span>
-          <span class="t muted">to</span>
-        </div>
-        <div class="pill">
-          <span class="ico" id="toIcon2"></span>
-          <span class="t" id="toTicker2">AQUAm25</span>
-        </div>
-      </div>
-      <div class="tip" id="note"></div>
+      <div id="debug" class="muted" style="line-height:1.4"></div>
+      <div class="tip">If SDK fails due to CORS, we fall back to several TOML mirrors via <code>r.jina.ai</code> and parse client-side.</div>
     </div>
 
-    <div class="row" style="margin-top:14px">
-      <button class="btn" id="reload">Clear Cache & Reload</button>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="clear">Clear caches</button>
     </div>
   </div>
 </div>
 
 <script>
+(async function(){
   const SDK = window.StellarSdk;
-  const TOML_PARSE = window.TOML_PARSE;
+  const TOML = window.__TOML_PARSE__;
   const HORIZON = "https://horizon.stellar.org";
-  const AQUAM25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
 
+  // Known overrides to avoid wrong/empty home_domain
+  const ISSUER_DOMAIN_OVERRIDES = new Map([
+    // AQUA
+    ["GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA", "aqua.network"],
+    // AQUAm25
+    ["GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC", "mirrasets.com"],
+    // USDC (Centre)
+    ["GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN", "centre.io"],
+  ]);
+
+  const ICON_CACHE   = new Map();   // key: "CODE:ISSUER" -> url
+  const DOMAIN_CACHE = new Map();   // issuer -> domain
+  const TOML_CACHE   = new Map();   // domain -> { obj, via }
+
+  const debugEl = document.getElementById("debug");
+  const iconEl  = document.getElementById("icon");
+  const tickEl  = document.getElementById("ticker");
+  const sel     = document.getElementById("assetSel");
+
+  function log(msg){
+    debugEl.innerHTML = msg.replace(/\n/g,'<br/>');
+  }
+
+  // Nice monogram fallback
+  function monogram(text) {
+    const c = document.createElement('canvas'); c.width=64; c.height=64;
+    const x = c.getContext('2d');
+    x.fillStyle='#16212b'; x.beginPath(); x.arc(32,32,32,0,Math.PI*2); x.fill();
+    x.fillStyle='#d8e6f2'; x.font='bold 26px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial';
+    x.textAlign='center'; x.textBaseline='middle';
+    x.fillText((text||'?').slice(0,3).toUpperCase(),32,36);
+    return c.toDataURL('image/png');
+  }
+
+  // SVG XLM
   const XLM_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
     <svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
       <circle cx="128" cy="128" r="128" fill="#1b2a42"/>
@@ -97,140 +118,137 @@
     </svg>
   `);
 
-  const ICON_CACHE   = new Map();   // "CODE:ISSUER" -> url
-  const DOMAIN_CACHE = new Map();   // issuer -> domain
-  const TOML_CACHE   = new Map();   // domain -> parsed or null
-
-  function monogram(text) {
-    const c = document.createElement('canvas'); c.width=64; c.height=64;
-    const x = c.getContext('2d');
-    x.fillStyle='#16212b'; x.beginPath(); x.arc(32,32,32,0,Math.PI*2); x.fill();
-    x.fillStyle='#d8e6f2'; x.font='bold 28px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial';
-    x.textAlign='center'; x.textBaseline='middle';
-    x.fillText((text||'?').slice(0,3).toUpperCase(),32,36);
-    return c.toDataURL('image/png');
+  function parseSelection(val){
+    if(val === "XLM") return { code:"XLM", issuer:null };
+    const [code, issuer] = val.split(":");
+    return { code, issuer };
   }
 
-  async function getHomeDomain(issuer){
-    if (DOMAIN_CACHE.has(issuer)) return DOMAIN_CACHE.get(issuer);
-    const r = await fetch(`${HORIZON}/accounts/${issuer}`);
-    if(!r.ok) throw new Error(`Issuer lookup failed: ${r.status}`);
-    const j = await r.json();
-    const dom = j.home_domain || "";
-    DOMAIN_CACHE.set(issuer, dom);
-    return dom;
-  }
-
-  // Primary: SDK resolver (when CORS is allowed)
-  async function resolveTomlSDK(domain){
+  async function getIssuerDomain(issuer){
+    if(!issuer) return null; // native
+    if(DOMAIN_CACHE.has(issuer)) return DOMAIN_CACHE.get(issuer);
+    // override first
+    if(ISSUER_DOMAIN_OVERRIDES.has(issuer)){
+      const d = ISSUER_DOMAIN_OVERRIDES.get(issuer);
+      DOMAIN_CACHE.set(issuer, d);
+      return d;
+    }
+    // horizon home_domain
     try{
-      const t = await SDK.StellarTomlResolver.resolve(domain, { allowHttp:false, timeout:8000 });
-      return { toml:t||null, via:'sdk' };
-    }catch(e){
-      return { toml:null, via:'sdk-fail' };
+      const r = await fetch(`${HORIZON}/accounts/${issuer}`);
+      if(!r.ok) throw new Error(`Horizon ${r.status}`);
+      const j = await r.json();
+      const d = (j.home_domain || "").trim() || null;
+      if(d) DOMAIN_CACHE.set(issuer, d);
+      return d;
+    }catch(_){
+      return null;
     }
   }
 
-  // Fallback: proxy fetch + parse
-  async function resolveTomlProxy(domain){
-    const urls = [
+  async function resolveToml(domain){
+    if(!domain) return { toml:null, via:'no-domain' };
+    if(TOML_CACHE.has(domain)) return TOML_CACHE.get(domain);
+    // 1) SDK (CORS ok issuers)
+    try{
+      const t = await SDK.StellarTomlResolver.resolve(domain, { allowHttp:false, timeout:8000 });
+      if(t){ const out={ toml:t, via:'sdk' }; TOML_CACHE.set(domain,out); return out; }
+    }catch(_){}
+    // 2) Proxy mirrors via r.jina.ai
+    const tries = [
       `https://r.jina.ai/https://${domain}/.well-known/stellar.toml`,
-      `https://r.jina.ai/http://${domain}/.well-known/stellar.toml`
+      `https://r.jina.ai/http://${domain}/.well-known/stellar.toml`,
+      `https://r.jina.ai/https://www.${domain}/.well-known/stellar.toml`,
+      `https://r.jina.ai/http://www.${domain}/.well-known/stellar.toml`,
     ];
-    for (const u of urls){
+    for(const u of tries){
       try{
         const r = await fetch(u, { mode:'cors' });
         if(!r.ok) continue;
         const txt = await r.text();
-        if(!txt || txt.length<10) continue;
-        const parsed = TOML_PARSE(txt);
-        return { toml:parsed||null, via:'proxy' };
+        if(!txt || txt.length < 16) continue;
+        try{
+          const parsed = TOML(txt);
+          const out = { toml: parsed, via: 'proxy' };
+          TOML_CACHE.set(domain, out);
+          return out;
+        }catch(_){ /* parse fail - try next */ }
       }catch(_){}
     }
-    return { toml:null, via:'proxy-fail' };
-  }
-
-  async function getToml(domain){
-    if (!domain) return { toml:null, via:'no-domain' };
-    if (TOML_CACHE.has(domain)) return TOML_CACHE.get(domain);
-
-    let out = await resolveTomlSDK(domain);
-    if(!out.toml){
-      const fallback = await resolveTomlProxy(domain);
-      out = fallback.toml ? fallback : out;
-    }
+    const out = { toml:null, via:'proxy-fail' };
     TOML_CACHE.set(domain, out);
     return out;
   }
 
-  function toAbsoluteUrl(domain, url){
+  function absolutize(domain, url){
     if(!url) return null;
     if(/^https?:\/\//i.test(url)) return url;
-    if(/^\/\//.test(url)) return `https:${url}`;
-    if(url.startsWith('/')) return `https://${domain}${url}`;
+    if(url.startsWith("//")) return `https:${url}`;
+    if(url.startsWith("/")) return `https://${domain}${url}`;
     return `https://${domain}/${url}`;
   }
 
-  function findCurrencyImage(toml, code, issuer, domain){
+  function imageFromCurrencies(toml, code, issuer, domain){
     if(!toml || !Array.isArray(toml.CURRENCIES)) return null;
     const hit = toml.CURRENCIES.find(c=>{
-      const ccode=(c.code||c.CODE);
-      const ciss =(c.issuer||c.ISSUER||'').toUpperCase();
-      return ccode===code && ciss===(issuer||'').toUpperCase();
+      const ccode = c.code || c.CODE;
+      const ciss  = (c.issuer || c.ISSUER || "").toUpperCase();
+      return ccode === code && ciss === (issuer || "").toUpperCase();
     });
     const raw = hit?.image || hit?.logo || hit?.IMAGE || hit?.LOGO || null;
-    return toAbsoluteUrl(domain, raw);
+    return absolutize(domain, raw);
   }
 
-  async function resolveIconFromToml(code, issuer){
+  // Optional last-ditch local overrides (kept tiny)
+  const ICON_OVERRIDES = new Map([
+    // ["AQUA:GBNZIL...", "https://aqua.network/some/icon.svg"], // only if you want a hard override
+  ]);
+
+  async function resolveIcon(code, issuer){
     const key = `${code}:${issuer||''}`;
     if(ICON_CACHE.has(key)) return ICON_CACHE.get(key);
-    if(code==='XLM' && !issuer){ ICON_CACHE.set(key, XLM_SVG); return XLM_SVG; }
+    if(code==="XLM" && !issuer){ ICON_CACHE.set(key, XLM_SVG); return XLM_SVG; }
 
-    try{
-      const domain = await getHomeDomain(issuer);
-      const { toml, via } = await getToml(domain);
-      note(`Issuer domain: ${domain||'—'} · TOML: ${toml?'OK':'unavailable'} (${via})`);
-      const url = findCurrencyImage(toml, code, issuer, domain);
-      if(url){ ICON_CACHE.set(key, url); return url; }
-    }catch(_){ /* ignore, use fallback */ }
+    // tiny hard override first
+    if(ICON_OVERRIDES.has(key)){
+      const u = ICON_OVERRIDES.get(key);
+      ICON_CACHE.set(key, u); return u;
+    }
 
-    const fb = monogram(code);
-    ICON_CACHE.set(key, fb);
-    return fb;
+    const domain = await getIssuerDomain(issuer);
+    const { toml, via } = await resolveToml(domain);
+
+    log(`Issuer: <code>${issuer||'native'}</code><br/>Domain: <b>${domain||'—'}</b><br/>TOML: <b>${toml?'OK':'unavailable'}</b> (${via})`);
+
+    const url = imageFromCurrencies(toml, code, issuer, domain);
+    if(url){ ICON_CACHE.set(key, url); return url; }
+
+    const mg = monogram(code);
+    ICON_CACHE.set(key, mg);
+    return mg;
   }
 
-  function parseVal(v){ if(!v || v==='XLM') return {code:'XLM',issuer:null}; const [code,issuer]=v.split(':'); return {code,issuer}; }
-  function note(t){ document.getElementById('note').textContent = t; }
-
-  async function paintPill(iconEl, textEl, code, issuer){
-    textEl.textContent = code;
-    iconEl.innerHTML = '';
-    const url = await resolveIconFromToml(code, issuer);
-    const img = document.createElement('img');
-    img.alt = `${code} logo`; img.referrerPolicy='no-referrer'; img.decoding='async';
+  async function paint(){
+    const v = sel.value;
+    const { code, issuer } = parseSelection(v);
+    tickEl.textContent = code;
+    iconEl.innerHTML = "";
+    const url = await resolveIcon(code, issuer);
+    const img = document.createElement("img");
+    img.alt = `${code} logo`; img.decoding="async"; img.referrerPolicy="no-referrer";
     img.src = url;
     iconEl.appendChild(img);
   }
 
-  async function refreshFrom(){
-    const sel = document.getElementById('from');
-    const { code, issuer } = parseVal(sel.value);
-    if(!issuer) note('Native XLM');
-    await paintPill(document.getElementById('fromIcon'), document.getElementById('fromTicker'), code, issuer);
-  }
+  sel.addEventListener("change", paint);
+  document.getElementById("clear").addEventListener("click", ()=>{
+    ICON_CACHE.clear(); DOMAIN_CACHE.clear(); TOML_CACHE.clear();
+    log("Caches cleared.");
+    paint();
+  });
 
-  async function init(){
-    await paintPill(document.getElementById('toIcon'),  document.getElementById('toTicker'),  'AQUAm25', AQUAM25_ISSUER);
-    await paintPill(document.getElementById('toIcon2'), document.getElementById('toTicker2'), 'AQUAm25', AQUAM25_ISSUER);
-    await refreshFrom();
-    document.getElementById('from').addEventListener('change', refreshFrom);
-    document.getElementById('reload').addEventListener('click', ()=>{
-      ICON_CACHE.clear(); DOMAIN_CACHE.clear(); TOML_CACHE.clear();
-      note('Caches cleared.'); refreshFrom();
-    });
-  }
-  init();
+  paint();
+})();
 </script>
 </body>
 </html>
