@@ -1,293 +1,1103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mirrasets — Asset Picker Test</title>
-<style>
-  :root{
-    --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --border:#1c242c;
-    --chip:#0e1419; --chip-b:#1e2831; --accent:#7d4bd1; --ok:#57d29a; --err:#ff6b6b;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  .wrap{max-width:860px;margin:28px auto;padding:0 16px}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px}
-  h1{margin:0 0 14px;font-size:18px;letter-spacing:.2px}
-  .box{background:#0f1520;border:1px solid #1b2633;border-radius:18px;padding:14px;margin-top:12px}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .slab{background:#0f1520;border:1px solid #1b2633;border-radius:18px;padding:14px;margin-top:10px}
-  .slab-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .label{color:var(--muted);font-size:13px}
-  .big-input{width:100%;border:1px solid #1e2831;background:#0e1419;color:#fff;border-radius:14px;padding:10px 12px;
-              font-variant-numeric:tabular-nums;font-weight:800;font-size:clamp(24px,6vw,36px)}
-  .big-input.readonly{opacity:.95;background:#0b1115;border-style:dashed}
-  .pill{display:inline-flex;align-items:center;gap:10px;background:var(--chip);border:1px solid var(--chip-b);color:#e6eeff;
-        padding:8px 12px;border-radius:999px;font-weight:800}
-  .pill .sym{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#0b1115;border:1px solid #263240}
-  .pill img{width:22px;height:22px;border-radius:999px;object-fit:cover}
-  .caret{opacity:.7}
-  .muted{color:var(--muted)}
-  .small{font-size:12px}
+  <meta charset="utf-8" />
+  <title>Mirrasets — AQUAm25 Locker + Aquarius AMM Router Swap</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  .rate{margin:8px 0 2px;text-align:center;color:#9fb2c5;font-size:12px}
+  <!-- Freighter API (UMD) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  /* Modal */
-  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
-  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
-  .open{display:flex}
-  .modal-inner{width:min(720px,94vw);max-height:86vh;overflow:auto;background:#121624;border:1px solid #2a3550;border-radius:18px;
-               box-shadow:0 18px 60px rgba(0,0,0,.45)}
-  .modal-h{display:flex;justify-content:space-between;align-items:center;padding:18px 18px 10px}
-  .modal-h h2{margin:0;font-size:22px;font-weight:900}
-  .x{background:none;border:1px solid #2f3b5a;border-radius:10px;color:#cfd9ff;padding:6px 10px;cursor:pointer}
-  .modal-b{padding:6px 12px 16px}
-  .asset-list{display:flex;flex-direction:column}
-  .asset-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border-radius:14px;cursor:pointer}
-  .asset-item:hover{background:#0f1422}
-  .ai-left{display:flex;align-items:center;gap:12px}
-  .ai-logo{width:34px;height:34px;border-radius:999px;background:#0b1115;border:1px solid #2b364a;display:grid;place-items:center;overflow:hidden}
-  .ai-logo img{width:100%;height:100%;object-fit:cover}
-  .ai-title{font-weight:900}
-  .ai-sub{font-size:12px;color:#9fb2c5;margin-top:2px}
-  .ai-bal{font-variant-numeric:tabular-nums;color:#dfe8ff;font-weight:800}
+  <!-- Self-hosted Stellar SDK (UMD v14.3.0) — includes Soroban (SDK.rpc) -->
+  <script src="/sdk/stellar-sdk-14.3.0.min.js?v=8"></script>
 
-  .btn{cursor:pointer;border-radius:14px;border:1px solid #2a3340;background:#0c1c20;color:#d9f6ff;padding:12px 14px;font-weight:900}
-  .primary{background:var(--accent);border-color:#8b66d8}
-</style>
+  <style>
+    :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --accent-2:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
+    * { box-sizing: border-box; }
+    html,body { margin:0; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .wrap{max-width:980px;margin:28px auto;padding:0 16px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px}
+    h1{margin:0 0 10px;font-size:20px;letter-spacing:.3px}
+    h2{margin:18px 0 8px}
+    p{margin:.25rem 0 .75rem;opacity:.96}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .small{font-size:12px;opacity:.9}
+    .muted{color:var(--muted)}
+    button{cursor:pointer;font-weight:700;border-radius:10px;border:1px solid #21464f;background:#0c1c20;color:#d9f6ff;padding:10px 14px;transition:.15s}
+    button:hover{filter:brightness(1.08)}
+    button.ghost{background:#141b22;border-color:#2a3340}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    input,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid #1e2831;background:#0e1419;color:#fff}
+    input[readonly]{opacity:.95;background:#0b1115;border-style:dashed}
+    label{display:block;margin:10px 0 6px;font-size:12px;color:var(--muted)}
+    .section{margin-top:20px;padding-top:14px;border-top:1px dashed #1a232c}
+    .box{background:#0e1620;border:1px solid #1c2430;border-radius:12px;padding:14px}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .linkish{border:none;background:transparent;color:#9ab0ff;text-decoration:underline;padding:0;cursor:pointer}
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    /* Modal (WalletConnect + Sign Prompt shared chrome) */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
+    .open{display:flex}
+    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .x{background:none;border:1px solid #2f3b5a;border-radius:10px;color:#cfd9ff;padding:6px 10px;cursor:pointer;font-size:13px}
+
+    /* --- Swap card look --- */
+    .card-swap { border-radius:24px; padding:18px; position:relative; }
+    .card-swap .slab { background:#0f1520; border:1px solid #1b2633; border-radius:22px; padding:16px; margin-bottom:12px; }
+    .slab-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+    .slab-label { font-size:14px; color:var(--muted); }
+
+    /* Asset pill w/ logo */
+    .pill{display:inline-flex;align-items:center;gap:10px;background:#0e1419;border:1px solid #1e2831;color:#e6eeff;padding:8px 12px;border-radius:999px;font-weight:600;font-size:14px;}
+    .pill .sym{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#0b1115;border:1px solid #263240;overflow:hidden}
+    .pill img{width:22px;height:22px;object-fit:cover;border-radius:999px}
+    .caret{opacity:.6;font-size:12px}
+
+    .big-input {
+      width:100%; border:1px solid #1e2831; background:#0e1419; color:#fff;
+      border-radius:16px; padding:10px 12px; margin-top:4px;
+      font-variant-numeric: tabular-nums; font-weight:500;
+      font-size: clamp(22px, 6vw, 32px); line-height:1.15;
+    }
+    .big-input.readonly { opacity:.95; background:#0b1115; border-style:dashed; }
+    .rate-line { text-align:center; padding:6px 0 2px; color:#9fb2c5; font-size:12px }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .actions .primary {
+      flex:1; padding:14px; border-radius:16px; background:var(--accent); color:#fff; border:1px solid #8b66d8;
+      font-weight:800;
+    }
+    .actions .primary.warn { background:#5d2a2a; border-color:#7a3a3a; }
+    .actions .ghost.small { padding:10px 12px; border-radius:12px; }
+    .swap-header { display:flex; justify-content:flex-start; margin-bottom:8px; }
+    .big-input.error { outline:2px solid #ff6b6b55; border-color:#803c3c; }
+
+    /* Toast (floating) */
+    .toast-wrap { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 9999; display: grid; gap: 8px; width: min(92vw, 520px); pointer-events:none; }
+    .toast { pointer-events:auto; border-radius:12px; border:1px solid #2a3340; background:#101a24; color:#e7f2ff; padding:12px 14px; box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .toast.err { border-color:#5a2a2a; background:#201114; color:#ffd8d8; }
+    .toast .x { margin-left:10px; font-size:18px; }
+
+    /* ----- Asset Picker Modal (Mirrasets style) ----- */
+    .picker-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
+    .picker-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
+    .picker-open{display:flex}
+    .picker-inner{width:min(720px,94vw);max-height:86vh;overflow:auto;background:#121624;border:1px solid #2a3550;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.45)}
+    .picker-h{display:flex;justify-content:space-between;align-items:center;padding:18px 18px 10px}
+    .picker-h h2{margin:0;font-size:20px;font-weight:700}
+    .picker-b{padding:6px 12px 16px}
+    .asset-list{display:flex;flex-direction:column}
+    .asset-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:14px;cursor:pointer;transition:background .15s}
+    .asset-item:hover{background:#0f1422}
+    .ai-left{display:flex;align-items:center;gap:12px}
+    .ai-logo{width:34px;height:34px;border-radius:999px;background:#0b1115;border:1px solid #2b364a;display:grid;place-items:center;overflow:hidden}
+    .ai-logo img{width:100%;height:100%;object-fit:cover}
+    .ai-title{font-size:15px;font-weight:500}
+    .ai-sub{font-size:12px;color:#9fb2c5;margin-top:1px}
+    .ai-bal{font-variant-numeric:tabular-nums;color:#dfe8ff;font-size:13px;font-weight:500}
+  </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>AQUAm25 Swap — Asset Picker Test</h1>
-
-      <!-- SELL -->
-      <div class="slab">
-        <div class="slab-top">
-          <div class="label">Sell</div>
-
-          <!-- clickable pill replaces <select> -->
-          <button id="sellPill" class="pill" type="button" aria-haspopup="dialog">
-            <span class="sym" id="sellIcon">Ξ</span>
-            <span id="sellTicker">XLM</span>
-            <span class="caret">▾</span>
-          </button>
-        </div>
-
-        <input id="sellAmount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
-
-        <div class="row" style="justify-content:space-between;margin-top:6px">
-          <button id="fillMax" class="btn small">Balance: <span id="sellBal">0</span></button>
+      <div class="row" style="justify-content:space-between;">
+        <h1>AQUAm25 Interest Locker + Aquarius AMM Swap</h1>
+        <div class="row">
+          <button id="connectBtn">Connect Wallet</button>
+          <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
+          <span id="status" class="muted" aria-live="polite">Not connected</span>
         </div>
       </div>
 
-      <!-- BUY (readonly AQUAm25) -->
-      <div class="slab">
-        <div class="slab-top">
-          <div class="label">Buy</div>
-          <div class="pill">
-            <span class="sym"><img id="buyIcon" alt="AQUAm25" /></span>
-            <span>AQUAm25</span>
+      <!-- Swap (Buy AQUAm25) -->
+      <div class="section box card-swap" id="swapBox">
+        <div class="swap-header">
+          <span class="pill">Network: <span class="mono">Mainnet</span></span>
+        </div>
+
+        <!-- SELL -->
+        <div class="slab">
+          <div class="slab-top">
+            <div class="slab-label">Sell</div>
+
+            <!-- SELL PILL (opens picker) -->
+            <button id="sellPill" class="pill" type="button" aria-haspopup="dialog" title="Choose asset">
+              <span class="sym" id="sellIcon">Ξ</span>
+              <span id="sellTicker">XLM</span>
+              <span class="caret">▾</span>
+            </button>
           </div>
+
+          <input id="swapAmount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+          <div class="row" style="justify-content:space-between; margin-top:6px">
+            <button id="fillMaxBtn" class="linkish small" style="display:none">Balance: <span id="selectedBal">0</span></button>
+          </div>
+          <div id="xlmBreak" class="small" style="margin-top:8px;display:none"></div>
         </div>
-        <input id="buyEst" class="big-input readonly" type="number" readonly placeholder="0" />
+
+        <!-- BUY (AQUAm25 read-only) -->
+        <div class="slab">
+          <div class="slab-top">
+            <div class="slab-label">Buy</div>
+            <div class="pill">
+              <span class="sym"><img id="buyIcon" alt="AQUAm25" /></span>
+              <span>AQUAm25</span>
+            </div>
+          </div>
+          <input id="swapEst" class="big-input readonly" type="number" step="any" inputmode="decimal" placeholder="0" readonly />
+        </div>
+
+        <!-- Rate line -->
+        <div class="rate-line small" id="rateLine" aria-live="polite"></div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button id="swapSignSubmit" class="primary">Swap to AQUAm25</button>
+          <button id="swapCopy" class="ghost small">Copy XDR</button>
+          <button id="btnAddTrustline" class="ghost small" style="display:none">Add AQUAm25 Trustline</button>
+        </div>
+
+        <!-- Hidden XDR area -->
+        <div class="toggle-row" style="margin-top:10px">
+          <label for="xdrSwap" style="margin:0">Swap Transaction XDR (Soroban)</label>
+          <button id="toggleSwapXdr" class="linkish small">Reveal XDR</button>
+        </div>
+        <textarea id="xdrSwap" rows="6" placeholder="Prepared or signed swap XDR appears here" readonly style="display:none"></textarea>
+
+        <p id="swapResult" class="small" style="margin-top:6px" aria-live="polite"></p>
+
+        <!-- Validation -->
+        <div class="section">
+          <div class="row" style="gap:10px;margin-bottom:6px">
+            <span class="muted">Validation</span>
+          </div>
+          <div id="validationBox" class="small">—</div>
+        </div>
       </div>
 
-      <div class="rate" id="rateLine"></div>
+      <!-- Locker -->
+      <div class="section box" id="lockerBox">
+        <h2>Locker</h2>
 
-      <div class="row" style="margin-top:10px">
-        <button class="btn primary">Swap to AQUAm25</button>
-        <button class="btn">Copy XDR</button>
+        <label for="pubkey">Public Key</label>
+        <input id="pubkey" placeholder="G… (manual entry allowed if not connected)" />
+
+        <p class="small">AQUAm25 Balance: <b id="aquaBal">-</b></p>
+
+        <label for="amount">AQUAm25 Amount</label>
+        <input id="amount" type="number" step="any" placeholder="Amount to lock" inputmode="decimal" />
+        <div class="row" style="gap:8px">
+          <button data-pct="25" class="ghost">25%</button>
+          <button data-pct="50" class="ghost">50%</button>
+          <button data-pct="75" class="ghost">75%</button>
+          <button data-pct="100" class="ghost">100%</button>
+        </div>
+
+        <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
+
+        <div class="toggle-row" style="margin-top:10px">
+          <label for="xdrOut" style="margin:0">Transaction XDR (Locker)</label>
+          <button id="toggleLockerXdr" class="linkish small">Reveal XDR</button>
+        </div>
+        <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here" readonly style="display:none"></textarea>
+
+        <div class="row" style="margin-top:10px;flex-wrap:wrap">
+          <button id="signSubmitBtn">Sign &amp; Submit</button>
+          <button id="copyBtn" class="ghost">Copy XDR</button>
+          <button id="labBtn" class="ghost">Open in Stellar Lab</button>
+        </div>
+
+        <p id="actionResult" class="small" style="margin-top:6px" aria-live="polite"></p>
       </div>
     </div>
   </div>
 
-  <!-- Picker Modal -->
-  <div id="pickerBackdrop" class="backdrop"></div>
-  <div id="pickerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="pickTitle">
+  <!-- Floating toast container -->
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+  <!-- Connect Modal -->
+  <div id="backdrop" class="backdrop"></div>
+  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
     <div class="modal-inner">
-      <div class="modal-h">
-        <h2 id="pickTitle">Choose asset</h2>
+      <div class="modal-header">
+        <h2 id="loginTitle" style="font-size:18px;margin:0">Connect Wallet</h2>
+        <button class="x" id="closeModal" aria-label="Close">Close</button>
+      </div>
+      <p>Select a login method:</p>
+      <button class="wallet-btn" id="wcBtn">🔗 WalletConnect (mobile)</button>
+      <button class="wallet-btn" id="freighterExtBtn">🧩 Freighter (browser extension)</button>
+
+      <div id="qrArea" class="qr-wrap" style="display:none">
+        <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
+        <div class="wallet-choices">
+          <button id="btnLobstr">Open in LOBSTR</button>
+          <button id="btnFreighter">Open in Freighter</button>
+        </div>
+        <div class="small">
+          Scan with your wallet app (LOBSTR / Freighter), or tap a button above on mobile. ·
+          <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
+        </div>
+        <p id="linkStatus" class="small" style="margin:0;text-align:center;opacity:.8"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign Prompt Modal -->
+  <div id="signBackdrop" class="backdrop"></div>
+  <div id="signModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="signTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 id="signTitle" style="font-size:18px;margin:0">Open wallet to sign</h2>
+        <button class="x" id="closeSign" aria-label="Close">Close</button>
+      </div>
+      <p class="small">Your transaction is ready. Open your wallet to review &amp; sign.</p>
+      <div class="wallet-choices" style="margin-top:8px">
+        <button id="signLobstr">Open in LOBSTR</button>
+        <button id="signFreighter">Open in Freighter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset Picker Modal (Sell asset) -->
+  <div id="pickerBackdrop" class="picker-backdrop"></div>
+  <div id="pickerModal" class="picker-modal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+    <div class="picker-inner">
+      <div class="picker-h">
+        <h2 id="pickerTitle">Choose asset</h2>
         <button class="x" id="pickClose">Close</button>
       </div>
-      <div class="modal-b">
-        <div id="assetList" class="asset-list"></div>
-      </div>
+      <div class="picker-b"><div id="assetList" class="asset-list"></div></div>
     </div>
   </div>
 
-<script>
-  // -------- TEST DATA (replace with live balances later) ----------
-  // code, issuer (null for XLM), balance, domain (optional)
-  const assets = [
-    { code: "XLM", issuer: null, balance: "9.9999143", domain: "stellar.org" },
-    { code: "AQUA", issuer: "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA", balance: "125000.0000000", domain: "aqua.network" },
-    { code: "USDC", issuer: "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN", balance: "1250.0000000", domain: "centre.io" },
-    { code: "KRWC", issuer: "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC", balance: "420.0", domain: "mirrasets.com" }
-  ];
-  const AQUAm25_ICON = "https://aqua.network/assets/aqua-token.svg"; // any stable icon for preview
+  <script>window.process = window.process || { env: {} };</script>
 
-  // ---------- Simple logo cache ----------
-  const logoCache = new Map(); // key: code|issuer -> url or null
+  <script type="module">
+    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+    import QRCode     from "https://esm.sh/qrcode@1.5.3";
 
-  function assetKey(a){ return a.issuer ? `${a.code}:${a.issuer}` : "XLM"; }
+    // ---------- Shortcuts ----------
+    const SDK = window.StellarSdk;
+    if(!SDK) throw new Error("Stellar SDK failed to load.");
+    const ServerCtor = (SDK.Horizon && SDK.Horizon.Server) || SDK.Server;
+    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
+    if(!SDK.rpc || !SDK.Address || !SDK.nativeToScVal) throw new Error("Stellar SDK UMD present but Soroban helpers missing");
 
-  async function fetchTomlLogoFromHorizon(code, issuer){
-    const key = assetKey({code, issuer});
-    if (logoCache.has(key)) return logoCache.get(key);
+    // ---------- Config ----------
+    const HORIZON    = "https://horizon.stellar.org";
+    const NETWORK    = SDK.Networks.PUBLIC;
 
-    try{
-      const q = new URL("https://horizon.stellar.org/assets");
-      q.searchParams.set("asset_code", code);
-      q.searchParams.set("asset_issuer", issuer);
-      const res = await fetch(q.toString());
-      if(!res.ok) throw new Error("horizon fail");
-      const j = await res.json();
-      const rec = j?._embedded?.records?.[0];
-      const tomlUrl = rec?._links?.toml?.href;
-      if (!tomlUrl) { logoCache.set(key, null); return null; }
-      const t = await fetch(tomlUrl);
-      if(!t.ok){ logoCache.set(key, null); return null; }
-      const txt = await t.text();
-      // very loose parse for IMAGE = or IMAGE=
-      const m = txt.match(/^\s*IMAGE\s*=\s*"(.*?)"\s*$/im);
-      const url = m ? m[1].trim() : null;
-      logoCache.set(key, url || null);
-      return url || null;
-    }catch(e){
-      logoCache.set(key, null);
-      return null;
-    }
-  }
+    // Aquarius / Soroban
+    const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
+    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
+    const baseApi           = "https://amm-api.aqua.network/api/external/v1";
+    const networkPassphrase = NETWORK;
 
-  function iconEl(url, fallbackText){
-    const box = document.createElement("div");
-    box.className = "ai-logo";
-    if (url){
-      const img = document.createElement("img");
-      img.src = url;
-      img.alt = fallbackText || "";
-      box.appendChild(img);
-    } else {
-      box.textContent = (fallbackText||"?").slice(0,1);
-    }
-    return box;
-  }
+    // AQUA / AQUAm25
+    const AQUAm25_CODE   = "AQUAm25";
+    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+    const AQUAm25_ICON   = "https://aqua.network/assets/aqua-token.svg"; // nice clean mark
 
-  // ---------- Modal plumbing ----------
-  const $ = (id)=>document.getElementById(id);
-  const backdrop = $("pickerBackdrop");
-  const modal = $("pickerModal");
-  const list = $("assetList");
-  $("pickClose").onclick = closePicker;
-  backdrop.onclick = closePicker;
+    // WalletConnect
+    const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
+    const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
-  function openPicker(){ backdrop.classList.add("open"); modal.classList.add("open"); }
-  function closePicker(){ backdrop.classList.remove("open"); modal.classList.remove("open"); }
+    // ---------- DOM ----------
+    const $=(id)=>document.getElementById(id);
+    const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
+    const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  async function renderList(){
-    list.innerHTML = "";
-    // XLM at top, then others with balance desc
-    const sorted = [...assets].sort((a,b)=>{
-      if (a.code==="XLM" && b.code!=="XLM") return -1;
-      if (b.code==="XLM" && a.code!=="XLM") return 1;
-      return parseFloat(b.balance) - parseFloat(a.balance);
-    });
+    const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
+    const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal");
+    const signBackdrop=$("signBackdrop"), signModal=$("signModal"), closeSign=$("closeSign");
+    const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus"), rawWcLink=$("rawWcLink");
+    const pubkeyEl=$("pubkey"), aquaBalEl=$("aquaBal"), amountEl=$("amount"), lockInfoEl=$("lockInfo");
+    const xdrOut=$("xdrOut"), actionResult=$("actionResult");
+    const signSubmitBtn=$("signSubmitBtn"), copyBtn=$("copyBtn"), labBtn=$("labBtn");
 
-    for (const a of sorted){
-      if (parseFloat(a.balance||"0") <= 0) continue;
+    // Swap DOM
+    const sellPill=$("sellPill"), sellIcon=$("sellIcon"), sellTicker=$("sellTicker");
+    const swapAmount=$("swapAmount"), swapEst=$("swapEst"), selectedBal=$("selectedBal"), fillMaxBtn=$("fillMaxBtn");
+    const xdrSwap=$("xdrSwap"), swapSignSubmit=$("swapSignSubmit"), swapCopy=$("swapCopy"),
+          swapResult=$("swapResult"), validationBox=$("validationBox"), rateLine=$("rateLine"),
+          btnAddTrustline=$("btnAddTrustline");
 
-      const row = document.createElement("div");
-      row.className = "asset-item";
-
-      const left = document.createElement("div");
-      left.className = "ai-left";
-
-      // Logo (async)
-      const logoBox = iconEl(null, a.code);
-      left.appendChild(logoBox);
-
-      // Texts
-      const textWrap = document.createElement("div");
-      const title = document.createElement("div");
-      title.className = "ai-title";
-      title.textContent = a.code;
-      const sub = document.createElement("div");
-      sub.className = "ai-sub";
-      sub.textContent = a.domain ? `${a.code} (${a.domain})` : a.code;
-      textWrap.appendChild(title);
-      textWrap.appendChild(sub);
-
-      left.appendChild(textWrap);
-
-      const bal = document.createElement("div");
-      bal.className = "ai-bal";
-      bal.textContent = a.balance;
-
-      row.appendChild(left);
-      row.appendChild(bal);
-
-      row.onclick = ()=>{ selectAsset(a); closePicker(); };
-
-      list.appendChild(row);
-
-      // load logo now
-      if (a.issuer){ // XLM has known logo elsewhere; leave blank
-        fetchTomlLogoFromHorizon(a.code, a.issuer).then(url=>{
-          // If url present, replace placeholder with img
-          if (url){
-            logoBox.innerHTML = "";
-            const img = document.createElement("img");
-            img.src = url; img.alt = a.code;
-            logoBox.appendChild(img);
-          }
-        });
-      } else {
-        // If you have an XLM icon you prefer, set it here
-        // (left default with letter)
-      }
-    }
-  }
-
-  // ---------- Selected asset -> pill ----------
-  const sellPill = $("sellPill");
-  const sellIcon = $("sellIcon");
-  const sellTicker = $("sellTicker");
-  const sellBal = $("sellBal");
-
-  function selectAsset(a){
-    sellTicker.textContent = a.code;
-    sellBal.textContent = a.balance;
-    // set icon on pill too
-    if (a.issuer){
-      fetchTomlLogoFromHorizon(a.code, a.issuer).then(url=>{
-        if (url){
-          sellIcon.innerHTML = `<img src="${url}" alt="${a.code}" />`;
-        }else{
-          sellIcon.textContent = a.code.slice(0,1);
-        }
-      });
-    } else {
-      sellIcon.textContent = "Ξ"; // placeholder glyph for XLM (replace as desired)
-    }
-  }
-
-  // ---------- Init ----------
-  (function init(){
-    // set AQUAm25 icon
     $("buyIcon").src = AQUAm25_ICON;
 
-    // default select USDC if present, else first
-    const first = assets.find(a=>a.code==="USDC") || assets[0];
-    if (first) selectAsset(first);
+    // Picker DOM
+    const pBackdrop=$("pickerBackdrop"), pModal=$("pickerModal"), pList=$("assetList"), pClose=$("pickClose");
 
-    sellPill.addEventListener("click", ()=>{ renderList().then(openPicker); });
-    $("fillMax").addEventListener("click", ()=>{
-      const code = sellTicker.textContent.trim();
-      const a = assets.find(x=>x.code===code);
-      if (a) $("sellAmount").value = a.balance;
+    // ---------- Toast ----------
+    const toastWrap = $("toastWrap");
+    function pushToast(msg, isErr=false, timeoutMs=2600){
+      const el = document.createElement("div");
+      el.className = "toast"+(isErr?" err":"");
+      el.innerHTML = `<span>${msg}</span><button class="x">×</button>`;
+      toastWrap.appendChild(el);
+      const close = ()=>{ el.style.opacity="0"; setTimeout(()=>el.remove(), 220); };
+      el.querySelector(".x").onclick = close;
+      setTimeout(close, timeoutMs);
+    }
+    function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; pushToast(msg, err); }
+
+    // ---------- State ----------
+    let connectionMode="none"; // 'none' | 'wc' | 'freighter'
+    let client=null, session=null, latestWcUri=null;
+    let pubkey=null;
+
+    let _server=null; const getServer=()=>(_server ||= new ServerCtor(HORIZON));
+    const AQUAm25  = new SDK.Asset(AQUAm25_CODE, AQUAm25_ISSUER);
+
+    let buildTimer=null;       // locker debounce
+    let swapTimer=null;        // swap debounce
+    let lockerRefreshTimer=null;
+
+    // Selected SELL asset (object with code, issuer, balance, domain, etc.)
+    let selectedSell = { code:"XLM", issuer:null, balance:"0", domain:"stellar.org" };
+
+    // Aquarius swap state
+    let lastQuote=null;
+    let lastIsSend=true;
+
+    // ---------- Soroban RPC ----------
+    let _soro = null;
+    function rpc() { if (_soro) return _soro; const Server = SDK.rpc?.Server; if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk."); _soro = new Server(sorobanRpcUrl, { allowHttp: false }); return _soro; }
+
+    // ---------- Helpers ----------
+    const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
+    const cleanAmt = a => { const n=Number(a); if(!isFinite(n) || n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
+    const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
+    function contractId(asset){ return asset.contractId(SDK.Networks.PUBLIC); }
+    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
+    function getCurrentSendAsset(){
+      return selectedSell?.issuer ? new SDK.Asset(selectedSell.code, selectedSell.issuer) : SDK.Asset.native();
+    }
+
+    // ---------- Spendable XLM ----------
+    async function getNetworkBaseReserveXLM() {
+      const r = await fetch(`${HORIZON}/ledgers?order=desc&limit=1`);
+      const j = await r.json().catch(()=>null);
+      const stroops = parseInt(j?._embedded?.records?.[0]?.base_reserve_in_stroops || "5000000", 10);
+      return stroops / 1e7;
+    }
+    async function getXlmBreakdown(pk) {
+      const base = await getNetworkBaseReserveXLM();
+      const acc  = await fetch(`${HORIZON}/accounts/${pk}`).then(r=>r.json());
+      const balNative = parseFloat((acc.balances || []).find(b => b.asset_type === "native")?.balance || "0");
+      const sellLiab  = parseFloat((acc.balances || []).find(b => b.asset_type === "native")?.selling_liabilities || "0");
+      const sub        = parseInt(acc?.subentry_count || 0, 10);
+      const sponsoring = parseInt(acc?.num_sponsoring || 0, 10);
+      const sponsored  = parseInt(acc?.num_sponsored || 0, 10);
+      const minBalance = base * (2 + sub + sponsoring - sponsored);
+      const trustlines = (acc.balances || []).filter(b => b.asset_type !== "native" && !b.liquidity_pool_id).length;
+      const lpTrust    = (acc.balances || []).filter(b => !!b.liquidity_pool_id).length;
+      const signersCt  = Math.max((acc.signers?.length || 1) - 1, 0);
+      const offersCt   = parseInt(acc?.num_offers || 0, 10);
+      const lineBaseReserve = base * 2;
+      const lineTrustlines  = trustlines * base;
+      const lineLpTrust     = lpTrust * base;
+      const lineSigners     = signersCt * base;
+      const lineOffers      = offersCt * base;
+      const lineSponsoring  = Math.max(sponsoring - sponsored, 0) * base;
+      const lineInOffers    = sellLiab;
+      const feeReserve      = 2;
+      const spendable = Math.max(balNative - sellLiab - minBalance - feeReserve, 0);
+      return { baseReserve: round7(lineBaseReserve), feeReserve: round7(feeReserve), xlmInOffers: round7(lineInOffers), trustlines: round7(lineTrustlines), lpTrust: round7(lineLpTrust), offers: round7(lineOffers), signers: round7(lineSigners), sponsoring: round7(lineSponsoring), totalLocked: round7(minBalance + feeReserve + sellLiab), spendable: round7(spendable), balance: round7(balNative), base };
+    }
+    async function getSpendableXLM(pk) { const b = await getXlmBreakdown(pk); return b.spendable; }
+    async function refreshXlmBreakdownMaybe() {
+      const pk  = pubkeyEl.value.trim();
+      const isXlm = !selectedSell?.issuer;
+      const el = document.getElementById("xlmBreak");
+      if (!el) return;
+      if (!isXlm || !isValidG(pk)) { el.style.display="none"; el.innerHTML=""; return; }
+      const b = await getXlmBreakdown(pk);
+      el.style.display="block";
+      el.innerHTML = `
+        <div class="box" style="margin-top:6px">
+          <div><b>XLM available:</b> ${b.spendable} / ${b.balance}</div>
+          <div class="small muted" style="margin-top:6px;line-height:1.35">
+            Base reserve: ${b.baseReserve} XLM<br/>
+            Fee reserve: ${b.feeReserve} XLM<br/>
+            XLM in active offers: ${b.xlmInOffers} XLM<br/>
+            Trustlines: ${b.trustlines} XLM${b.lpTrust?` (+ LP: ${b.lpTrust})`:''}<br/>
+            Offers: ${b.offers} XLM · Signers: ${b.signers} XLM<br/>
+            Sponsoring entries for others: ${b.sponsoring} XLM<br/>
+            <b>Total locked:</b> ${b.totalLocked} XLM
+          </div>
+        </div>`;
+    }
+
+    // ---------- Connection UI ----------
+    function openModal()  { backdrop.classList.add('open'); loginModal.classList.add('open'); }
+    function closeModal() { backdrop.classList.remove('open'); loginModal.classList.remove('open'); }
+    on(connectBtn,"click",openModal);
+    on(closeModalBtn,"click",closeModal);
+    on(backdrop,"click",closeModal);
+
+    function openSignModal(){ signBackdrop.classList.add('open'); signModal.classList.add('open'); }
+    function closeSignModal(){ signBackdrop.classList.remove('open'); signModal.classList.remove('open'); }
+    on(closeSign,"click",closeSignModal); on(signBackdrop,"click",closeSignModal);
+
+    function setConnected(address, mode){
+      statusEl.textContent = address ? `Connected (${mode==="wc"?"WalletConnect":"Freighter"})` : "Not connected";
+      disconnectBtn.disabled = !address;
+      if(address){
+        pubkey = address;
+        pubkeyEl.value = address;
+        pubkeyEl.readOnly = true;
+        initForNewAccount();
+        startLockerAutoRefresh();
+      }else{
+        pubkey = null;
+        pubkeyEl.readOnly = false;
+        stopLockerAutoRefresh();
+        setTrustlineUI(false, false); // reset
+      }
+    }
+
+    on(disconnectBtn,"click", async ()=>{
+      try{
+        if(connectionMode==="wc" && client && session){
+          await client.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
+        }
+      }catch(e){ console.warn(e); }
+      session=null; connectionMode="none"; setConnected("", "none");
+      xdrOut.value = ""; xdrSwap.value = ""; swapEst.value = "";
+      actionResult.textContent = ""; swapResult.textContent = ""; rateLine.textContent = "";
+      disableLockerButtons(); disableSwapButtons();
+      refreshXlmBreakdownMaybe();
     });
-  })();
-</script>
+
+    // ---------- Freighter connect ----------
+    async function ensureFreighterApi(){
+      if (window.freighterApi) return window.freighterApi;
+      try{
+        const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
+        window.freighterApi = mod?.default ?? mod;
+        return window.freighterApi;
+      }catch{ return null; }
+    }
+    on($("freighterExtBtn"),"click", async ()=>{
+      try{
+        const freighter = await ensureFreighterApi();
+        if(!freighter){ alert("Freighter extension not detected."); return; }
+        let address = "";
+        try { address = await freighter.getPublicKey(); } catch {}
+        if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
+        if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
+        if(!address){ alert("Freighter connect denied or failed."); return; }
+        connectionMode="freighter";
+        closeModal();
+        setConnected(address, "freighter");
+        toast("Freighter connected.");
+      }catch(e){ console.error(e); alert("Freighter connect failed."); }
+    });
+
+    // ---------- WalletConnect ----------
+    let wcClient=null;
+    async function ensureClient(){ if(!wcClient){ wcClient = await SignClient.init({ projectId: PROJECT_ID }); } return wcClient; }
+    async function getFreighterLinks(){
+      try{
+        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+        const res = await fetch(url); const data = await res.json();
+        const raw = data?.listings ?? data?.data ?? [];
+        const arr = Array.isArray(raw) ? raw : Object.values(raw);
+        const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
+        const mobile = w?.mobile || w?.app?.mobile || {};
+        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
+      }catch{ return {native:null,universal:null,found:false}; }
+    }
+    function buildCandidates(base, wcUri){
+      if(!base) return [];
+      const enc = encodeURIComponent(wcUri);
+      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      const j = base.includes("?") ? "&" : "?";
+      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
+    }
+    function openFreighterSmart(links, wcUri){
+      const store = isIOS()? "https://apps.apple.com/app/freighter/id6743947720" : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
+      const natives = buildCandidates(links.native, wcUri);
+      const universals = buildCandidates(links.universal, wcUri);
+      let attempted=false;
+      for(const href of natives){ attempted=true; window.location.href = href; setTimeout(()=>{},350); }
+      if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+      if(!attempted){ window.open(store, "_blank", "noopener"); }
+    }
+    function openLobstrApp(uri){
+      const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
+      const store  = isIOS()? "https://apps.apple.com/app/id1404357892" : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const t0 = Date.now();
+      window.location.href = scheme;
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
+
+    on($("wcBtn"),"click", async ()=>{
+      try{
+        const sc = await ensureClient();
+        toast("Starting WalletConnect…");
+        const { uri, approval } = await sc.connect({
+          optionalNamespaces: {
+            stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+          }
+        });
+        if(!uri) throw new Error("No WC URI");
+        latestWcUri = uri;
+
+        try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); } catch {}
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
+
+        linkStatus.textContent = "Loading Freighter deep link…";
+        const freighterLinks = await getFreighterLinks();
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+
+        $("btnLobstr").onclick = ()=> openLobstrApp(latestWcUri);
+        $("btnFreighter").onclick = async ()=>{
+          const links = await getFreighterLinks();
+          openFreighterSmart(links, latestWcUri);
+        };
+
+        session = await approval();
+        connectionMode="wc";
+        qrArea.style.display="none"; closeModal();
+
+        const accounts = session.namespaces?.stellar?.accounts || [];
+        const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+        const address = first.split(":")[2] || "";
+        setConnected(address, "wc");
+        client = sc;
+      }catch(e){
+        console.error(e);
+        toast("Connection canceled or failed.", true);
+      }
+    });
+
+    // ---------- Signing helpers ----------
+    const wcRequest = (method, xdr) => client.request({
+      topic: session.topic, chainId: "stellar:pubnet",
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
+    });
+    async function signCurrent(xdr){
+      if(connectionMode==="wc"){
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      if(connectionMode==="freighter"){
+        const api = await ensureFreighterApi();
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
+        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      throw new Error("Not connected");
+    }
+
+    // ---------- Locker ----------
+    function disableLockerButtons(){ [signSubmitBtn,copyBtn,labBtn].forEach(b=>b.disabled=true); }
+    function enableLockerButtons(){ const ok=!!xdrOut.value.trim(); [signSubmitBtn,copyBtn,labBtn].forEach(b=>b.disabled=!ok); }
+
+    async function loadAquaM25Balance(pk){
+      const acct = await getServer().loadAccount(pk);
+      const bal = acct.balances.find(b => b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
+      return { acct, balance: bal ? bal.balance : "0" };
+    }
+    function startLockerAutoRefresh(){
+      stopLockerAutoRefresh();
+      lockerRefreshTimer = setInterval(async ()=>{
+        const pk = pubkeyEl.value.trim();
+        if(!isValidG(pk)) return;
+        try{
+          const { balance } = await loadAquaM25Balance(pk);
+          aquaBalEl.textContent = plain(balance);
+        }catch(e){ console.warn(e); }
+      }, 15000);
+    }
+    function stopLockerAutoRefresh(){ if(lockerRefreshTimer) clearInterval(lockerRefreshTimer); lockerRefreshTimer = null; }
+
+    function scheduleLockerBuild(){
+      disableLockerButtons();
+      if(buildTimer) clearTimeout(buildTimer);
+      buildTimer = setTimeout(async ()=>{
+        const xdr = await buildLockXDR();
+        if(xdr){ xdrOut.value = xdr; enableLockerButtons(); }
+        else { xdrOut.value=""; disableLockerButtons(); }
+      }, 600);
+    }
+
+    async function buildLockXDR(){
+      const pk = pubkeyEl.value.trim();
+      const amt = cleanAmt(amountEl.value.trim());
+      if(!isValidG(pk) || !amt) return null;
+      try{
+        const src = await getServer().loadAccount(pk);
+        const now = new Date();
+        const end = new Date(now);
+        end.setUTCFullYear(end.getUTCFullYear()+1);
+        end.setUTCHours(23,59,59,0);
+        const endTs = Math.floor(end.getTime()/1000).toString();
+        lockInfoEl.textContent = `Lock start: ${now.toLocaleString()}
+Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
+        const claimants = [
+          new SDK.Claimant(pk, SDK.Claimant.predicateNot(SDK.Claimant.predicateBeforeAbsoluteTime(endTs))),
+          new SDK.Claimant("GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP", SDK.Claimant.predicateBeforeAbsoluteTime("0"))
+        ];
+        const tx = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK })
+          .addOperation(SDK.Operation.createClaimableBalance({ asset: AQUAm25, amount: amt, claimants }))
+          .setTimeout(180)
+          .build();
+        return tx.toXDR();
+      }catch(e){ console.error(e); return null; }
+    }
+
+    on(pubkeyEl,"input", ()=>{ if(pubkeyEl.readOnly) return; scheduleLockerBuild(); });
+    on(pubkeyEl,"change", ()=>{ if(pubkeyEl.readOnly) return; initForNewAccount(); startLockerAutoRefresh(); });
+    on(amountEl,"input", scheduleLockerBuild);
+    document.querySelectorAll("#lockerBox button[data-pct]").forEach(btn=>btn.addEventListener("click", ()=>{
+      const bal = Math.max(0, parseFloat(aquaBalEl.textContent) || 0);
+      const pct = parseInt(btn.dataset.pct,10)/100;
+      amountEl.value = cleanAmt(bal*pct) || "";
+      scheduleLockerBuild();
+    }));
+
+    // ---------- Load balances & picker ----------
+    async function loadAllBalances(pk){
+      const acct = await getServer().loadAccount(pk);
+      const items = [];
+      const xlmBal = acct.balances.find(b=>b.asset_type==="native");
+      if (xlmBal) items.push({ code:"XLM", issuer:null, balance: xlmBal.balance, domain:"stellar.org" });
+      for(const b of acct.balances){
+        if(b.asset_type==="native") continue;
+        // include zero balances? we keep it tight: only >0
+        if(parseFloat(b.balance) <= 0) continue;
+        // discover domain via Horizon issuer endpoint if present
+        let domain = b.asset_issuer?.slice(0,4)+"…"+b.asset_issuer.slice(-4);
+        try{
+          const r = await fetch(`${HORIZON}/assets?asset_code=${encodeURIComponent(b.asset_code)}&asset_issuer=${encodeURIComponent(b.asset_issuer)}`);
+          const j = await r.json().catch(()=>null);
+          const rec = j?._embedded?.records?.[0];
+          if(rec?.home_domain) domain = rec.home_domain;
+        }catch{}
+        items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance, domain });
+      }
+      return { acct, items };
+    }
+
+    // TOML IMAGE= logo resolver (via Horizon -> toml link)
+    const logoCache = new Map();
+    const akey = (c,i)=> i ? `${c}:${i}` : "XLM";
+    async function logoFromToml(code, issuer){
+      const key = akey(code, issuer);
+      if(logoCache.has(key)) return logoCache.get(key);
+      try{
+        const res = await fetch(`${HORIZON}/assets?asset_code=${encodeURIComponent(code)}&asset_issuer=${encodeURIComponent(issuer)}`);
+        const j = await res.json();
+        const rec = j?._embedded?.records?.[0];
+        const tomlUrl = rec?._links?.toml?.href;
+        if(!tomlUrl){ logoCache.set(key, null); return null; }
+        const txt = await fetch(tomlUrl).then(r=>r.text());
+        const m = txt.match(/^\s*IMAGE\s*=\s*"(.*?)"/im);
+        const url = m ? m[1].trim() : null;
+        logoCache.set(key, url);
+        return url;
+      }catch{ logoCache.set(key, null); return null; }
+    }
+
+    function openPicker(){ pBackdrop.classList.add("picker-open"); pModal.classList.add("picker-open"); }
+    function closePicker(){ pBackdrop.classList.remove("picker-open"); pModal.classList.remove("picker-open"); }
+    on(pClose,"click",closePicker); on(pBackdrop,"click",closePicker);
+
+    async function renderPickerList(items){
+      pList.innerHTML = "";
+      const sorted = [...items].sort((a,b)=>{
+        if(a.code==="XLM") return -1; if(b.code==="XLM") return 1;
+        return parseFloat(b.balance) - parseFloat(a.balance);
+      });
+      for(const a of sorted){
+        const row=document.createElement("div"); row.className="asset-item";
+        const left=document.createElement("div"); left.className="ai-left";
+        const logo=document.createElement("div"); logo.className="ai-logo"; logo.textContent=a.code[0];
+        left.appendChild(logo);
+        const textWrap=document.createElement("div");
+        textWrap.innerHTML=`<div class="ai-title">${a.code}</div><div class="ai-sub">${a.domain||""}</div>`;
+        left.appendChild(textWrap);
+        const bal=document.createElement("div"); bal.className="ai-bal"; bal.textContent=a.balance;
+        row.append(left,bal); pList.appendChild(row);
+
+        row.onclick = ()=> { selectSellAsset(a); closePicker(); };
+
+        if(a.issuer){
+          logoFromToml(a.code, a.issuer).then(url=>{
+            if(url) logo.innerHTML = `<img src="${url}" alt="${a.code}" />`;
+          });
+        } else {
+          logo.innerHTML = `Ξ`;
+        }
+      }
+    }
+
+    function selectSellAsset(a){
+      selectedSell = a;
+      sellTicker.textContent = a.code;
+      selectedBal.textContent = plain(a.balance||"0");
+      fillMaxBtn.style.display = parseFloat(a.balance||"0")>0 ? "inline-flex" : "none";
+      // set pill logo
+      if(a.issuer){
+        logoFromToml(a.code, a.issuer).then(url=>{
+          sellIcon.innerHTML = url ? `<img src="${url}" alt="${a.code}" />` : a.code[0];
+        });
+      } else {
+        sellIcon.textContent = "Ξ";
+      }
+      refreshXlmBreakdownMaybe();
+      // reset calculated fields
+      swapAmount.value=""; swapEst.value=""; xdrSwap.value=""; rateLine.textContent="";
+      disableSwapButtons();
+      onValidate().catch(()=>{});
+    }
+
+    // ---------- Init account / balances ----------
+    async function initForNewAccount(){
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)) { aquaBalEl.textContent="Invalid key"; return; }
+      try{
+        const { balance } = await loadAquaM25Balance(pk);
+        aquaBalEl.textContent = plain(balance);
+
+        const { items } = await loadAllBalances(pk);
+        // default to AQUA if present, else first item
+        const defIdx = items.findIndex(x=>x.code==="AQUA" && x.issuer);
+        const initial = defIdx>=0 ? items[defIdx] : (items[0] || { code:"XLM", issuer:null, balance:"0", domain:"stellar.org" });
+        selectSellAsset(initial);
+        await renderPickerList(items);
+        await onValidate(); // sets trustline UI state
+      }catch(e){ console.error(e); }
+    }
+
+    // ---------- Trustline-aware UI ----------
+    function setTrustlineUI(hasTL, forceDisableSwap){
+      if(hasTL){
+        btnAddTrustline.style.display = "none";
+        swapSignSubmit.disabled = !!forceDisableSwap;
+        swapSignSubmit.classList.remove("warn");
+        swapCopy.disabled = !!forceDisableSwap;
+      }else{
+        btnAddTrustline.style.display = "inline-block";
+        btnAddTrustline.classList.remove("ghost","small");
+        btnAddTrustline.classList.add("primary","warn");
+        swapSignSubmit.disabled = true;
+        swapCopy.disabled = true;
+      }
+    }
+
+    // ---------- Validators ----------
+    async function hasTrustline(account, asset){
+      if (asset.isNative()) return true;
+      const r = await fetch(`${HORIZON}/accounts/${account}`);
+      if(!r.ok) throw new Error("Horizon account lookup failed");
+      const j = await r.json();
+      const bal = (j.balances || []).find(b => b.asset_code === asset.code && b.asset_issuer === asset.issuer);
+      return !!bal;
+    }
+    async function softTokenCheck(asset){
+      const probe = { token_in_address:  contractId(asset), token_out_address: contractId(SDK.Asset.native()), amount: "1" };
+      const r = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(probe) });
+      const j = await r.json().catch(()=>null);
+      return !!j && (typeof j.success === "boolean");
+    }
+    async function onValidate(){
+      try{
+        const tokenIn = getCurrentSendAsset();
+        const tokenOut = AQUAm25;
+        const bits = [];
+        const [okIn, okOut, tl] = await Promise.all([
+          softTokenCheck(tokenIn),
+          softTokenCheck(tokenOut),
+          pubkey ? hasTrustline(pubkey, tokenOut) : Promise.resolve(false)
+        ]);
+        bits.push(okIn ? `<div style="color:#57d29a">Token In recognized by Aquarius</div>` : `<div style="color:#ff6b6b">Token In not recognized</div>`);
+        bits.push(okOut ? `<div style="color:#57d29a">Token Out recognized by Aquarius</div>` : `<div style="color:#ff6b6b">Token Out not recognized</div>`);
+        if(pubkey){
+          bits.push(tl ? `<div style="color:#57d29a">Trustline: OK for output asset</div>` : `<div style="color:#ff6b6b">No trustline for output asset — please add it first</div>`);
+          setTrustlineUI(tl, false);
+        } else {
+          bits.push(`<div>Connect to check trustline</div>`);
+          setTrustlineUI(false, true);
+        }
+        validationBox.innerHTML = bits.join("");
+      } catch(e){
+        validationBox.innerHTML = `<span style="color:#ff6b6b">${e.message}</span>`;
+      }
+    }
+
+    // ---------- Quotes ----------
+    function updateRateLine(sendCode, estOutPer1) {
+      if (!isFinite(estOutPer1) || estOutPer1<=0) { rateLine.textContent = ""; return; }
+      rateLine.textContent = `1 ${sendCode} ≈ ${plain(estOutPer1)} ${AQUAm25_CODE}`;
+    }
+
+    async function quoteStrictSend(){
+      disableSwapButtons();
+      xdrSwap.value=""; rateLine.textContent="";
+      const pk = pubkeyEl.value.trim();
+      const sendAmt = cleanAmt(swapAmount.value.trim());
+      if(!isValidG(pk) || !sendAmt) return;
+
+      const sendAsset = getCurrentSendAsset();
+      const sendCode = selectedSell.code;
+
+      try{
+        const body = {
+          token_in_address:  contractId(sendAsset),
+          token_out_address: contractId(AQUAm25),
+          amount: String(Math.round(parseFloat(sendAmt)*1e7))
+        };
+        const res = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+        const j = await res.json();
+        if(!j?.success) throw new Error("No route from Aquarius AMM");
+
+        lastQuote = j; lastIsSend = true;
+
+        const outStroops = BigInt(j.amount);
+        const estOut = Number(outStroops) / 1e7;
+
+        swapEst.value = plain(estOut);
+        const perOne = estOut / Number(swapAmount.value || 1);
+        updateRateLine(sendCode, perOne);
+
+        const needTL = !(await hasTrustline(pk, AQUAm25));
+        setTrustlineUI(!needTL, false);
+        if (needTL) { enableSwapButtons(); return; }
+
+        const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
+        const outMin = outStroops - (outStroops / 100n);  // 1% slippage
+
+        const tx = await buildSorobanSwapTx({
+          account: pk, isSend: true, tokenIn: sendAsset,
+          inAmountStroops: inStroops,
+          limitOutOrExact: outMin,
+          swapChainXdr: j.swap_chain_xdr
+        });
+        xdrSwap.value = tx.toXDR();
+        enableSwapButtons();
+        onValidate().catch(()=>{});
+      }catch(e){
+        console.error(e);
+        pushToast(`Aquarius quote failed (strict send). ${e.message||""}`, true);
+        lastQuote=null; xdrSwap.value=""; disableSwapButtons();
+      }
+    }
+
+    // ---------- Build Soroban swap tx ----------
+    async function buildSorobanSwapTx({ account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr }){
+      const server = rpc();
+      const acc = await server.getAccount(account);
+      const router = new SDK.Contract(routerContractId);
+      const tokenInCid = tokenIn.contractId(SDK.Networks.PUBLIC);
+      const addrAccount  = SDK.Address.fromString(account).toScVal();
+      const addrTokenIn  = SDK.Address.fromString(tokenInCid).toScVal();
+      const u128In       = SDK.nativeToScVal(BigInt(inAmountStroops), { type: "u128" });
+      const u128LimOrEx  = SDK.nativeToScVal(BigInt(limitOutOrExact), { type: "u128" });
+      const swapChainVal = SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64");
+      const op = isSend
+        ? router.call("swap_chained", addrAccount, swapChainVal, addrTokenIn, u128In, u128LimOrEx)
+        : router.call("swap_chained_strict_receive", addrAccount, swapChainVal, addrTokenIn, u128LimOrEx, u128In);
+      let tx = new SDK.TransactionBuilder(acc, { fee: "20000", networkPassphrase })
+        .setTimeout(300)
+        .addOperation(op)
+        .build();
+      try { tx = await server.prepareTransaction(tx); }
+      catch (e) {
+        console.error("prepareTransaction failed:", e);
+        throw new Error(
+          `prepareTransaction failed: ${
+            e?.response?.data?.error?.message ||
+            e?.data?.error?.message ||
+            e?.message || "unknown"
+          }`
+        );
+      }
+      return tx;
+    }
+
+    // ---------- Classic trustline helper ----------
+    async function buildTrustlineXDR(pk){
+      const src = await getServer().loadAccount(pk);
+      const tx = new SDK.TransactionBuilder(src, { fee: "10000", networkPassphrase: NETWORK })
+        .addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 }))
+        .setTimeout(180)
+        .build();
+      return tx.toXDR();
+    }
+
+    on(btnAddTrustline, "click", async ()=>{
+      try{
+        const pk = pubkeyEl.value.trim();
+        if(!isValidG(pk)) { toast("Connect a wallet first.", true); return; }
+        if(await hasTrustline(pk, AQUAm25)){ toast("AQUAm25 trustline already exists."); await onValidate(); return; }
+        toast("Preparing trustline transaction…");
+        const trustXdr = await buildTrustlineXDR(pk);
+        toast("Signing trustline…");
+        const signed = await signCurrent(trustXdr);
+        toast("Submitting trustline…");
+        const hash = await submitToHorizon(signed);
+        toast(`Trustline added ✓ tx: ${hash}`);
+        await onValidate();
+        await initForNewAccount();
+        try { if (lastQuote) { await quoteStrictSend(); } } catch(_) {}
+      }catch(e){
+        console.error(e);
+        toast(e.message || "Trustline add failed.", true);
+      }
+    });
+
+    // Submit Soroban
+    async function submitToSoroban(signedXdr){
+      const tx = SDK.TransactionBuilder.fromXDR(signedXdr, NETWORK);
+      const send = await rpc().sendTransaction(tx);
+      if (send.status !== "PENDING" && send.status !== "SUCCESS")
+        throw new Error(`Soroban send failed: ${send.status}`);
+      let final = await rpc().getTransaction(send.hash);
+      let tries = 0;
+      while(final.status === "NOT_FOUND" && tries < 10){
+        await new Promise(r=>setTimeout(r, 800));
+        final = await rpc().getTransaction(send.hash);
+        tries++;
+      }
+      if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
+      return final;
+    }
+
+    // ---------- Swap buttons ----------
+    function disableSwapButtons(){ [swapSignSubmit,swapCopy].forEach(b=>b.disabled=true); }
+    function enableSwapButtons(){ const ok=!!xdrSwap.value.trim(); [swapSignSubmit,swapCopy].forEach(b=>b.disabled=!ok); }
+    function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 400); }
+
+    // Sell pill opens picker
+    on(sellPill,"click", async ()=>{
+      // refresh list from live balances
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)) { pushToast("Connect a wallet to choose assets.", true); return; }
+      const { items } = await loadAllBalances(pk);
+      await renderPickerList(items);
+      openPicker();
+    });
+
+    on(swapAmount,"input", ()=>{
+      if(!swapAmount.value || Number(swapAmount.value) <= 0){ xdrSwap.value=""; rateLine.textContent=""; disableSwapButtons(); return; }
+      debounceQuote(quoteStrictSend);
+    });
+
+    on(fillMaxBtn,"click", async ()=>{
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)){ toast("Connect first to auto-fill balance.", true); return; }
+      if(!selectedSell.issuer){
+        try{ const spendable = await getSpendableXLM(pk); swapAmount.value = plain(spendable); await refreshXlmBreakdownMaybe(); }
+        catch(e){ console.error(e); toast("Could not compute spendable XLM.", true); return; }
+      }else{
+        const bal = parseFloat(selectedSell.balance || "0");
+        swapAmount.value = plain(bal);
+      }
+      quoteStrictSend();
+    });
+
+    // Toggle XDR areas
+    function toggleEl(el, btn){ const isHidden = el.style.display === "none" || !el.style.display; el.style.display = isHidden ? "block" : "none"; btn.textContent = isHidden ? "Hide XDR" : "Reveal XDR"; }
+    on($("toggleSwapXdr"), "click", ()=> toggleEl(xdrSwap, $("toggleSwapXdr")));
+    on($("toggleLockerXdr"), "click", ()=> toggleEl(xdrOut,  $("toggleLockerXdr")));
+
+    // Copy helpers
+    on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
+    on(copyBtn,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrOut.value); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy XDR",1500); } catch(e){ console.error(e); } });
+
+    // Sign prompt openers
+    $("signLobstr").onclick = ()=> { if(latestWcUri) openLobstrApp(latestWcUri); };
+    $("signFreighter").onclick = async ()=> {
+      if(!latestWcUri) return;
+      const links = await getFreighterLinks();
+      openFreighterSmart(links, latestWcUri);
+    };
+
+    // Swap signing & submit
+    on(swapSignSubmit,"click", async ()=>{
+      swapResult.textContent="";
+      try{
+        const pk = pubkeyEl.value.trim();
+        const needTL = !(await hasTrustline(pk, AQUAm25));
+        if (needTL) { pushToast("Please add the AQUAm25 trustline first.", true); return; }
+
+        let xdrToSubmit = xdrSwap.value.trim();
+        if(!xdrToSubmit || !/AAAA/.test(xdrToSubmit)){
+          await quoteStrictSend();
+          xdrToSubmit = xdrSwap.value.trim();
+          if(!xdrToSubmit) throw new Error("No prepared XDR.");
+        }
+
+        if (connectionMode === "wc") {
+          openSignModal();
+          pushToast("Check your wallet to sign…");
+        } else {
+          pushToast("Check Freighter to sign…");
+        }
+
+        const signed = await signCurrent(xdrToSubmit);
+        const final = await submitToSoroban(signed);
+        const u = BigInt(final.returnValue?.u128 ?? 0n);
+        swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>Amount OUT: ${plain(Number(u)/1e7)} ${AQUAm25_CODE}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
+        closeSignModal();
+
+        setTimeout(async ()=>{
+          if(isValidG(pk)){
+            try{ const { balance } = await loadAquaM25Balance(pk); aquaBalEl.textContent = plain(balance); }catch{}
+          }
+        }, 1200);
+      }catch(e){ console.error(e); closeSignModal(); pushToast(e.message||"Sign/submit failed.", true); }
+    });
+
+    // ---------- Locker submit (classic) ----------
+    async function submitToHorizon(signedXdr){
+      const resp = await fetch(`${HORIZON}/transactions`,{ method:"POST", headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" }, body:"tx="+encodeURIComponent(signedXdr) });
+      const data = await resp.json().catch(()=> ({}));
+      if(!resp.ok){
+        const code = data?.extras?.result_codes?.transaction || resp.status;
+        const op   = data?.extras?.result_codes?.operations || [];
+        throw new Error(`Horizon error: ${code}${op.length?` (${op.join(",")})`:""}`);
+      }
+      return data.hash;
+    }
+
+    on(signSubmitBtn,"click", async ()=>{
+      actionResult.textContent="";
+      const xdr = xdrOut.value.trim();
+      if(!xdr){ actionResult.textContent="No XDR to sign. Enter key + amount first."; return; }
+      try{
+        actionResult.textContent="Signing…";
+        const signed = await signCurrent(xdr);
+        actionResult.textContent="Submitting…";
+        const hash = await submitToHorizon(signed);
+        actionResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
+      }catch(e){ console.error(e); actionResult.textContent=e.message||"Sign/submit failed."; }
+    });
+
+    // ---------- First-load ----------
+    window.addEventListener("load", ()=>{
+      const pk = pubkeyEl.value.trim();
+      if(isValidG(pk)){ initForNewAccount(); startLockerAutoRefresh(); }
+      disableLockerButtons();
+      disableSwapButtons();
+      // default AQUAm25 icon already set above
+    });
+  </script>
+
+  <!-- Freighter UMD fallback -->
+  <script>
+    if(!window.freighterApi){
+      const s = document.createElement('script');
+      s.src = "https://cdn.freighter.app/freighter-api-v1.js";
+      document.head.appendChild(s);
+    }
+  </script>
 </body>
 </html>
