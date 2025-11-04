@@ -824,15 +824,168 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
-    // Build readable route labels from the sequence of pools
-    async function buildRouteLabelsFromPools(sendAsset,pools){
-      const start = (sendAsset.isNative && sendAsset.isNative())
-        ? {code:"XLM",issuer:null}
-        : {code:sendAsset.code,issuer:sendAsset.issuer};
-      const end = {code:AQUAm25_CODE,issuer:AQUAm25_ISSUER};
+// --- REPLACE your fetchPoolTrustlines + buildRouteLabelsFromPools with this ---
 
-      const hops=[start];
-      let current=start;
+// Soroban RPC instance (we already have rpc() elsewhere)
+function scvSym(s){ return SDK.xdr.ScVal.scvSymbol(s); }
+function toScAddressFromString(str){
+  return SDK.Address.fromString(str).toScAddress();
+}
+
+/**
+ * Read token pair from an Aquarius AMM pool contract by querying its
+ * persistent contract-data keys (e.g., "token_a" / "token_b").
+ * Returns [{code,issuer}|{code:"XLM"}] entries (code/issuer unknown here;
+ * we return contract addresses and map to tickers separately below).
+ */
+async function fetchPoolTokenContracts(poolCid){
+  try{
+    const server = rpc();
+
+    // Build two LedgerKey.contractData entries
+    const keys = ["token_a","token_b"].map(sym => {
+      return SDK.xdr.LedgerKey.contractData(
+        new SDK.xdr.LedgerKeyContractData({
+          contract: toScAddressFromString(poolCid),
+          key: scvSym(sym),
+          durability: SDK.xdr.ContractDataDurability.persistent()
+        })
+      );
+    });
+
+    const resp = await server.getLedgerEntries(keys);
+    // Each entry’s value is an ScVal Address; decode to string.
+    const out = [];
+    for (const item of (resp?.entries||[])){
+      const valXdr = item?.xdr?.val || item?.val || item?.liveEntry?.data?.contractData?.val;
+      if(!valXdr) continue;
+      const scv = (valXdr instanceof SDK.xdr.ScVal) ? valXdr : SDK.xdr.ScVal.fromXDR(valXdr, "base64");
+      // Expected shape: Address (contract for Soroban token or classic for native)
+      const addr = SDK.Address.fromScVal(scv);
+      out.push(addr.toString());
+    }
+
+    // Return two contract (or classic) addresses in order [token_a, token_b]
+    return out;
+  }catch(e){
+    console.warn("fetchPoolTokenContracts RPC failed", poolCid, e);
+    return [];
+  }
+}
+
+/**
+ * Resolve a human-readable ticker for a token address.
+ * Strategy:
+ *  - If it matches the known AQUAm25 classic asset -> "AQUAm25"
+ *  - If it’s native classic (G… doesn’t mean native; XLM is represented by a special token contract on Soroban),
+ *    but the Aquarius router path will still include a Soroban token for native. We therefore try:
+ *      1) Call the Soroban token’s `symbol` (standard token interface) via a lightweight simulation.
+ *      2) Fallback to "TOKEN" shortened.
+ */
+async function resolveTickerFromAddress(addr){
+  // Known outputs
+  if (addr === AQUAm25.contractId(NETWORK)) return "AQUAm25";
+
+  // If this address is actually a classic issuer for a known asset we care about:
+  if (addr === null) return "XLM"; // just in case
+
+  // Try token::symbol() on Soroban token contracts
+  try{
+    const server = rpc();
+    const c = new SDK.Contract(addr);
+
+    // Build a dummy tx that calls symbol(); use simulation via prepareTransaction
+    const kp = SDK.Keypair.random(); // ephemeral
+    const acc = await server.getAccount(kp.publicKey()); // no state needed; simulation only
+
+    const op = c.call("symbol"); // no args
+    let tx = new SDK.TransactionBuilder(acc, { fee: "10000", networkPassphrase })
+      .setTimeout(30)
+      .addOperation(op)
+      .build();
+
+    // Prepare & simulate
+    tx = await server.prepareTransaction(tx);
+    const sim = await server.simulateTransaction(tx);
+
+    // Return value lives in sim.result.retVal
+    const rv = sim?.result?.retVal;
+    if (rv) {
+      const scv = (rv instanceof SDK.xdr.ScVal) ? rv : SDK.xdr.ScVal.fromXDR(rv, "base64");
+      if (scv.switch() === SDK.xdr.ScValType.scvSymbol()) {
+        const sym = SDK.scValToNative(scv); // "AQUA", "USDC", etc.
+        if (typeof sym === "string" && sym.length) return sym;
+      }
+      // Some tokens may return scvString for symbol/name
+      try {
+        const native = SDK.scValToNative(scv);
+        if (typeof native === "string" && native.length) return native;
+      } catch(_) {}
+    }
+  }catch(e){
+    // ignore — we’ll fallback
+  }
+
+  // Last resort: shortened contract id
+  return `${addr.slice(0,4)}…${addr.slice(-4)}`;
+}
+
+/**
+ * Build "X → Y → Z" labels for the pools in the Aquarius quote by reading each pool’s
+ * token_a/token_b contracts, then resolving their tickers. We also *skip AQUA* where it’s
+ * a 3rd emissions balance on pools (we’re only reading the two canonical tokens anyway).
+ */
+async function buildRouteLabelsFromPools(sendAsset, pools){
+  // Start/end
+  const start = (sendAsset.isNative && sendAsset.isNative())
+    ? { label: "XLM", addr: null }
+    : { label: sendAsset.code, addr: sendAsset.contractId(NETWORK) };
+
+  const endLabel = "AQUAm25";
+
+  const labels = [start.label];
+  let currentAddr = start.addr; // token contract address for Soroban (null for XLM — OK)
+
+  // Walk pools (max 4 per Aquarius)
+  for (const pool of (pools||[]).slice(0,4)){
+    const poolCid = (typeof pool === "string") ? pool : (pool.contract || pool.id || pool.pool || "");
+    if (!poolCid) { labels.push("???"); continue; }
+
+    const pair = await fetchPoolTokenContracts(poolCid);
+    if (pair.length < 2) { labels.push("???"); continue; }
+
+    // Choose the "other" token vs current
+    const [a,b] = pair;
+    let nextAddr;
+    if (!currentAddr) {
+      // When current is native (XLM), we don’t have a contract addr; pick the non-XLM if possible
+      // but we don't know which is XLM without symbol — resolve both and choose later
+      // Resolve a first; if it looks like "XLM", pick the other.
+      const [la, lb] = await Promise.all([resolveTickerFromAddress(a), resolveTickerFromAddress(b)]);
+      nextAddr = (la === "XLM") ? b : ((lb === "XLM") ? a : a);
+      const nextLabel = (la === "XLM") ? lb : ((lb === "XLM") ? la : la);
+      labels.push(nextLabel);
+      currentAddr = nextAddr;
+      continue;
+    }
+
+    if (a === currentAddr) nextAddr = b;
+    else if (b === currentAddr) nextAddr = a;
+    else {
+      // If neither matches (first hop from XLM or ambiguous), just pick a non-AQUA if available
+      nextAddr = (a && a !== AQUA.contractId(NETWORK)) ? a : b;
+    }
+
+    const lbl = await resolveTickerFromAddress(nextAddr);
+    labels.push(lbl);
+    currentAddr = nextAddr;
+  }
+
+  // Ensure last is AQUAm25
+  if (labels[labels.length-1] !== endLabel) labels.push(endLabel);
+
+  return labels.join(" → ");
+}
 
       // Aquarius router caps at 4 pools; enforce here too
       for(const pool of (pools||[]).slice(0,4)){
@@ -898,33 +1051,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapEst.value = plain(estOut);
         swapQuote.innerHTML = routeSummary(true, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-send", estimate_out:estOut, pools:j.pools, tokens:j.tokens}, null, 2);
-
-        // NEW: resolve route labels via Horizon trustlines
-        try {
-          const route = await buildRouteLabelsFromPools(sendAsset, j.pools || []);
-          routeLine.textContent = `Route: ${route}`;
-        } catch { routeLine.textContent = ""; }
-
-        const needTL = !(await hasTrustline(pk, AQUAm25));
-        const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
-        const outMin = outStroops - (outStroops / 100n);  // 1% slippage
-
-        const tx = await buildSorobanSwapTx({
-          account: pk, isSend: true, tokenIn: sendAsset,
-          inAmountStroops: inStroops,
-          limitOutOrExact: outMin,
-          swapChainXdr: j.swap_chain_xdr,
-          addTrustlineFirst: needTL
-        });
-        xdrSwap.value = tx.toXDR();
-        enableSwapButtons();
-      }catch(e){
-        console.error(e);
-        swapQuote.textContent = `Aquarius quote failed (strict send). ${e.message||""}`;
-        routeLine.textContent = "";
-        lastQuote=null; xdrSwap.value=""; disableSwapButtons();
-      }
-    }
 
     async function quoteStrictReceive(){
       disableSwapButtons();
