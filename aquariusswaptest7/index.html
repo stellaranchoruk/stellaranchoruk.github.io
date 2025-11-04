@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mirrasets — Asset Picker Test</title>
+<style>
+  :root{
+    --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --border:#1c242c;
+    --chip:#0e1419; --chip-b:#1e2831; --accent:#7d4bd1; --ok:#57d29a; --err:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:860px;margin:28px auto;padding:0 16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px}
+  h1{margin:0 0 14px;font-size:18px;letter-spacing:.2px}
+  .box{background:#0f1520;border:1px solid #1b2633;border-radius:18px;padding:14px;margin-top:12px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .slab{background:#0f1520;border:1px solid #1b2633;border-radius:18px;padding:14px;margin-top:10px}
+  .slab-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .label{color:var(--muted);font-size:13px}
+  .big-input{width:100%;border:1px solid #1e2831;background:#0e1419;color:#fff;border-radius:14px;padding:10px 12px;
+              font-variant-numeric:tabular-nums;font-weight:800;font-size:clamp(24px,6vw,36px)}
+  .big-input.readonly{opacity:.95;background:#0b1115;border-style:dashed}
+  .pill{display:inline-flex;align-items:center;gap:10px;background:var(--chip);border:1px solid var(--chip-b);color:#e6eeff;
+        padding:8px 12px;border-radius:999px;font-weight:800}
+  .pill .sym{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#0b1115;border:1px solid #263240}
+  .pill img{width:22px;height:22px;border-radius:999px;object-fit:cover}
+  .caret{opacity:.7}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+
+  .rate{margin:8px 0 2px;text-align:center;color:#9fb2c5;font-size:12px}
+
+  /* Modal */
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
+  .open{display:flex}
+  .modal-inner{width:min(720px,94vw);max-height:86vh;overflow:auto;background:#121624;border:1px solid #2a3550;border-radius:18px;
+               box-shadow:0 18px 60px rgba(0,0,0,.45)}
+  .modal-h{display:flex;justify-content:space-between;align-items:center;padding:18px 18px 10px}
+  .modal-h h2{margin:0;font-size:22px;font-weight:900}
+  .x{background:none;border:1px solid #2f3b5a;border-radius:10px;color:#cfd9ff;padding:6px 10px;cursor:pointer}
+  .modal-b{padding:6px 12px 16px}
+  .asset-list{display:flex;flex-direction:column}
+  .asset-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border-radius:14px;cursor:pointer}
+  .asset-item:hover{background:#0f1422}
+  .ai-left{display:flex;align-items:center;gap:12px}
+  .ai-logo{width:34px;height:34px;border-radius:999px;background:#0b1115;border:1px solid #2b364a;display:grid;place-items:center;overflow:hidden}
+  .ai-logo img{width:100%;height:100%;object-fit:cover}
+  .ai-title{font-weight:900}
+  .ai-sub{font-size:12px;color:#9fb2c5;margin-top:2px}
+  .ai-bal{font-variant-numeric:tabular-nums;color:#dfe8ff;font-weight:800}
+
+  .btn{cursor:pointer;border-radius:14px;border:1px solid #2a3340;background:#0c1c20;color:#d9f6ff;padding:12px 14px;font-weight:900}
+  .primary{background:var(--accent);border-color:#8b66d8}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>AQUAm25 Swap — Asset Picker Test</h1>
+
+      <!-- SELL -->
+      <div class="slab">
+        <div class="slab-top">
+          <div class="label">Sell</div>
+
+          <!-- clickable pill replaces <select> -->
+          <button id="sellPill" class="pill" type="button" aria-haspopup="dialog">
+            <span class="sym" id="sellIcon">Ξ</span>
+            <span id="sellTicker">XLM</span>
+            <span class="caret">▾</span>
+          </button>
+        </div>
+
+        <input id="sellAmount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+
+        <div class="row" style="justify-content:space-between;margin-top:6px">
+          <button id="fillMax" class="btn small">Balance: <span id="sellBal">0</span></button>
+        </div>
+      </div>
+
+      <!-- BUY (readonly AQUAm25) -->
+      <div class="slab">
+        <div class="slab-top">
+          <div class="label">Buy</div>
+          <div class="pill">
+            <span class="sym"><img id="buyIcon" alt="AQUAm25" /></span>
+            <span>AQUAm25</span>
+          </div>
+        </div>
+        <input id="buyEst" class="big-input readonly" type="number" readonly placeholder="0" />
+      </div>
+
+      <div class="rate" id="rateLine"></div>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary">Swap to AQUAm25</button>
+        <button class="btn">Copy XDR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Picker Modal -->
+  <div id="pickerBackdrop" class="backdrop"></div>
+  <div id="pickerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="pickTitle">
+    <div class="modal-inner">
+      <div class="modal-h">
+        <h2 id="pickTitle">Choose asset</h2>
+        <button class="x" id="pickClose">Close</button>
+      </div>
+      <div class="modal-b">
+        <div id="assetList" class="asset-list"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // -------- TEST DATA (replace with live balances later) ----------
+  // code, issuer (null for XLM), balance, domain (optional)
+  const assets = [
+    { code: "XLM", issuer: null, balance: "9.9999143", domain: "stellar.org" },
+    { code: "AQUA", issuer: "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA", balance: "125000.0000000", domain: "aqua.network" },
+    { code: "USDC", issuer: "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN", balance: "1250.0000000", domain: "centre.io" },
+    { code: "KRWC", issuer: "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC", balance: "420.0", domain: "mirrasets.com" }
+  ];
+  const AQUAm25_ICON = "https://aqua.network/assets/aqua-token.svg"; // any stable icon for preview
+
+  // ---------- Simple logo cache ----------
+  const logoCache = new Map(); // key: code|issuer -> url or null
+
+  function assetKey(a){ return a.issuer ? `${a.code}:${a.issuer}` : "XLM"; }
+
+  async function fetchTomlLogoFromHorizon(code, issuer){
+    const key = assetKey({code, issuer});
+    if (logoCache.has(key)) return logoCache.get(key);
+
+    try{
+      const q = new URL("https://horizon.stellar.org/assets");
+      q.searchParams.set("asset_code", code);
+      q.searchParams.set("asset_issuer", issuer);
+      const res = await fetch(q.toString());
+      if(!res.ok) throw new Error("horizon fail");
+      const j = await res.json();
+      const rec = j?._embedded?.records?.[0];
+      const tomlUrl = rec?._links?.toml?.href;
+      if (!tomlUrl) { logoCache.set(key, null); return null; }
+      const t = await fetch(tomlUrl);
+      if(!t.ok){ logoCache.set(key, null); return null; }
+      const txt = await t.text();
+      // very loose parse for IMAGE = or IMAGE=
+      const m = txt.match(/^\s*IMAGE\s*=\s*"(.*?)"\s*$/im);
+      const url = m ? m[1].trim() : null;
+      logoCache.set(key, url || null);
+      return url || null;
+    }catch(e){
+      logoCache.set(key, null);
+      return null;
+    }
+  }
+
+  function iconEl(url, fallbackText){
+    const box = document.createElement("div");
+    box.className = "ai-logo";
+    if (url){
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = fallbackText || "";
+      box.appendChild(img);
+    } else {
+      box.textContent = (fallbackText||"?").slice(0,1);
+    }
+    return box;
+  }
+
+  // ---------- Modal plumbing ----------
+  const $ = (id)=>document.getElementById(id);
+  const backdrop = $("pickerBackdrop");
+  const modal = $("pickerModal");
+  const list = $("assetList");
+  $("pickClose").onclick = closePicker;
+  backdrop.onclick = closePicker;
+
+  function openPicker(){ backdrop.classList.add("open"); modal.classList.add("open"); }
+  function closePicker(){ backdrop.classList.remove("open"); modal.classList.remove("open"); }
+
+  async function renderList(){
+    list.innerHTML = "";
+    // XLM at top, then others with balance desc
+    const sorted = [...assets].sort((a,b)=>{
+      if (a.code==="XLM" && b.code!=="XLM") return -1;
+      if (b.code==="XLM" && a.code!=="XLM") return 1;
+      return parseFloat(b.balance) - parseFloat(a.balance);
+    });
+
+    for (const a of sorted){
+      if (parseFloat(a.balance||"0") <= 0) continue;
+
+      const row = document.createElement("div");
+      row.className = "asset-item";
+
+      const left = document.createElement("div");
+      left.className = "ai-left";
+
+      // Logo (async)
+      const logoBox = iconEl(null, a.code);
+      left.appendChild(logoBox);
+
+      // Texts
+      const textWrap = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "ai-title";
+      title.textContent = a.code;
+      const sub = document.createElement("div");
+      sub.className = "ai-sub";
+      sub.textContent = a.domain ? `${a.code} (${a.domain})` : a.code;
+      textWrap.appendChild(title);
+      textWrap.appendChild(sub);
+
+      left.appendChild(textWrap);
+
+      const bal = document.createElement("div");
+      bal.className = "ai-bal";
+      bal.textContent = a.balance;
+
+      row.appendChild(left);
+      row.appendChild(bal);
+
+      row.onclick = ()=>{ selectAsset(a); closePicker(); };
+
+      list.appendChild(row);
+
+      // load logo now
+      if (a.issuer){ // XLM has known logo elsewhere; leave blank
+        fetchTomlLogoFromHorizon(a.code, a.issuer).then(url=>{
+          // If url present, replace placeholder with img
+          if (url){
+            logoBox.innerHTML = "";
+            const img = document.createElement("img");
+            img.src = url; img.alt = a.code;
+            logoBox.appendChild(img);
+          }
+        });
+      } else {
+        // If you have an XLM icon you prefer, set it here
+        // (left default with letter)
+      }
+    }
+  }
+
+  // ---------- Selected asset -> pill ----------
+  const sellPill = $("sellPill");
+  const sellIcon = $("sellIcon");
+  const sellTicker = $("sellTicker");
+  const sellBal = $("sellBal");
+
+  function selectAsset(a){
+    sellTicker.textContent = a.code;
+    sellBal.textContent = a.balance;
+    // set icon on pill too
+    if (a.issuer){
+      fetchTomlLogoFromHorizon(a.code, a.issuer).then(url=>{
+        if (url){
+          sellIcon.innerHTML = `<img src="${url}" alt="${a.code}" />`;
+        }else{
+          sellIcon.textContent = a.code.slice(0,1);
+        }
+      });
+    } else {
+      sellIcon.textContent = "Ξ"; // placeholder glyph for XLM (replace as desired)
+    }
+  }
+
+  // ---------- Init ----------
+  (function init(){
+    // set AQUAm25 icon
+    $("buyIcon").src = AQUAm25_ICON;
+
+    // default select USDC if present, else first
+    const first = assets.find(a=>a.code==="USDC") || assets[0];
+    if (first) selectAsset(first);
+
+    sellPill.addEventListener("click", ()=>{ renderList().then(openPicker); });
+    $("fillMax").addEventListener("click", ()=>{
+      const code = sellTicker.textContent.trim();
+      const a = assets.find(x=>x.code===code);
+      if (a) $("sellAmount").value = a.balance;
+    });
+  })();
+</script>
+</body>
+</html>
