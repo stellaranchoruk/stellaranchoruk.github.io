@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Asset Pills with TOML Icons — Test</title>
+<title>SEP-1 Icon Pills (TOML via Horizon) — Test</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- Stellar SDK (UMD v14) -->
 <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
 <style>
   :root{--bg:#0b0f12;--panel:#12181d;--ink:#e8f0f6;--muted:#8aa0ac;--border:#1c242c;--pill:#0f1620;}
@@ -38,9 +37,10 @@
         <label>From (Code:Issuer or XLM)</label>
         <select id="from">
           <option value="XLM">XLM (native)</option>
+          <!-- Common issuers for testing -->
           <option value="AQUA:GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA">AQUA</option>
           <option value="AQUAm25:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC">AQUAm25</option>
-          <option value="USDC:GA5ZSE7YB3QO5YJXH3ZKKZQ6QJ5YCMV6B4J2Q7SNRG4G5GQWQX4CSB2E">USDC</option>
+          <option value="USDC:GA5ZSE7YB3QO5YJXH3ZKKZQ6QJ5YCMV6B4J2Q7SNRG4G5GQWQX4CSB2E">USDC (centre.io)</option>
         </select>
       </div>
 
@@ -81,11 +81,9 @@
 <script>
   const SDK = window.StellarSdk;
   const HORIZON = "https://horizon.stellar.org";
-
-  // AQUAm25 issuer (so we can demo the "To" pill)
   const AQUAM25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
 
-  // Pretty XLM SVG (data URL)
+  // Crisp inline XLM icon
   const XLM_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
     <svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
       <circle cx="128" cy="128" r="128" fill="#1b2a42"/>
@@ -95,17 +93,15 @@
     </svg>
   `);
 
-  // In-memory cache
-  const ICON_CACHE = new Map();  // key: "CODE:ISSUER|null" -> url|string
-  const DOMAIN_CACHE = new Map(); // issuer -> home_domain
-  const TOML_CACHE = new Map();   // domain -> parsed TOML
+  // Caches
+  const ICON_CACHE   = new Map();   // "CODE:ISSUER|null" -> url
+  const DOMAIN_CACHE = new Map();   // issuer -> domain
+  const TOML_CACHE   = new Map();   // domain -> parsed object or null
 
   function monogram(text) {
-    const c = document.createElement('canvas');
-    c.width = 64; c.height = 64;
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
     const ctx = c.getContext('2d');
-    ctx.fillStyle = '#16212b';
-    ctx.beginPath(); ctx.arc(32,32,32,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#16212b'; ctx.beginPath(); ctx.arc(32,32,32,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = '#d8e6f2';
     ctx.font = 'bold 28px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -115,35 +111,50 @@
 
   async function getHomeDomain(issuer){
     if (DOMAIN_CACHE.has(issuer)) return DOMAIN_CACHE.get(issuer);
-    const res = await fetch(`${HORIZON}/accounts/${issuer}`);
-    if (!res.ok) throw new Error(`Issuer lookup failed: ${res.status}`);
-    const j = await res.json();
+    const r = await fetch(`${HORIZON}/accounts/${issuer}`);
+    if (!r.ok) throw new Error(`Issuer lookup failed: ${r.status}`);
+    const j = await r.json();
     const dom = j.home_domain || "";
     DOMAIN_CACHE.set(issuer, dom);
     return dom;
   }
 
   async function getToml(domain){
-    if (TOML_CACHE.has(domain)) return TOML_CACHE.get(domain);
     if (!domain) return null;
-    try{
-      // SDK’s resolver uses a CORS-friendly path.
-      const toml = await SDK.StellarTomlResolver.resolve(domain, { allowHttp: false, timeout: 8000 });
+    if (TOML_CACHE.has(domain)) return TOML_CACHE.get(domain);
+    try {
+      const toml = await SDK.StellarTomlResolver.resolve(domain, { allowHttp:false, timeout:8000 });
       TOML_CACHE.set(domain, toml || null);
       return toml || null;
-    }catch(e){
+    } catch (e) {
+      // Many domains still ship proper CORS; if not, we just cache null and fall back.
+      console.warn("stellar.toml fetch failed for", domain, e);
       TOML_CACHE.set(domain, null);
       return null;
     }
   }
 
-  function findCurrencyImage(toml, code, issuer){
+  function toAbsoluteUrl(domain, url){
+    if (!url) return null;
+    // Already absolute
+    if (/^https?:\/\//i.test(url)) return url;
+    // Protocol-relative
+    if (/^\/\//.test(url)) return `https:${url}`;
+    // Root-relative
+    if (url.startsWith('/')) return `https://${domain}${url}`;
+    // Plain relative path
+    return `https://${domain}/${url}`;
+  }
+
+  function findCurrencyImage(toml, code, issuer, domain){
     if (!toml || !Array.isArray(toml.CURRENCIES)) return null;
-    const hit = toml.CURRENCIES.find(c =>
-      (c.code === code) &&
-      (c.issuer === issuer || c.issuer?.toUpperCase() === issuer?.toUpperCase())
-    );
-    return hit?.image || hit?.logo || null;
+    const hit = toml.CURRENCIES.find(c => {
+      const ccode   = c.code || c.CODE;
+      const cissuer = (c.issuer || c.ISSUER || "").toUpperCase();
+      return ccode === code && cissuer === (issuer||"").toUpperCase();
+    });
+    const raw = hit?.image || hit?.logo || hit?.IMAGE || hit?.LOGO || null;
+    return toAbsoluteUrl(domain, raw);
   }
 
   async function resolveIconFromToml(code, issuer){
@@ -151,14 +162,13 @@
     if (ICON_CACHE.has(key)) return ICON_CACHE.get(key);
 
     if (code === 'XLM' && !issuer) {
-      ICON_CACHE.set(key, XLM_SVG);
-      return XLM_SVG;
+      ICON_CACHE.set(key, XLM_SVG); return XLM_SVG;
     }
 
     try{
       const domain = await getHomeDomain(issuer);
-      const toml = await getToml(domain);
-      const url = findCurrencyImage(toml, code, issuer);
+      const toml   = await getToml(domain);
+      const url    = findCurrencyImage(toml, code, issuer, domain);
       if (url) { ICON_CACHE.set(key, url); return url; }
     }catch(_){ /* fall through */ }
 
@@ -167,17 +177,14 @@
     return fallback;
   }
 
-  function parseVal(v){
-    if (!v || v === 'XLM') return { code:'XLM', issuer:null };
-    const [code, issuer] = v.split(':'); return { code, issuer };
-  }
+  function parseVal(v){ if (!v || v==='XLM') return { code:'XLM', issuer:null }; const [code, issuer]=v.split(':'); return { code, issuer }; }
 
   async function paintPill(iconEl, textEl, code, issuer){
     textEl.textContent = code;
     iconEl.innerHTML = '';
     const url = await resolveIconFromToml(code, issuer);
     const img = document.createElement('img');
-    img.alt = `${code} logo`; img.referrerPolicy = 'no-referrer';
+    img.alt = `${code} logo`; img.referrerPolicy = 'no-referrer'; img.decoding = 'async';
     img.src = url;
     iconEl.appendChild(img);
   }
@@ -185,12 +192,25 @@
   async function refreshFrom(){
     const sel = document.getElementById('from');
     const { code, issuer } = parseVal(sel.value);
+    // Show debug note with domain and whether TOML was found
+    let note = '';
+    if (issuer) {
+      try {
+        const domain = await getHomeDomain(issuer);
+        const toml = await getToml(domain);
+        note = `Issuer domain: ${domain || '—'} · TOML: ${toml ? 'OK' : 'unavailable'}`;
+      } catch {
+        note = 'Issuer domain lookup failed';
+      }
+    } else {
+      note = 'Native XLM';
+    }
+    document.getElementById('note').textContent = note;
+
     await paintPill(document.getElementById('fromIcon'), document.getElementById('fromTicker'), code, issuer);
-    document.getElementById('note').textContent = `Loaded icon for ${code}${issuer?` (${issuer.slice(0,4)}…${issuer.slice(-4)})`:''}`;
   }
 
   async function init(){
-    // Paint fixed "To" = AQUAm25 from TOML
     await paintPill(document.getElementById('toIcon'),  document.getElementById('toTicker'),  'AQUAm25', AQUAM25_ISSUER);
     await paintPill(document.getElementById('toIcon2'), document.getElementById('toTicker2'), 'AQUAm25', AQUAM25_ISSUER);
 
@@ -198,12 +218,10 @@
     document.getElementById('from').addEventListener('change', refreshFrom);
     document.getElementById('reload').addEventListener('click', ()=>{
       ICON_CACHE.clear(); DOMAIN_CACHE.clear(); TOML_CACHE.clear();
+      document.getElementById('note').textContent = 'Caches cleared.';
       refreshFrom();
-      document.getElementById('note').textContent = 'Caches cleared. Reloaded.';
-      setTimeout(()=>document.getElementById('note').textContent='',1200);
     });
   }
-
   init();
 </script>
 </body>
