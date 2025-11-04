@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mirrasets — Asset Picker Test (Refined)</title>
+<style>
+  :root{
+    --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --border:#1c242c;
+    --chip:#0e1419; --chip-b:#1e2831; --accent:#7d4bd1;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:860px;margin:28px auto;padding:0 16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px}
+  h1{margin:0 0 14px;font-size:18px;letter-spacing:.2px}
+  .box{background:#0f1520;border:1px solid #1b2633;border-radius:18px;padding:14px;margin-top:12px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .slab{background:#0f1520;border:1px solid #1b2633;border-radius:18px;padding:14px;margin-top:10px}
+  .slab-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .label{color:var(--muted);font-size:13px}
+  .big-input{width:100%;border:1px solid #1e2831;background:#0e1419;color:#fff;border-radius:14px;padding:10px 12px;
+              font-variant-numeric:tabular-nums;font-weight:500;font-size:clamp(22px,6vw,32px)}
+  .big-input.readonly{opacity:.95;background:#0b1115;border-style:dashed}
+  .pill{display:inline-flex;align-items:center;gap:10px;background:var(--chip);border:1px solid var(--chip-b);
+        color:#e6eeff;padding:8px 12px;border-radius:999px;font-weight:600;font-size:14px;}
+  .pill .sym{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#0b1115;border:1px solid #263240}
+  .pill img{width:22px;height:22px;border-radius:999px;object-fit:cover}
+  .caret{opacity:.6;font-size:12px}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .rate{margin:8px 0 2px;text-align:center;color:#9fb2c5;font-size:12px}
+
+  /* Buttons */
+  .btn{cursor:pointer;border-radius:14px;border:1px solid #2a3340;background:#0c1c20;color:#d9f6ff;padding:12px 14px;font-weight:700;font-size:14px}
+  .primary{background:var(--accent);border-color:#8b66d8}
+
+  /* Modal */
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
+  .open{display:flex}
+  .modal-inner{width:min(720px,94vw);max-height:86vh;overflow:auto;background:#121624;border:1px solid #2a3550;border-radius:18px;
+               box-shadow:0 18px 60px rgba(0,0,0,.45)}
+  .modal-h{display:flex;justify-content:space-between;align-items:center;padding:18px 18px 10px}
+  .modal-h h2{margin:0;font-size:20px;font-weight:700}
+  .x{background:none;border:1px solid #2f3b5a;border-radius:10px;color:#cfd9ff;padding:6px 10px;cursor:pointer;font-size:13px}
+  .modal-b{padding:6px 12px 16px}
+  .asset-list{display:flex;flex-direction:column}
+  .asset-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:14px;cursor:pointer;transition:background .15s}
+  .asset-item:hover{background:#0f1422}
+  .ai-left{display:flex;align-items:center;gap:12px}
+  .ai-logo{width:34px;height:34px;border-radius:999px;background:#0b1115;border:1px solid #2b364a;display:grid;place-items:center;overflow:hidden}
+  .ai-logo img{width:100%;height:100%;object-fit:cover}
+  .ai-title{font-size:15px;font-weight:500}
+  .ai-sub{font-size:12px;color:#9fb2c5;margin-top:1px}
+  .ai-bal{font-variant-numeric:tabular-nums;color:#dfe8ff;font-size:13px;font-weight:500}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>AQUAm25 Swap — Asset Picker Test (Refined)</h1>
+
+      <!-- SELL -->
+      <div class="slab">
+        <div class="slab-top">
+          <div class="label">Sell</div>
+          <button id="sellPill" class="pill" type="button" aria-haspopup="dialog">
+            <span class="sym" id="sellIcon">Ξ</span>
+            <span id="sellTicker">XLM</span>
+            <span class="caret">▾</span>
+          </button>
+        </div>
+
+        <input id="sellAmount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+        <div class="row" style="justify-content:space-between;margin-top:6px">
+          <button id="fillMax" class="btn small">Balance: <span id="sellBal">0</span></button>
+        </div>
+      </div>
+
+      <!-- BUY -->
+      <div class="slab">
+        <div class="slab-top">
+          <div class="label">Buy</div>
+          <div class="pill">
+            <span class="sym"><img id="buyIcon" alt="AQUAm25" /></span>
+            <span>AQUAm25</span>
+          </div>
+        </div>
+        <input id="buyEst" class="big-input readonly" readonly placeholder="0" />
+      </div>
+
+      <div class="rate" id="rateLine"></div>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary">Swap to AQUAm25</button>
+        <button class="btn">Copy XDR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Picker Modal -->
+  <div id="pickerBackdrop" class="backdrop"></div>
+  <div id="pickerModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-inner">
+      <div class="modal-h">
+        <h2>Choose asset</h2>
+        <button class="x" id="pickClose">Close</button>
+      </div>
+      <div class="modal-b"><div id="assetList" class="asset-list"></div></div>
+    </div>
+  </div>
+
+<script>
+  const assets = [
+    { code:"XLM", issuer:null, balance:"9.9999143", domain:"stellar.org" },
+    { code:"AQUA", issuer:"GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA", balance:"125000.0000000", domain:"aqua.network" },
+    { code:"USDC", issuer:"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN", balance:"1250.0000000", domain:"centre.io" },
+    { code:"KRWC", issuer:"GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC", balance:"420.0", domain:"mirrasets.com" }
+  ];
+  const AQUAm25_ICON = "https://aqua.network/assets/aqua-token.svg";
+  const logoCache = new Map();
+  const assetKey = a => a.issuer ? `${a.code}:${a.issuer}` : "XLM";
+
+  async function fetchTomlLogoFromHorizon(code, issuer){
+    const key = assetKey({code,issuer});
+    if(logoCache.has(key)) return logoCache.get(key);
+    try{
+      const res = await fetch(`https://horizon.stellar.org/assets?asset_code=${code}&asset_issuer=${issuer}`);
+      const j = await res.json();
+      const rec = j?._embedded?.records?.[0];
+      const t = rec?._links?.toml?.href;
+      if(!t) return null;
+      const txt = await fetch(t).then(r=>r.text());
+      const m = txt.match(/^\s*IMAGE\s*=\s*"(.*?)"/im);
+      const url = m ? m[1].trim() : null;
+      logoCache.set(key,url);
+      return url;
+    }catch{return null;}
+  }
+
+  const $=id=>document.getElementById(id);
+  const backdrop=$("pickerBackdrop"), modal=$("pickerModal"), list=$("assetList");
+  $("pickClose").onclick=closePicker; backdrop.onclick=closePicker;
+  function openPicker(){backdrop.classList.add("open");modal.classList.add("open");}
+  function closePicker(){backdrop.classList.remove("open");modal.classList.remove("open");}
+
+  async function renderList(){
+    list.innerHTML="";
+    const sorted=[...assets].sort((a,b)=>{
+      if(a.code==="XLM")return-1;if(b.code==="XLM")return 1;
+      return parseFloat(b.balance)-parseFloat(a.balance);
+    });
+    for(const a of sorted){
+      if(parseFloat(a.balance)<=0)continue;
+      const row=document.createElement("div");
+      row.className="asset-item";
+      const left=document.createElement("div");left.className="ai-left";
+      const logo=document.createElement("div");logo.className="ai-logo";logo.textContent=a.code[0];left.appendChild(logo);
+      const textWrap=document.createElement("div");
+      textWrap.innerHTML=`<div class="ai-title">${a.code}</div><div class="ai-sub">${a.domain||""}</div>`;
+      left.appendChild(textWrap);
+      const bal=document.createElement("div");bal.className="ai-bal";bal.textContent=a.balance;
+      row.append(left,bal);list.appendChild(row);
+      row.onclick=()=>{selectAsset(a);closePicker();};
+      if(a.issuer)fetchTomlLogoFromHorizon(a.code,a.issuer).then(url=>{
+        if(url){logo.innerHTML=`<img src="${url}" alt="${a.code}" />`;}
+      });
+    }
+  }
+
+  const sellPill=$("sellPill"),sellIcon=$("sellIcon"),sellTicker=$("sellTicker"),sellBal=$("sellBal");
+  function selectAsset(a){
+    sellTicker.textContent=a.code;sellBal.textContent=a.balance;
+    if(a.issuer){
+      fetchTomlLogoFromHorizon(a.code,a.issuer).then(url=>{
+        sellIcon.innerHTML=url?`<img src="${url}" alt="${a.code}" />`:a.code[0];
+      });
+    }else{sellIcon.textContent="Ξ";}
+  }
+
+  (function init(){
+    $("buyIcon").src=AQUAm25_ICON;
+    selectAsset(assets[1]); // default AQUA
+    sellPill.addEventListener("click",()=>{renderList().then(openPicker);});
+    $("fillMax").addEventListener("click",()=>{
+      const code=sellTicker.textContent.trim();
+      const a=assets.find(x=>x.code===code);
+      if(a)$("sellAmount").value=a.balance;
+    });
+  })();
+</script>
+</body>
+</html>
