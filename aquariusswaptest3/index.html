@@ -131,7 +131,7 @@
         </div>
 
         <p class="small" id="swapQuote" style="margin-top:6px" aria-live="polite"></p>
-        <!-- NEW: visible route line -->
+        <!-- Visible route line -->
         <p class="small mono" id="routeLine" style="margin-top:4px;opacity:.9"></p>
 
         <div class="toggle-row" style="margin-top:10px">
@@ -313,7 +313,7 @@
       return _soro;
     }
 
-    // Cache for issuer -> domain
+    // Cache for issuer -> domain (classic)
     const DOMAIN_CACHE = new Map();
 
     // ---------- Helpers ----------
@@ -542,8 +542,8 @@
         qrArea.style.display="none"; closeModal();
 
         const accounts = session.namespaces?.stellar?.accounts || [];
-        const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
-        const address = first.split(":")[2] || "";
+        theFirst = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+        const address = theFirst.split(":")[2] || "";
         setConnected(address, "wc");
         client = sc;
       }catch(e){
@@ -789,45 +789,49 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     }
 
     // =====================================================================
-    // NEW Soroban-based route helpers (no Horizon /accounts/ on pool CIDs)
+    // NEW Soroban-based route helpers (JSON-RPC getContractData; no Horizon)
     // =====================================================================
 
-    // Small cache for token symbols to make repeated quotes instant
+    // Cache for token symbols: addr -> "AQUA", "USDC", etc.
     const TOKEN_SYMBOL_CACHE = new Map();
 
-    function scvSym(s){ return SDK.xdr.ScVal.scvSymbol(s); }
-    function toScAddressFromString(str){
-      return SDK.Address.fromString(str).toScAddress();
+    function rpcFetch(method, params){
+      return fetch(sorobanRpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc:"2.0", id: Date.now(), method, params })
+      }).then(r=>r.json());
     }
 
     /**
-     * Read token pair from an Aquarius AMM pool contract by querying its
-     * persistent contract-data keys ("token_a" / "token_b").
-     * Returns an array of two Soroban addresses (contract or classic) as strings.
+     * Read token pair from an Aquarius AMM pool contract by calling Soroban RPC:
+     *   getContractData(contractId, key:{symbol:"token_a"}, durability:"persistent")
+     *   getContractData(contractId, key:{symbol:"token_b"}, durability:"persistent")
+     * Returns two Soroban addresses (contract or classic) as strings.
      */
     async function fetchPoolTokenContracts(poolCid){
       try{
-        const server = rpc();
+        const [ra, rb] = await Promise.all([
+          rpcFetch("getContractData", { contractId: poolCid, key:{ symbol:"token_a" }, durability:"persistent" }),
+          rpcFetch("getContractData", { contractId: poolCid, key:{ symbol:"token_b" }, durability:"persistent" }),
+        ]);
 
-        const keys = ["token_a","token_b"].map(sym => {
-          return SDK.xdr.LedgerKey.contractData(
-            new SDK.xdr.LedgerKeyContractData({
-              contract: toScAddressFromString(poolCid),
-              key: scvSym(sym),
-              durability: SDK.xdr.ContractDataDurability.persistent()
-            })
-          );
-        });
+        const pickVal = (resp) =>
+          resp?.result?.val || resp?.result?.entry?.val || resp?.val || resp?.entry?.val;
 
-        const resp = await server.getLedgerEntries(keys);
+        const va = pickVal(ra);
+        const vb = pickVal(rb);
         const out = [];
-        for (const item of (resp?.entries||[])){
-          const valXdr = item?.xdr?.val || item?.val || item?.liveEntry?.data?.contractData?.val;
-          if(!valXdr) continue;
-          const scv = (valXdr instanceof SDK.xdr.ScVal) ? valXdr : SDK.xdr.ScVal.fromXDR(valXdr, "base64");
-          const addr = SDK.Address.fromScVal(scv);
-          out.push(addr.toString());
+
+        if (va){
+          const scvA = (va instanceof SDK.xdr.ScVal) ? va : SDK.xdr.ScVal.fromXDR(va, "base64");
+          out.push(SDK.Address.fromScVal(scvA).toString());
         }
+        if (vb){
+          const scvB = (vb instanceof SDK.xdr.ScVal) ? vb : SDK.xdr.ScVal.fromXDR(vb, "base64");
+          out.push(SDK.Address.fromScVal(scvB).toString());
+        }
+
         return out;
       }catch(e){
         console.warn("fetchPoolTokenContracts RPC failed", poolCid, e);
@@ -837,53 +841,51 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     /**
      * Resolve a human-readable ticker for a token address.
-     * Tries cache -> known matches -> soroban token::symbol() simulate -> short CID.
+     * Tries: cache -> known -> simulate token::symbol() -> short CID.
      */
     async function resolveTickerFromAddress(addr){
+      if (!addr) return "XLM";
       if (TOKEN_SYMBOL_CACHE.has(addr)) return TOKEN_SYMBOL_CACHE.get(addr);
 
-      // Known cases
-      if (addr === AQUAm25.contractId(NETWORK)) { TOKEN_SYMBOL_CACHE.set(addr,"AQUAm25"); return "AQUAm25"; }
+      try {
+        if (addr === AQUAm25.contractId(NETWORK)) {
+          TOKEN_SYMBOL_CACHE.set(addr, "AQUAm25");
+          return "AQUAm25";
+        }
+      } catch(_) {}
 
-      // Try calling token::symbol() via simulate (no need for a real account)
       try{
         const c = new SDK.Contract(addr);
-        const kp = SDK.Keypair.random(); // ephemeral
+        // Build a minimal tx for simulation; use a zero-seq placeholder account
+        const kp = SDK.Keypair.random();
         const fake = new SDK.Account(kp.publicKey(), "0");
-
-        const op = c.call("symbol"); // standard token interface
-        const tx = new SDK.TransactionBuilder(fake, { fee: "100", networkPassphrase })
+        const op = c.call("symbol");
+        const tx = new SDK.TransactionBuilder(fake, { fee:"100", networkPassphrase })
           .setTimeout(30)
           .addOperation(op)
           .build();
-
         const sim = await rpc().simulateTransaction(tx);
-        const rv = sim?.result?.retVal;
-        if (rv) {
+        const rv  = sim?.result?.retVal;
+        if (rv){
           const scv = (rv instanceof SDK.xdr.ScVal) ? rv : SDK.xdr.ScVal.fromXDR(rv, "base64");
-          // symbol may be ScVal::Symbol or ::String; handle both
           try{
             const val = SDK.scValToNative(scv);
-            if (typeof val === "string" && val.length) {
+            if (typeof val === "string" && val.length){
               TOKEN_SYMBOL_CACHE.set(addr, val);
               return val;
             }
           }catch(_){}
         }
-      }catch(e){
-        // ignore; fall through
-      }
+      }catch(_){}
 
-      // Fallback: shortened contract id
       const short = `${addr.slice(0,4)}…${addr.slice(-4)}`;
       TOKEN_SYMBOL_CACHE.set(addr, short);
       return short;
     }
 
     /**
-     * Build "X → Y → Z" labels for the pools in the Aquarius quote by reading each pool’s
-     * token_a/token_b contracts, then resolving their tickers. AQUA emissions on classic
-     * are irrelevant here since we read the canonical pair from Soroban state.
+     * Build "X → Y → Z" labels for pools by reading token_a/token_b from Soroban,
+     * then resolving each token’s symbol. AQUA emissions on classic are irrelevant.
      */
     async function buildRouteLabelsFromPools(sendAsset, pools){
       const start = (sendAsset.isNative && sendAsset.isNative())
@@ -891,7 +893,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         : { label: sendAsset.code, addr: sendAsset.contractId(NETWORK) };
 
       const labels = [start.label];
-      let currentAddr = start.addr; // Soroban token contract address (null when starting with XLM)
+      let currentAddr = start.addr;
 
       for (const pool of (pools||[]).slice(0,4)){
         const poolCid = (typeof pool === "string") ? pool : (pool.contract || pool.id || pool.pool || "");
@@ -904,7 +906,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         let nextAddr;
 
         if (!currentAddr) {
-          // First hop when starting from XLM (no contract addr): resolve both, pick non-XLM if present
+          // First hop from XLM: resolve both, pick non-XLM when possible
           const [la, lb] = await Promise.all([resolveTickerFromAddress(a), resolveTickerFromAddress(b)]);
           nextAddr = (la === "XLM") ? b : ((lb === "XLM") ? a : a);
           const nextLabel = (la === "XLM") ? lb : ((lb === "XLM") ? la : la);
@@ -916,7 +918,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         if (a === currentAddr) nextAddr = b;
         else if (b === currentAddr) nextAddr = a;
         else {
-          // If ambiguous, prefer the non-AQUA token if present
+          // Ambiguous: prefer non-AQUA
           const aquaCid = AQUA.contractId(NETWORK);
           nextAddr = (a && a !== aquaCid) ? a : b;
         }
@@ -972,6 +974,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = routeSummary(true, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-send", estimate_out:estOut, pools:j.pools, tokens:j.tokens}, null, 2);
 
+        // Route via Soroban
         try {
           const route = await buildRouteLabelsFromPools(sendAsset, j.pools || []);
           routeLine.textContent = `Route: ${route}`;
@@ -1027,12 +1030,13 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = routeSummary(false, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-receive", estimate_in:estIn, pools:j.pools, tokens:j.tokens}, null, 2);
 
+        // Route via Soroban
         try {
           const route = await buildRouteLabelsFromPools(sendAsset, j.pools || []);
           routeLine.textContent = `Route: ${route}`;
         } catch { routeLine.textContent = ""; }
 
-        // Balance guard (use spendable XLM when XLM is input)
+        // Balance guard (spendable XLM if input is XLM)
         let available = parseFloat(getSelectedOption()?.dataset.balance || "0");
         if (swapFrom.value === "XLM") {
           try { available = await getSpendableXLM(pk); } catch {}
