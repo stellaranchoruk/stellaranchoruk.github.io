@@ -45,6 +45,19 @@
     .pill.ok { border-color:#234b3b; color:var(--ok); }
     .pill.warn { border-color:#4a2a2a; color:var(--err); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    /* Modal (WalletConnect) */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
+    .open{display:flex}
+    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+    .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
+    .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
+    .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .wallet-choices button{background:#162554;border:1px solid #344a8a}
+    a.link{color:#9ab0ff;text-decoration:underline}
   </style>
 </head>
 <body>
@@ -68,6 +81,7 @@
         <div class="row" style="gap:10px;margin:4px 0 8px;">
           <button class="ghost" id="btnModeSend" style="border-color:#2a6f7c;background:#0c3137;color:#d9f6ff">Strict-Send (fix input)</button>
           <button class="ghost" id="btnModeRecv">Strict-Receive (fix output)</button>
+          <span class="pill">Router: <span class="mono">CBQ…QUK</span></span>
           <span class="pill">Network: <span class="mono">Mainnet</span></span>
         </div>
 
@@ -109,13 +123,16 @@
 
         <!-- Actions -->
         <div class="row" style="gap:10px;margin-top:10px">
+          <button id="btnValidate" class="ghost">Validate Tokens & Trustline</button>
+          <button id="btnQuote" class="ghost">Quote via Aquarius</button>
           <button id="swapSignSubmit">Sign &amp; Submit</button>
           <button id="swapCopy" class="ghost">Copy XDR</button>
           <button id="btnAddTrustline" class="ghost">Add AQUAm25 Trustline</button>
         </div>
 
         <p class="small" id="swapQuote" style="margin-top:6px" aria-live="polite"></p>
-        <p class="small mono" id="routeLine" style="margin-top:2px;opacity:.85"></p>
+        <!-- NEW: visible route line -->
+        <p class="small mono" id="routeLine" style="margin-top:4px;opacity:.9"></p>
 
         <div class="toggle-row" style="margin-top:10px">
           <label for="xdrSwap" style="margin:0">Swap Transaction XDR (Soroban)</label>
@@ -139,7 +156,7 @@
           <div id="validationBox" class="small">—</div>
 
           <div class="row" style="gap:10px;margin:10px 0 6px">
-            <span class="muted">Quote / Route (raw)</span>
+            <span class="muted">Quote / Route</span>
             <button class="ghost small" id="copyQuote">Copy</button>
           </div>
           <div class="code" id="quoteBox">—</div>
@@ -185,7 +202,7 @@
 
   <!-- Connect Modal -->
   <div id="backdrop" class="backdrop"></div>
-  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle" style="display:none">
+  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
     <div class="modal-inner">
       <div class="modal-header">
         <h2 id="loginTitle" style="font-size:18px;margin:0">Connect Wallet</h2>
@@ -264,6 +281,7 @@
           swapEst=$("swapEst"), selectedBal=$("selectedBal"), fillMaxBtn=$("fillMaxBtn"),
           toIssuerMeta=$("toIssuerMeta"), toggleSwapXdr=$("toggleSwapXdr"), toggleLockerXdr=$("toggleLockerXdr"),
           btnModeSend=$("btnModeSend"), btnModeRecv=$("btnModeRecv"),
+          btnValidate=$("btnValidate"), btnQuote=$("btnQuote"),
           contractsBox=$("contractsBox"), validationBox=$("validationBox"),
           quoteBox=$("quoteBox"), routeLine=$("routeLine");
 
@@ -295,9 +313,8 @@
       return _soro;
     }
 
-    // Cache for issuer -> domain and pools -> trustlines
+    // Cache for issuer -> domain
     const DOMAIN_CACHE = new Map();
-    const POOL_TL_CACHE = new Map();
 
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
@@ -307,7 +324,7 @@
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
     function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; }
     function contractId(asset){ return asset.contractId(NETWORK); }
-    const eqAsset = (a,b)=> a.code===b.code && (a.issuer||null)===(b.issuer||null);
+    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
 
     // ---------- Spendable XLM (match aqua.network) ----------
     async function getNetworkBaseReserveXLM() {
@@ -316,7 +333,6 @@
       const stroops = parseInt(j?._embedded?.records?.[0]?.base_reserve_in_stroops || "5000000", 10);
       return stroops / 1e7;
     }
-    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
 
     async function getXlmBreakdown(pk) {
       const base = await getNetworkBaseReserveXLM();
@@ -394,8 +410,8 @@
     }
 
     // ---------- Connection UI ----------
-    function openModal()  { backdrop.classList.add('open'); loginModal.style.display="flex"; }
-    function closeModal() { backdrop.classList.remove('open'); loginModal.style.display="none"; }
+    function openModal()  { backdrop.classList.add('open'); loginModal.classList.add('open'); }
+    function closeModal() { backdrop.classList.remove('open'); loginModal.classList.remove('open'); }
     on(connectBtn,"click",openModal);
     on(closeModalBtn,"click",closeModal);
     on(backdrop,"click",closeModal);
@@ -425,7 +441,7 @@
       }catch(e){ console.warn(e); }
       session=null; connectionMode="none"; setConnected("", "none");
       xdrOut.value = ""; xdrSwap.value = ""; swapEst.value = "";
-      actionResult.textContent = ""; swapResult.textContent = ""; swapQuote.textContent = ""; routeLine.textContent="";
+      actionResult.textContent = ""; swapResult.textContent = ""; swapQuote.textContent = ""; routeLine.textContent = "";
       disableLockerButtons(); disableSwapButtons();
       refreshXlmBreakdownMaybe();
     });
@@ -740,87 +756,105 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const bal = (j.balances || []).find(b => b.asset_code === asset.code && b.asset_issuer === asset.issuer);
       return !!bal;
     }
+    async function softTokenCheck(asset){
+      const probe = { token_in_address:  contractId(asset), token_out_address: contractId(SDK.Asset.native()), amount: "1" };
+      const r = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(probe) });
+      const j = await r.json().catch(()=>null);
+      return !!j && (typeof j.success === "boolean");
+    }
+    async function onValidate(){
+      try{
+        showContracts();
+        const tokenIn = getCurrentSendAsset();
+        const tokenOut = AQUAm25;
+        const bits = [];
 
-    // ---------- Trustline-based pool asset discovery ----------
+        const [okIn, okOut] = await Promise.all([softTokenCheck(tokenIn), softTokenCheck(tokenOut)]);
+        bits.push(okIn ? `<div class="pill ok">Token In recognized by Aquarius</div>` : `<div class="pill warn">Token In not recognized</div>`);
+        bits.push(okOut ? `<div class="pill ok">Token Out recognized by Aquarius</div>` : `<div class="pill warn">Token Out not recognized</div>`);
+
+        if(pubkey){
+          const tl = await hasTrustline(pubkey, tokenOut);
+          bits.push(tl ? `<div class="pill ok">Trustline: OK for output asset</div>` : `<div class="pill warn">No trustline for output asset — click “Add AQUAm25 Trustline”</div>`);
+        } else {
+          bits.push(`<div class="pill">Connect to check trustline</div>`);
+        }
+
+        validationBox.innerHTML = `<div class="row" style="gap:8px">${bits.join("")}</div>`;
+        toast("Validation finished.");
+      } catch(e){
+        validationBox.innerHTML = `<span style="color:#ff6b6b">${e.message}</span>`;
+        toast("Validation error.", true);
+      }
+    }
+
+    // ---------- Route helpers (Horizon trustlines) ----------
+    function assetEqual(a,b){ return a.code===b.code && (a.issuer||null)===(b.issuer||null); }
+
+    // Fetch the two token trustlines of a pool contract (ignoring AQUA emissions if present)
     async function fetchPoolTrustlines(poolCid){
       try{
-        if (POOL_TL_CACHE.has(poolCid)) return POOL_TL_CACHE.get(poolCid);
-
         const res = await fetch(`${HORIZON}/accounts/${poolCid}`);
         if(!res.ok) throw new Error(`Horizon ${res.status}`);
         const j = await res.json();
-
         const rows = (j.balances||[])
           .filter(b => b.asset_type==="native" || (b.asset_code && b.asset_issuer))
           .map(b => ({
-            code:  b.asset_type==="native" ? "XLM" : b.asset_code,
-            issuer:b.asset_type==="native" ? null  : b.asset_issuer,
-            bal:   parseFloat(b.balance || "0")
+            code: b.asset_type==="native" ? "XLM" : b.asset_code,
+            issuer: b.asset_type==="native" ? null : b.asset_issuer,
+            bal: parseFloat(b.balance||"0")
           }));
-
         let list = rows;
-        if (rows.length > 2) {
-          const nonAqua = rows.filter(x => !(x.code === AQUA_CODE && x.issuer === AQUA_ISSUER));
-          if (nonAqua.length >= 2) list = nonAqua;
+        if(rows.length>2){
+          const nonAqua = rows.filter(x => !(x.code==="AQUA" && x.issuer===AQUA_ISSUER));
+          if(nonAqua.length>=2) list = nonAqua;
         }
-
-        list.sort((a,b) => b.bal - a.bal);
-
-        const uniq = [];
-        for (const a of list){
-          if (!uniq.some(x => x.code===a.code && (x.issuer||null)===(a.issuer||null))) {
-            uniq.push({ code:a.code, issuer:a.issuer });
-            if (uniq.length === 2) break;
+        list.sort((a,b)=>b.bal-a.bal);
+        const uniq=[];
+        for(const a of list){
+          if(!uniq.some(x=>assetEqual(x,a))){
+            uniq.push({code:a.code,issuer:a.issuer});
+            if(uniq.length===2) break;
           }
         }
-        POOL_TL_CACHE.set(poolCid, uniq);
         return uniq;
       }catch(e){
-        console.warn("fetchPoolTrustlines failed", poolCid, e);
+        console.warn("fetchPoolTrustlines failed",poolCid,e);
         return [];
       }
     }
 
-    function assetFromSdkAsset(a){
-      return a.isNative && a.isNative() ? { code:"XLM", issuer:null } : { code:a.code, issuer:a.issuer };
-    }
-    function labelFromAssetObj(o){ return o.code; }
+    // Build readable route labels from the sequence of pools
+    async function buildRouteLabelsFromPools(sendAsset,pools){
+      const start = (sendAsset.isNative && sendAsset.isNative())
+        ? {code:"XLM",issuer:null}
+        : {code:sendAsset.code,issuer:sendAsset.issuer};
+      const end = {code:AQUAm25_CODE,issuer:AQUAm25_ISSUER};
 
-    async function buildRouteLabelsFromPools(sendAsset, pools){
-      try{
-        const start = assetFromSdkAsset(sendAsset);
-        const end   = { code:AQUAm25_CODE, issuer:AQUAm25_ISSUER };
+      const hops=[start];
+      let current=start;
 
-        if(!Array.isArray(pools) || pools.length===0) return `${labelFromAssetObj(start)} → ${labelFromAssetObj(end)}`;
-
-        // Fetch assets per pool
-        const perPool = [];
-        for(const p of pools){
-          const cid = (typeof p === "string") ? p : (p?.pool || p?.contract || p?.id || "");
-          if(!cid) continue;
-          const pair = await fetchPoolTrustlines(cid);
-          perPool.push({ cid, pair });
+      // Aquarius router caps at 4 pools; enforce here too
+      for(const pool of (pools||[]).slice(0,4)){
+        const cid = typeof pool==="string" ? pool : (pool.contract||pool.id||pool.pool||"");
+        if(!cid){ hops.push({code:"???",issuer:null}); continue; }
+        const pair=await fetchPoolTrustlines(cid);
+        if(pair.length<2){
+          hops.push({code:"???",issuer:null});
+          continue;
         }
-
-        // Reconstruct hop sequence by matching "the other asset"
-        const hops = [ start ];
-        let current = start;
-        for(const item of perPool){
-          const [a,b] = item.pair;
-          if(!a || !b) { hops.push({ code:"???", issuer:null }); current = { code:"???", issuer:null }; continue; }
-          const next = (eqAsset(a, current)) ? b : (eqAsset(b, current) ? a : (a.code===AQUA_CODE && a.issuer===AQUA_ISSUER ? b : a));
-          hops.push(next);
-          current = next;
-        }
-
-        // If last isn't AQUAm25, append target (it may still equal)
-        if (!eqAsset(current, end)) hops.push(end);
-
-        return hops.map(labelFromAssetObj).join(" → ");
-      }catch(e){
-        console.warn("buildRouteLabelsFromPools failed", e);
-        return "Route unavailable";
+        const next =
+          assetEqual(pair[0],current) ? pair[1] :
+          assetEqual(pair[1],current) ? pair[0] :
+          (pair.find(x=>x.code!=="AQUA") || pair[0]);
+        hops.push(next);
+        current=next;
       }
+
+      if(!assetEqual(current,end)) hops.push(end);
+
+      const labels=hops.map(h=>h.code||"???");
+      return labels.join(" → ");
     }
 
     // ---------- Aquarius quotes ----------
@@ -865,9 +899,11 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = routeSummary(true, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-send", estimate_out:estOut, pools:j.pools, tokens:j.tokens}, null, 2);
 
-        // Route line via trustlines
-        const route = await buildRouteLabelsFromPools(sendAsset, j.pools || []);
-        routeLine.textContent = `Route: ${route}`;
+        // NEW: resolve route labels via Horizon trustlines
+        try {
+          const route = await buildRouteLabelsFromPools(sendAsset, j.pools || []);
+          routeLine.textContent = `Route: ${route}`;
+        } catch { routeLine.textContent = ""; }
 
         const needTL = !(await hasTrustline(pk, AQUAm25));
         const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
@@ -919,11 +955,13 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         swapQuote.innerHTML = routeSummary(false, j, sendLabel);
         quoteBox.textContent = JSON.stringify({mode:"strict-receive", estimate_in:estIn, pools:j.pools, tokens:j.tokens}, null, 2);
 
-        // Route line via trustlines
-        const route = await buildRouteLabelsFromPools(sendAsset, j.pools || []);
-        routeLine.textContent = `Route: ${route}`;
+        // NEW: resolve route labels via Horizon trustlines
+        try {
+          const route = await buildRouteLabelsFromPools(sendAsset, j.pools || []);
+          routeLine.textContent = `Route: ${route}`;
+        } catch { routeLine.textContent = ""; }
 
-        // Balance guard
+        // Balance guard (use spendable XLM when XLM is input)
         let available = parseFloat(getSelectedOption()?.dataset.balance || "0");
         if (swapFrom.value === "XLM") {
           try { available = await getSpendableXLM(pk); } catch {}
@@ -958,7 +996,13 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
     // ---------- Build Soroban swap tx ----------
     async function buildSorobanSwapTx({
-      account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr, addTrustlineFirst
+      account,          // G...
+      isSend,           // true -> swap_chained, false -> swap_chained_strict_receive
+      tokenIn,          // SDK.Asset
+      inAmountStroops,  // BigInt  (send mode: amount_in; receive mode: max_amount_in)
+      limitOutOrExact,  // BigInt  (send mode: min_amount_out; receive mode: exact_amount_out)
+      swapChainXdr,     // base64 ScVal from Aquarius API
+      addTrustlineFirst // boolean
     }){
       if (addTrustlineFirst) {
         throw new Error("Missing AQUAm25 trustline. Click “Add AQUAm25 Trustline” first, then retry the swap.");
@@ -1215,6 +1259,10 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       enc = enc.replace(/\//g,'//') + ';;';
       window.open('https://lab.stellar.org/transaction/sign?$=network$id=mainnet&label=Mainnet&horizonUrl=https:////horizon.stellar.org&rpcUrl=https:////mainnet.sorobanrpc.com&passphrase=Public%20Global%20Stellar%20Network%20/;%20September%202015;&transaction$sign$activeView=overview&importXdr='+enc, "_blank");
     });
+
+    // ---------- Validate / Quote buttons ----------
+    on(btnValidate,"click", onValidate);
+    on(btnQuote,"click", ()=>{ if(lastIsSend) quoteStrictSend(); else quoteStrictReceive(); });
 
     // ---------- First-load ----------
     window.addEventListener("load", ()=>{
