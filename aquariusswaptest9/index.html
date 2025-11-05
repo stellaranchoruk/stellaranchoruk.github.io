@@ -12,7 +12,7 @@
   <script src="/sdk/stellar-sdk-14.3.0.min.js?v=8"></script>
 
   <style>
-    :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
+    :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --accent-2:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
     * { box-sizing: border-box; }
     html,body { margin:0; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
     .wrap{max-width:980px;margin:28px auto;padding:0 16px}
@@ -23,71 +23,93 @@
     .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
     .small{font-size:12px;opacity:.8}
     .muted{color:var(--muted)}
-    button{cursor:pointer;font-weight:600;border-radius:10px;border:1px solid #21464f;background:#0c1c20;color:#d9f6ff;padding:10px 14px;transition:.15s}
+    button{cursor:pointer;font-weight:700;border-radius:10px;border:1px solid #21464f;background:#0c1c20;color:#d9f6ff;padding:10px 14px;transition:.15s}
     button:hover{filter:brightness(1.08)}
     button.ghost{background:#141b22;border-color:#2a3340}
     button:disabled{opacity:.5;cursor:not-allowed}
     input,textarea,select{width:100%;padding:12px;border-radius:10px;border:1px solid #1e2831;background:#0e1419;color:#fff}
-    input[readonly]{opacity:.9;background:#0b1115;border-style:dashed}
+    input[readonly]{opacity:.95;background:#0b1115;border-style:dashed}
     label{display:block;margin:10px 0 6px;font-size:12px;color:var(--muted)}
     .section{margin-top:20px;padding-top:14px;border-top:1px dashed #1a232c}
     .box{background:#0e1620;border:1px solid #1c2430;border-radius:12px;padding:14px}
-    .pct{display:flex;gap:8px;margin-top:6px}
-    .pct button{flex:1;background:#141b22;border:1px solid #2a3340}
     .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .code{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; padding:10px; background:#0b1115; border:1px dashed #20303a; border-radius:8px; overflow:auto;}
-    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #2a3340;background:#141b22;border-radius:999px;padding:6px 10px;font-size:12px}
-    .label-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-    .pill { display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:6px 10px; border-radius:999px; background:#0e151a; border:1px solid #1e2831; }
-    .pill.ok { border-color:#234b3b; color:var(--ok); }
-    .pill.warn { border-color:#4a2a2a; color:var(--err); }
+    .linkish{border:none;background:transparent;color:#9ab0ff;text-decoration:underline;padding:0;cursor:pointer}
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
-    /* Modal (WalletConnect) */
-    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
-    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center}
+    /* Modals (Connect / Sign) */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
     .open{display:flex}
     .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-    .x{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+    .x{background:none;border:none;color:#bcc6d4;font-size:22px;line-height:1;cursor:pointer}
     .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
     .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
     .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
     .wallet-choices button{background:#162554;border:1px solid #344a8a}
     a.link{color:#9ab0ff;text-decoration:underline}
 
-    /* Floating Toasts */
-    .toast-container {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
+    /* Swap card */
+    .card-swap { border-radius:24px; padding:18px; position:relative; }
+    .card-swap .slab { background:#0f1520; border:1px solid #1b2633; border-radius:22px; padding:16px; margin-bottom:12px; }
+    .slab-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+    .slab-label { font-size:14px; color:var(--muted); }
+
+    .asset-chip { display:inline-flex; align-items:center; gap:10px; }
+    .chip-pill { display:inline-flex; align-items:center; gap:10px; padding:10px 14px; border-radius:999px; border:1px solid #1e2831; background:#0e1419; color:#dfe8ff; }
+    .chip-btn { border:1px solid #1e2831; background:#0e1419; color:#dfe8ff; padding:10px 14px; border-radius:999px; display:inline-flex; align-items:center; gap:10px; }
+    .chip-btn:hover{ filter:brightness(1.08); }
+    .icon { width:18px; height:18px; border-radius:50%; background:#0b1115; object-fit:cover; display:inline-block; }
+
+    .big-input {
+      width:100%; border:1px solid #1e2831; background:#0e1419; color:#fff;
+      border-radius:16px; padding:10px 12px; margin-top:4px;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(20px, 5.4vw, 32px); line-height:1.15; font-weight:600;
     }
-    @media (max-width:640px){
-      .toast-container { right:50%; transform:translateX(50%); align-items:center; }
+    .big-input.readonly { opacity:.95; background:#0b1115; border-style:dashed; }
+    .big-input.error { outline:2px solid #ff6b6b55; border-color:#803c3c; }
+
+    .rate-line { text-align:center; padding:6px 0 2px; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .actions .primary {
+      flex:1; padding:14px; border-radius:16px; background:var(--accent); color:#fff; border:1px solid #8b66d8;
+      font-weight:800;
     }
-    .toast-msg {
-      min-width:220px;
-      max-width:320px;
-      background:#16212d;
-      color:#eaf2f9;
-      border-left:4px solid var(--accent);
-      padding:12px 16px;
-      border-radius:10px;
-      box-shadow:0 4px 12px rgba(0,0,0,.4);
-      opacity:0;
-      transform:translateY(10px);
-      animation:toastIn .25s forwards;
-      pointer-events:auto;
-    }
-    .toast-msg.error { border-left-color:var(--err); }
-    .toast-msg.ok    { border-left-color:var(--ok); }
-    @keyframes toastIn { to { opacity:1; transform:translateY(0); } }
-    @keyframes toastOut { to { opacity:0; transform:translateY(20px); } }
+    .actions .primary.warn { background:#5d2a2a; border-color:#7a3a3a; }
+    .actions .ghost.small { padding:10px 12px; border-radius:12px; }
+    .swap-header { display:flex; justify-content:flex-start; margin-bottom:8px; }
+
+    /* Toast */
+    .toast-wrap { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 9999; display: grid; gap: 8px; width: min(92vw, 520px); pointer-events:none; }
+    .toast { pointer-events:auto; border-radius:12px; border:1px solid #2a3340; background:#101a24; color:#e7f2ff; padding:12px 14px; box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .toast.err { border-color:#5a2a2a; background:#201114; color:#ffd8d8; }
+    .toast .x { margin-left:10px; font-size:18px; }
+
+    /* Asset Picker Modal (Mirrasets style) */
+    .picker-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:9997;}
+    .picker-modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:9998;}
+    .picker-open{display:flex;}
+    .picker-inner{ width:min(540px,92vw); background:#0f1526; border:1px solid #26324a; border-radius:16px; padding:14px 14px 8px; box-shadow:0 10px 30px rgba(0,0,0,.35);}
+    .picker-head{ display:flex; align-items:center; justify-content:space-between; padding:6px 6px 10px; }
+    .picker-title{ font-size:16px; color:#cfe0ff; margin:0; }
+    .picker-close{ background:none; border:none; color:#9bb3d9; font-size:20px; cursor:pointer; }
+    .picker-body{ max-height:60vh; overflow:auto; padding:6px; }
+    .asset-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 10px; border-radius:12px; border:1px solid #1b2636; background:#0c1520; margin-bottom:8px; cursor:pointer; transition:.12s; }
+    .asset-row:hover{ filter:brightness(1.06); }
+    .asset-left{ display:flex; align-items:center; gap:10px; }
+    .asset-meta{ display:flex; flex-direction:column; line-height:1.2; }
+    .asset-code{ font-size:15px; color:#eaf2ff; font-weight:600; }
+    .asset-domain{ font-size:12px; color:#9db0c6; }
+    .asset-bal{ font-size:12px; color:#cfe0ff; }
+
+    /* Glow spinner */
+    .spinner-wrap{ display:flex; align-items:center; justify-content:center; padding:28px 0; }
+    .ring{ width:36px; height:36px; border-radius:50%; border:3px solid rgba(125,75,209,.25); border-top-color:#7d4bd1; animation:spin 0.9s linear infinite; box-shadow:0 0 12px rgba(125,75,209,.55), inset 0 0 8px rgba(125,75,209,.25);}
+    @keyframes spin{ to { transform: rotate(360deg); } }
+
+    /* Hide the native <select> – we keep it for internal logic */
+    #swapFrom { display:none; }
   </style>
 </head>
 <body>
@@ -102,63 +124,60 @@
         </div>
       </div>
 
-      <!-- Swap (Aquarius AMM Router) -->
-      <div class="section box" id="swapBox">
-        <div class="row" style="gap:10px;margin:4px 0 8px;">
+      <!-- Swap (Buy AQUAm25) -->
+      <div class="section box card-swap" id="swapBox">
+        <div class="swap-header">
           <span class="pill">Network: <span class="mono">Mainnet</span></span>
         </div>
 
-        <h2>Swap (Aquarius AMM Router)</h2>
-        <p class="small">
-          Swap any Stellar token you hold into AQUAm25 via Aquarius AMMs (multi-hop). Type either how much you’ll send <em>or</em> how much AQUAm25 you want to receive. If you don’t have an AQUAm25 trustline yet, add it first (uses ~1 XLM reserve).
-        </p>
+        <!-- SELL -->
+        <div class="slab">
+          <div class="slab-top">
+            <div class="slab-label">Sell</div>
+            <div class="asset-chip">
+              <!-- Hidden select maintained for internal logic -->
+              <select id="swapFrom"></select>
 
-        <!-- Row 1: From & Amount -->
-        <div class="row" style="gap:14px">
-          <div style="flex:1;min-width:260px">
-            <label for="swapFrom" style="margin-bottom:0">From</label>
-            <select id="swapFrom"></select>
-          </div>
-
-          <div style="width:260px;max-width:100%">
-            <div class="label-row">
-              <label for="swapAmount" style="margin-bottom:0">Amount to send</label>
-              <button id="fillMaxBtn" class="chip linkish" title="Autofill your spendable balance" style="display:none">
-                Balance: <span id="selectedBal">0</span>
+              <!-- Visible chip button to open picker -->
+              <button id="openPicker" class="chip-btn" type="button" aria-haspopup="dialog" aria-controls="assetPicker">
+                <img id="sellIcon" class="icon" alt="" />
+                <span id="sellLabel">Select asset</span>
               </button>
             </div>
-            <input id="swapAmount" type="number" step="any" placeholder="0.0" inputmode="decimal" />
           </div>
+          <input id="swapAmount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+          <div class="row" style="justify-content:space-between; margin-top:6px">
+            <button id="fillMaxBtn" class="linkish small" style="display:none">Balance: <span id="selectedBal">0</span></button>
+          </div>
+          <div id="xlmBreak" class="small" style="margin-top:8px;display:none"></div>
         </div>
 
-        <!-- XLM spendable breakdown -->
-        <div id="xlmBreak" class="small" style="margin-top:8px;display:none"></div>
-
-        <!-- Row 2: To & Estimated -->
-        <div class="row" style="gap:14px;margin-top:6px">
-          <div style="flex:1;min-width:260px">
-            <label>To</label>
-            <div class="mono small" style="padding:10px 12px;border:1px solid #1e2831;border-radius:10px;background:#0e1419">
-              AQUAm25<br/>
-              <span id="toIssuerMeta" style="opacity:.8">Loading issuer domain…</span>
+        <!-- BUY (AQUAm25 now editable for strict-receive) -->
+        <div class="slab">
+          <div class="slab-top">
+            <div class="slab-label">Buy</div>
+            <div class="asset-chip">
+              <div class="chip-pill">
+                <img id="buyIcon" class="icon" alt="AQUAm25" />
+                <span>AQUAm25</span>
+              </div>
             </div>
           </div>
-          <div style="width:260px">
-            <label for="swapEst">Receive (AQUAm25)</label>
-            <!-- NOTE: editable (strict-receive enabled) -->
-            <input id="swapEst" type="number" step="any" placeholder="0.0" inputmode="decimal" />
-          </div>
+          <!-- removed readonly so users can type to trigger strict-receive -->
+          <input id="swapEst" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0 (type here for strict-receive)" />
         </div>
+
+        <!-- Rate line -->
+        <div class="rate-line small muted" id="rateLine" aria-live="polite"></div>
 
         <!-- Actions -->
-        <div class="row" style="gap:10px;margin-top:10px">
-          <button id="swapSignSubmit">Sign &amp; Submit</button>
-          <button id="swapCopy" class="ghost">Copy XDR</button>
-          <button id="btnAddTrustline" class="ghost">Add AQUAm25 Trustline</button>
+        <div class="actions">
+          <button id="swapSignSubmit" class="primary">Swap to AQUAm25</button>
+          <button id="swapCopy" class="ghost small">Copy XDR</button>
+          <button id="btnAddTrustline" class="ghost small" style="display:none">Add AQUAm25 Trustline</button>
         </div>
 
-        <p class="small" id="swapQuote" style="margin-top:6px" aria-live="polite"></p>
-
+        <!-- Hidden XDR area -->
         <div class="toggle-row" style="margin-top:10px">
           <label for="xdrSwap" style="margin:0">Swap Transaction XDR (Soroban)</label>
           <button id="toggleSwapXdr" class="linkish small">Reveal XDR</button>
@@ -169,7 +188,7 @@
 
         <!-- Validation -->
         <div class="section">
-          <div class="row" style="gap:10px;margin:10px 0 6px">
+          <div class="row" style="gap:10px;margin-bottom:6px">
             <span class="muted">Validation</span>
           </div>
           <div id="validationBox" class="small">—</div>
@@ -183,15 +202,15 @@
         <label for="pubkey">Public Key</label>
         <input id="pubkey" placeholder="G… (manual entry allowed if not connected)" />
 
-        <p class="small">AQUAm25 Balance: <span id="aquaBal">-</span></p>
+        <p class="small">AQUAm25 Balance: <b id="aquaBal">-</b></p>
 
         <label for="amount">AQUAm25 Amount</label>
         <input id="amount" type="number" step="any" placeholder="Amount to lock" inputmode="decimal" />
-        <div class="pct">
-          <button data-pct="25">25%</button>
-          <button data-pct="50">50%</button>
-          <button data-pct="75">75%</button>
-          <button data-pct="100">100%</button>
+        <div class="row" style="gap:8px">
+          <button data-pct="25" class="ghost">25%</button>
+          <button data-pct="50" class="ghost">50%</button>
+          <button data-pct="75" class="ghost">75%</button>
+          <button data-pct="100" class="ghost">100%</button>
         </div>
 
         <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
@@ -213,8 +232,8 @@
     </div>
   </div>
 
-  <!-- Toast container root -->
-  <div class="toast-container" id="toastRoot"></div>
+  <!-- Floating toast container -->
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
   <!-- Connect Modal -->
   <div id="backdrop" class="backdrop"></div>
@@ -239,6 +258,36 @@
           <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
         </div>
         <p id="linkStatus" class="small" style="margin:0;text-align:center;opacity:.8"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign Prompt Modal -->
+  <div id="signBackdrop" class="backdrop"></div>
+  <div id="signModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="signTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 id="signTitle" style="font-size:18px;margin:0">Open wallet to sign</h2>
+        <button class="x" id="closeSign" aria-label="Close">×</button>
+      </div>
+      <p class="small">Your transaction is ready. Open your wallet to review &amp; sign.</p>
+      <div class="wallet-choices" style="margin-top:8px">
+        <button id="signLobstr">Open in LOBSTR</button>
+        <button id="signFreighter">Open in Freighter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset Picker Modal -->
+  <div id="pickerBackdrop" class="picker-backdrop"></div>
+  <div id="assetPicker" class="picker-modal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+    <div class="picker-inner">
+      <div class="picker-head">
+        <h3 id="pickerTitle" class="picker-title">Select an asset to sell</h3>
+        <button id="pickerClose" class="picker-close" aria-label="Close">×</button>
+      </div>
+      <div id="pickerBody" class="picker-body">
+        <div class="spinner-wrap"><div class="ring"></div></div>
       </div>
     </div>
   </div>
@@ -284,30 +333,39 @@
 
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
     const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal");
+    const signBackdrop=$("signBackdrop"), signModal=$("signModal"), closeSign=$("closeSign");
     const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus"), rawWcLink=$("rawWcLink");
     const pubkeyEl=$("pubkey"), aquaBalEl=$("aquaBal"), amountEl=$("amount"), lockInfoEl=$("lockInfo");
     const xdrOut=$("xdrOut"), actionResult=$("actionResult");
     const signSubmitBtn=$("signSubmitBtn"), copyBtn=$("copyBtn"), labBtn=$("labBtn");
-    const pctBtns=[...document.querySelectorAll(".pct button")];
 
     // Swap DOM
-    const swapFrom=$("swapFrom"), swapAmount=$("swapAmount"), swapQuote=$("swapQuote"),
+    const swapFrom=$("swapFrom"), swapAmount=$("swapAmount"),
           xdrSwap=$("xdrSwap"), swapSignSubmit=$("swapSignSubmit"),
           swapCopy=$("swapCopy"), swapResult=$("swapResult"),
           swapEst=$("swapEst"), selectedBal=$("selectedBal"), fillMaxBtn=$("fillMaxBtn"),
-          toIssuerMeta=$("toIssuerMeta"), toggleSwapXdr=$("toggleSwapXdr"), toggleLockerXdr=$("toggleLockerXdr"),
-          btnAddTrustline=$("btnAddTrustline"), validationBox=$("validationBox");
+          toggleSwapXdr=$("toggleSwapXdr"), toggleLockerXdr=$("toggleLockerXdr"),
+          validationBox=$("validationBox"), rateLine=$("rateLine"),
+          btnAddTrustline=$("btnAddTrustline"),
+          sellIcon=$("sellIcon"), buyIcon=$("buyIcon"),
+          openPickerBtn=$("openPicker");
 
-    // ---------- Toasts ----------
-    const toastRoot = $("toastRoot");
-    function toast(msg, err=false, ok=false){
+    // Picker DOM
+    const pickerBackdrop=$("pickerBackdrop"), assetPicker=$("assetPicker"), pickerClose=$("pickerClose"), pickerBody=$("pickerBody");
+    const sellLabel=$("sellLabel");
+
+    // ---------- Toast ----------
+    const toastWrap = $("toastWrap");
+    function pushToast(msg, isErr=false, timeoutMs=2600){
       const el = document.createElement("div");
-      el.className = "toast-msg" + (err?" error": ok?" ok":"");
-      el.textContent = msg;
-      toastRoot.appendChild(el);
-      setTimeout(()=>{ el.style.animation="toastOut .4s forwards"; }, 4000);
-      setTimeout(()=>{ el.remove(); }, 4600);
+      el.className = "toast"+(isErr?" err":"");
+      el.innerHTML = `<span>${msg}</span><button class="x">×</button>`;
+      toastWrap.appendChild(el);
+      const close = ()=>{ el.style.opacity="0"; setTimeout(()=>el.remove(), 220); };
+      el.querySelector(".x").onclick = close;
+      setTimeout(close, timeoutMs);
     }
+    function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; pushToast(msg, err); }
 
     // ---------- State ----------
     let connectionMode="none"; // 'none' | 'wc' | 'freighter'
@@ -324,30 +382,77 @@
 
     // Aquarius swap state
     let lastQuote=null;
-    let quoteMode="send";  // auto-switch based on which input user types in
-    let lastIsSend=true;
+    let lastIsSend=true;       // tracks which mode produced the current XDR
 
     // ---------- Soroban RPC ----------
     let _soro = null;
-    function rpc() {
-      if (_soro) return _soro;
-      const Server = SDK.rpc?.Server;
-      if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk.");
-      _soro = new Server(sorobanRpcUrl, { allowHttp: false });
-      return _soro;
-    }
+    function rpc() { if (_soro) return _soro; const Server = SDK.rpc?.Server; if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk."); _soro = new Server(sorobanRpcUrl, { allowHttp: false }); return _soro; }
 
-    // Cache for issuer -> domain
+    // Caches
     const DOMAIN_CACHE = new Map();
+    const ICON_CACHE   = new Map(); // code:issuer -> image url
 
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
     const cleanAmt = a => { const n=Number(a); if(!isFinite(n) || n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
-    const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
     function contractId(asset){ return asset.contractId(NETWORK); }
     function round7(x){ return Math.floor(x * 1e7) / 1e7; }
+    const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
+
+    // ---------- Icon pipeline (Horizon -> TOML -> image=) ----------
+    async function fetchTomlUrlAndDomain(code, issuer){
+      const url = `${HORIZON}/assets?asset_code=${encodeURIComponent(code)}&asset_issuer=${issuer}`;
+      const j   = await fetch(url).then(r=>r.json()).catch(()=>null);
+      const rec = j?._embedded?.records?.[0];
+      const tomlUrl = rec?._links?.toml?.href || "";
+      let domain = rec?.home_domain || "";
+      if(!domain && tomlUrl){ try{ domain = new URL(tomlUrl).hostname; } catch(_){} }
+      return { tomlUrl, domain };
+    }
+    function parseTomlCurrencies(t){
+      const blocks = t.split(/\n\[\[CURRENCIES\]\][^\n]*\n/).slice(1);
+      const items=[]; const reKV=/^\s*([A-Za-z0-9_]+)\s*=\s*"(.*?)"\s*$/;
+      for(const b of blocks){ const obj={};
+        for(const line of b.split(/\r?\n/)){ const m=line.match(reKV); if(m){ obj[m[1].toLowerCase()] = m[2]; } }
+        if(obj.code||obj.asset_code){ items.push({ code:(obj.code||obj.asset_code||"").trim(), issuer:(obj.issuer||obj.asset_issuer||"").trim(), image:(obj.image||"").trim() }); }
+      }
+      return items;
+    }
+    async function fetchTomlTextWithFallback(tomlUrl){
+      try{ const r=await fetch(tomlUrl,{cache:"force-cache"}); if(r.ok) return await r.text(); }catch(_){}
+      try{ const u=new URL(tomlUrl); const alt=`https://r.jina.ai/http://${u.host}${u.pathname}`; const r2=await fetch(alt,{cache:"force-cache"}); if(r2.ok) return await r2.text(); }catch(_){}
+      return "";
+    }
+    async function fetchAssetIcon(code, issuer){
+      const key = `${code}:${issuer||""}`; if(ICON_CACHE.has(key)) return ICON_CACHE.get(key);
+      try{
+        const { tomlUrl } = await fetchTomlUrlAndDomain(code, issuer);
+        if(!tomlUrl){ ICON_CACHE.set(key,""); return ""; }
+        const txt = await fetchTomlTextWithFallback(tomlUrl);
+        if(!txt){ ICON_CACHE.set(key,""); return ""; }
+        const items = parseTomlCurrencies(txt);
+        let hit = items.find(i => i.code?.toUpperCase()===code.toUpperCase() && i.issuer?.toUpperCase()===String(issuer).toUpperCase());
+        if(!hit) hit = items.find(i => i.code?.toUpperCase()===code.toUpperCase());
+        const img = (hit?.image || "").trim();
+        ICON_CACHE.set(key, img);
+        return img;
+      }catch{ ICON_CACHE.set(key,""); return ""; }
+    }
+    function setChipIcon(imgEl, code, issuer){
+      fetchAssetIcon(code, issuer).then(url=>{
+        if(url){ imgEl.src = url; imgEl.alt = code; imgEl.style.background="transparent"; }
+        else{
+          const svg = `data:image/svg+xml;utf8,` + encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+              <rect width="100%" height="100%" rx="9" ry="9" fill="#0b1115"/>
+              <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#94a3ad">${(code||"?").slice(0,3).toUpperCase()}</text>
+            </svg>`);
+          imgEl.src = svg; imgEl.alt = code;
+        }
+      });
+    }
 
     // ---------- Spendable XLM ----------
     async function getNetworkBaseReserveXLM() {
@@ -359,21 +464,16 @@
     async function getXlmBreakdown(pk) {
       const base = await getNetworkBaseReserveXLM();
       const acc  = await fetch(`${HORIZON}/accounts/${pk}`).then(r=>r.json());
-
       const balNative = parseFloat((acc.balances || []).find(b => b.asset_type === "native")?.balance || "0");
       const sellLiab  = parseFloat((acc.balances || []).find(b => b.asset_type === "native")?.selling_liabilities || "0");
-
       const sub        = parseInt(acc?.subentry_count || 0, 10);
       const sponsoring = parseInt(acc?.num_sponsoring || 0, 10);
       const sponsored  = parseInt(acc?.num_sponsored || 0, 10);
-
       const minBalance = base * (2 + sub + sponsoring - sponsored);
-
       const trustlines = (acc.balances || []).filter(b => b.asset_type !== "native" && !b.liquidity_pool_id).length;
       const lpTrust    = (acc.balances || []).filter(b => !!b.liquidity_pool_id).length;
       const signersCt  = Math.max((acc.signers?.length || 1) - 1, 0);
       const offersCt   = parseInt(acc?.num_offers || 0, 10);
-
       const lineBaseReserve = base * 2;
       const lineTrustlines  = trustlines * base;
       const lineLpTrust     = lpTrust * base;
@@ -382,29 +482,10 @@
       const lineSponsoring  = Math.max(sponsoring - sponsored, 0) * base;
       const lineInOffers    = sellLiab;
       const feeReserve      = 2;
-
       const spendable = Math.max(balNative - sellLiab - minBalance - feeReserve, 0);
-
-      return {
-        baseReserve: round7(lineBaseReserve),
-        feeReserve:  round7(feeReserve),
-        xlmInOffers: round7(lineInOffers),
-        trustlines:  round7(lineTrustlines),
-        lpTrust:     round7(lineLpTrust),
-        offers:      round7(lineOffers),
-        signers:     round7(lineSigners),
-        sponsoring:  round7(lineSponsoring),
-        totalLocked: round7(minBalance + feeReserve + sellLiab),
-        spendable:   round7(spendable),
-        balance:     round7(balNative),
-        base
-      };
+      return { baseReserve: round7(lineBaseReserve), feeReserve: round7(feeReserve), xlmInOffers: round7(lineInOffers), trustlines: round7(lineTrustlines), lpTrust: round7(lineLpTrust), offers: round7(lineOffers), signers: round7(lineSigners), sponsoring: round7(lineSponsoring), totalLocked: round7(minBalance + feeReserve + sellLiab), spendable: round7(spendable), balance: round7(balNative), base };
     }
-    async function getSpendableXLM(pk) {
-      const b = await getXlmBreakdown(pk);
-      return b.spendable;
-    }
-
+    async function getSpendableXLM(pk) { const b = await getXlmBreakdown(pk); return b.spendable; }
     async function refreshXlmBreakdownMaybe() {
       const opt = getSelectedOption();
       const pk  = pubkeyEl.value.trim();
@@ -412,12 +493,11 @@
       const el = document.getElementById("xlmBreak");
       if (!el) return;
       if (!isXlm || !isValidG(pk)) { el.style.display="none"; el.innerHTML=""; return; }
-
       const b = await getXlmBreakdown(pk);
       el.style.display="block";
       el.innerHTML = `
         <div class="box" style="margin-top:6px">
-          <div>XLM available: ${b.spendable} / ${b.balance}</div>
+          <div><b>XLM available:</b> ${b.spendable} / ${b.balance}</div>
           <div class="small muted" style="margin-top:6px;line-height:1.35">
             Base reserve: ${b.baseReserve} XLM<br/>
             Fee reserve: ${b.feeReserve} XLM<br/>
@@ -425,7 +505,7 @@
             Trustlines: ${b.trustlines} XLM${b.lpTrust?` (+ LP: ${b.lpTrust})`:''}<br/>
             Offers: ${b.offers} XLM · Signers: ${b.signers} XLM<br/>
             Sponsoring entries for others: ${b.sponsoring} XLM<br/>
-            Total locked: ${b.totalLocked} XLM
+            <b>Total locked:</b> ${b.totalLocked} XLM
           </div>
         </div>`;
     }
@@ -437,10 +517,13 @@
     on(closeModalBtn,"click",closeModal);
     on(backdrop,"click",closeModal);
 
+    function openSignModal(){ signBackdrop.classList.add('open'); signModal.classList.add('open'); }
+    function closeSignModal(){ signBackdrop.classList.remove('open'); signModal.classList.remove('open'); }
+    on(closeSign,"click",closeSignModal); on(signBackdrop,"click",closeSignModal);
+
     function setConnected(address, mode){
       statusEl.textContent = address ? `Connected (${mode==="wc"?"WalletConnect":"Freighter"})` : "Not connected";
       disconnectBtn.disabled = !address;
-
       if(address){
         pubkey = address;
         pubkeyEl.value = address;
@@ -451,6 +534,7 @@
         pubkey = null;
         pubkeyEl.readOnly = false;
         stopLockerAutoRefresh();
+        setTrustlineUI(false, false); // reset
       }
     }
 
@@ -462,7 +546,7 @@
       }catch(e){ console.warn(e); }
       session=null; connectionMode="none"; setConnected("", "none");
       xdrOut.value = ""; xdrSwap.value = ""; swapEst.value = "";
-      actionResult.textContent = ""; swapResult.textContent = ""; swapQuote.textContent = "";
+      actionResult.textContent = ""; swapResult.textContent = ""; rateLine.textContent = "";
       disableLockerButtons(); disableSwapButtons();
       refreshXlmBreakdownMaybe();
     });
@@ -479,19 +563,17 @@
     on($("freighterExtBtn"),"click", async ()=>{
       try{
         const freighter = await ensureFreighterApi();
-        if(!freighter){ toast("Freighter extension not detected.", true); return; }
-
+        if(!freighter){ alert("Freighter extension not detected."); return; }
         let address = "";
         try { address = await freighter.getPublicKey(); } catch {}
         if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
         if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
-        if(!address){ toast("Freighter connect denied or failed.", true); return; }
-
+        if(!address){ alert("Freighter connect denied or failed."); return; }
         connectionMode="freighter";
         closeModal();
         setConnected(address, "freighter");
         toast("Freighter connected.");
-      }catch(e){ console.error(e); toast("Freighter connect failed.", true); }
+      }catch(e){ console.error(e); alert("Freighter connect failed."); }
     });
 
     // ---------- WalletConnect ----------
@@ -573,26 +655,6 @@
       }
     });
 
-    // ---------- Signing helpers ----------
-    const wcRequest = (method, xdr) => client.request({
-      topic: session.topic, chainId: "stellar:pubnet",
-      request: { jsonrpc:"2.0", method, params:{ xdr } }
-    });
-    async function signCurrent(xdr){
-      if(connectionMode==="wc"){
-        const r = await wcRequest("stellar_signXDR", xdr);
-        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
-        return r.signedXDR;
-      }
-      if(connectionMode==="freighter"){
-        const api = await ensureFreighterApi();
-        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
-        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
-        return res.signedTxXdr || res.signedXDR || res;
-      }
-      throw new Error("Not connected");
-    }
-
     // ---------- Locker ----------
     function disableLockerButtons(){ [signSubmitBtn,copyBtn,labBtn].forEach(b=>b.disabled=true); }
     function enableLockerButtons(){ const ok=!!xdrOut.value.trim(); [signSubmitBtn,copyBtn,labBtn].forEach(b=>b.disabled=!ok); }
@@ -629,10 +691,8 @@
       const pk = pubkeyEl.value.trim();
       const amt = cleanAmt(amountEl.value.trim());
       if(!isValidG(pk) || !amt) return null;
-
       try{
         const src = await getServer().loadAccount(pk);
-
         const now = new Date();
         const end = new Date(now);
         end.setUTCFullYear(end.getUTCFullYear()+1);
@@ -640,17 +700,14 @@
         const endTs = Math.floor(end.getTime()/1000).toString();
         lockInfoEl.textContent = `Lock start: ${now.toLocaleString()}
 Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
-
         const claimants = [
           new SDK.Claimant(pk, SDK.Claimant.predicateNot(SDK.Claimant.predicateBeforeAbsoluteTime(endTs))),
           new SDK.Claimant(TRACKER_KEY, SDK.Claimant.predicateBeforeAbsoluteTime("0"))
         ];
-
         const tx = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK })
           .addOperation(SDK.Operation.createClaimableBalance({ asset: AQUAm25, amount: amt, claimants }))
           .setTimeout(180)
           .build();
-
         return tx.toXDR();
       }catch(e){ console.error(e); return null; }
     }
@@ -658,30 +715,14 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     on(pubkeyEl,"input", ()=>{ if(pubkeyEl.readOnly) return; scheduleLockerBuild(); });
     on(pubkeyEl,"change", ()=>{ if(pubkeyEl.readOnly) return; initForNewAccount(); startLockerAutoRefresh(); });
     on(amountEl,"input", scheduleLockerBuild);
-
-    pctBtns.forEach(btn=>btn.addEventListener("click", ()=>{
+    document.querySelectorAll("#lockerBox button[data-pct]").forEach(btn=>btn.addEventListener("click", ()=>{
       const bal = Math.max(0, parseFloat(aquaBalEl.textContent) || 0);
       const pct = parseInt(btn.dataset.pct,10)/100;
-      const v = cleanAmt(bal*pct);
-      amountEl.value = v||"";
+      amountEl.value = cleanAmt(bal*pct) || "";
       scheduleLockerBuild();
     }));
 
-    // ---------- Swap balances + dropdown ----------
-    async function loadAllBalances(pk){
-      const acct = await getServer().loadAccount(pk);
-      const items = [];
-      const xlmBal = acct.balances.find(b=>b.asset_type==="native");
-      if (xlmBal && parseFloat(xlmBal.balance) > 0) {
-        items.push({ code:"XLM", issuer:null, balance: xlmBal.balance, domain:"native" });
-      }
-      for(const b of acct.balances){
-        if(b.asset_type==="native") continue;
-        if(parseFloat(b.balance) <= 0) continue;
-        items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
-      }
-      return { acct, items };
-    }
+    // ---------- Domains for labels ----------
     async function fetchDomainsForIssuers(issuers){
       const unique = [...new Set((issuers||[]).filter(Boolean))];
       const need = unique.filter(i => !DOMAIN_CACHE.has(i));
@@ -694,18 +735,40 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         }catch(_){ DOMAIN_CACHE.set(issuer, ""); }
       }));
     }
-    function labelWithDomain(code, issuer){
+    const labelWithDomain = (code, issuer) => {
       if(!issuer) return `${code} · native`;
       const dom = DOMAIN_CACHE.get(issuer) || "";
       const right = dom || shortG(issuer);
       return `${code} · ${right}`;
+    };
+
+    // ---------- Swap: balances + dropdown ----------
+    async function loadAllBalances(pk){
+      const acct = await getServer().loadAccount(pk);
+      const items = [];
+      const xlmBal = acct.balances.find(b=>b.asset_type==="native");
+      if (xlmBal && parseFloat(xlmBal.balance) > 0) items.push({ code:"XLM", issuer:null, balance: xlmBal.balance });
+      for(const b of acct.balances){
+        if(b.asset_type==="native") continue;
+        if(parseFloat(b.balance) <= 0) continue;
+        items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
+      }
+      return { acct, items };
     }
+
+    function getSelectedOption(){ return swapFrom.options[swapFrom.selectedIndex] || null; }
+
+    function setSellChip(code, issuer){
+      sellLabel.textContent = code;
+      setChipIcon(sellIcon, code, issuer);
+    }
+
     function fillSwapDropdownOnce(items){
       swapFrom.innerHTML = "";
       for(const it of items){
         const opt = document.createElement("option");
         opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
-        opt.textContent = labelWithDomain(it.code, it.issuer);
+        opt.textContent = labelWithDomain(it.code, it.issuer); // domain in list
         opt.dataset.balance = it.balance;
         opt.dataset.code = it.code;
         if(it.issuer) opt.dataset.issuer = it.issuer;
@@ -716,56 +779,59 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
       updateSelectedAssetUI();
     }
-    function getSelectedOption(){ return swapFrom.options[swapFrom.selectedIndex] || null; }
-    function updateSelectedAssetUI(){
+
+    async function updateSelectedAssetUI(){
       const opt = getSelectedOption();
       if(!opt){ fillMaxBtn.style.display="none"; return; }
       const bal = opt.dataset.balance || "0";
+      const code = opt.dataset.code || (opt.value==="XLM"?"XLM":"ASSET");
+      const issuer = opt.dataset.issuer || null;
+
+      // visible chip
+      setSellChip(code, issuer);
+
       selectedBal.textContent = plain(bal);
       fillMaxBtn.style.display = parseFloat(bal)>0 ? "inline-flex" : "none";
+
       refreshXlmBreakdownMaybe();
-
-      // Re-run validation whenever asset changes
-      autoValidate().catch(console.warn);
-
-      // Rebind inputs to avoid stale handlers if any DOM mutated elsewhere
-      bindSwapInputListeners();
-    }
-    async function updateToBoxDomain(){
-      if(!DOMAIN_CACHE.has(AQUAm25_ISSUER)){
-        await fetchDomainsForIssuers([AQUAm25_ISSUER]);
-      }
-      const dom = DOMAIN_CACHE.get(AQUAm25_ISSUER) || shortG(AQUAm25_ISSUER);
-      toIssuerMeta.textContent = dom;
+      onValidate().catch(()=>{});
     }
 
     async function initForNewAccount(){
       const pk = pubkeyEl.value.trim();
       if(!isValidG(pk)) { aquaBalEl.textContent="Invalid key"; return; }
-
       try{
         const { balance } = await loadAquaM25Balance(pk);
         aquaBalEl.textContent = plain(balance);
-
         const { items } = await loadAllBalances(pk);
         await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean).concat([AQUAm25_ISSUER]));
         fillSwapDropdownOnce(items);
 
-        updateToBoxDomain();
+        // BUY chip icon (AQUAm25)
+        setChipIcon(buyIcon, AQUAm25_CODE, AQUAm25_ISSUER);
 
-        if(!amountEl.value.trim()){
-          const v = cleanAmt(parseFloat(balance||"0")*0.25);
-          if(v){ amountEl.value = v; }
-        }
-        scheduleLockerBuild();
         refreshXlmBreakdownMaybe();
-
-        // Validate immediately on connect
-        autoValidate().catch(()=>{});
+        await onValidate(); // sets trustline UI state
       }catch(e){ console.error(e); }
     }
 
-    // ---------- Aquarius validators ----------
+    // ---------- Trustline-aware UI ----------
+    function setTrustlineUI(hasTL, forceDisableSwap){
+      if(hasTL){
+        btnAddTrustline.style.display = "none";
+        swapSignSubmit.disabled = !!forceDisableSwap;
+        swapSignSubmit.classList.remove("warn");
+        swapCopy.disabled = !!forceDisableSwap;
+      }else{
+        btnAddTrustline.style.display = "inline-block";
+        btnAddTrustline.classList.remove("ghost","small");
+        btnAddTrustline.classList.add("primary","warn");
+        swapSignSubmit.disabled = true;
+        swapCopy.disabled = true;
+      }
+    }
+
+    // ---------- Validators ----------
     async function hasTrustline(account, asset){
       if (asset.isNative()) return true;
       const r = await fetch(`${HORIZON}/accounts/${account}`);
@@ -785,24 +851,25 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const tokenIn = getCurrentSendAsset();
         const tokenOut = AQUAm25;
         const bits = [];
-
-        const [okIn, okOut] = await Promise.all([softTokenCheck(tokenIn), softTokenCheck(tokenOut)]);
-        bits.push(okIn ? `<div class="pill ok">Token In recognized by Aquarius</div>` : `<div class="pill warn">Token In not recognized</div>`);
-        bits.push(okOut ? `<div class="pill ok">Token Out recognized by Aquarius</div>` : `<div class="pill warn">Token Out not recognized</div>`);
-
+        const [okIn, okOut, tl] = await Promise.all([
+          softTokenCheck(tokenIn),
+          softTokenCheck(tokenOut),
+          pubkey ? hasTrustline(pubkey, tokenOut) : Promise.resolve(false)
+        ]);
+        bits.push(okIn ? `<div style="color:#57d29a">Token In recognized by Aquarius</div>` : `<div style="color:#ff6b6b">Token In not recognized</div>`);
+        bits.push(okOut ? `<div style="color:#57d29a">Token Out recognized by Aquarius</div>` : `<div style="color:#ff6b6b">Token Out not recognized</div>`);
         if(pubkey){
-          const tl = await hasTrustline(pubkey, tokenOut);
-          bits.push(tl ? `<div class="pill ok">Trustline: OK for output asset</div>` : `<div class="pill warn">No trustline for output asset — click “Add AQUAm25 Trustline”</div>`);
+          bits.push(tl ? `<div style="color:#57d29a">Trustline: OK for output asset</div>` : `<div style="color:#ff6b6b">No trustline for output asset — please add it first</div>`);
+          setTrustlineUI(tl, false);
         } else {
-          bits.push(`<div class="pill">Connect to check trustline</div>`);
+          bits.push(`<div>Connect to check trustline</div>`);
+          setTrustlineUI(false, true);
         }
-
-        validationBox.innerHTML = `<div class="row" style="gap:8px">${bits.join("")}</div>`;
+        validationBox.innerHTML = bits.join("");
       } catch(e){
         validationBox.innerHTML = `<span style="color:#ff6b6b">${e.message}</span>`;
       }
     }
-    async function autoValidate(){ try{ await onValidate(); }catch{} }
 
     // ---------- Quotes ----------
     function getCurrentSendAsset(){
@@ -810,16 +877,14 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const [code, issuer] = (swapFrom.value||"").split(":");
       return new SDK.Asset(code, issuer);
     }
-    function routeSummary(isSend, j, sendLabel){
-      const est = Number(j.amount)/1e7;
-      return isSend
-        ? `Mode: Strict Send · You send ${swapAmount.value} ${sendLabel}. Estimated receive: ${plain(est)} AQUAm25`
-        : `Mode: Strict Receive · To receive ${swapEst.value} AQUAm25, estimated spend: ${plain(est)} ${sendLabel}`;
+    function updateRateLine(sendCode, estOutPer1) {
+      if (!isFinite(estOutPer1) || estOutPer1<=0) { rateLine.textContent = ""; return; }
+      rateLine.textContent = `1 ${sendCode} ≈ ${plain(estOutPer1)} AQUAm25`;
     }
 
     async function quoteStrictSend(){
       disableSwapButtons();
-      xdrSwap.value=""; swapQuote.textContent="";
+      xdrSwap.value=""; rateLine.textContent="";
       const pk = pubkeyEl.value.trim();
       const sendAmt = cleanAmt(swapAmount.value.trim());
       if(!isValidG(pk) || !sendAmt) return;
@@ -843,31 +908,38 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const estOut = Number(outStroops) / 1e7;
 
         swapEst.value = plain(estOut);
-        swapQuote.innerHTML = routeSummary(true, j, sendLabel);
 
-        const needTL = !(await hasTrustline(pk, AQUAm25));
+        const perOne = estOut / Number(swapAmount.value || 1);
+        const sendCode = getSelectedOption()?.dataset.code || sendLabel;
+        updateRateLine(sendCode, perOne);
+
+        const needTL = !(await hasTrustline(pubkeyEl.value.trim(), AQUAm25));
+        setTrustlineUI(!needTL, false);
+        if (needTL) { enableSwapButtons(); return; }
+
         const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
         const outMin = outStroops - (outStroops / 100n);  // 1% slippage
 
         const tx = await buildSorobanSwapTx({
-          account: pk, isSend: true, tokenIn: sendAsset,
+          account: pubkeyEl.value.trim(), isSend: true, tokenIn: sendAsset,
           inAmountStroops: inStroops,
           limitOutOrExact: outMin,
-          swapChainXdr: j.swap_chain_xdr,
-          addTrustlineFirst: needTL
+          swapChainXdr: j.swap_chain_xdr
         });
         xdrSwap.value = tx.toXDR();
         enableSwapButtons();
+        onValidate().catch(()=>{});
       }catch(e){
         console.error(e);
-        toast(`Aquarius quote failed (strict send). ${e.message||""}`, true);
+        pushToast(`Aquarius quote failed (strict send). ${e.message||""}`, true);
         lastQuote=null; xdrSwap.value=""; disableSwapButtons();
       }
     }
 
+    // NEW: strict-receive flow (typing in BUY box)
     async function quoteStrictReceive(){
       disableSwapButtons();
-      xdrSwap.value=""; swapQuote.textContent="";
+      xdrSwap.value=""; rateLine.textContent="";
       const pk = pubkeyEl.value.trim();
       const wantOut = cleanAmt(swapEst.value.trim());
       if(!isValidG(pk) || !wantOut) return;
@@ -891,81 +963,65 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const estIn = Number(inNeeded) / 1e7;
 
         swapAmount.value = plain(estIn);
-        swapQuote.innerHTML = routeSummary(false, j, sendLabel);
 
-        // Balance guard (use spendable XLM when XLM is input)
+        const perOne = Number(wantOut) / (estIn || 1);
+        const sendCode = getSelectedOption()?.dataset.code || sendLabel;
+        updateRateLine(sendCode, perOne);
+
+        // Balance guard (spendable for XLM)
         let available = parseFloat(getSelectedOption()?.dataset.balance || "0");
         if (swapFrom.value === "XLM") {
           try { available = await getSpendableXLM(pk); } catch {}
         }
+
         const inMax = inNeeded + (inNeeded / 100n); // +1% cushion
         if (available * 1e7 < Number(inMax)) {
-          toast(`Insufficient balance for this strict-receive target — need about ${plain(Number(inMax)/1e7)} ${sendLabel}, available ${plain(available)}.`, true);
+          pushToast(`Insufficient balance for this strict-receive target — need ~${plain(Number(inMax)/1e7)} ${sendLabel}, available ${plain(available)}.`, true);
           lastQuote = null; xdrSwap.value = ""; disableSwapButtons();
           return;
         }
 
-        const outExact = BigInt(Math.round(parseFloat(wantOut)*1e7));
         const needTL = !(await hasTrustline(pk, AQUAm25));
+        setTrustlineUI(!needTL, false);
+        if (needTL) { enableSwapButtons(); return; }
 
+        const outExact = BigInt(Math.round(parseFloat(wantOut)*1e7));
         const tx = await buildSorobanSwapTx({
           account: pk, isSend: false, tokenIn: sendAsset,
-          inAmountStroops: inMax,          // MAX IN
-          limitOutOrExact: outExact,       // EXACT OUT
-          swapChainXdr: j.swap_chain_xdr,
-          addTrustlineFirst: needTL
+          inAmountStroops: inMax,           // MAX IN
+          limitOutOrExact: outExact,        // EXACT OUT
+          swapChainXdr: j.swap_chain_xdr
         });
         xdrSwap.value = tx.toXDR();
         enableSwapButtons();
+        onValidate().catch(()=>{});
       }catch(e){
         console.error(e);
-        toast(`Aquarius quote failed (strict receive). ${e.message||""}`, true);
+        pushToast(`Aquarius quote failed (strict receive). ${e.message||""}`, true);
         lastQuote=null; xdrSwap.value=""; disableSwapButtons();
       }
     }
 
     // ---------- Build Soroban swap tx ----------
-    async function buildSorobanSwapTx({
-      account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr, addTrustlineFirst
-    }){
-      if (addTrustlineFirst) {
-        toast("Missing AQUAm25 trustline. Click “Add AQUAm25 Trustline” first, then retry the swap.", true);
-        throw new Error("Missing AQUAm25 trustline.");
-      }
-
+    async function buildSorobanSwapTx({ account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr }){
       const server = rpc();
       const acc = await server.getAccount(account);
-
       const router = new SDK.Contract(routerContractId);
       const tokenInCid = tokenIn.contractId(NETWORK);
-
       const addrAccount  = SDK.Address.fromString(account).toScVal();
       const addrTokenIn  = SDK.Address.fromString(tokenInCid).toScVal();
       const u128In       = SDK.nativeToScVal(BigInt(inAmountStroops), { type: "u128" });
       const u128LimOrEx  = SDK.nativeToScVal(BigInt(limitOutOrExact), { type: "u128" });
       const swapChainVal = SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64");
-
-      let swapOp;
-      if (isSend) {
-        // (account, swap_chain, token_in, amount_in, min_amount_out)
-        swapOp = router.call("swap_chained",
-          addrAccount, swapChainVal, addrTokenIn, u128In, u128LimOrEx
-        );
-      } else {
-        // (account, swap_chain, token_in, exact_amount_out, max_amount_in)
-        swapOp = router.call("swap_chained_strict_receive",
-          addrAccount, swapChainVal, addrTokenIn, u128LimOrEx /* exact out */, u128In /* max in */
-        );
-      }
-
+      const op = isSend
+        ? router.call("swap_chained", addrAccount, swapChainVal, addrTokenIn, u128In, u128LimOrEx)
+        : router.call("swap_chained_strict_receive", addrAccount, swapChainVal, addrTokenIn, u128LimOrEx, u128In);
       let tx = new SDK.TransactionBuilder(acc, { fee: "20000", networkPassphrase })
         .setTimeout(300)
-        .addOperation(swapOp)
+        .addOperation(op)
         .build();
-
-      try {
-        tx = await server.prepareTransaction(tx);
-      } catch (e) {
+      try { tx = await server.prepareTransaction(tx); }
+      catch (e) {
         console.error("prepareTransaction failed:", e);
         throw new Error(
           `prepareTransaction failed: ${
@@ -992,25 +1048,20 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       try{
         const pk = pubkeyEl.value.trim();
         if(!isValidG(pk)) { toast("Connect a wallet first.", true); return; }
-
-        if(await hasTrustline(pk, AQUAm25)){
-          toast("AQUAm25 trustline already exists.");
-          return;
-        }
-
+        if(await hasTrustline(pk, AQUAm25)){ toast("AQUAm25 trustline already exists."); await onValidate(); return; }
         toast("Preparing trustline transaction…");
         const trustXdr = await buildTrustlineXDR(pk);
-
         toast("Signing trustline…");
         const signed = await signCurrent(trustXdr);
-
         toast("Submitting trustline…");
         const hash = await submitToHorizon(signed);
-
-        toast(`Trustline added ✓ tx: ${hash}`, false, true);
+        toast(`Trustline added ✓ tx: ${hash}`);
+        await onValidate();
         await initForNewAccount();
 
-        try { if (lastQuote) { if (lastIsSend) await quoteStrictSend(); else await quoteStrictReceive(); } } catch(_) {}
+        try {
+          if (lastQuote) { if (lastIsSend) await quoteStrictSend(); else await quoteStrictReceive(); }
+        } catch(_) {}
       }catch(e){
         console.error(e);
         toast(e.message || "Trustline add failed.", true);
@@ -1023,7 +1074,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const send = await rpc().sendTransaction(tx);
       if (send.status !== "PENDING" && send.status !== "SUCCESS")
         throw new Error(`Soroban send failed: ${send.status}`);
-
       let final = await rpc().getTransaction(send.hash);
       let tries = 0;
       while(final.status === "NOT_FOUND" && tries < 10){
@@ -1035,82 +1085,52 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return final;
     }
 
-    // ---------- Swap buttons & listeners ----------
+    // ---------- Swap buttons / input binding ----------
     function disableSwapButtons(){ [swapSignSubmit,swapCopy].forEach(b=>b.disabled=true); }
     function enableSwapButtons(){ const ok=!!xdrSwap.value.trim(); [swapSignSubmit,swapCopy].forEach(b=>b.disabled=!ok); }
     function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 400); }
 
+    // centralised: bind listeners so UI rebuilds can't orphan handlers
     function bindSwapInputListeners(){
       if(!swapAmount || !swapEst) return;
+
       swapAmount.oninput = ()=>{
-        quoteMode = "send";
         if(!swapAmount.value || Number(swapAmount.value) <= 0){
-          xdrSwap.value=""; swapQuote.textContent=""; disableSwapButtons(); return;
+          xdrSwap.value=""; rateLine.textContent=""; disableSwapButtons(); return;
         }
         debounceQuote(quoteStrictSend);
       };
+
       swapEst.oninput = ()=>{
-        quoteMode = "receive";
         if(!swapEst.value || Number(swapEst.value) <= 0){
-          xdrSwap.value=""; swapQuote.textContent=""; disableSwapButtons(); return;
+          xdrSwap.value=""; rateLine.textContent=""; disableSwapButtons(); return;
         }
         debounceQuote(quoteStrictReceive);
       };
     }
 
-    // Rebind when asset UI changes or a (future) asset-modal closes
-    document.addEventListener("assetModalClosed", bindSwapInputListeners);
-
     on(swapFrom,"change", ()=>{
       updateSelectedAssetUI();
-
-      // Reset values & UI to avoid invalid carry-over when changing assets
-      swapAmount.value = "";
-      swapEst.value = "";
-      xdrSwap.value = "";
-      swapQuote.textContent = "";
+      swapAmount.value = ""; swapEst.value = ""; xdrSwap.value = ""; rateLine.textContent = "";
       disableSwapButtons();
-
-      // Auto-validate on asset change
-      autoValidate().catch(()=>{});
-
-      // Also rebind (defensive)
-      bindSwapInputListeners();
-
-      // If you later use a modal, you can dispatch:
-      // document.dispatchEvent(new Event("assetModalClosed"));
     });
 
     on(fillMaxBtn,"click", async ()=>{
-      const opt = getSelectedOption();
-      if(!opt) return;
+      const opt = getSelectedOption(); if(!opt) return;
       const pk = pubkeyEl.value.trim();
       if(!isValidG(pk)){ toast("Connect first to auto-fill balance.", true); return; }
-
       if(opt.value === "XLM"){
-        try{
-          const spendable = await getSpendableXLM(pk);
-          swapAmount.value = plain(spendable);
-          await refreshXlmBreakdownMaybe();
-        }catch(e){
-          console.error(e);
-          toast("Could not compute spendable XLM.", true);
-          return;
-        }
+        try{ const spendable = await getSpendableXLM(pk); swapAmount.value = plain(spendable); await refreshXlmBreakdownMaybe(); }
+        catch(e){ console.error(e); toast("Could not compute spendable XLM.", true); return; }
       }else{
         const bal = parseFloat(opt.dataset.balance || "0");
         swapAmount.value = plain(bal);
       }
-      quoteMode = "send";
       quoteStrictSend();
     });
 
     // Toggle XDR areas
-    function toggleEl(el, btn){
-      const isHidden = el.style.display === "none" || !el.style.display;
-      el.style.display = isHidden ? "block" : "none";
-      btn.textContent = isHidden ? "Hide XDR" : "Reveal XDR";
-    }
+    function toggleEl(el, btn){ const isHidden = el.style.display === "none" || !el.style.display; el.style.display = isHidden ? "block" : "none"; btn.textContent = isHidden ? "Hide XDR" : "Reveal XDR"; }
     on(toggleSwapXdr, "click", ()=> toggleEl(xdrSwap, toggleSwapXdr));
     on(toggleLockerXdr, "click", ()=> toggleEl(xdrOut,  toggleLockerXdr));
 
@@ -1118,43 +1138,144 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
     on(copyBtn,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrOut.value); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy XDR",1500); } catch(e){ console.error(e); } });
 
+    // Sign prompt openers
+    $("signLobstr").onclick = ()=> { if(latestWcUri) openLobstrApp(latestWcUri); };
+    $("signFreighter").onclick = async ()=> {
+      if(!latestWcUri) return;
+      const links = await getFreighterLinks();
+      openFreighterSmart(links, latestWcUri);
+    };
+
     // Swap signing & submit
     on(swapSignSubmit,"click", async ()=>{
       swapResult.textContent="";
       try{
+        const needTL = !(await hasTrustline(pubkeyEl.value.trim(), AQUAm25));
+        if (needTL) { pushToast("Please add the AQUAm25 trustline first.", true); return; }
+
         let xdrToSubmit = xdrSwap.value.trim();
         if(!xdrToSubmit || !/AAAA/.test(xdrToSubmit)){
-          if(lastIsSend) await quoteStrictSend(); else await quoteStrictReceive();
+          if (lastIsSend) { await quoteStrictSend(); } else { await quoteStrictReceive(); }
           xdrToSubmit = xdrSwap.value.trim();
           if(!xdrToSubmit) throw new Error("No prepared XDR.");
         }
-        toast("Signing transaction…");
+
+        if (connectionMode === "wc") { openSignModal(); pushToast("Check your wallet to sign…"); }
+        else { pushToast("Check Freighter to sign…"); }
+
         const signed = await signCurrent(xdrToSubmit);
-        toast("Submitting to Soroban…");
         const final = await submitToSoroban(signed);
         const u = BigInt(final.returnValue?.u128 ?? 0n);
-        const sentOrRecv = lastIsSend ? `Amount OUT: ${plain(Number(u)/1e7)} ${AQUAm25_CODE}` :
-                                        `Amount IN: ${plain(Number(u)/1e7)} ${getSelectedOption()?.dataset.code||"asset"}`;
-        swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${sentOrRecv}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
-        toast("Swap submitted ✓", false, true);
+        const msg = lastIsSend
+          ? `Amount OUT: ${plain(Number(u)/1e7)} ${AQUAm25_CODE}`
+          : `Amount IN spent: ${plain(Number(u)/1e7)} ${(getSelectedOption()?.dataset.code)||"asset"}`;
+        swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${msg}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
+        closeSignModal();
 
-        // refresh AQUAm25 balance after swap
         setTimeout(async ()=>{
           const pk = pubkeyEl.value.trim();
           if(isValidG(pk)){
             try{ const { balance } = await loadAquaM25Balance(pk); aquaBalEl.textContent = plain(balance); }catch{}
           }
         }, 1200);
-      }catch(e){ console.error(e); toast(e.message||"Sign/submit failed.", true); swapResult.textContent=e.message||"Sign/submit failed."; }
+      }catch(e){ console.error(e); closeSignModal(); pushToast(e.message||"Sign/submit failed.", true); }
     });
+
+    // ---------- Picker logic ----------
+    function openPicker(){
+      pickerBackdrop.classList.add("picker-open");
+      assetPicker.classList.add("picker-open");
+      // show spinner immediately
+      pickerBody.innerHTML = `<div class="spinner-wrap"><div class="ring"></div></div>`;
+      hydratePicker().catch((e)=>{
+        pickerBody.innerHTML = `<div class="small" style="text-align:center;color:#ffb3b3">Failed to load assets: ${e?.message||"unknown"}</div>`;
+      });
+    }
+    function closePicker(){
+      pickerBackdrop.classList.remove("picker-open");
+      assetPicker.classList.remove("picker-open");
+      // rebind input listeners after any modal close to avoid stale handlers
+      bindSwapInputListeners();
+    }
+    on(openPickerBtn,"click", openPicker);
+    on(pickerClose,"click", closePicker);
+    on(pickerBackdrop,"click", (e)=>{ if(e.target===pickerBackdrop) closePicker(); });
+
+    async function hydratePicker(){
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)){
+        pickerBody.innerHTML = `<div class="small" style="text-align:center;color:#9db0c6">Connect a wallet to list your assets.</div>`;
+        return;
+      }
+      const { items } = await loadAllBalances(pk);
+      await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean));
+      // build list
+      const frag = document.createDocumentFragment();
+      for(const it of items){
+        const row = document.createElement("div");
+        row.className = "asset-row";
+        row.innerHTML = `
+          <div class="asset-left">
+            <img class="icon" alt="${it.code}" />
+            <div class="asset-meta">
+              <span class="asset-code">${it.code}</span>
+              <span class="asset-domain">${it.issuer? (DOMAIN_CACHE.get(it.issuer)||shortG(it.issuer)) : "native"}</span>
+            </div>
+          </div>
+          <div class="asset-bal">${plain(it.balance)}</div>`;
+        // set icon async
+        const img = row.querySelector("img.icon");
+        setChipIcon(img, it.code, it.issuer||null);
+
+        row.addEventListener("click", ()=>{
+          const value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
+          swapFrom.value = value;
+          updateSelectedAssetUI();
+          swapAmount.value = ""; swapEst.value=""; xdrSwap.value=""; rateLine.textContent="";
+          disableSwapButtons();
+          closePicker();
+        });
+        frag.appendChild(row);
+      }
+      pickerBody.innerHTML = ""; // clear spinner
+      pickerBody.appendChild(frag);
+    }
+
+    // ---------- First-load ----------
+    window.addEventListener("load", async ()=>{
+      // Preload AQUAm25 icon (even before connect) so the buy chip looks nice
+      setChipIcon(buyIcon, AQUAm25_CODE, AQUAm25_ISSUER);
+      sellLabel.textContent = "Select asset";
+      const pk = pubkeyEl.value.trim();
+      if(isValidG(pk)){ await initForNewAccount(); startLockerAutoRefresh(); }
+      disableLockerButtons();
+      disableSwapButtons();
+      bindSwapInputListeners(); // ensure both boxes drive quotes on first load
+    });
+
+    // ---------- Sign helpers (shared) ----------
+    const wcRequest = (method, xdr) => client.request({
+      topic: session.topic, chainId: "stellar:pubnet",
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
+    });
+    async function signCurrent(xdr){
+      if(connectionMode==="wc"){
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      if(connectionMode==="freighter"){
+        const api = await ensureFreighterApi();
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
+        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      throw new Error("Not connected");
+    }
 
     // ---------- Locker submit (classic) ----------
     async function submitToHorizon(signedXdr){
-      const resp = await fetch(`${HORIZON}/transactions`,{
-        method:"POST",
-        headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
-        body:"tx="+encodeURIComponent(signedXdr)
-      });
+      const resp = await fetch(`${HORIZON}/transactions`,{ method:"POST", headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" }, body:"tx="+encodeURIComponent(signedXdr) });
       const data = await resp.json().catch(()=> ({}));
       if(!resp.ok){
         const code = data?.extras?.result_codes?.transaction || resp.status;
@@ -1164,32 +1285,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return data.hash;
     }
 
-    on(signSubmitBtn,"click", async ()=>{
-      actionResult.textContent="";
-      const xdr = xdrOut.value.trim();
-      if(!xdr){ actionResult.textContent="No XDR to sign. Enter key + amount first."; return; }
-      try{
-        toast("Signing…");
-        const signed = await signCurrent(xdr);
-        toast("Submitting…");
-        const hash = await submitToHorizon(signed);
-        actionResult.innerHTML = `Submitted ✓ tx: ${hash}<br/>View: https://stellar.expert/explorer/public/tx/${hash}`;
-        toast("Locker submitted ✓", false, true);
-      }catch(e){ console.error(e); toast(e.message||"Sign/submit failed.", true); actionResult.textContent=e.message||"Sign/submit failed."; }
-    });
-
-    // ---------- First-load ----------
-    window.addEventListener("load", ()=>{
-      const pk = pubkeyEl.value.trim();
-      updateToBoxDomain();
-      if(isValidG(pk)){ initForNewAccount(); startLockerAutoRefresh(); }
-      disableLockerButtons();
-      disableSwapButtons();
-      autoValidate().catch(()=>{});
-
-      // Important: ensure listeners are bound at startup
-      bindSwapInputListeners();
-    });
   </script>
 
   <!-- Freighter UMD fallback -->
