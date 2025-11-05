@@ -466,7 +466,7 @@
         return img;
       }catch{ ICON_CACHE.set(key,""); return ""; }
     }
-function setChipIcon(imgEl, code, issuer) {
+    function setChipIcon(imgEl, code, issuer) {
   // Always use white SVG for native XLM
   if (!issuer || code.toUpperCase() === "XLM") {
     const xlmSvgWhite =
