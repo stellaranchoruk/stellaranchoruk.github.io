@@ -466,29 +466,34 @@
         return img;
       }catch{ ICON_CACHE.set(key,""); return ""; }
     }
-function setChipIcon(imgEl, code, issuer){
-  // Always use SVG for native XLM
+function setChipIcon(imgEl, code, issuer) {
+  // Always use white SVG for native XLM
   if (!issuer || code.toUpperCase() === "XLM") {
-    const xlmSvg = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMjUgMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xOS43OTczIDUuNTQyNDlMMTcuMzk1NiA2Ljc2NjEyTDUuNzk4MTUgMTIuNjczM0M1Ljc1ODkzIDEyLjM3NDIgNS43MzkyIDEyLjA3MjggNS43MzkwOCAxMS43NzEyQzUuNzQyMyA5LjMyMjA5IDcuMDQxODYgNy4wNTc3NSA5LjE1NDg3IDUuODE5NTFDMTEuMjY3OSA0LjU4MTI3IDEzLjg3ODUgNC41NTQyMSAxNi4wMTY3IDUuNzQ4MzlMMTcuMzkxNCA1LjA0Nzk3TDE3LjU5NjUgNC45NDMzM0MxNS4wMjg4IDMuMDc5NjUgMTEuNjMyNyAyLjgxMzY5IDguODA2MTggNC4yNTQ5MUM1Ljk3OTY1IDUuNjk2MTMgNC4yMDAzNSA4LjYwMDk1IDQuMjAwNjggMTEuNzczN0M0LjIwMDY4IDExLjk4ODYgNC4yMDg4NCAxMi4yMDI3IDQuMjI1MTUgMTIuNDE1OUM0LjI3MTg4IDEzLjAzMzMgMy45NDMwOSAxMy42MTgzIDMuMzkxNCAxMy44OTk0TDIuNjY2NSAxNC4yNjkxVjE1Ljk5MzFMNC44MDA2OCAxNC45MDU0TDUuNDkxODIgMTQuNTUyNkw2LjE3MjgzIDE0LjIwNThMMTguMzk5IDcuOTc2MjRMMTkuNzcyOCA3LjI3NjY2TDIyLjYxMjUgNS44Mjk0MVY0LjEwNjJMMTkuNzk3MyA1LjU0MjQ5WiIgZmlsbD0iYmxhY2siLz4KPHBhdGggZD0iTTIyLjYxMjUgNy41NTQ2OUw2Ljg2NzM1IDE1LjU3MTZMNS40OTM1MSAxNi4yNzI4TDIuNjY2NSAxNy43MTMzVjE5LjQzNTdMNS40NzQxIDE4LjAwNTNMNy44NzU3OSAxNi43ODE3TDE5LjQ4NTEgMTAuODY2MUMxOS41MjQzIDExLjE2NzIgMTkuNTQ0IDExLjQ3MDUgMTkuNTQ0MSAxMS43NzQxQzE5LjU0MjYgMTQuMjI2MSAxOC4yNDE2IDE2LjQ5MzYgMTYuMTI1NCAxNy43MzIzQzE0LjAwOTMgMTguOTcxIDExLjM5NTEgMTguOTk1MiA5LjI1NjM4IDE3Ljc5Nkw5LjE3MTk5IDE3Ljg0MDhMNy42ODE2OSAxOC42MDAzQzEwLjI0ODggMjAuNDY0IDEzLjY0NDIgMjAuNzMwNiAxNi40NzA3IDE5LjI5MDNDMTkuMjk3MyAxNy44NTAxIDIxLjA3NzMgMTQuOTQ2NCAyMS4wNzgzIDExLjc3NDFDMjEuMDc4MyAxMS41NTcyIDIxLjA2OTkgMTEuMzQwMyAyMS4wNTM4IDExLjEyNkMyMS4wMDcyIDEwLjUwODggMjEuMzM1NiA5LjkyMzk3IDIxLjg4NjggOS42NDI0NUwyMi42MTI1IDkuMjcyODNWNy41NTQ2OVoiIGZpbGw9ImJsYWNrIi8+Cjwvc3ZnPgo=";
-    imgEl.src = xlmSvg;
+    const xlmSvgWhite =
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNSAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE5Ljc5NjggNS41NDI0OUwxNy4zOTUxIDYuNzY2MTJMN
+S43OTc2NyAxMi42NzMzQzUuNzU4ODkgMTIuMzc0MiA1LjczOTIgMTIuMDcyOCA1LjczOTA4IDExLjc3MTJDNS43NDIzIDkuMzIyMDkgNy4wNDE4NiA3LjA1Nzc1IDkuMTU0ODcgNS44MTk1MUMxMS4yNjc5IDQuNTgxMjcgMTMuODc4NSA0LjU1NDIxIDE2LjAxNjcgNS43NDgzOUwxNy4zOTE0IDUuMDQ3OTdMMTcuNTk2NSA0Ljk0MzMzQzE1LjAyODggMy4wNzk2NSAxMS42MzI3IDIuODEzNjkgOC44MDYxOCA0LjI1NDkxQzUuOTc5NjUgNS42OTYxMyA0LjIwMDM1IDguNjAwOTUgNC4yMDA2OCAxMS43NzM3QzQuMjAwNjggMTEuOTg4NiA0LjIwODg0IDEyLjIwMjcgNC4yMjUxNSAxMi40MTU5QzQuMjcxODggMTMuMDMzMyAzLjk0MzA5IDEzLjYxODMgMy4zOTE0IDEzLjg5OTRMMi42NjY1IDE0LjI2OTFWMTUuOTkzMUw0LjgwMDY4IDE0LjkwNTRMNS40OTE4MiAxNC41NTI2TDYuMTcyODMgMTQuMjA1OEwxOC4zOTkgNy45NzYyNEwxOS43NzI4IDcuMjc2NjZMMjIuNjEyNSA1LjgyOTQxVjQuMTA2MkwxOS43OTY4IDUuNTQyNDlaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJN
+MjIuNjEyNSA3LjU1NDY5TDYuODY3MzUgMTUuNTcxNkw1LjQ5MzUxIDE2LjI3MjhMMi42NjY1IDE3LjcxMzNWMjkuNDM1N0w1LjQ3NDEgMTguMDA1M0w3Ljg3NTc5IDE2Ljc4MTdMMTkuNDg1MSAxMC44NjYxQzE5LjUyNDMgMTEuMTY3MiAxOS41NDQgMTEuNDcwNSAxOS41NDQxIDExLjc3NDFDMTkuNTQyNiAxNC4yMjYxIDE4LjI0MTYgMTYuNDkzNiAxNi4xMjU0IDE3LjczMjNDMTQuMDA5MyAxOC45NzEgMTEuMzk1MSAxOC45OTUyIDkuMjU2MzggMTcuNzk2TDkuMTcxOTkgMTcuODQwOEw3LjY4MTY5IDE4LjYwMDNDMTAuMjQ4OCAyMC40NjQgMTMuNjQ0MiAyMC43MzA2IDE2LjQ3MDcgMTkuMjkwM0MxOS4yOTczIDE3Ljg1MDEgMjEuMDc3MyAxNC45NDY0IDIxLjA3ODMgMTEuNzc0MUMyMS4wNzgzIDExLjU1NzIgMjEuMDY5OSAxMS4zNDAzIDIxLjA1MzggMTEuMTI2QzIxLjAwNzIgMTAuNTA4OCAyMS4zMzU2IDkuOTIzOTcgMjEuODg2OCA5LjY0MjQ1TDIyLjYxMjUgOS4yNzI4M1Y3LjU1NDY5WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cg==";
+    imgEl.src = xlmSvgWhite;
     imgEl.alt = "XLM";
     imgEl.style.background = "transparent";
     return;
   }
 
   // Otherwise normal TOML-based fetch
-  fetchAssetIcon(code, issuer).then(url=>{
-    if(url){
+  fetchAssetIcon(code, issuer).then(url => {
+    if (url) {
       imgEl.src = url;
       imgEl.alt = code;
       imgEl.style.background = "transparent";
     } else {
-      const fallbackSvg = `data:image/svg+xml;utf8,` + encodeURIComponent(`
+      const fallbackSvg =
+        "data:image/svg+xml;utf8," +
+        encodeURIComponent(`
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18">
           <rect width="100%" height="100%" rx="9" ry="9" fill="#0b1115"/>
           <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
             font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#94a3ad">
-            ${(code||"?").slice(0,3).toUpperCase()}
+            ${(code || "?").slice(0, 3).toUpperCase()}
           </text>
         </svg>`);
       imgEl.src = fallbackSvg;
