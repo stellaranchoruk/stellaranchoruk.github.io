@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Mirrasets — AQUAm25 Locker + Aquarius AMM Router Swap</title>
+  <title>Mirrasets — Swap & Lock</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Freighter API (UMD) -->
@@ -61,6 +61,21 @@
     .chip-btn:hover{ filter:brightness(1.08); }
     .icon { width:18px; height:18px; border-radius:50%; background:#0b1115; object-fit:cover; display:inline-block; }
 
+    .sell-ticker {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #eaf2ff;
+}
+
+.down-arrow {
+  font-size: 13px;
+  opacity: 0.6;
+  margin-left: 2px;
+  position: relative;
+  top: -0.5px;
+}
+
     .big-input {
       width:100%; border:1px solid #1e2831; background:#0e1419; color:#fff;
       border-radius:16px; padding:10px 12px; margin-top:4px;
@@ -116,7 +131,7 @@
   <div class="wrap">
     <div class="card">
       <div class="row" style="justify-content:space-between;">
-        <h1>AQUAm25 Interest Locker + Aquarius AMM Swap</h1>
+        <h1>AQUAm25 Swap & Lock</h1>
         <div class="row">
           <button id="connectBtn">Connect Wallet</button>
           <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
@@ -135,13 +150,13 @@
           <div class="slab-top">
             <div class="slab-label">Sell</div>
             <div class="asset-chip">
-              <!-- Hidden select maintained for internal logic -->
-              <select id="swapFrom"></select>
+              <select id="swapFrom" hidden></select>
 
               <!-- Visible chip button to open picker -->
               <button id="openPicker" class="chip-btn" type="button" aria-haspopup="dialog" aria-controls="assetPicker">
                 <img id="sellIcon" class="icon" alt="" />
-                <span id="sellLabel">Select asset</span>
+                <span id="sellLabel" class="sell-ticker">Select asset</span>
+                 <span class="down-arrow" aria-hidden="true">▾</span>
               </button>
             </div>
           </div>
@@ -164,7 +179,7 @@
             </div>
           </div>
           <!-- removed readonly so users can type to trigger strict-receive -->
-          <input id="swapEst" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0 (type here for strict-receive)" />
+          <input id="swapEst" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
         </div>
 
         <!-- Rate line -->
