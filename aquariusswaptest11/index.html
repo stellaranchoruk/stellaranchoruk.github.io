@@ -40,12 +40,13 @@
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
     .open{display:flex}
-    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35); text-align:center;} /* centered text */
+    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35); text-align:center;}
     .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
     .x{background:none;border:none;color:#bcc6d4;font-size:22px;line-height:1;cursor:pointer}
     .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
     .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
     .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .wallet-choices button{background:#162554;border:1px solid #344a8a}
     a.link{color:#9ab0ff;text-decoration:underline}
 
     /* Swap card */
@@ -138,6 +139,8 @@
             <div class="slab-label">Sell</div>
             <div class="asset-chip">
               <select id="swapFrom" hidden></select>
+
+              <!-- Visible chip button to open picker -->
               <button id="openPicker" class="chip-btn" type="button" aria-haspopup="dialog" aria-controls="assetPicker">
                 <img id="sellIcon" class="icon" alt="" />
                 <span id="sellLabel" class="sell-ticker">Select asset</span>
@@ -269,7 +272,6 @@
         <h2 id="signTitle" style="font-size:18px;margin:0">Sign Transaction</h2>
         <button class="x" id="closeSign" aria-label="Close">×</button>
       </div>
-      <!-- UPDATED COPY; centered via .modal-inner -->
       <p class="small">
         Your transaction is ready to sign.
         <br><br>
@@ -396,7 +398,15 @@
 
     // Caches
     const DOMAIN_CACHE = new Map();
-    const ICON_CACHE   = new Map(); // code:issuer -> image url
+    const ICON_CACHE   = new Map(); // KEY: CODE:ISSUER (uppercased)
+
+    // --- Icon overrides for assets with CORS-blocked TOMLs (e.g., Circle EURC) ---
+    const ICON_OVERRIDES = new Map([
+      [
+        "EURC:GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2",
+        "https://static.ultrastellar.com/media/assets/img/81bd6386-74bd-4d9e-9f18-b737baf946a6.png"
+      ],
+    ]);
 
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
@@ -418,7 +428,7 @@
       return parseFloat(opt.dataset.balance || "0");
     }
 
-    // ---------- TOML & Icon helpers (FIXED) ----------
+    // ---------- Icon pipeline (Horizon -> TOML -> image=) ----------
     async function fetchTomlUrlAndDomain(code, issuer){
       const url = `${HORIZON}/assets?asset_code=${encodeURIComponent(code)}&asset_issuer=${issuer}`;
       const j   = await fetch(url).then(r=>r.json()).catch(()=>null);
@@ -429,36 +439,13 @@
       return { tomlUrl, domain };
     }
     function parseTomlCurrencies(t){
-      // Allow header at BOF or after newline
-      const blocks = t.split(/(?:^|\n)\[\[CURRENCIES\]\][^\n]*\n/).slice(1);
-      const items = [];
-      const reKVQuoted = /^\s*([A-Za-z0-9_]+)\s*=\s*"([^"]*)"\s*$/;
-      const reKVLoose  = /^\s*([A-Za-z0-9_]+)\s*=\s*([^\n#]+?)\s*(?:#.*)?$/;
-      for (const b of blocks) {
-        const obj = {};
-        for (const lineRaw of b.split(/\r?\n/)) {
-          const line=lineRaw.trim();
-          if(!line || line.startsWith("#")) continue;
-          let m = line.match(reKVQuoted);
-          if(!m) m=line.match(reKVLoose);
-          if(m){ const k=m[1].toLowerCase(); const v=(m[2]||"").trim().replace(/^"(.*)"$/,"$1"); obj[k]=v; }
-        }
-        const code=(obj.code||obj.asset_code||"").trim();
-        const issuer=(obj.issuer||obj.asset_issuer||"").trim();
-        const image=(obj.image||"").trim();
-        if(code||issuer||image) items.push({code,issuer,image});
+      const blocks = t.split(/\n\[\[CURRENCIES\]\][^\n]*\n/).slice(1);
+      const items=[]; const reKV=/^\s*([A-Za-z0-9_]+)\s*=\s*"(.*?)"\s*$/;
+      for(const b of blocks){ const obj={};
+        for(const line of b.split(/\r?\n/)){ const m=line.match(reKV); if(m){ obj[m[1].toLowerCase()] = m[2]; } }
+        if(obj.code||obj.asset_code){ items.push({ code:(obj.code||obj.asset_code||"").trim(), issuer:(obj.issuer||obj.asset_issuer||"").trim(), image:(obj.image||"").trim() }); }
       }
       return items;
-    }
-    function resolveAgainst(urlOrPath, baseUrl){
-      if(!urlOrPath) return "";
-      try{ return new URL(urlOrPath).toString(); }catch{} // absolute
-      try{
-        const u=new URL(baseUrl);
-        if(urlOrPath.startsWith("/")) return `${u.protocol}//${u.host}${urlOrPath}`;
-        const baseDir=u.pathname.replace(/\/[^/]*$/,"/");
-        return `${u.protocol}//${u.host}${baseDir}${urlOrPath}`;
-      }catch{ return urlOrPath; }
     }
     async function fetchTomlTextWithFallback(tomlUrl){
       try{ const r=await fetch(tomlUrl,{cache:"force-cache"}); if(r.ok) return await r.text(); }catch(_){}
@@ -467,6 +454,14 @@
     }
     async function fetchAssetIcon(code, issuer){
       const key = `${(code||"").toUpperCase()}:${(issuer||"").toUpperCase()}`;
+
+      // 0) Hard override (e.g., EURC)
+      if (ICON_OVERRIDES.has(key)) {
+        const url = ICON_OVERRIDES.get(key);
+        ICON_CACHE.set(key, url);
+        return url;
+      }
+
       if(ICON_CACHE.has(key)) return ICON_CACHE.get(key);
       try{
         const { tomlUrl } = await fetchTomlUrlAndDomain(code, issuer);
@@ -474,39 +469,30 @@
         const txt = await fetchTomlTextWithFallback(tomlUrl);
         if(!txt){ ICON_CACHE.set(key,""); return ""; }
         const items = parseTomlCurrencies(txt);
-        const CODE=(code||"").toUpperCase(), ISSUER=(issuer||"").toUpperCase();
-        let hit = items.find(i => (i.code||"").toUpperCase()===CODE && (i.issuer||"").toUpperCase()===ISSUER);
-        if(!hit) hit = items.find(i => (i.code||"").toUpperCase()===CODE);
-        let img = (hit?.image || "").trim();
-        if(img) img = resolveAgainst(img, tomlUrl);
+        let hit = items.find(i => i.code?.toUpperCase()===(code||"").toUpperCase() && i.issuer?.toUpperCase()===(issuer||"").toUpperCase());
+        if(!hit) hit = items.find(i => i.code?.toUpperCase()===(code||"").toUpperCase());
+        const img = (hit?.image || "").trim();
         ICON_CACHE.set(key, img);
         return img;
       }catch{ ICON_CACHE.set(key,""); return ""; }
     }
 
     function setChipIcon(imgEl, code, issuer) {
-      // Optional hard-coded fallbacks for your core assets (keep/remove as you prefer)
-      if ((code||"").toUpperCase()==="AQUA" && issuer==="GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA") {
-        imgEl.src="https://aqua.network/assets/aqua.svg"; imgEl.alt="AQUA"; imgEl.style.background="transparent"; return;
-      }
-      if ((code||"").toUpperCase()==="AQUAm25" && issuer==="GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC") {
-        imgEl.src="https://mirrasets.com/img/aquam25.svg"; imgEl.alt="AQUAm25"; imgEl.style.background="transparent"; return;
-      }
-
-      // XLM (native) inline SVG
+      // XLM (native): inline SVG via utf8
       if (!issuer || (code || "").toUpperCase() === "XLM") {
         const xlmSvg = `
           <svg width="25" height="24" viewBox="0 0 25 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M19.7968 5.54249L17.3951 6.76612L5.79767 12.6733C5.75845 12.3742 5.73872 12.0728 5.7386 11.7712C5.74182 9.32209 7.04138 7.05775 9.15439 5.81951C11.2674 4.58127 13.878 4.55421 16.0162 5.74839L17.3909 5.04797L17.596 4.94333C15.0283 3.07965 11.6322 2.81369 8.8057 4.25491C5.97917 5.69613 4.19987 8.60095 4.2002 11.7737C4.2002 11.9886 4.20836 12.2027 4.22467 12.4159C4.2714 13.0333 3.94261 13.6183 3.39092 13.8994L2.66602 14.2691V15.9931L4.8002 14.9054L5.49134 14.5526L6.17235 14.2058L18.3985 7.97624L19.7723 7.27666L22.612 5.82941V4.1062L19.7968 5.54249Z" fill="white"/>
             <path d="M22.612 7.55469L6.86687 15.5716L5.49303 16.2728L2.66602 17.7133V19.4357L5.47362 18.0053L7.87531 16.7817L19.4846 10.8661C19.5238 11.1672 19.5435 11.4705 19.5436 11.7741C19.5421 14.2261 18.2411 16.4936 16.1249 17.7323C14.0088 18.9711 11.3946 18.9952 9.2559 17.796L9.17151 17.8408L7.68121 18.6003C10.2483 20.464 13.6437 20.7306 16.4702 19.2903C19.2968 17.8501 21.0768 14.9464 21.0778 11.7741C21.0778 11.5572 21.0694 11.3403 21.0533 11.126C21.0067 10.5088 21.3351 9.92397 21.8863 9.64245L22.612 9.27283V7.55469Z" fill="white"/>
-          </svg>`;
+          </svg>
+        `;
         imgEl.src = "data:image/svg+xml;utf8," + encodeURIComponent(xlmSvg);
         imgEl.alt = "XLM";
         imgEl.style.background = "transparent";
         return;
       }
 
-      // Non-native via TOML image (with relative URL resolution)
+      // Non-native: try TOML/override, else fallback badge
       fetchAssetIcon(code, issuer).then(url => {
         if (url) {
           imgEl.src = url;
@@ -524,7 +510,7 @@
                 </text>
               </svg>`);
           imgEl.src = fallbackSvg;
-          imgEl.alt = code;
+          imgEl.alt = code || "asset";
         }
       }).catch(() => {
         imgEl.removeAttribute("src");
@@ -612,7 +598,7 @@
         pubkey = null;
         pubkeyEl.readOnly = false;
         stopLockerAutoRefresh();
-        setTrustlineUI(false, false); // reset
+        setTrustlineUI(false, false);
       }
     }
 
@@ -814,21 +800,31 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }));
     }
     const labelWithDomain = (code, issuer) => {
-      if(!issuer) return `${code} · native`;
+      const safeCode = (code || "ASSET").toUpperCase();
+      if(!issuer) return `${safeCode} · native`;
       const dom = DOMAIN_CACHE.get(issuer) || "";
       const right = dom || shortG(issuer);
-      return `${code} · ${right}`;
+      return `${safeCode} · ${right}`;
     };
 
     // ---------- Swap: balances + dropdown ----------
     async function loadAllBalances(pk){
       const acct = await getServer().loadAccount(pk);
       const items = [];
+
+      // Native XLM
       const xlmBal = acct.balances.find(b=>b.asset_type==="native");
-      if (xlmBal && parseFloat(xlmBal.balance) > 0) items.push({ code:"XLM", issuer:null, balance: xlmBal.balance });
-      for(const b of acct.balances){
-        if(b.asset_type==="native") continue;
-        if(parseFloat(b.balance) <= 0) continue;
+      if (xlmBal && parseFloat(xlmBal.balance) > 0) {
+        items.push({ code:"XLM", issuer:null, balance: xlmBal.balance });
+      }
+
+      // Trustlines (non-native, non-LP)
+      for (const b of acct.balances){
+        if (b.asset_type === "native") continue;
+        if (b.liquidity_pool_id) continue;            // << ignore LP shares
+        if (!b.asset_code || !b.asset_issuer) continue;
+        if (parseFloat(b.balance) <= 0) continue;
+
         items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
       }
       return { acct, items };
@@ -837,7 +833,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     function getSelectedOption(){ return swapFrom.options[swapFrom.selectedIndex] || null; }
 
     function setSellChip(code, issuer){
-      sellLabel.textContent = code;
+      sellLabel.textContent = code || "ASSET";
       setChipIcon(sellIcon, code, issuer);
     }
 
@@ -1072,7 +1068,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           try { available = await getSpendableXLM(pk); } catch {}
         }
 
-        const inMax = inNeeded + (inNeeded / 100n); // +1%
+        const inMax = inNeeded + (inNeeded / 100n); // +1% cushion
         if (available * 1e7 < Number(inMax)) {
           pushToast("Sell amount exceeds balance", true);
           swapAmount.classList.add("error");
@@ -1159,9 +1155,9 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         toast("Preparing trustline transaction…");
         const trustXdr = await buildTrustlineXDR(pk);
 
-        // SHOW SIGN MODAL for trustline too
-        openSignModal();
-        pushToast(connectionMode==="wc" ? "Check your wallet (WalletConnect) to sign…" : "Check Freighter to sign…");
+        // Prompt the right wallet before we request a signature
+        if (connectionMode === "wc") { openSignModal(); pushToast("Check your wallet to sign…"); }
+        else { pushToast("Check Freighter to sign…"); }
 
         const signed = await signCurrent(trustXdr);
         toast("Submitting trustline…");
@@ -1275,8 +1271,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           if(!xdrToSubmit) throw new Error("No prepared XDR.");
         }
 
-        openSignModal();
-        pushToast(connectionMode==="wc" ? "Check your wallet (WalletConnect) to sign…" : "Check Freighter to sign…");
+        if (connectionMode === "wc") { openSignModal(); pushToast("Check your wallet to sign…"); }
+        else { pushToast("Check Freighter to sign…"); }
 
         const signed = await signCurrent(xdrToSubmit);
         const final = await submitToSoroban(signed);
@@ -1328,9 +1324,9 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         row.className = "asset-row";
         row.innerHTML = `
           <div class="asset-left">
-            <img class="icon" alt="${it.code}" />
+            <img class="icon" alt="${(it.code||'ASSET')}" />
             <div class="asset-meta">
-              <span class="asset-code">${it.code}</span>
+              <span class="asset-code">${(it.code||'ASSET').toUpperCase()}</span>
               <span class="asset-domain">${it.issuer? (DOMAIN_CACHE.get(it.issuer)||shortG(it.issuer)) : "native"}</span>
             </div>
           </div>
@@ -1394,7 +1390,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
       return data.hash;
     }
-
   </script>
 
   <!-- Freighter UMD fallback -->
