@@ -61,20 +61,8 @@
     .chip-btn:hover{ filter:brightness(1.08); }
     .icon { width:32px; height:32px; border-radius:50%; background:#0b1115; object-fit:cover; display:inline-block; }
 
-    .sell-ticker {
-      font-size: 16px;
-      font-weight: 500;
-      letter-spacing: 0.2px;
-      color: #eaf2ff;
-    }
-
-    .down-arrow {
-      font-size: 13px;
-      opacity: 0.6;
-      margin-left: 2px;
-      position: relative;
-      top: -0.5px;
-    }
+    .sell-ticker { font-size: 16px; font-weight: 500; letter-spacing: 0.2px; color: #eaf2ff; }
+    .down-arrow { font-size: 13px; opacity: 0.6; margin-left: 2px; position: relative; top: -0.5px; }
 
     .big-input {
       width:100%; border:1px solid #1e2831; background:#0e1419; color:#fff;
@@ -469,7 +457,7 @@
 function setChipIcon(imgEl, code, issuer) {
   // Always use white SVG for native XLM
   if (!issuer || (code || "").toUpperCase() === "XLM") {
-    const xlmSvgWhite = "data:image/svg+xml;base64, PHN2ZyB3aWR0aD0iMjUiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNSAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE5Ljc5NjggNS41NDI0OUwxNy4zOTUxIDYuNzY2MTJMNS43OTc2NyAxMi42NzMzQzUuNzU4NDUgMTIuMzc0MiA1LjczODcyIDEyLjA3MjggNS43Mzg2IDExLjc3MTJDNS43NDE4MiA5LjMyMjA5IDcuMDQxMzggNy4wNTc3NSA5LjE1NDM5IDUuODE5NTFDMTEuMjY3NCA0LjU4MTI3IDEzLjg3OCA0LjU1NDIxIDE2LjAxNjIgNS43NDgzOUwxNy4zOTA5IDUuMDQ3OTdMMTcuNTk2IDQuOTQzMzNDMTUuMDI4MyAzLjA3OTY1IDExLjYzMjIgMi44MTM2OSA4LjgwNTcgNC4yNTQ5MUM1Ljk3OTE3IDUuNjk2MTMgNC4xOTk4NyA4LjYwMDk1IDQuMjAwMiAxMS43NzM3QzQuMjAwMiAxMS45ODg2IDQuMjA4MzYgMTIuMjAyNyA0LjIyNDY3IDEyLjQxNTlDNC4yNzE0IDEzLjAzMzMgMy45NDI2MSAxMy42MTgzIDMuMzkwOTIgMTMuODk5NEwyLjY2NjAyIDE0LjI2OTFWMTUuOTkzMUw0LjgwMDIgMTQuOTA1NEw1LjQ5MTM0IDE0LjU1MjZMNi4xNzIzNSAxNC4yMDU4TDE4LjM5ODUgNy45NzYyNEwxOS43NzIzIDcuMjc2NjZMMjIuNjEyIDUuODI5NDFWNC4xMDYyTDE5Ljc5NjggNS41NDI0OVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yMi42MTIgNy41NTQ2OUw2Ljg2Njg3IDE1LjU3MTZMNS40OTMwMyAxNi4yNzI4TDIuNjY2MDIgMTcuNzEzM1YxOS40MzU3TDUuNDczNjIgMTguMDA1M0w3Ljg3NTMxIDE2Ljc4MTdMMTkuNDg0NiAxMC44NjYxQzE5LjUyMzggMTEuMTY3MiAxOS41NDM1IDExLjQ3MDUgMTkuNTQzNiAxMS43NzQxQzE5LjU0MjEgMTQuMjI2MSAxOC4yNDExIDE2LjQ5MzYgMTYuMTI0OSAxNy43MzIzQzE0LjAwODggMTguOTcxIDExLjM5NDYgMTguOTk1MiA5LjI1NTkgMTcuNzk2TDkuMTcxNTEgMTcuODQwOEw3LjY4MTIxIDE4LjYwMDNDMTAuMjQ4MyAyMC40NjQgMTMuNjQzNyAyMC43MzA2IDE2LjQ3MDIgMTkuMjkwM0MxOS4yOTY4IDE3Ljg1MDEgMjEuMDc2OCAxNC45NDY0IDIxLjA3NzggMTEuNzc0MUMyMS4wNzc4IDExLjU1NzIgMjEuMDY5NCAxMS4zNDAzIDIxLjA1MzMgMTEuMTI2QzIxLjAwNjcgMTAuNTA4OCAyMS4zMzUxIDkuOTIzOTcgMjEuODg2MyA5LjY0MjQ1TDIyLjYxMiA5LjI3MjgzVjcuNTU0NjlaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=";
+    const xlmSvgWhite = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNSAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTkuNzk2OCA1LjU0MjQ5TDE3LjM5NTEgNi43NjYxMkw1Ljc5NzY3IDEyLjY3MzNDNS43NTg0NSAxMi4zNzQyIDUuNzM4NzIgMTIuMDcyOCA1LjczODYgMTEuNzcxMkM1Ljc0MTgyIDkuMzIyMDkgNy4wNDEzOCA3LjA1Nzc1IDkuMTU0MzkgNS44MTk1MUMxMS4yNjc0IDQuNTgxMjcgMTMuODc4IDQuNTU0MjEgMTYuMDE2MiA1Ljc0ODM5TDE3LjM5MDkgNS4wNDc5N0wxNy41OTYgNC45NDMzM0MxNS4wMjgzIDMuMDc5NjUgMTEuNjMyMiAyLjgxMzY5IDguODA1NyA0LjI1NDkxQzUuOTc5MTcgNS42OTYxMyA0LjE5OTg3IDguNjAwOTUgNC4yMDAyIDExLjc3MzdDNC4yMDAyIDExLjk4ODYgNC4yMDgzNiAxMi4yMDI3IDQuMjI0NjcgMTIuNDE1OUM0LjI3MTQgMTMuMDMzMyAzLjk0MjYxIDEzLjYxODMgMy4zOTA5MiAxMy44OTk0TDIuNjY2MDIgMTQuMjY5MVYxNS45OTMxTDQuODAwMiAxNC45MDU0TDUuNDkxMzQgMTQuNTUyNkw2LjE3MjM1IDE0LjIwNThMMTguMzk4NSA3Ljk3NjI0TDE5Ljc3MjMgNy4yNzY2NkwyMi42MTIgNS44Mjk0MVY0LjEwNjJMMTkuNzk2OCA1LjU0MjQ5WiIgZmlsbD0id2hpdGUiLz48cGF0aCBkPSJNMjIuNjEyIDcuNTU0NjlMNi44NjY4NyAxNS41NzE2TDUuNDkzMDMgMTYuMjcyOEwyLjY2NjAyIDE3LjcxMzNWMTkuNDM1N0w1LjQ3MzYyIDE4LjAwNTNMNy44NzUzMSAxNi43ODE3TDE5LjQ4NDYgMTAuODY2MUMxOS41MjM4IDExLjE2NzIgMTkuNTQzNSAxMS40NzA1IDE5LjU0MzYgMTEuNzc0MUMxOS41NDIxIDE0LjIyNjEgMTguMjQxMSAxNi40OTM2IDE2LjEyNDkgMTcuNzMyM0MxNC4wMDg4IDE4Ljk3MTEgMTEuMzk0NiAxOC45OTUyIDkuMjU1OSAxNy43OTZMOS4xNzE1MSAxNy44NDA4TDcuNjgxMjEgMTguNjAwM0MxMC4yNDgzIDIwLjQ2NCAxMy42NDM3IDIwLjczMDYgMTYuNDcwMiAxOS4yOTAzQzE5LjI5NjggMTcuODUwMSAyMS4wNzY4IDE0Ljk0NjQgMjEuMDc3OCAxMS43NzQxQzIxLjA3NzggMTEuNTU3MiAyMS4wNjk0IDExLjM0MDMgMjEuMDUzMyAxMS4xMjZDMjEuMDA2NyAxMC41MDg4IDIxLjMzNTEgOS45MjM5NyAyMS44ODYzIDkuNjQyNDVMMjIuNjEyIDkuMjcyODNWN7LjU1NDY5WiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=";
     imgEl.src = xlmSvgWhite;
     imgEl.alt = "XLM";
     imgEl.style.background = "transparent";
@@ -813,7 +801,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       for(const it of items){
         const opt = document.createElement("option");
         opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
-        opt.textContent = labelWithDomain(it.code, it.issuer); // domain in list
+        opt.textContent = labelWithDomain(it.code, it.issuer);
         opt.dataset.balance = it.balance;
         opt.dataset.code = it.code;
         if(it.issuer) opt.dataset.issuer = it.issuer;
@@ -832,7 +820,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const code = opt.dataset.code || (opt.value==="XLM"?"XLM":"ASSET");
       const issuer = opt.dataset.issuer || null;
 
-      // visible chip
       setSellChip(code, issuer);
 
       selectedBal.textContent = plain(bal);
@@ -856,23 +843,35 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         setChipIcon(buyIcon, AQUAm25_CODE, AQUAm25_ISSUER);
 
         refreshXlmBreakdownMaybe();
-        await onValidate(); // sets trustline UI state
+        await onValidate();
       }catch(e){ console.error(e); }
     }
 
     // ---------- Trustline-aware UI ----------
     function setTrustlineUI(hasTL, forceDisableSwap){
-      if(hasTL){
+      if (hasTL) {
+        // Show swap actions
         btnAddTrustline.style.display = "none";
+        btnAddTrustline.classList.remove("primary","warn");
+        btnAddTrustline.style.flex = "";
+
+        // Reveal and enable swap + copy
+        swapSignSubmit.style.display = "";
+        swapCopy.style.display = "";
+
         swapSignSubmit.disabled = !!forceDisableSwap;
-        swapSignSubmit.classList.remove("warn");
         swapCopy.disabled = !!forceDisableSwap;
-      }else{
-        btnAddTrustline.style.display = "inline-block";
+        swapSignSubmit.classList.remove("warn");
+      } else {
+        // Hide swap + copy entirely
+        swapSignSubmit.style.display = "none";
+        swapCopy.style.display = "none";
+
+        // Make the trustline button the big single CTA
+        btnAddTrustline.style.display = "block";
         btnAddTrustline.classList.remove("ghost","small");
         btnAddTrustline.classList.add("primary","warn");
-        swapSignSubmit.disabled = true;
-        swapCopy.disabled = true;
+        btnAddTrustline.style.flex = "1";
       }
     }
 
@@ -938,7 +937,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const sendLabel = toNativeLabel(sendAsset);
 
       try{
-        // ---- NEW: pre-check balance (spendable for XLM) ----
+        // pre-check balance (spendable for XLM)
         const available = await getAvailableForCurrent(pk);
         if (parseFloat(sendAmt) > (available + 1e-7)) {
           pushToast("Sell amount exceeds balance", true);
@@ -997,7 +996,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
-    // NEW: strict-receive flow (typing in BUY box)
+    // strict-receive flow (typing in BUY box)
     async function quoteStrictReceive(){
       disableSwapButtons();
       xdrSwap.value=""; rateLine.textContent="";
@@ -1160,14 +1159,11 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     function enableSwapButtons(){ const ok=!!xdrSwap.value.trim(); [swapSignSubmit,swapCopy].forEach(b=>b.disabled=!ok); }
     function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 400); }
 
-    // centralised: bind listeners so UI rebuilds can't orphan handlers
     function bindSwapInputListeners(){
       if(!swapAmount || !swapEst) return;
 
       swapAmount.oninput = ()=>{
-        // NEW: clear error outline while typing
         swapAmount.classList.remove("error");
-
         if(!swapAmount.value || Number(swapAmount.value) <= 0){
           xdrSwap.value=""; rateLine.textContent=""; disableSwapButtons(); return;
         }
@@ -1185,7 +1181,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     on(swapFrom,"change", ()=>{
       updateSelectedAssetUI();
       swapAmount.value = ""; swapEst.value = ""; xdrSwap.value = ""; rateLine.textContent = "";
-      swapAmount.classList.remove("error");  // NEW: clear error when asset changes
+      swapAmount.classList.remove("error");
       disableSwapButtons();
     });
 
@@ -1259,7 +1255,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     function openPicker(){
       pickerBackdrop.classList.add("picker-open");
       assetPicker.classList.add("picker-open");
-      // show spinner immediately
       pickerBody.innerHTML = `<div class="spinner-wrap"><div class="ring"></div></div>`;
       hydratePicker().catch((e)=>{
         pickerBody.innerHTML = `<div class="small" style="text-align:center;color:#ffb3b3">Failed to load assets: ${e?.message||"unknown"}</div>`;
@@ -1268,7 +1263,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     function closePicker(){
       pickerBackdrop.classList.remove("picker-open");
       assetPicker.classList.remove("picker-open");
-      // rebind input listeners after any modal close to avoid stale handlers
       bindSwapInputListeners();
     }
     on(openPickerBtn,"click", openPicker);
@@ -1283,7 +1277,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
       const { items } = await loadAllBalances(pk);
       await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean));
-      // build list
       const frag = document.createDocumentFragment();
       for(const it of items){
         const row = document.createElement("div");
@@ -1297,7 +1290,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
             </div>
           </div>
           <div class="asset-bal">${plain(it.balance)}</div>`;
-        // set icon async
         const img = row.querySelector("img.icon");
         setChipIcon(img, it.code, it.issuer||null);
 
@@ -1311,20 +1303,19 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         });
         frag.appendChild(row);
       }
-      pickerBody.innerHTML = ""; // clear spinner
+      pickerBody.innerHTML = "";
       pickerBody.appendChild(frag);
     }
 
     // ---------- First-load ----------
     window.addEventListener("load", async ()=>{
-      // Preload AQUAm25 icon (even before connect) so the buy chip looks nice
       setChipIcon(buyIcon, AQUAm25_CODE, AQUAm25_ISSUER);
       sellLabel.textContent = "Select asset";
       const pk = pubkeyEl.value.trim();
       if(isValidG(pk)){ await initForNewAccount(); startLockerAutoRefresh(); }
       disableLockerButtons();
       disableSwapButtons();
-      bindSwapInputListeners(); // ensure both boxes drive quotes on first load
+      bindSwapInputListeners();
     });
 
     // ---------- Sign helpers (shared) ----------
