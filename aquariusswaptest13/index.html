@@ -120,6 +120,29 @@
     .popover .line{ display:flex; justify-content:space-between; gap:10px; font-size:12px; color:#cfe0ff; padding:3px 0; }
     .popover .line .muted{ color:#9db0c6; }
 
+    .rate-line {
+  text-align: center;
+  padding: 6px 0 2px;
+  transition: opacity .15s;
+  cursor: pointer;
+  color: #9aa5b1;
+  font-size: 13px;
+}
+
+.rate-line:hover { opacity: .85; }
+
+.rate-swap {
+  display: inline-block;
+  margin-left: 6px;
+  opacity: 0.6;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.rate-line:hover .rate-swap {
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
     /* Hide the native <select> – we keep it for internal logic */
     #swapFrom { display:none; }
   </style>
@@ -945,10 +968,51 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const [code, issuer] = (swapFrom.value||"").split(":");
       return new SDK.Asset(code, issuer);
     }
-    function updateRateLine(sendCode, estOutPer1) {
-      if (!isFinite(estOutPer1) || estOutPer1<=0) { rateLine.textContent = ""; return; }
-      rateLine.textContent = `1 ${sendCode} ≈ ${plain(estOutPer1)} AQUAm25`;
-    }
+// ---------- Exchange rate display (with reversible toggle and ⇄ icon) ----------
+let rateReversed = false;
+
+function updateRateLine(sendCode, estOutPer1) {
+  const rateEl = rateLine;
+  if (!isFinite(estOutPer1) || estOutPer1 <= 0) {
+    rateEl.innerHTML = "";
+    rateEl.style.cursor = "default";
+    return;
+  }
+
+  const rate = round7(estOutPer1);
+  const invRate = round7(1 / estOutPer1);
+
+  rateEl.dataset.forward = rate;
+  rateEl.dataset.inverse = invRate;
+  rateEl.dataset.sendCode = sendCode;
+
+  const base = rateReversed
+    ? `1 AQUAm25 ≈ ${invRate} ${sendCode}`
+    : `1 ${sendCode} ≈ ${rate} AQUAm25`;
+
+  rateEl.innerHTML = `
+    <span class="rate-text">${base}</span>
+    <span class="rate-swap" title="Tap to flip rate">⇄</span>
+  `;
+  rateEl.style.cursor = "pointer";
+}
+
+rateLine.addEventListener("click", () => {
+  if (!rateLine.dataset.forward) return;
+  rateReversed = !rateReversed;
+  const sendCode = rateLine.dataset.sendCode || "XLM";
+  const rate = parseFloat(rateLine.dataset.forward || "0");
+  const invRate = parseFloat(rateLine.dataset.inverse || "0");
+
+  const base = rateReversed
+    ? `1 AQUAm25 ≈ ${invRate} ${sendCode}`
+    : `1 ${sendCode} ≈ ${rate} AQUAm25`;
+
+  rateLine.innerHTML = `
+    <span class="rate-text">${base}</span>
+    <span class="rate-swap" title="Tap to flip rate">⇄</span>
+  `;
+});
 
     async function refreshAvailPopover(){
       const pk = pubkeyEl.value.trim();
