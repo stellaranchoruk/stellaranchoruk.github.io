@@ -1188,9 +1188,70 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     });
 
     // ---------- Balance popover interactions ----------
-    on(availInfo, "mouseenter", ()=> availPopover.classList.add("open"));
-    on(availInfo, "mouseleave", ()=> availPopover.classList.remove("open"));
-    on(availInfo, "click", ()=> availPopover.classList.toggle("open"));
+(function(){
+  const isHoverCapable = window.matchMedia("(hover: hover)").matches;
+  let stickyOpen = false;
+  let scrollClosePending = null;
+
+  function openPopover(){ availPopover.classList.add("open"); }
+  function closePopover(){ availPopover.classList.remove("open"); stickyOpen = false; }
+  function togglePopover(){ 
+    const willOpen = !availPopover.classList.contains("open");
+    if (willOpen) { openPopover(); stickyOpen = true; } else { closePopover(); }
+  }
+
+  // Desktop: hover behavior
+  if (isHoverCapable) {
+    availInfo.addEventListener("mouseenter", openPopover);
+    availInfo.addEventListener("mouseleave", closePopover);
+    // Keep open while moving on the popover itself
+    availPopover.addEventListener("mouseenter", openPopover);
+    availPopover.addEventListener("mouseleave", closePopover);
+    // Click also toggles/pins
+    availInfo.addEventListener("click", (e)=>{ e.stopPropagation(); togglePopover(); });
+    document.addEventListener("click", (e)=>{
+      if (!availPopover.contains(e.target) && !availInfo.contains(e.target)) closePopover();
+    });
+  } else {
+    // Mobile: tap-to-pin, close on scroll or outside tap
+    availInfo.addEventListener("click", (e)=>{ e.stopPropagation(); togglePopover(); });
+
+    document.addEventListener("click", (e)=>{
+      if (!availPopover.contains(e.target) && !availInfo.contains(e.target)) closePopover();
+    }, { passive:true });
+
+    // Close on first scroll after opening (with tiny debounce so it won't close
+    // during momentum tap)
+    window.addEventListener("scroll", ()=>{
+      if (!stickyOpen) return;
+      if (scrollClosePending) return;
+      scrollClosePending = setTimeout(()=>{
+        closePopover();
+        scrollClosePending = null;
+      }, 50);
+    }, { passive:true });
+  }
+
+  // Also close whenever inputs change or asset switches
+  ["input","focus"].forEach(ev=>{
+    swapAmount.addEventListener(ev, closePopover, { passive:true });
+    swapEst.addEventListener(ev, closePopover, { passive:true });
+  });
+  swapFrom.addEventListener("change", closePopover, { passive:true });
+  openPickerBtn.addEventListener("click", closePopover, { passive:true });
+
+  // Reposition/refresh contents each time we open
+  async function ensureFresh(){
+    if (availPopover.classList.contains("open")) {
+      try { await refreshAvailPopover(); } catch(_) {}
+    }
+  }
+  availInfo.addEventListener("click", ensureFresh);
+  if (isHoverCapable){
+    availInfo.addEventListener("mouseenter", ensureFresh);
+  }
+})();
+
 
     // ---------- Swap buttons / input binding ----------
     function disableSwapButtons(){ [swapSignSubmit,swapCopy].forEach(b=>b.disabled=true); }
