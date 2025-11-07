@@ -15,26 +15,15 @@
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --accent-2:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
     * { box-sizing: border-box; }
     html,body { margin:0; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-
     .wrap{max-width:980px;margin:28px auto;padding:0 16px}
-    .card{
-      background:var(--panel);
-      border:1px solid var(--border);
-      border-radius:16px;
-      padding:22px;
-      display:flex;
-      flex-direction:column;
-      gap:20px; /* spacing between sections */
-    }
-
-    h1{margin:0;font-size:20px;letter-spacing:.3px}
-    h2{margin:0 0 10px;font-size:18px;font-weight:700;color:#dfe8ff}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px}
+    .card + .card { margin-top:16px; } /* space between cards */
+    h1{margin:0 0 10px;font-size:20px;letter-spacing:.3px}
+    h2{margin:0 0 12px;font-size:18px}
     p{margin:.25rem 0 .75rem;opacity:.96}
     .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
     .small{font-size:12px;opacity:.8}
     .muted{color:var(--muted)}
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-
     button{cursor:pointer;font-weight:700;border-radius:10px;border:1px solid #21464f;background:#0c1c20;color:#d9f6ff;padding:10px 14px;transition:.15s}
     button:hover{filter:brightness(1.08)}
     button.ghost{background:#141b22;border-color:#2a3340}
@@ -42,9 +31,11 @@
     input,textarea,select{width:100%;padding:12px;border-radius:10px;border:1px solid #1e2831;background:#0e1419;color:#fff}
     input[readonly]{opacity:.95;background:#0b1115;border-style:dashed}
     label{display:block;margin:10px 0 6px;font-size:12px;color:var(--muted)}
+    .linkish{border:none;background:transparent;color:#9ab0ff;text-decoration:underline;padding:0;cursor:pointer}
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
     /* Constrain and center swap/locker */
-    .card-narrow{width:100%;max-width:480px;margin:0 auto;}
+    #swapBox, #lockerBox { width:100%; max-width:480px; margin:0 auto; }
 
     /* Modals (center-align content) */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
@@ -60,12 +51,15 @@
     a.link{color:#9ab0ff;text-decoration:underline}
 
     /* Swap card */
-    .card-slab { background:#0f1520; border:1px solid #1b2633; border-radius:22px; padding:16px; margin-bottom:12px; }
+    .card-swap { border-radius:16px; position:relative; }
+    .card-swap .slab { background:#0f1520; border:1px solid #1b2633; border-radius:22px; padding:16px; margin-bottom:12px; }
     .slab-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
     .slab-label { font-size:14px; color:var(--muted); }
+    .slab-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:180px; }
 
     .asset-chip { display:inline-flex; align-items:center; gap:10px; }
-    .chip-pill, .chip-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 8px; border-radius:999px; border:1px solid #1e2831; background:#0e1419; color:#dfe8ff; }
+    .chip-pill { display:inline-flex; align-items:center; gap:5px; padding:6px 8px; border-radius:999px; border:1px solid #1e2831; background:#0e1419; color:#dfe8ff; }
+    .chip-btn { border:1px solid #1e2831; background:#0e1419; color:#dfe8ff; padding:6px 8px; border-radius:999px; display:inline-flex; align-items:center; gap:5px; }
     .chip-btn:hover{ filter:brightness(1.08); }
     .icon { width:32px; height:32px; border-radius:50%; background:#0b1115; object-fit:cover; display:inline-block; }
 
@@ -81,24 +75,22 @@
     .big-input.readonly { opacity:.95; background:#0b1115; border-style:dashed; }
     .big-input.error { outline:2px solid #ff6b6b55; border-color:#803c3c; }
 
-    /* RIGHT-side Balance row under selector (from v13) */
-    .slab-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:180px; }
-    .avail-row{ display:flex; align-items:center; gap:6px; }
-    .avail-btn{ border:none; background:transparent; color:#9ab0ff; text-decoration:underline; padding:0; cursor:pointer; font-size:12px; font-weight:400; }
-    .avail-btn .label{ margin-right:4px; }
-    .info-ico{ width:18px; height:18px; border-radius:50%; border:1px solid #2a3340; background:#0c1520; color:#cfe0ff; font-size:12px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
-
-    /* Popover from v13 */
-    .popover{ position:absolute; z-index:50; right:8px; top:64px; background:#0f1526; border:1px solid #26324a; border-radius:12px; padding:10px 12px; min-width:240px; max-width:320px; text-align:left; display:none; box-shadow:0 10px 30px rgba(0,0,0,.35); }
-    .popover.open{ display:block; }
-    .popover .line{ display:flex; justify-content:space-between; gap:10px; font-size:12px; color:#cfe0ff; padding:3px 0; }
-    .popover .line .muted{ color:#9db0c6; }
-
-    /* Rate line (reversible with ⇄) */
-    .rate-line { text-align:center; padding:6px 0 2px; transition: opacity .15s; cursor:pointer; color:#9aa5b1; font-size:13px; }
-    .rate-line:hover { opacity:.85; }
-    .rate-swap { display:inline-block; margin-left:6px; opacity:.6; transition: opacity .2s, transform .2s; }
-    .rate-line:hover .rate-swap { opacity:1; transform:rotate(180deg); }
+    .rate-line {
+      text-align: center;
+      padding: 6px 0 2px;
+      transition: opacity .15s;
+      cursor: pointer;
+      color: #9aa5b1;
+      font-size: 13px;
+    }
+    .rate-line:hover { opacity: .85; }
+    .rate-swap {
+      display: inline-block;
+      margin-left: 6px;
+      opacity: 0.6;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .rate-line:hover .rate-swap { opacity: 1; transform: rotate(180deg); }
 
     .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
     .actions .primary {
@@ -131,12 +123,24 @@
     .asset-domain{ font-size:12px; color:#9db0c6; }
     .asset-bal{ font-size:12px; color:#cfe0ff; }
 
-    /* Hide native select */
+    /* Balance row (right, under chip) */
+    .avail-row{ display:flex; align-items:center; gap:6px; }
+    .avail-btn{ border:none; background:transparent; color:#9ab0ff; text-decoration:underline; padding:0; cursor:pointer; font-size:12px; font-weight:400; }
+    .avail-btn .label{ margin-right:4px; }
+    .info-ico{ width:18px; height:18px; border-radius:50%; border:1px solid #2a3340; background:#0c1520; color:#cfe0ff; font-size:12px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+    .popover{ position:absolute; z-index:50; right:8px; top:64px; background:#0f1526; border:1px solid #26324a; border-radius:12px; padding:10px 12px; min-width:240px; max-width:320px; text-align:left; display:none; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+    .popover.open{ display:block; }
+    .popover .line{ display:flex; justify-content:space-between; gap:10px; font-size:12px; color:#cfe0ff; padding:3px 0; }
+    .popover .line .muted{ color:#9db0c6; }
+
+    /* Hide the native <select> – we keep it for internal logic */
     #swapFrom { display:none; }
   </style>
 </head>
 <body>
   <div class="wrap">
+
+    <!-- Header card -->
     <div class="card">
       <div class="row" style="justify-content:space-between;">
         <h1>AQUAm25 Swap & Lock</h1>
@@ -146,118 +150,116 @@
           <span id="status" class="muted" aria-live="polite">Not connected</span>
         </div>
       </div>
+    </div>
 
-      <!-- Swap -->
-      <div class="section box card-narrow" id="swapBox">
-        <h2>Swap</h2>
+    <!-- SWAP card -->
+    <div class="card card-swap" id="swapBox">
+      <h2>Swap</h2>
 
-        <!-- SELL -->
-        <div class="card-slab" style="position:relative">
-          <div class="slab-top">
-            <div class="slab-label">Sell</div>
-            <div class="slab-right">
-              <div class="asset-chip">
-                <select id="swapFrom" hidden></select>
-                <button id="openPicker" class="chip-btn" type="button" aria-haspopup="dialog" aria-controls="assetPicker">
-                  <img id="sellIcon" class="icon" alt="" />
-                  <span id="sellLabel" class="sell-ticker">Select asset</span>
-                  <span class="down-arrow" aria-hidden="true">▾</span>
-                </button>
-              </div>
-              <!-- v13 balance row (non-bold "Balance: " + space + sticky info "i") -->
-              <div class="avail-row">
-                <button id="fillAvailBtn" class="avail-btn" style="display:none">
-                  <span class="label">Balance:</span><span id="availNum">0</span>
-                </button>
-                <div id="availInfo" class="info-ico" title="Details">i</div>
-              </div>
-            </div>
-          </div>
-
-          <input id="swapAmount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
-          <div id="availPopover" class="popover" role="dialog" aria-modal="false" aria-live="polite"></div>
-        </div>
-
-        <!-- BUY (AQUAm25 editable for strict-receive) -->
-        <div class="card-slab">
-          <div class="slab-top">
-            <div class="slab-label">Buy</div>
+      <!-- SELL -->
+      <div class="slab" style="position:relative">
+        <div class="slab-top">
+          <div class="slab-label">Sell</div>
+          <div class="slab-right">
             <div class="asset-chip">
-              <div class="chip-pill">
-                <img id="buyIcon" class="icon" alt="AQUAm25" />
-                <span>AQUAm25</span>
-              </div>
+              <select id="swapFrom" hidden></select>
+              <!-- Visible chip button to open picker -->
+              <button id="openPicker" class="chip-btn" type="button" aria-haspopup="dialog" aria-controls="assetPicker">
+                <img id="sellIcon" class="icon" alt="" />
+                <span id="sellLabel" class="sell-ticker">Select asset</span>
+                <span class="down-arrow" aria-hidden="true">▾</span>
+              </button>
+            </div>
+            <!-- Balance line (usable amount; not bold; with “i”) -->
+            <div class="avail-row">
+              <button id="fillAvailBtn" class="avail-btn" style="display:none">
+                <span class="label">Balance:</span><span id="availNum">0</span>
+              </button>
+              <div id="availInfo" class="info-ico" title="Details">i</div>
             </div>
           </div>
-          <input id="swapEst" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
         </div>
 
-        <!-- Reversible rate line -->
-        <div class="rate-line small muted" id="rateLine" aria-live="polite"></div>
-
-        <!-- Actions -->
-        <div class="actions">
-          <button id="swapSignSubmit" class="primary">Swap to AQUAm25</button>
-          <button id="swapCopy" class="ghost small">Copy XDR</button>
-          <button id="btnAddTrustline" class="ghost small" style="display:none">Add AQUAm25 Trustline</button>
-        </div>
-
-        <!-- Hidden XDR -->
-        <div class="row" style="align-items:center;justify-content:space-between;margin-top:10px">
-          <label for="xdrSwap" style="margin:0">Swap Transaction XDR (Soroban)</label>
-          <button id="toggleSwapXdr" class="linkish small">Reveal XDR</button>
-        </div>
-        <textarea id="xdrSwap" rows="6" placeholder="Prepared or signed swap XDR appears here" readonly style="display:none"></textarea>
-
-        <p id="swapResult" class="small" style="margin-top:6px" aria-live="polite"></p>
-
-        <!-- Validation -->
-        <div class="section">
-          <div class="row" style="gap:10px;margin-bottom:6px">
-            <span class="muted">Validation</span>
-          </div>
-          <div id="validationBox" class="small">—</div>
-        </div>
+        <input id="swapAmount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+        <div id="availPopover" class="popover" role="dialog" aria-modal="false" aria-live="polite"></div>
       </div>
 
-      <!-- Locker -->
-      <div class="section box card-narrow" id="lockerBox">
-        <h2>Locker</h2>
-
-        <label for="pubkey">Public Key</label>
-        <input id="pubkey" placeholder="G… (manual entry allowed if not connected)" />
-
-        <p class="small">AQUAm25 Balance: <b id="aquaBal">-</b></p>
-
-        <label for="amount">AQUAm25 Amount</label>
-        <input id="amount" type="number" step="any" placeholder="Amount to lock" inputmode="decimal" />
-        <div class="row" style="gap:8px">
-          <button data-pct="25" class="ghost">25%</button>
-          <button data-pct="50" class="ghost">50%</button>
-          <button data-pct="75" class="ghost">75%</button>
-          <button data-pct="100" class="ghost">100%</button>
+      <!-- BUY (AQUAm25 editable for strict-receive) -->
+      <div class="slab">
+        <div class="slab-top">
+          <div class="slab-label">Buy</div>
+          <div class="asset-chip">
+            <div class="chip-pill">
+              <img id="buyIcon" class="icon" alt="AQUAm25" />
+              <span>AQUAm25</span>
+            </div>
+          </div>
         </div>
+        <input id="swapEst" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+      </div>
 
-        <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
+      <div class="rate-line small muted" id="rateLine" aria-live="polite"></div>
 
-        <div class="row" style="align-items:center;justify-content:space-between;margin-top:10px">
-          <label for="xdrOut" style="margin:0">Transaction XDR (Locker)</label>
-          <button id="toggleLockerXdr" class="linkish small">Reveal XDR</button>
+      <div class="actions">
+        <button id="swapSignSubmit" class="primary">Swap to AQUAm25</button>
+        <button id="swapCopy" class="ghost small">Copy XDR</button>
+        <button id="btnAddTrustline" class="ghost small" style="display:none">Add AQUAm25 Trustline</button>
+      </div>
+
+      <div class="row" style="justify-content:space-between; margin-top:10px">
+        <label for="xdrSwap" class="small muted" style="margin:0">Swap Transaction XDR (Soroban)</label>
+        <button id="toggleSwapXdr" class="linkish small">Reveal XDR</button>
+      </div>
+      <textarea id="xdrSwap" rows="6" placeholder="Prepared or signed swap XDR appears here" readonly style="display:none"></textarea>
+
+      <p id="swapResult" class="small" style="margin-top:6px" aria-live="polite"></p>
+
+      <div class="section">
+        <div class="row" style="gap:10px;margin-bottom:6px">
+          <span class="muted">Validation</span>
         </div>
-        <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here" readonly style="display:none"></textarea>
-
-        <div class="row" style="margin-top:10px;flex-wrap:wrap">
-          <button id="signSubmitBtn">Sign &amp; Submit</button>
-          <button id="copyBtn" class="ghost">Copy XDR</button>
-          <button id="labBtn" class="ghost">Open in Stellar Lab</button>
-        </div>
-
-        <p id="actionResult" class="small" style="margin-top:6px" aria-live="polite"></p>
+        <div id="validationBox" class="small">—</div>
       </div>
     </div>
+
+    <!-- LOCKER card -->
+    <div class="card" id="lockerBox">
+      <h2>Locker</h2>
+
+      <label for="pubkey">Public Key</label>
+      <input id="pubkey" placeholder="G… (manual entry allowed if not connected)" />
+
+      <p class="small">AQUAm25 Balance: <b id="aquaBal">-</b></p>
+
+      <label for="amount">AQUAm25 Amount</label>
+      <input id="amount" type="number" step="any" placeholder="Amount to lock" inputmode="decimal" />
+      <div class="row" style="gap:8px">
+        <button data-pct="25" class="ghost">25%</button>
+        <button data-pct="50" class="ghost">50%</button>
+        <button data-pct="75" class="ghost">75%</button>
+        <button data-pct="100" class="ghost">100%</button>
+      </div>
+
+      <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
+
+      <div class="row" style="justify-content:space-between; margin-top:10px">
+        <label for="xdrOut" class="small muted" style="margin:0">Transaction XDR (Locker)</label>
+        <button id="toggleLockerXdr" class="linkish small">Reveal XDR</button>
+      </div>
+      <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here" readonly style="display:none"></textarea>
+
+      <div class="row" style="margin-top:10px;flex-wrap:wrap">
+        <button id="signSubmitBtn">Sign &amp; Submit</button>
+        <button id="copyBtn" class="ghost">Copy XDR</button>
+        <button id="labBtn" class="ghost">Open in Stellar Lab</button>
+      </div>
+
+      <p id="actionResult" class="small" style="margin-top:6px" aria-live="polite"></p>
+    </div>
+
   </div>
 
-  <!-- Toasts -->
+  <!-- Floating toast container -->
   <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
   <!-- Connect Modal -->
@@ -287,7 +289,7 @@
     </div>
   </div>
 
-  <!-- Sign Modal -->
+  <!-- Sign Prompt Modal -->
   <div id="signBackdrop" class="backdrop"></div>
   <div id="signModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="signTitle">
     <div class="modal-inner">
@@ -413,10 +415,9 @@
     let swapTimer=null;        // swap debounce
     let lockerRefreshTimer=null;
 
-    // Quotes / rate state
+    // Aquarius swap state
     let lastQuote=null;
-    let lastIsSend=true;
-    let rateReversed=false;
+    let lastIsSend=true;       // tracks which mode produced the current XDR
 
     // ---------- Soroban RPC ----------
     let _soro = null;
@@ -424,21 +425,37 @@
 
     // Caches
     const DOMAIN_CACHE = new Map();
-    const ICON_CACHE   = new Map();
+    const ICON_CACHE   = new Map(); // code:issuer -> image url
 
-    // Icon overrides (EURC CORS)
+    // ---------- Icon overrides (CORS-safe) ----------
     const ICON_OVERRIDES = new Map([
-      ["EURC:GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2","https://static.ultrastellar.com/media/assets/img/81bd6386-74bd-4d9e-9f18-b737baf946a6.png"]
+      // EURC (circle.com TOML blocks CORS)
+      ["EURC:GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2", "https://static.ultrastellar.com/media/assets/img/81bd6386-74bd-4d9e-9f18-b737baf946a6.png"]
     ]);
 
+    // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
     const cleanAmt = a => { const n=Number(a); if(!isFinite(n) || n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
     const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
+    function contractId(asset){ return asset.contractId(NETWORK); }
+    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
     const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
-    const round7 = (x)=> Math.floor(Number(x)*1e7)/1e7;
 
-    // ---------- TOML icon pipeline ----------
+    // ---- Usable balance helper (XLM spendable; tokens = balance - selling_liabilities) ----
+    async function getAvailableForCurrent(pk){
+      const opt = getSelectedOption();
+      if(!opt) return 0;
+      if (opt.value === "XLM") {
+        try { return await getSpendableXLM(pk); }
+        catch { return parseFloat(opt.dataset.balance || "0"); }
+      }
+      const bal = parseFloat(opt.dataset.balance || "0");
+      const sellLiab = parseFloat(opt.dataset.selling_liabilities || "0");
+      return Math.max(bal - sellLiab, 0);
+    }
+
+    // ---------- Icon pipeline (Horizon -> TOML -> image=) ----------
     async function fetchTomlUrlAndDomain(code, issuer){
       const url = `${HORIZON}/assets?asset_code=${encodeURIComponent(code)}&asset_issuer=${issuer}`;
       const j   = await fetch(url).then(r=>r.json()).catch(()=>null);
@@ -463,9 +480,15 @@
       return "";
     }
     async function fetchAssetIcon(code, issuer){
-      const key = `${code}:${issuer||""}`;
-      if(ICON_CACHE.has(key)) return ICON_CACHE.get(key);
-      if (ICON_OVERRIDES.has(key)) { const url = ICON_OVERRIDES.get(key); ICON_CACHE.set(key,url); return url; }
+      const key = `${code}:${issuer||""}`; if(ICON_CACHE.has(key)) return ICON_CACHE.get(key);
+
+      // Override first if present
+      if (ICON_OVERRIDES.has(key)) {
+        const url = ICON_OVERRIDES.get(key);
+        ICON_CACHE.set(key, url);
+        return url;
+      }
+
       try{
         const { tomlUrl } = await fetchTomlUrlAndDomain(code, issuer);
         if(!tomlUrl){ ICON_CACHE.set(key,""); return ""; }
@@ -479,7 +502,9 @@
         return img;
       }catch{ ICON_CACHE.set(key,""); return ""; }
     }
+
     function setChipIcon(imgEl, code, issuer) {
+      // XLM (native): inline SVG via utf8
       if (!issuer || (code || "").toUpperCase() === "XLM") {
         const xlmSvg = `
           <svg width="25" height="24" viewBox="0 0 25 24" xmlns="http://www.w3.org/2000/svg">
@@ -492,31 +517,40 @@
         imgEl.style.background = "transparent";
         return;
       }
+
+      // Non-native: try TOML image, else fallback badge
       fetchAssetIcon(code, issuer).then(url => {
         if (url) {
-          imgEl.src = url; imgEl.alt = code; imgEl.style.background = "transparent";
+          imgEl.src = url;
+          imgEl.alt = code;
+          imgEl.style.background = "transparent";
         } else {
-          const fallbackSvg = "data:image/svg+xml;utf8," + encodeURIComponent(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18">
-              <rect width="100%" height="100%" rx="9" ry="9" fill="#0b1115"/>
-              <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
-                font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#94a3ad">
-                ${(code || "?").slice(0, 3).toUpperCase()}
-              </text>
-            </svg>`);
-          imgEl.src = fallbackSvg; imgEl.alt = code;
+          const fallbackSvg =
+            "data:image/svg+xml;utf8," +
+            encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+                <rect width="100%" height="100%" rx="9" ry="9" fill="#0b1115"/>
+                <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+                  font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#94a3ad">
+                  ${(code || "?").slice(0, 3).toUpperCase()}
+                </text>
+              </svg>`);
+          imgEl.src = fallbackSvg;
+          imgEl.alt = code;
         }
-      }).catch(()=>{ imgEl.removeAttribute("src"); imgEl.alt = code || "asset"; });
+      }).catch(() => {
+        imgEl.removeAttribute("src");
+        imgEl.alt = code || "asset";
+      });
     }
 
-    // ---------- XLM spendable + breakdown (for popover) ----------
+    // ---------- Spendable XLM ----------
     async function getNetworkBaseReserveXLM() {
       const r = await fetch(`${HORIZON}/ledgers?order=desc&limit=1`);
       const j = await r.json().catch(()=>null);
       const stroops = parseInt(j?._embedded?.records?.[0]?.base_reserve_in_stroops || "5000000", 10);
       return stroops / 1e7;
     }
-    function count(arr, pred){ return (arr||[]).filter(pred).length; }
     async function getXlmBreakdown(pk) {
       const base = await getNetworkBaseReserveXLM();
       const acc  = await fetch(`${HORIZON}/accounts/${pk}`).then(r=>r.json());
@@ -527,13 +561,10 @@
       const sponsoring = parseInt(acc?.num_sponsoring || 0, 10);
       const sponsored  = parseInt(acc?.num_sponsored || 0, 10);
       const minBalance = base * (2 + sub + sponsoring - sponsored);
-
-      const lines = (acc.balances || []);
-      const trustlines = count(lines, b => b.asset_type !== "native" && !b.liquidity_pool_id);
-      const lpTrust    = count(lines, b => !!b.liquidity_pool_id);
+      const trustlines = (acc.balances || []).filter(b => b.asset_type !== "native" && !b.liquidity_pool_id).length;
+      const lpTrust    = (acc.balances || []).filter(b => !!b.liquidity_pool_id).length;
       const signersCt  = Math.max((acc.signers?.length || 1) - 1, 0);
       const offersCt   = parseInt(acc?.num_offers || 0, 10);
-
       const lineBaseReserve = base * 2;
       const lineTrustlines  = trustlines * base;
       const lineLpTrust     = lpTrust * base;
@@ -543,13 +574,7 @@
       const lineInOffers    = sellLiab;
       const feeReserve      = 2;
       const spendable = Math.max(balNative - sellLiab - minBalance - feeReserve, 0);
-      return {
-        base: Math.round(base), feeReserve: round7(feeReserve), xlmInOffers: round7(lineInOffers),
-        trustlines: round7(lineTrustlines), lpTrust: round7(lineLpTrust), offers: round7(lineOffers),
-        signers: round7(lineSigners), sponsoring: round7(lineSponsoring),
-        totalLocked: round7(minBalance + feeReserve + sellLiab),
-        spendable: round7(spendable), balance: round7(balNative)
-      };
+      return { baseReserve: round7(lineBaseReserve), feeReserve: round7(feeReserve), xlmInOffers: round7(lineInOffers), trustlines: round7(lineTrustlines), lpTrust: round7(lineLpTrust), offers: round7(lineOffers), signers: round7(lineSigners), sponsoring: round7(lineSponsoring), totalLocked: round7(minBalance + feeReserve + sellLiab), spendable: round7(spendable), balance: round7(balNative), base };
     }
     async function getSpendableXLM(pk) { const b = await getXlmBreakdown(pk); return b.spendable; }
 
@@ -577,7 +602,7 @@
         pubkey = null;
         pubkeyEl.readOnly = false;
         stopLockerAutoRefresh();
-        setTrustlineUI(false, false);
+        setTrustlineUI(false, false); // reset
       }
     }
 
@@ -784,18 +809,17 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return `${code} · ${right}`;
     };
 
-    // ---------- Balances + dropdown (ignore LP trustlines) ----------
+    // ---------- Swap: balances + dropdown ----------
     async function loadAllBalances(pk){
       const acct = await getServer().loadAccount(pk);
       const items = [];
       const xlmBal = acct.balances.find(b=>b.asset_type==="native");
-      if (xlmBal && parseFloat(xlmBal.balance) > 0) {
+      if (xlmBal) {
         items.push({ code:"XLM", issuer:null, balance: xlmBal.balance, selling_liabilities: xlmBal.selling_liabilities || "0" });
       }
       for(const b of acct.balances){
         if(b.asset_type==="native") continue;
         if(b.liquidity_pool_id) continue; // ignore LP trustlines
-        if(parseFloat(b.balance) <= 0) continue;
         items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance, selling_liabilities: b.selling_liabilities || "0" });
       }
       return { acct, items };
@@ -826,19 +850,6 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       updateSelectedAssetUI();
     }
 
-    // Compute usable balance number for display
-    async function getAvailableForCurrent(pk){
-      const opt = getSelectedOption();
-      if(!opt) return 0;
-      if (opt.value === "XLM") {
-        try { return await getSpendableXLM(pk); }
-        catch { return parseFloat(opt.dataset.balance || "0"); }
-      }
-      const bal = parseFloat(opt.dataset.balance || "0");
-      const sellLiab = parseFloat(opt.dataset.selling_liabilities || "0");
-      return Math.max(bal - sellLiab, 0);
-    }
-
     async function updateSelectedAssetUI(){
       const opt = getSelectedOption();
       if(!opt){ fillAvailBtn.style.display="none"; return; }
@@ -852,13 +863,16 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(isValidG(pk)){
         try { usable = await getAvailableForCurrent(pk); } catch {}
       } else {
-        usable = parseFloat(opt.dataset.balance || "0");
+        const bal = parseFloat(opt.dataset.balance || "0");
+        const liab = parseFloat(opt.dataset.selling_liabilities || "0");
+        usable = Math.max(bal - liab, 0);
       }
       availNum.textContent = plain(usable);
       fillAvailBtn.style.display = usable > 0 ? "inline-flex" : "none";
 
-      await refreshAvailPopover().catch(()=>{});
       onValidate().catch(()=>{});
+      // refresh popover content
+      refreshAvailPopover().catch(()=>{});
     }
 
     async function initForNewAccount(){
@@ -870,15 +884,20 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         const { items } = await loadAllBalances(pk);
         await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean).concat([AQUAm25_ISSUER]));
         fillSwapDropdownOnce(items);
+
+        // BUY chip icon (AQUAm25)
         setChipIcon(buyIcon, AQUAm25_CODE, AQUAm25_ISSUER);
+
         await onValidate();
       }catch(e){ console.error(e); }
     }
 
-    // ---------- Trustline UI ----------
+    // ---------- Trustline-aware UI ----------
     function setTrustlineUI(hasTL, forceDisableSwap){
       if (hasTL) {
         btnAddTrustline.style.display = "none";
+        btnAddTrustline.classList.remove("primary","warn");
+        btnAddTrustline.style.flex = "";
         swapSignSubmit.style.display = "";
         swapCopy.style.display = "";
         swapSignSubmit.disabled = !!forceDisableSwap;
@@ -904,7 +923,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return !!bal;
     }
     async function softTokenCheck(asset){
-      const probe = { token_in_address:  asset.contractId(NETWORK), token_out_address: SDK.Asset.native().contractId(NETWORK), amount: "1" };
+      const probe = { token_in_address:  contractId(asset), token_out_address: contractId(SDK.Asset.native()), amount: "1" };
       const r = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(probe) });
       const j = await r.json().catch(()=>null);
       return !!j && (typeof j.success === "boolean");
@@ -934,27 +953,35 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
-    // ---------- Rate line (reversible) ----------
+    // ---------- Exchange rate display (reversible with ⇄) ----------
+    let rateReversed = false;
     function updateRateLine(sendCode, estOutPer1) {
+      const rateEl = rateLine;
       if (!isFinite(estOutPer1) || estOutPer1 <= 0) {
-        rateLine.innerHTML = ""; rateLine.style.cursor = "default"; return;
+        rateEl.innerHTML = "";
+        rateEl.style.cursor = "default";
+        return;
       }
-      const rate   = round7(estOutPer1);
-      const inv    = round7(1/estOutPer1);
-      rateLine.dataset.forward = rate;
-      rateLine.dataset.inverse = inv;
-      rateLine.dataset.sendCode = sendCode;
-      const base = rateReversed ? `1 AQUAm25 ≈ ${inv} ${sendCode}` : `1 ${sendCode} ≈ ${rate} AQUAm25`;
-      rateLine.innerHTML = `<span class="rate-text">${base}</span><span class="rate-swap" title="Tap to flip rate">⇄</span>`;
-      rateLine.style.cursor = "pointer";
+      const rate = round7(estOutPer1);
+      const invRate = round7(1 / estOutPer1);
+      rateEl.dataset.forward = rate;
+      rateEl.dataset.inverse = invRate;
+      rateEl.dataset.sendCode = sendCode;
+      const base = rateReversed
+        ? `1 AQUAm25 ≈ ${invRate} ${sendCode}`
+        : `1 ${sendCode} ≈ ${rate} AQUAm25`;
+      rateEl.innerHTML = `<span class="rate-text">${base}</span><span class="rate-swap" title="Tap to flip rate">⇄</span>`;
+      rateEl.style.cursor = "pointer";
     }
-    rateLine.addEventListener("click", ()=>{
+    rateLine.addEventListener("click", () => {
       if (!rateLine.dataset.forward) return;
       rateReversed = !rateReversed;
       const sendCode = rateLine.dataset.sendCode || "XLM";
-      const rate = parseFloat(rateLine.dataset.forward||"0");
-      const inv  = parseFloat(rateLine.dataset.inverse||"0");
-      const base = rateReversed ? `1 AQUAm25 ≈ ${inv} ${sendCode}` : `1 ${sendCode} ≈ ${rate} AQUAm25`;
+      const rate = parseFloat(rateLine.dataset.forward || "0");
+      const invRate = parseFloat(rateLine.dataset.inverse || "0");
+      const base = rateReversed
+        ? `1 AQUAm25 ≈ ${invRate} ${sendCode}`
+        : `1 ${sendCode} ≈ ${rate} AQUAm25`;
       rateLine.innerHTML = `<span class="rate-text">${base}</span><span class="rate-swap" title="Tap to flip rate">⇄</span>`;
     });
 
@@ -963,6 +990,36 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(!swapFrom.value || swapFrom.value === "XLM") return SDK.Asset.native();
       const [code, issuer] = (swapFrom.value||"").split(":");
       return new SDK.Asset(code, issuer);
+    }
+
+    async function refreshAvailPopover(){
+      const pk = pubkeyEl.value.trim();
+      const opt = getSelectedOption();
+      if(!opt) { availPopover.innerHTML=""; return; }
+
+      if(opt.value === "XLM"){
+        if(!isValidG(pk)){ availPopover.innerHTML=""; return; }
+        const b = await getXlmBreakdown(pk);
+        availPopover.innerHTML = `
+          <div class="line"><span class="muted">Base reserve</span><span>${b.base.toFixed(0)} XLM</span></div>
+          <div class="line"><span class="muted">Fee reserve</span><span>${b.feeReserve} XLM</span></div>
+          <div class="line"><span class="muted">XLM in active offers</span><span>${b.xlmInOffers} XLM</span></div>
+          <div class="line"><span class="muted">Trustlines</span><span>${b.trustlines} XLM</span></div>
+          ${b.lpTrust?`<div class="line"><span class="muted">My liquidity pool trustlines</span><span>${b.lpTrust} XLM</span></div>`:""}
+          <div class="line"><span class="muted">Offers</span><span>${b.offers} XLM</span></div>
+          <div class="line"><span class="muted">Signers</span><span>${b.signers} XLM</span></div>
+          <div class="line"><span class="muted">Sponsoring entries for others</span><span>${b.sponsoring} XLM</span></div>
+          <div class="line"><span class="muted"><b>Total locked</b></span><span><b>${b.totalLocked} XLM</b></span></div>
+        `;
+      } else {
+        const bal = parseFloat(opt.dataset.balance || "0");
+        const liab = parseFloat(opt.dataset.selling_liabilities || "0");
+        availPopover.innerHTML = `
+          <div class="line"><span class="muted">${opt.dataset.code} balance</span><span>${plain(bal)}</span></div>
+          <div class="line"><span class="muted">${opt.dataset.code} in active offers</span><span>${plain(liab)}</span></div>
+          <div class="line"><span class="muted"><b>Usable</b></span><span><b>${plain(Math.max(bal - liab, 0))}</b></span></div>
+        `;
+      }
     }
 
     async function quoteStrictSend(){
@@ -976,6 +1033,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       const sendLabel = toNativeLabel(sendAsset);
 
       try{
+        // pre-check usable balance
         const available = await getAvailableForCurrent(pk);
         if (parseFloat(sendAmt) > (available + 1e-7)) {
           pushToast("Sell amount exceeds balance", true);
@@ -984,9 +1042,10 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           disableSwapButtons();
           return;
         }
+
         const body = {
-          token_in_address:  sendAsset.contractId(NETWORK),
-          token_out_address: AQUAm25.contractId(NETWORK),
+          token_in_address:  contractId(sendAsset),
+          token_out_address: contractId(AQUAm25),
           amount: String(Math.round(parseFloat(sendAmt)*1e7))
         };
         const res = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
@@ -1033,6 +1092,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       }
     }
 
+    // strict-receive flow (typing in BUY box)
     async function quoteStrictReceive(){
       disableSwapButtons();
       xdrSwap.value=""; rateLine.textContent="";
@@ -1045,8 +1105,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
 
       try{
         const body = {
-          token_in_address:  sendAsset.contractId(NETWORK),
-          token_out_address: AQUAm25.contractId(NETWORK),
+          token_in_address:  contractId(sendAsset),
+          token_out_address: contractId(AQUAm25),
           amount: String(Math.round(parseFloat(wantOut)*1e7))
         };
         const res = await fetch(`${baseApi}/find-path-strict-receive/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
@@ -1121,6 +1181,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         .build();
       try { tx = await server.prepareTransaction(tx); }
       catch (e) {
+        console.error("prepareTransaction failed:", e);
         const raw = String(
           e?.response?.data?.error?.message ||
           e?.data?.error?.message ||
@@ -1134,7 +1195,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return tx;
     }
 
-    // ---------- Trustline XDR ----------
+    // ---------- Classic trustline helper ----------
     async function buildTrustlineXDR(pk){
       const src = await getServer().loadAccount(pk);
       const tx = new SDK.TransactionBuilder(src, { fee: "10000", networkPassphrase: NETWORK })
@@ -1151,28 +1212,24 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         if(await hasTrustline(pk, AQUAm25)){ toast("AQUAm25 trustline already exists."); await onValidate(); return; }
         toast("Preparing trustline transaction…");
         const trustXdr = await buildTrustlineXDR(pk);
-
-        // Signing modal for both flows
-        openSignModal();
-
+        toast("Signing trustline…");
         const signed = await signCurrent(trustXdr);
         toast("Submitting trustline…");
         const hash = await submitToHorizon(signed);
         toast(`Trustline added ✓ tx: ${hash}`);
-        closeSignModal();
-
         await onValidate();
         await initForNewAccount();
 
-        try { if (lastQuote) { if (lastIsSend) await quoteStrictSend(); else await quoteStrictReceive(); } } catch(_) {}
+        try {
+          if (lastQuote) { if (lastIsSend) await quoteStrictSend(); else await quoteStrictReceive(); }
+        } catch(_) {}
       }catch(e){
         console.error(e);
-        closeSignModal();
         toast(e.message || "Trustline add failed.", true);
       }
     });
 
-    // ---------- Balance popover (from v13) ----------
+    // ---------- Balance popover interactions ----------
     (function(){
       const isHoverCapable = window.matchMedia("(hover: hover)").matches;
       let stickyOpen = false;
@@ -1185,16 +1242,19 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         if (willOpen) { openPopover(); stickyOpen = true; } else { closePopover(); }
       }
 
+      // Desktop: hover
       if (isHoverCapable) {
         availInfo.addEventListener("mouseenter", openPopover);
         availInfo.addEventListener("mouseleave", closePopover);
         availPopover.addEventListener("mouseenter", openPopover);
         availPopover.addEventListener("mouseleave", closePopover);
+        // Click to pin
         availInfo.addEventListener("click", (e)=>{ e.stopPropagation(); togglePopover(); });
         document.addEventListener("click", (e)=>{
           if (!availPopover.contains(e.target) && !availInfo.contains(e.target)) closePopover();
         });
       } else {
+        // Mobile: tap to pin, close on scroll/outside
         availInfo.addEventListener("click", (e)=>{ e.stopPropagation(); togglePopover(); });
         document.addEventListener("click", (e)=>{
           if (!availPopover.contains(e.target) && !availInfo.contains(e.target)) closePopover();
@@ -1209,6 +1269,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
         }, { passive:true });
       }
 
+      // Close on input/asset change
       ["input","focus"].forEach(ev=>{
         swapAmount.addEventListener(ev, closePopover, { passive:true });
         swapEst.addEventListener(ev, closePopover, { passive:true });
@@ -1216,44 +1277,17 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       swapFrom.addEventListener("change", closePopover, { passive:true });
       openPickerBtn.addEventListener("click", closePopover, { passive:true });
 
+      // Refresh when opening
       async function ensureFresh(){
         if (availPopover.classList.contains("open")) {
           try { await refreshAvailPopover(); } catch(_) {}
         }
       }
       availInfo.addEventListener("click", ensureFresh);
-      if (isHoverCapable){ availInfo.addEventListener("mouseenter", ensureFresh); }
-    })();
-
-    async function refreshAvailPopover(){
-      const pk = pubkeyEl.value.trim();
-      const opt = getSelectedOption();
-      if(!opt) { availPopover.innerHTML=""; return; }
-
-      if(opt.value === "XLM"){
-        if(!isValidG(pk)){ availPopover.innerHTML=""; return; }
-        const b = await getXlmBreakdown(pk);
-        availPopover.innerHTML = `
-          <div class="line"><span class="muted">Base reserve</span><span>${b.base.toFixed(0)} XLM</span></div>
-          <div class="line"><span class="muted">Fee reserve</span><span>${b.feeReserve} XLM</span></div>
-          <div class="line"><span class="muted">XLM in active offers</span><span>${b.xlmInOffers} XLM</span></div>
-          <div class="line"><span class="muted">Trustlines</span><span>${b.trustlines} XLM</span></div>
-          ${b.lpTrust?`<div class="line"><span class="muted">My liquidity pool trustlines</span><span>${b.lpTrust} XLM</span></div>`:""}
-          <div class="line"><span class="muted">Offers</span><span>${b.offers} XLM</span></div>
-          <div class="line"><span class="muted">Signers</span><span>${b.signers} XLM</span></div>
-          <div class="line"><span class="muted">Sponsoring entries for others</span><span>${b.sponsoring} XLM</span></div>
-          <div class="line"><span class="muted"><b>Total locked</b></span><span><b>${b.totalLocked} XLM</b></span></div>
-        `;
-      } else {
-        const bal = parseFloat(opt.dataset.balance || "0");
-        const liab = parseFloat(opt.dataset.selling_liabilities || "0");
-        availPopover.innerHTML = `
-          <div class="line"><span class="muted">${opt.dataset.code} balance</span><span>${plain(bal)}</span></div>
-          <div class="line"><span class="muted">${opt.dataset.code} in active offers</span><span>${plain(liab)}</span></div>
-          <div class="line"><span class="muted"><b>Usable</b></span><span><b>${plain(Math.max(bal - liab, 0))}</b></span></div>
-        `;
+      if (isHoverCapable){
+        availInfo.addEventListener("mouseenter", ensureFresh);
       }
-    }
+    })();
 
     // ---------- Swap buttons / input binding ----------
     function disableSwapButtons(){ [swapSignSubmit,swapCopy].forEach(b=>b.disabled=true); }
@@ -1306,7 +1340,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
     on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
     on(copyBtn,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrOut.value); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy XDR",1500); } catch(e){ console.error(e); } });
 
-    // Signing deep-links from sign modal
+    // Sign prompt openers
     $("signLobstr").onclick = ()=> { if(latestWcUri) openLobstrApp(latestWcUri); };
     $("signFreighter").onclick = async ()=> {
       if(!latestWcUri) return;
@@ -1314,7 +1348,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       openFreighterSmart(links, latestWcUri);
     };
 
-    // Swap: sign & submit
+    // Swap signing & submit
     on(swapSignSubmit,"click", async ()=>{
       swapResult.textContent="";
       try{
@@ -1328,8 +1362,8 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
           if(!xdrToSubmit) throw new Error("No prepared XDR.");
         }
 
-        // Show sign modal for both WC and Freighter UX
-        openSignModal();
+        if (connectionMode === "wc") { openSignModal(); pushToast("Check your wallet to sign…"); }
+        else { pushToast("Check Freighter to sign…"); }
 
         const signed = await signCurrent(xdrToSubmit);
         const final = await submitToSoroban(signed);
@@ -1416,7 +1450,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       bindSwapInputListeners();
     });
 
-    // ---------- Shared signing helpers ----------
+    // ---------- Sign helpers (shared) ----------
     const wcRequest = (method, xdr) => client.request({
       topic: session.topic, chainId: "stellar:pubnet",
       request: { jsonrpc:"2.0", method, params:{ xdr } }
@@ -1436,7 +1470,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       throw new Error("Not connected");
     }
 
-    // ---------- Horizon submit (classic) ----------
+    // ---------- Locker submit (classic) ----------
     async function submitToHorizon(signedXdr){
       const resp = await fetch(`${HORIZON}/transactions`,{ method:"POST", headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" }, body:"tx="+encodeURIComponent(signedXdr) });
       const data = await resp.json().catch(()=> ({}));
@@ -1448,7 +1482,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       return data.hash;
     }
 
-    // ---------- Soroban submit ----------
+    // Submit Soroban
     async function submitToSoroban(signedXdr){
       const tx = SDK.TransactionBuilder.fromXDR(signedXdr, NETWORK);
       const send = await rpc().sendTransaction(tx);
@@ -1464,6 +1498,7 @@ Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
       if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
       return final;
     }
+
   </script>
 
   <!-- Freighter UMD fallback -->
