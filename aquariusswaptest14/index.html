@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mirrasets — Swap & Lock</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Freighter API (UMD) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <!-- Self-hosted Stellar SDK (UMD v14.3.0) — includes Soroban (SDK.rpc) -->
+  <script src="/sdk/stellar-sdk-14.3.0.min.js?v=8"></script>
+
+  <style>
+    :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --accent-2:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
+    * { box-sizing: border-box; }
+    html,body { margin:0; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+
+    .wrap{max-width:980px;margin:28px auto;padding:0 16px}
+    .card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:22px;
+      display:flex;
+      flex-direction:column;
+      gap:20px; /* nice spacing between sections */
+    }
+
+    h1{margin:0;font-size:20px;letter-spacing:.3px}
+    h2{margin:0 0 10px;font-size:18px;font-weight:700;color:#dfe8ff}
+    p{margin:.25rem 0 .75rem;opacity:.96}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .small{font-size:12px;opacity:.8}
+    .muted{color:var(--muted)}
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    button{cursor:pointer;font-weight:700;border-radius:10px;border:1px solid #21464f;background:#0c1c20;color:#d9f6ff;padding:10px 14px;transition:.15s}
+    button:hover{filter:brightness(1.08)}
+    button.ghost{background:#141b22;border-color:#2a3340}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    input,textarea,select{width:100%;padding:12px;border-radius:10px;border:1px solid #1e2831;background:#0e1419;color:#fff}
+    input[readonly]{opacity:.95;background:#0b1115;border-style:dashed}
+    label{display:block;margin:10px 0 6px;font-size:12px;color:var(--muted)}
+    .linkish{border:none;background:transparent;color:#9ab0ff;text-decoration:underline;padding:0;cursor:pointer}
+
+    /* Sections */
+    .section{margin:0;padding:0;border:0}
+    .box{background:#0e1620;border:1px solid #1c2430;border-radius:12px;padding:14px}
+
+    /* Modals (Connect / Sign) */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
+    .open{display:flex}
+    .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.35);text-align:center}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .x{background:none;border:none;color:#bcc6d4;font-size:22px;line-height:1;cursor:pointer}
+    .wallet-btn{width:100%;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
+    .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
+    .wallet-choices{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .wallet-choices button{background:#162554;border:1px solid #344a8a}
+    a.link{color:#9ab0ff;text-decoration:underline}
+
+    /* Swap card */
+    .card-narrow{width:100%;max-width:480px;margin:0 auto;}
+    .card-slab { background:#0f1520; border:1px solid #1b2633; border-radius:22px; padding:16px; margin-bottom:12px; }
+    .slab-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+    .slab-label { font-size:14px; color:var(--muted); }
+
+    .asset-chip { display:inline-flex; align-items:center; gap:10px; }
+    .chip-pill, .chip-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 8px; border-radius:999px; border:1px solid #1e2831; background:#0e1419; color:#dfe8ff; }
+    .chip-btn:hover{ filter:brightness(1.08); }
+    .icon { width:32px; height:32px; border-radius:50%; background:#0b1115; object-fit:cover; display:inline-block; }
+
+    .sell-ticker { font-size: 16px; font-weight: 500; letter-spacing: 0.2px; color: #eaf2ff; }
+    .down-arrow { font-size: 13px; opacity: 0.6; margin-left: 2px; position: relative; top: -0.5px; }
+
+    .big-input {
+      width:100%; border:1px solid #1e2831; background:#0e1419; color:#fff;
+      border-radius:16px; padding:10px 12px; margin-top:4px;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(20px, 5.4vw, 32px); line-height:1.15; font-weight:600;
+    }
+    .big-input.readonly { opacity:.95; background:#0b1115; border-style:dashed; }
+    .big-input.error { outline:2px solid #ff6b6b55; border-color:#803c3c; }
+
+    /* Balance line right side under selector */
+    .post-selector-row{ display:flex; justify-content:flex-end; margin-top:6px; align-items:center; gap:10px; }
+    #fillMaxBtn{ font-weight:600; }
+
+    /* Info popover (tap to persist on mobile, hover on desktop) */
+    .info-wrap{ position:relative; display:inline-flex; align-items:center; }
+    .info-btn{ width:18px; height:18px; border-radius:50%; background:#1b2430; border:1px solid #2a3340; color:#cfe0ff; font-size:12px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+    .popover{ position:absolute; right:0; top:26px; min-width:260px; max-width:90vw; background:#0f1723; border:1px solid #233042; border-radius:10px; padding:10px; box-shadow:0 10px 30px rgba(0,0,0,.35); display:none; z-index:20; }
+    .popover.show{ display:block; }
+    .popover .line{ font-size:12px; color:#cfe0ff; line-height:1.35; }
+    .popover .muted{ color:#9bb0c6; }
+
+    /* Rate line (click to reverse) */
+    .rate-line { text-align:center; padding:6px 0 2px; cursor:pointer; user-select:none; }
+    .rate-swap{ display:inline-block; margin-left:6px; opacity:.7; transform-origin:center; transition:opacity .2s, transform .2s; }
+    .rate-line:hover .rate-swap{ opacity:1; transform:rotate(180deg); }
+
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .actions .primary {
+      flex:1; padding:14px; border-radius:16px; background:var(--accent); color:#fff; border:1px solid #8b66d8;
+      font-weight:800;
+    }
+    .actions .primary.warn { background:#5d2a2a; border-color:#7a3a3a; }
+    .actions .ghost.small { padding:10px 12px; border-radius:12px; }
+
+    /* Toast */
+    .toast-wrap { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 9999; display: grid; gap: 8px; width: min(92vw, 520px); pointer-events:none; }
+    .toast { pointer-events:auto; border-radius:12px; border:1px solid #2a3340; background:#101a24; color:#e7f2ff; padding:12px 14px; box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .toast.err { border-color:#5a2a2a; background:#201114; color:#ffd8d8; }
+    .toast .x { margin-left:10px; font-size:18px; }
+
+    /* Asset Picker Modal (Mirrasets style) */
+    .picker-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:9997;}
+    .picker-modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:9998;}
+    .picker-open{display:flex;}
+    .picker-inner{ width:min(540px,92vw); background:#0f1526; border:1px solid #26324a; border-radius:16px; padding:14px 14px 8px; box-shadow:0 10px 30px rgba(0,0,0,.35);}
+    .picker-head{ display:flex; align-items:center; justify-content:space-between; padding:6px 6px 10px; }
+    .picker-title{ font-size:16px; color:#cfe0ff; margin:0; }
+    .picker-close{ background:none; border:none; color:#9bb3d9; font-size:20px; cursor:pointer; }
+    .picker-body{ max-height:60vh; overflow:auto; padding:6px; }
+    .asset-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 10px; border-radius:12px; border:1px solid #1b2636; background:#0c1520; margin-bottom:8px; cursor:pointer; transition:.12s; }
+    .asset-row:hover{ filter:brightness(1.06); }
+    .asset-left{ display:flex; align-items:center; gap:10px; }
+    .asset-meta{ display:flex; flex-direction:column; line-height:1.2; }
+    .asset-code{ font-size:15px; color:#eaf2ff; font-weight:600; }
+    .asset-domain{ font-size:12px; color:#9db0c6; }
+    .asset-bal{ font-size:12px; color:#cfe0ff; }
+
+    /* Glow spinner */
+    .spinner-wrap{ display:flex; align-items:center; justify-content:center; padding:28px 0; }
+    .ring{ width:36px; height:36px; border-radius:50%; border:3px solid rgba(125,75,209,.25); border-top-color:#7d4bd1; animation:spin 0.9s linear infinite; box-shadow:0 0 12px rgba(125,75,209,.55), inset 0 0 8px rgba(125,75,209,.25);}
+    @keyframes spin{ to { transform: rotate(360deg); } }
+
+    /* Hide the native <select> – we keep it for internal logic */
+    #swapFrom { display:none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <h1>AQUAm25 Swap & Lock</h1>
+        <div class="row">
+          <button id="connectBtn">Connect Wallet</button>
+          <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
+          <span id="status" class="muted" aria-live="polite">Not connected</span>
+        </div>
+      </div>
+
+      <!-- Swap (Buy AQUAm25) -->
+      <div class="section box card-narrow" id="swapBox">
+        <h2>Swap</h2>
+
+        <!-- SELL -->
+        <div class="card-slab">
+          <div class="slab-top">
+            <div class="slab-label">Sell</div>
+            <div class="asset-chip">
+              <select id="swapFrom" hidden></select>
+              <button id="openPicker" class="chip-btn" type="button" aria-haspopup="dialog" aria-controls="assetPicker">
+                <img id="sellIcon" class="icon" alt="" />
+                <span id="sellLabel" class="sell-ticker">Select asset</span>
+                <span class="down-arrow" aria-hidden="true">▾</span>
+              </button>
+            </div>
+          </div>
+
+          <input id="swapAmount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+
+          <div class="post-selector-row">
+            <button id="fillMaxBtn" class="linkish small" style="display:none">Balance: <span id="selectedBal">0</span></button>
+            <div class="info-wrap" id="xlmInfoWrap" style="display:none">
+              <button class="info-btn" id="xlmInfoBtn" aria-label="XLM reserve info">i</button>
+              <div class="popover" id="xlmPopover">
+                <div class="line"><b>XLM available:</b> <span id="xlmAvail">0</span> / <span id="xlmTotal">0</span></div>
+                <div class="line muted" style="margin-top:6px">
+                  Base reserve: <span id="xlmBase">-</span> XLM<br/>
+                  Fee reserve: <span id="xlmFee">-</span> XLM<br/>
+                  XLM in active offers: <span id="xlmOffers">-</span> XLM<br/>
+                  Trustlines: <span id="xlmTl">-</span> XLM<span id="xlmLpTlWrap" style="display:none"> (+ LP: <span id="xlmLpTl">-</span>)</span><br/>
+                  Offers: <span id="xlmOffersCt">-</span> XLM · Signers: <span id="xlmSigners">-</span> XLM<br/>
+                  Sponsoring: <span id="xlmSponsoring">-</span> XLM<br/>
+                  <b>Total locked:</b> <span id="xlmLocked">-</span> XLM
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BUY (AQUAm25 editable for strict-receive) -->
+        <div class="card-slab">
+          <div class="slab-top">
+            <div class="slab-label">Buy</div>
+            <div class="asset-chip">
+              <div class="chip-pill">
+                <img id="buyIcon" class="icon" alt="AQUAm25" />
+                <span>AQUAm25</span>
+              </div>
+            </div>
+          </div>
+          <input id="swapEst" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+        </div>
+
+        <!-- Rate line (reversible) -->
+        <div class="rate-line small muted" id="rateLine" aria-live="polite"></div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button id="swapSignSubmit" class="primary">Swap to AQUAm25</button>
+          <button id="swapCopy" class="ghost small">Copy XDR</button>
+          <button id="btnAddTrustline" class="ghost small" style="display:none">Add AQUAm25 Trustline</button>
+        </div>
+
+        <!-- Hidden XDR area -->
+        <div class="toggle-row" style="margin-top:10px">
+          <label for="xdrSwap" style="margin:0">Swap Transaction XDR (Soroban)</label>
+          <button id="toggleSwapXdr" class="linkish small">Reveal XDR</button>
+        </div>
+        <textarea id="xdrSwap" rows="6" placeholder="Prepared or signed swap XDR appears here" readonly style="display:none"></textarea>
+
+        <p id="swapResult" class="small" style="margin-top:6px" aria-live="polite"></p>
+
+        <!-- Validation -->
+        <div class="section">
+          <div class="row" style="gap:10px;margin-bottom:6px">
+            <span class="muted">Validation</span>
+          </div>
+          <div id="validationBox" class="small">—</div>
+        </div>
+      </div>
+
+      <!-- Locker -->
+      <div class="section box card-narrow" id="lockerBox">
+        <h2>Locker</h2>
+
+        <label for="pubkey">Public Key</label>
+        <input id="pubkey" placeholder="G… (manual entry allowed if not connected)" />
+
+        <p class="small">AQUAm25 Balance: <b id="aquaBal">-</b></p>
+
+        <label for="amount">AQUAm25 Amount</label>
+        <input id="amount" type="number" step="any" placeholder="Amount to lock" inputmode="decimal" />
+        <div class="row" style="gap:8px">
+          <button data-pct="25" class="ghost">25%</button>
+          <button data-pct="50" class="ghost">50%</button>
+          <button data-pct="75" class="ghost">75%</button>
+          <button data-pct="100" class="ghost">100%</button>
+        </div>
+
+        <p id="lockInfo" class="small" style="margin-top:8px;white-space:pre-line;opacity:.9"></p>
+
+        <div class="toggle-row" style="margin-top:10px">
+          <label for="xdrOut" style="margin:0">Transaction XDR (Locker)</label>
+          <button id="toggleLockerXdr" class="linkish small">Reveal XDR</button>
+        </div>
+        <textarea id="xdrOut" rows="6" placeholder="Built XDR appears here" readonly style="display:none"></textarea>
+
+        <div class="row" style="margin-top:10px;flex-wrap:wrap">
+          <button id="signSubmitBtn">Sign &amp; Submit</button>
+          <button id="copyBtn" class="ghost">Copy XDR</button>
+          <button id="labBtn" class="ghost">Open in Stellar Lab</button>
+        </div>
+
+        <p id="actionResult" class="small" style="margin-top:6px" aria-live="polite"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating toast container -->
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+  <!-- Connect Modal -->
+  <div id="backdrop" class="backdrop"></div>
+  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 id="loginTitle" style="font-size:18px;margin:0">Connect Wallet</h2>
+        <button class="x" id="closeModal" aria-label="Close">×</button>
+      </div>
+      <p>Select a login method:</p>
+      <button class="wallet-btn" id="wcBtn">🔗 WalletConnect (mobile)</button>
+      <button class="wallet-btn" id="freighterExtBtn">🧩 Freighter (browser extension)</button>
+
+      <div id="qrArea" class="qr-wrap" style="display:none">
+        <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
+        <div class="wallet-choices">
+          <button id="btnLobstr">Open in LOBSTR</button>
+          <button id="btnFreighter">Open in Freighter</button>
+        </div>
+        <div class="small">
+          Scan with your wallet app (LOBSTR / Freighter), or tap a button above on mobile. ·
+          <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
+        </div>
+        <p id="linkStatus" class="small" style="margin:0;text-align:center;opacity:.8"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign Prompt Modal -->
+  <div id="signBackdrop" class="backdrop"></div>
+  <div id="signModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="signTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 id="signTitle" style="font-size:18px;margin:0">Sign Transaction</h2>
+        <button class="x" id="closeSign" aria-label="Close">×</button>
+      </div>
+      <!-- UPDATED COPY -->
+      <p class="small">
+        Your transaction is ready to sign.
+        <br><br>
+        <b>On desktop:</b> Sign via the wallet connected via WalletConnect
+        <br><br>
+        <b>On mobile:</b> Open your connected wallet via the buttons below
+      </p>
+      <div class="wallet-choices" style="margin-top:8px">
+        <button id="signLobstr">Open in LOBSTR</button>
+        <button id="signFreighter">Open in Freighter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset Picker Modal -->
+  <div id="pickerBackdrop" class="picker-backdrop"></div>
+  <div id="assetPicker" class="picker-modal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+    <div class="picker-inner">
+      <div class="picker-head">
+        <h3 id="pickerTitle" class="picker-title">Select an asset to sell</h3>
+        <button id="pickerClose" class="picker-close" aria-label="Close">×</button>
+      </div>
+      <div id="pickerBody" class="picker-body">
+        <div class="spinner-wrap"><div class="ring"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>window.process = window.process || { env: {} };</script>
+
+  <script type="module">
+    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+    import QRCode     from "https://esm.sh/qrcode@1.5.3";
+
+    // ---------- Shortcuts ----------
+    const SDK = window.StellarSdk;
+    if(!SDK) throw new Error("Stellar SDK failed to load.");
+    const ServerCtor = (SDK.Horizon && SDK.Horizon.Server) || SDK.Server;
+    if(!ServerCtor) throw new Error("Stellar SDK: Server constructor not found.");
+    if(!SDK.rpc || !SDK.Address || !SDK.nativeToScVal) throw new Error("Stellar SDK UMD present but Soroban helpers missing");
+
+    // ---------- Config ----------
+    const HORIZON    = "https://horizon.stellar.org";
+    const NETWORK    = SDK.Networks.PUBLIC;
+
+    // Aquarius / Soroban
+    const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
+    const sorobanRpcUrl     = "https://mainnet.sorobanrpc.com";
+    const baseApi           = "https://amm-api.aqua.network/api/external/v1";
+    const networkPassphrase = NETWORK;
+
+    // AQUA / AQUAm25
+    const AQUA_CODE   = "AQUA";
+    const AQUA_ISSUER = "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA";
+    const AQUAm25_CODE   = "AQUAm25";
+    const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+    const TRACKER_KEY    = "GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP";
+
+    // WalletConnect
+    const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
+    const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
+
+    // ---------- DOM ----------
+    const $=(id)=>document.getElementById(id);
+    const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
+    const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
+    const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal");
+    const signBackdrop=$("signBackdrop"), signModal=$("signModal"), closeSign=$("closeSign");
+    const qrArea=$("qrArea"), qrCanvas=$("qrCanvas"), linkStatus=$("linkStatus"), rawWcLink=$("rawWcLink");
+    const pubkeyEl=$("pubkey"), aquaBalEl=$("aquaBal"), amountEl=$("amount"), lockInfoEl=$("lockInfo");
+    const xdrOut=$("xdrOut"), actionResult=$("actionResult");
+    const signSubmitBtn=$("signSubmitBtn"), copyBtn=$("copyBtn"), labBtn=$("labBtn");
+
+    // Swap DOM
+    const swapFrom=$("swapFrom"), swapAmount=$("swapAmount"),
+          xdrSwap=$("xdrSwap"), swapSignSubmit=$("swapSignSubmit"),
+          swapCopy=$("swapCopy"), swapResult=$("swapResult"),
+          swapEst=$("swapEst"), selectedBal=$("selectedBal"), fillMaxBtn=$("fillMaxBtn"),
+          toggleSwapXdr=$("toggleSwapXdr"), toggleLockerXdr=$("toggleLockerXdr"),
+          validationBox=$("validationBox"), rateLine=$("rateLine"),
+          btnAddTrustline=$("btnAddTrustline"),
+          sellIcon=$("sellIcon"), buyIcon=$("buyIcon"),
+          openPickerBtn=$("openPicker"),
+          xlmInfoWrap=$("xlmInfoWrap"), xlmInfoBtn=$("xlmInfoBtn"), xlmPopover=$("xlmPopover");
+
+    // Picker DOM
+    const pickerBackdrop=$("pickerBackdrop"), assetPicker=$("assetPicker"), pickerClose=$("pickerClose"), pickerBody=$("pickerBody");
+    const sellLabel=$("sellLabel");
+
+    // ---------- Toast ----------
+    const toastWrap = $("toastWrap");
+    function pushToast(msg, isErr=false, timeoutMs=2600){
+      const el = document.createElement("div");
+      el.className = "toast"+(isErr?" err":"");
+      el.innerHTML = `<span>${msg}</span><button class="x">×</button>`;
+      toastWrap.appendChild(el);
+      const close = ()=>{ el.style.opacity="0"; setTimeout(()=>el.remove(), 220); };
+      el.querySelector(".x").onclick = close;
+      setTimeout(close, timeoutMs);
+    }
+    function toast(msg, err=false){ statusEl.textContent = msg; statusEl.style.color = err ? "#ff6b6b" : ""; pushToast(msg, err); }
+
+    // ---------- State ----------
+    let connectionMode="none"; // 'none' | 'wc' | 'freighter'
+    let client=null, session=null, latestWcUri=null;
+    let pubkey=null;
+
+    let _server=null; const getServer=()=>(_server ||= new ServerCtor(HORIZON));
+    const AQUA     = new SDK.Asset(AQUA_CODE, AQUA_ISSUER);
+    const AQUAm25  = new SDK.Asset(AQUAm25_CODE, AQUAm25_ISSUER);
+
+    let buildTimer=null;       // locker debounce
+    let swapTimer=null;        // swap debounce
+    let lockerRefreshTimer=null;
+
+    // Aquarius swap state
+    let lastQuote=null;
+    let lastIsSend=true;       // tracks which mode produced the current XDR
+    let rateReversed=false;    // exchange rate flip
+    let lastPerOne=null;       // store latest rate (AQUAm25 per 1 send)
+
+    // ---------- Soroban RPC ----------
+    let _soro = null;
+    function rpc() { if (_soro) return _soro; const Server = SDK.rpc?.Server; if (!Server) throw new Error("SorobanRpc unavailable from StellarSdk."); _soro = new Server(sorobanRpcUrl, { allowHttp: false }); return _soro; }
+
+    // Caches
+    const DOMAIN_CACHE = new Map();
+    const ICON_CACHE   = new Map(); // code:issuer -> image url
+
+    // ---------- Icon overrides (CORS-safe) ----------
+    const ICON_OVERRIDES = new Map([
+      // EURC (Circle)
+      ["EURC:GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2", "https://static.ultrastellar.com/media/assets/img/81bd6386-74bd-4d9e-9f18-b737baf946a6.png"]
+    ]);
+
+    // ---------- Helpers ----------
+    const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
+    const cleanAmt = a => { const n=Number(a); if(!isFinite(n) || n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
+    const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
+    const plain = (v) => { const s=String(v); if(!/e/i.test(s)) return s; const n=Number(v); return n.toFixed(7).replace(/\.?0+$/,''); };
+    const fmt7 = (x)=> Number(x).toFixed(7).replace(/\.?0+$/,'');
+    function contractId(asset){ return asset.contractId(NETWORK); }
+    function round7(x){ return Math.floor(x * 1e7) / 1e7; }
+    const shortG = g => `${g.slice(0,6)}…${g.slice(-6)}`;
+
+    // ---- Available balance helper (uses spendable for XLM) ----
+    async function getAvailableForCurrent(pk){
+      const opt = getSelectedOption();
+      if(!opt) return 0;
+      if (opt.value === "XLM") {
+        try { return await getSpendableXLM(pk); }
+        catch { return parseFloat(opt.dataset.balance || "0"); }
+      }
+      return parseFloat(opt.dataset.balance || "0");
+    }
+
+    // ---------- Icon pipeline (Horizon -> TOML -> image=) ----------
+    async function fetchTomlUrlAndDomain(code, issuer){
+      const url = `${HORIZON}/assets?asset_code=${encodeURIComponent(code)}&asset_issuer=${issuer}`;
+      const j   = await fetch(url).then(r=>r.json()).catch(()=>null);
+      const rec = j?._embedded?.records?.[0];
+      const tomlUrl = rec?._links?.toml?.href || "";
+      let domain = rec?.home_domain || "";
+      if(!domain && tomlUrl){ try{ domain = new URL(tomlUrl).hostname; } catch(_){} }
+      return { tomlUrl, domain };
+    }
+    function parseTomlCurrencies(t){
+      const blocks = t.split(/\n\[\[CURRENCIES\]\][^\n]*\n/).slice(1);
+      const items=[]; const reKV=/^\s*([A-Za-z0-9_]+)\s*=\s*"(.*?)"\s*$/;
+      for(const b of blocks){ const obj={};
+        for(const line of b.split(/\r?\n/)){ const m=line.match(reKV); if(m){ obj[m[1].toLowerCase()] = m[2]; } }
+        if(obj.code||obj.asset_code){ items.push({ code:(obj.code||obj.asset_code||"").trim(), issuer:(obj.issuer||obj.asset_issuer||"").trim(), image:(obj.image||"").trim() }); }
+      }
+      return items;
+    }
+    async function fetchTomlTextWithFallback(tomlUrl){
+      try{ const r=await fetch(tomlUrl,{cache:"force-cache"}); if(r.ok) return await r.text(); }catch(_){}
+      try{ const u=new URL(tomlUrl); const alt=`https://r.jina.ai/http://${u.host}${u.pathname}`; const r2=await fetch(alt,{cache:"force-cache"}); if(r2.ok) return await r2.text(); }catch(_){}
+      return "";
+    }
+    async function fetchAssetIcon(code, issuer){
+      const key = `${code}:${issuer||""}`;
+      if(ICON_CACHE.has(key)) return ICON_CACHE.get(key);
+      // Override first
+      if (ICON_OVERRIDES.has(key)) { const url = ICON_OVERRIDES.get(key); ICON_CACHE.set(key,url); return url; }
+      try{
+        const { tomlUrl } = await fetchTomlUrlAndDomain(code, issuer);
+        if(!tomlUrl){ ICON_CACHE.set(key,""); return ""; }
+        const txt = await fetchTomlTextWithFallback(tomlUrl);
+        if(!txt){ ICON_CACHE.set(key,""); return ""; }
+        const items = parseTomlCurrencies(txt);
+        let hit = items.find(i => i.code?.toUpperCase()===code.toUpperCase() && i.issuer?.toUpperCase()===String(issuer).toUpperCase());
+        if(!hit) hit = items.find(i => i.code?.toUpperCase()===code.toUpperCase());
+        const img = (hit?.image || "").trim();
+        ICON_CACHE.set(key, img);
+        return img;
+      }catch{ ICON_CACHE.set(key,""); return ""; }
+    }
+
+    function setChipIcon(imgEl, code, issuer) {
+      // XLM (native): inline SVG
+      if (!issuer || (code || "").toUpperCase() === "XLM") {
+        const xlmSvg = `
+          <svg width="25" height="24" viewBox="0 0 25 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19.7968 5.54249L17.3951 6.76612L5.79767 12.6733C5.75845 12.3742 5.73872 12.0728 5.7386 11.7712C5.74182 9.32209 7.04138 7.05775 9.15439 5.81951C11.2674 4.58127 13.878 4.55421 16.0162 5.74839L17.3909 5.04797L17.596 4.94333C15.0283 3.07965 11.6322 2.81369 8.8057 4.25491C5.97917 5.69613 4.19987 8.60095 4.2002 11.7737C4.2002 11.9886 4.20836 12.2027 4.22467 12.4159C4.2714 13.0333 3.94261 13.6183 3.39092 13.8994L2.66602 14.2691V15.9931L4.8002 14.9054L5.49134 14.5526L6.17235 14.2058L18.3985 7.97624L19.7723 7.27666L22.612 5.82941V4.1062L19.7968 5.54249Z" fill="white"/>
+            <path d="M22.612 7.55469L6.86687 15.5716L5.49303 16.2728L2.66602 17.7133V19.4357L5.47362 18.0053L7.87531 16.7817L19.4846 10.8661C19.5238 11.1672 19.5435 11.4705 19.5436 11.7741C19.5421 14.2261 18.2411 16.4936 16.1249 17.7323C14.0088 18.9711 11.3946 18.9952 9.2559 17.796L9.17151 17.8408L7.68121 18.6003C10.2483 20.464 13.6437 20.7306 16.4702 19.2903C19.2968 17.8501 21.0768 14.9464 21.0778 11.7741C21.0778 11.5572 21.0694 11.3403 21.0533 11.126C21.0067 10.5088 21.3351 9.92397 21.8863 9.64245L22.612 9.27283V7.55469Z" fill="white"/>
+          </svg>
+        `;
+        imgEl.src = "data:image/svg+xml;utf8," + encodeURIComponent(xlmSvg);
+        imgEl.alt = "XLM";
+        imgEl.style.background = "transparent";
+        return;
+      }
+
+      // Non-native: TOML image or fallback
+      fetchAssetIcon(code, issuer).then(url => {
+        if (url) {
+          imgEl.src = url;
+          imgEl.alt = code;
+          imgEl.style.background = "transparent";
+        } else {
+          const fallbackSvg =
+            "data:image/svg+xml;utf8," +
+            encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+                <rect width="100%" height="100%" rx="9" ry="9" fill="#0b1115"/>
+                <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+                  font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#94a3ad">
+                  ${(code || "?").slice(0, 3).toUpperCase()}
+                </text>
+              </svg>`);
+          imgEl.src = fallbackSvg;
+          imgEl.alt = code;
+        }
+      }).catch(() => {
+        imgEl.removeAttribute("src");
+        imgEl.alt = code || "asset";
+      });
+    }
+
+    // ---------- Spendable XLM + popover ----------
+    async function getNetworkBaseReserveXLM() {
+      const r = await fetch(`${HORIZON}/ledgers?order=desc&limit=1`);
+      const j = await r.json().catch(()=>null);
+      const stroops = parseInt(j?._embedded?.records?.[0]?.base_reserve_in_stroops || "5000000", 10);
+      return stroops / 1e7;
+    }
+    async function getXlmBreakdown(pk) {
+      const base = await getNetworkBaseReserveXLM();
+      const acc  = await fetch(`${HORIZON}/accounts/${pk}`).then(r=>r.json());
+      const balNative = parseFloat((acc.balances || []).find(b => b.asset_type === "native")?.balance || "0");
+      const sellLiab  = parseFloat((acc.balances || []).find(b => b.asset_type === "native")?.selling_liabilities || "0");
+      const sub        = parseInt(acc?.subentry_count || 0, 10);
+      const sponsoring = parseInt(acc?.num_sponsoring || 0, 10);
+      const sponsored  = parseInt(acc?.num_sponsored || 0, 10);
+      const minBalance = base * (2 + sub + sponsoring - sponsored);
+
+      const lines = (acc.balances || []).filter(b => b.asset_type !== "native");
+      const trustlines = lines.filter(b => !b.liquidity_pool_id).length;
+      const lpTrust    = lines.filter(b => !!b.liquidity_pool_id).length;
+
+      const signersCt  = Math.max((acc.signers?.length || 1) - 1, 0);
+      const offersCt   = parseInt(acc?.num_offers || 0, 10);
+      const lineBaseReserve = base * 2;
+      const lineTrustlines  = trustlines * base;
+      const lineLpTrust     = lpTrust * base;
+      const lineSigners     = signersCt * base;
+      const lineOffers      = offersCt * base;
+      const lineSponsoring  = Math.max(sponsoring - sponsored, 0) * base;
+      const lineInOffers    = sellLiab;
+      const feeReserve      = 2;
+      const spendable = Math.max(balNative - sellLiab - minBalance - feeReserve, 0);
+
+      // fill popover
+      if (xlmInfoWrap) {
+        $("xlmAvail").textContent = fmt7(spendable);
+        $("xlmTotal").textContent = fmt7(balNative);
+        $("xlmBase").textContent = fmt7(lineBaseReserve);
+        $("xlmFee").textContent = fmt7(feeReserve);
+        $("xlmOffers").textContent = fmt7(lineInOffers);
+        $("xlmTl").textContent = fmt7(lineTrustlines);
+        $("xlmLpTl").textContent = fmt7(lineLpTrust);
+        $("xlmLpTlWrap").style.display = lineLpTrust ? "inline" : "none";
+        $("xlmOffersCt").textContent = fmt7(lineOffers);
+        $("xlmSigners").textContent = fmt7(lineSigners);
+        $("xlmSponsoring").textContent = fmt7(lineSponsoring);
+        $("xlmLocked").textContent = fmt7(minBalance + feeReserve + sellLiab);
+      }
+      return { spendable: round7(spendable), balance: round7(balNative) };
+    }
+    async function getSpendableXLM(pk) { const b = await getXlmBreakdown(pk); return b.spendable; }
+    async function refreshXlmBreakdownMaybe() {
+      const opt = getSelectedOption();
+      const pk  = pubkeyEl.value.trim();
+      if (!xlmInfoWrap) return;
+      const isXlm = opt && opt.value === "XLM";
+      xlmInfoWrap.style.display = (isXlm && isValidG(pk)) ? "inline-flex" : "none";
+      if (isXlm && isValidG(pk)) await getXlmBreakdown(pk);
+    }
+    // popover behavior (tap to pin on mobile, hover desktop; auto-close on scroll)
+    let popoverPinned=false;
+    if (xlmInfoBtn && xlmPopover){
+      xlmInfoBtn.addEventListener("click", (e)=>{ e.stopPropagation(); popoverPinned=!popoverPinned; xlmPopover.classList.toggle("show", popoverPinned); });
+      document.addEventListener("click", ()=>{ if(popoverPinned){ popoverPinned=false; xlmPopover.classList.remove("show"); } });
+      window.addEventListener("scroll", ()=>{ if(popoverPinned){ popoverPinned=false; xlmPopover.classList.remove("show"); } }, { passive:true });
+      // Hover for desktop
+      xlmInfoWrap.addEventListener("mouseenter", ()=>{ if(!popoverPinned) xlmPopover.classList.add("show"); });
+      xlmInfoWrap.addEventListener("mouseleave", ()=>{ if(!popoverPinned) xlmPopover.classList.remove("show"); });
+    }
+
+    // ---------- Connection UI ----------
+    function openModal()  { backdrop.classList.add('open'); loginModal.classList.add('open'); }
+    function closeModal() { backdrop.classList.remove('open'); loginModal.classList.remove('open'); }
+    on(connectBtn,"click",openModal);
+    on(closeModalBtn,"click",closeModal);
+    on(backdrop,"click",closeModal);
+
+    function openSignModal(){ signBackdrop.classList.add('open'); signModal.classList.add('open'); }
+    function closeSignModal(){ signBackdrop.classList.remove('open'); signModal.classList.remove('open'); }
+    on(closeSign,"click",closeSignModal); on(signBackdrop,"click",closeSignModal);
+
+    function setConnected(address, mode){
+      statusEl.textContent = address ? `Connected (${mode==="wc"?"WalletConnect":"Freighter"})` : "Not connected";
+      disconnectBtn.disabled = !address;
+      if(address){
+        pubkey = address;
+        pubkeyEl.value = address;
+        pubkeyEl.readOnly = true;
+        initForNewAccount();
+        startLockerAutoRefresh();
+      }else{
+        pubkey = null;
+        pubkeyEl.readOnly = false;
+        stopLockerAutoRefresh();
+        setTrustlineUI(false, false); // reset
+      }
+    }
+
+    on(disconnectBtn,"click", async ()=>{
+      try{
+        if(connectionMode==="wc" && client && session){
+          await client.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
+        }
+      }catch(e){ console.warn(e); }
+      session=null; connectionMode="none"; setConnected("", "none");
+      xdrOut.value = ""; xdrSwap.value = ""; swapEst.value = "";
+      actionResult.textContent = ""; swapResult.textContent = ""; rateLine.textContent = "";
+      disableLockerButtons(); disableSwapButtons();
+      refreshXlmBreakdownMaybe();
+    });
+
+    // ---------- Freighter connect ----------
+    async function ensureFreighterApi(){
+      if (window.freighterApi) return window.freighterApi;
+      try{
+        const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
+        window.freighterApi = mod?.default ?? mod;
+        return window.freighterApi;
+      }catch{ return null; }
+    }
+    on($("freighterExtBtn"),"click", async ()=>{
+      try{
+        const freighter = await ensureFreighterApi();
+        if(!freighter){ alert("Freighter extension not detected."); return; }
+        let address = "";
+        try { address = await freighter.getPublicKey(); } catch {}
+        if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
+        if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
+        if(!address){ alert("Freighter connect denied or failed."); return; }
+        connectionMode="freighter";
+        closeModal();
+        setConnected(address, "freighter");
+        toast("Freighter connected.");
+      }catch(e){ console.error(e); alert("Freighter connect failed."); }
+    });
+
+    // ---------- WalletConnect ----------
+    let wcClient=null;
+    async function ensureClient(){ if(!wcClient){ wcClient = await SignClient.init({ projectId: PROJECT_ID }); } return wcClient; }
+    async function getFreighterLinks(){
+      try{
+        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+        const res = await fetch(url); const data = await res.json();
+        const raw = data?.listings ?? data?.data ?? [];
+        const arr = Array.isArray(raw) ? raw : Object.values(raw);
+        const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
+        const mobile = w?.mobile || w?.app?.mobile || {};
+        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
+      }catch{ return {native:null,universal:null,found:false}; }
+    }
+    function buildCandidates(base, wcUri){
+      if(!base) return [];
+      const enc = encodeURIComponent(wcUri);
+      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      const j = base.includes("?") ? "&" : "?";
+      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
+    }
+    function openFreighterSmart(links, wcUri){
+      const store = isIOS()? "https://apps.apple.com/app/freighter/id6743947720" : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
+      const natives = buildCandidates(links.native, wcUri);
+      const universals = buildCandidates(links.universal, wcUri);
+      let attempted=false;
+      for(const href of natives){ attempted=true; window.location.href = href; setTimeout(()=>{},350); }
+      if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+      if(!attempted){ window.open(store, "_blank", "noopener"); }
+    }
+    function openLobstrApp(uri){
+      const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
+      const store  = isIOS()? "https://apps.apple.com/app/id1404357892" : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const t0 = Date.now();
+      window.location.href = scheme;
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
+
+    on($("wcBtn"),"click", async ()=>{
+      try{
+        const sc = await ensureClient();
+        toast("Starting WalletConnect…");
+        const { uri, approval } = await sc.connect({
+          optionalNamespaces: {
+            stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+          }
+        });
+        if(!uri) throw new Error("No WC URI");
+        latestWcUri = uri;
+
+        try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); } catch {}
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
+
+        linkStatus.textContent = "Loading Freighter deep link…";
+        const freighterLinks = await getFreighterLinks();
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+
+        $("btnLobstr").onclick = ()=> openLobstrApp(latestWcUri);
+        $("btnFreighter").onclick = async ()=>{
+          const links = await getFreighterLinks();
+          openFreighterSmart(links, latestWcUri);
+        };
+
+        session = await approval();
+        connectionMode="wc";
+        qrArea.style.display="none"; closeModal();
+
+        const accounts = session.namespaces?.stellar?.accounts || [];
+        const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+        const address = first.split(":")[2] || "";
+        setConnected(address, "wc");
+        client = sc;
+      }catch(e){
+        console.error(e);
+        toast("Connection canceled or failed.", true);
+      }
+    });
+
+    // ---------- Locker ----------
+    function disableLockerButtons(){ [signSubmitBtn,copyBtn,labBtn].forEach(b=>b.disabled=true); }
+    function enableLockerButtons(){ const ok=!!xdrOut.value.trim(); [signSubmitBtn,copyBtn,labBtn].forEach(b=>b.disabled=!ok); }
+
+    async function loadAquaM25Balance(pk){
+      const acct = await getServer().loadAccount(pk);
+      const bal = acct.balances.find(b => b.asset_code===AQUAm25_CODE && b.asset_issuer===AQUAm25_ISSUER);
+      return { acct, balance: bal ? bal.balance : "0" };
+    }
+    function startLockerAutoRefresh(){
+      stopLockerAutoRefresh();
+      lockerRefreshTimer = setInterval(async ()=>{
+        const pk = pubkeyEl.value.trim();
+        if(!isValidG(pk)) return;
+        try{
+          const { balance } = await loadAquaM25Balance(pk);
+          aquaBalEl.textContent = plain(balance);
+        }catch(e){ console.warn(e); }
+      }, 15000);
+    }
+    function stopLockerAutoRefresh(){ if(lockerRefreshTimer) clearInterval(lockerRefreshTimer); lockerRefreshTimer = null; }
+
+    function scheduleLockerBuild(){
+      disableLockerButtons();
+      if(buildTimer) clearTimeout(buildTimer);
+      buildTimer = setTimeout(async ()=>{
+        const xdr = await buildLockXDR();
+        if(xdr){ xdrOut.value = xdr; enableLockerButtons(); }
+        else { xdrOut.value=""; disableLockerButtons(); }
+      }, 600);
+    }
+
+    async function buildLockXDR(){
+      const pk = pubkeyEl.value.trim();
+      const amt = cleanAmt(amountEl.value.trim());
+      if(!isValidG(pk) || !amt) return null;
+      try{
+        const src = await getServer().loadAccount(pk);
+        const now = new Date();
+        const end = new Date(now);
+        end.setUTCFullYear(end.getUTCFullYear()+1);
+        end.setUTCHours(23,59,59,0);
+        const endTs = Math.floor(end.getTime()/1000).toString();
+        lockInfoEl.textContent = `Lock start: ${now.toLocaleString()}
+Lock end (UTC):   ${end.toLocaleString(undefined,{timeZone:'UTC'})}`;
+        const claimants = [
+          new SDK.Claimant(pk, SDK.Claimant.predicateNot(SDK.Claimant.predicateBeforeAbsoluteTime(endTs))),
+          new SDK.Claimant(TRACKER_KEY, SDK.Claimant.predicateBeforeAbsoluteTime("0"))
+        ];
+        const tx = new SDK.TransactionBuilder(src, { fee: "20000", networkPassphrase: NETWORK })
+          .addOperation(SDK.Operation.createClaimableBalance({ asset: AQUAm25, amount: amt, claimants }))
+          .setTimeout(180)
+          .build();
+        return tx.toXDR();
+      }catch(e){ console.error(e); return null; }
+    }
+
+    on(pubkeyEl,"input", ()=>{ if(pubkeyEl.readOnly) return; scheduleLockerBuild(); });
+    on(pubkeyEl,"change", ()=>{ if(pubkeyEl.readOnly) return; initForNewAccount(); startLockerAutoRefresh(); });
+    on(amountEl,"input", scheduleLockerBuild);
+    document.querySelectorAll("#lockerBox button[data-pct]").forEach(btn=>btn.addEventListener("click", ()=>{
+      const bal = Math.max(0, parseFloat(aquaBalEl.textContent) || 0);
+      const pct = parseInt(btn.dataset.pct,10)/100;
+      amountEl.value = cleanAmt(bal*pct) || "";
+      scheduleLockerBuild();
+    }));
+
+    // ---------- Domains for labels ----------
+    async function fetchDomainsForIssuers(issuers){
+      const unique = [...new Set((issuers||[]).filter(Boolean))];
+      const need = unique.filter(i => !DOMAIN_CACHE.has(i));
+      await Promise.all(need.map(async (issuer)=>{
+        try{
+          const r = await fetch(`${HORIZON}/accounts/${issuer}`);
+          const j = await r.json();
+          const d = (j && j.home_domain) ? j.home_domain : "";
+          DOMAIN_CACHE.set(issuer, d);
+        }catch(_){ DOMAIN_CACHE.set(issuer, ""); }
+      }));
+    }
+    const labelWithDomain = (code, issuer) => {
+      if(!issuer) return `${code} · native`;
+      const dom = DOMAIN_CACHE.get(issuer) || "";
+      const right = dom || shortG(issuer);
+      return `${code} · ${right}`;
+    };
+
+    // ---------- Swap: balances + dropdown (ignore LP balances) ----------
+    async function loadAllBalances(pk){
+      const acct = await getServer().loadAccount(pk);
+      const items = [];
+      const xlmBal = acct.balances.find(b=>b.asset_type==="native");
+      if (xlmBal && parseFloat(xlmBal.balance) > 0) items.push({ code:"XLM", issuer:null, balance: xlmBal.balance });
+      for(const b of acct.balances){
+        if(b.asset_type==="native") continue;
+        if(b.liquidity_pool_id) continue;           // ignore LP trustlines
+        if(parseFloat(b.balance) <= 0) continue;
+        items.push({ code:b.asset_code, issuer:b.asset_issuer, balance:b.balance });
+      }
+      return { acct, items };
+    }
+
+    function getSelectedOption(){ return swapFrom.options[swapFrom.selectedIndex] || null; }
+
+    function setSellChip(code, issuer){
+      sellLabel.textContent = code;
+      setChipIcon(sellIcon, code, issuer);
+    }
+
+    function fillSwapDropdownOnce(items){
+      swapFrom.innerHTML = "";
+      for(const it of items){
+        const opt = document.createElement("option");
+        opt.value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
+        opt.textContent = labelWithDomain(it.code, it.issuer);
+        opt.dataset.balance = it.balance;
+        opt.dataset.code = it.code;
+        if(it.issuer) opt.dataset.issuer = it.issuer;
+        swapFrom.appendChild(opt);
+      }
+      const def = `${AQUA_CODE}:${AQUA_ISSUER}`;
+      const found = [...swapFrom.options].find(o=>o.value===def);
+      swapFrom.value = found ? def : (swapFrom.options[0]?.value || "");
+      updateSelectedAssetUI();
+    }
+
+    async function updateSelectedAssetUI(){
+      const opt = getSelectedOption();
+      if(!opt){ fillMaxBtn.style.display="none"; xlmInfoWrap.style.display="none"; return; }
+      const bal = opt.dataset.balance || "0";
+      const code = opt.dataset.code || (opt.value==="XLM"?"XLM":"ASSET");
+      const issuer = opt.dataset.issuer || null;
+
+      setSellChip(code, issuer);
+
+      selectedBal.textContent = plain(bal);
+      fillMaxBtn.style.display = parseFloat(bal)>0 ? "inline-flex" : "none";
+
+      refreshXlmBreakdownMaybe();
+      await onValidate();
+    }
+
+    async function initForNewAccount(){
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)) { aquaBalEl.textContent="Invalid key"; return; }
+      try{
+        const { balance } = await loadAquaM25Balance(pk);
+        aquaBalEl.textContent = plain(balance);
+        const { items } = await loadAllBalances(pk);
+        await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean).concat([AQUAm25_ISSUER]));
+        fillSwapDropdownOnce(items);
+
+        // BUY chip icon (AQUAm25)
+        setChipIcon(buyIcon, AQUAm25_CODE, AQUAm25_ISSUER);
+
+        await refreshXlmBreakdownMaybe();
+        await onValidate();
+      }catch(e){ console.error(e); }
+    }
+
+    // ---------- Trustline-aware UI ----------
+    function setTrustlineUI(hasTL, forceDisableSwap){
+      if (hasTL) {
+        btnAddTrustline.style.display = "none";
+        btnAddTrustline.classList.remove("primary","warn");
+        btnAddTrustline.style.flex = "";
+
+        swapSignSubmit.style.display = "";
+        swapCopy.style.display = "";
+
+        swapSignSubmit.disabled = !!forceDisableSwap;
+        swapCopy.disabled = !!forceDisableSwap;
+        swapSignSubmit.classList.remove("warn");
+      } else {
+        swapSignSubmit.style.display = "none";
+        swapCopy.style.display = "none";
+
+        btnAddTrustline.style.display = "block";
+        btnAddTrustline.classList.remove("ghost","small");
+        btnAddTrustline.classList.add("primary","warn");
+        btnAddTrustline.style.flex = "1";
+      }
+    }
+
+    // ---------- Validators ----------
+    async function hasTrustline(account, asset){
+      if (asset.isNative()) return true;
+      const r = await fetch(`${HORIZON}/accounts/${account}`);
+      if(!r.ok) throw new Error("Horizon account lookup failed");
+      const j = await r.json();
+      const bal = (j.balances || []).find(b => b.asset_code === asset.code && b.asset_issuer === asset.issuer);
+      return !!bal;
+    }
+    async function softTokenCheck(asset){
+      const probe = { token_in_address:  contractId(asset), token_out_address: contractId(SDK.Asset.native()), amount: "1" };
+      const r = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(probe) });
+      const j = await r.json().catch(()=>null);
+      return !!j && (typeof j.success === "boolean");
+    }
+    async function onValidate(){
+      try{
+        const tokenIn = getCurrentSendAsset();
+        const tokenOut = AQUAm25;
+        const bits = [];
+        const [okIn, okOut, tl] = await Promise.all([
+          softTokenCheck(tokenIn),
+          softTokenCheck(tokenOut),
+          pubkey ? hasTrustline(pubkey, tokenOut) : Promise.resolve(false)
+        ]);
+        bits.push(okIn ? `<div style="color:#57d29a">Token In recognized by Aquarius</div>` : `<div style="color:#ff6b6b">Token In not recognized</div>`);
+        bits.push(okOut ? `<div style="color:#57d29a">Token Out recognized by Aquarius</div>` : `<div style="color:#ff6b6b">Token Out not recognized</div>`);
+        if(pubkey){
+          bits.push(tl ? `<div style="color:#57d29a">Trustline: OK for output asset</div>` : `<div style="color:#ff6b6b">No trustline for output asset — please add it first</div>`);
+          setTrustlineUI(tl, false);
+        } else {
+          bits.push(`<div>Connect to check trustline</div>`);
+          setTrustlineUI(false, true);
+        }
+        validationBox.innerHTML = bits.join("");
+      } catch(e){
+        validationBox.innerHTML = `<span style="color:#ff6b6b">${e.message}</span>`;
+      }
+    }
+
+    // ---------- Quotes + Rate line ----------
+    function getCurrentSendAsset(){
+      if(!swapFrom.value || swapFrom.value === "XLM") return SDK.Asset.native();
+      const [code, issuer] = (swapFrom.value||"").split(":");
+      return new SDK.Asset(code, issuer);
+    }
+
+    function renderRateLine(sendCode, perOne){
+      if (!isFinite(perOne) || perOne<=0) { rateLine.textContent = ""; return; }
+      lastPerOne = perOne;
+
+      // Build display based on toggle
+      if (!rateReversed) {
+        // 1 SEND ≈ N AQUAm25
+        rateLine.innerHTML = `1 ${sendCode} ≈ ${fmt7(perOne)} AQUAm25 <span class="rate-swap" title="Flip">⟲</span>`;
+      } else {
+        // 1 AQUAm25 ≈ X SEND
+        const inv = 1 / perOne;
+        rateLine.innerHTML = `1 AQUAm25 ≈ ${fmt7(inv)} ${sendCode} <span class="rate-swap" title="Flip">⟲</span>`;
+      }
+    }
+
+    rateLine.addEventListener("click", ()=>{
+      rateReversed = !rateReversed;
+      const sendCode = getSelectedOption()?.dataset.code || "ASSET";
+      if (lastPerOne) renderRateLine(sendCode, lastPerOne);
+    });
+
+    async function quoteStrictSend(){
+      disableSwapButtons();
+      xdrSwap.value=""; rateLine.textContent="";
+      const pk = pubkeyEl.value.trim();
+      const sendAmt = cleanAmt(swapAmount.value.trim());
+      if(!isValidG(pk) || !sendAmt) return;
+
+      const sendAsset = getCurrentSendAsset();
+      const sendCode  = getSelectedOption()?.dataset.code || toNativeLabel(sendAsset);
+
+      try{
+        // pre-check balance (spendable for XLM)
+        const available = await getAvailableForCurrent(pk);
+        if (parseFloat(sendAmt) > (available + 1e-7)) {
+          pushToast("Sell amount exceeds balance", true);
+          swapAmount.classList.add("error");
+          xdrSwap.value = ""; rateLine.textContent = "";
+          disableSwapButtons();
+          return;
+        }
+
+        const body = {
+          token_in_address:  contractId(sendAsset),
+          token_out_address: contractId(AQUAm25),
+          amount: String(Math.round(parseFloat(sendAmt)*1e7))
+        };
+        const res = await fetch(`${baseApi}/find-path/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+        const j = await res.json();
+        if(!j?.success) throw new Error("No route from Aquarius AMM");
+
+        lastQuote = j; lastIsSend = true;
+
+        const outStroops = BigInt(j.amount);
+        const estOut = Number(outStroops) / 1e7;
+
+        swapEst.value = plain(estOut);
+
+        const perOne = estOut / Number(swapAmount.value || 1);
+        renderRateLine(sendCode, perOne);
+
+        const needTL = !(await hasTrustline(pubkeyEl.value.trim(), AQUAm25));
+        setTrustlineUI(!needTL, false);
+        if (needTL) { enableSwapButtons(); return; }
+
+        const inStroops = BigInt(Math.round(parseFloat(sendAmt)*1e7));
+        const outMin = outStroops - (outStroops / 100n);  // 1% slippage
+
+        const tx = await buildSorobanSwapTx({
+          account: pubkeyEl.value.trim(), isSend: true, tokenIn: sendAsset,
+          inAmountStroops: inStroops,
+          limitOutOrExact: outMin,
+          swapChainXdr: j.swap_chain_xdr
+        });
+        xdrSwap.value = tx.toXDR();
+        enableSwapButtons();
+        onValidate().catch(()=>{});
+      }catch(e){
+        console.error(e);
+        const msg = String(e?.message||"");
+        if (msg.includes("Error(Contract, #10)") || msg.includes("resulting balance is not within the allowed range")) {
+          pushToast("Sell amount exceeds balance", true);
+          swapAmount.classList.add("error");
+        } else {
+          pushToast(`Aquarius quote failed (strict send). ${msg}`, true);
+        }
+        lastQuote=null; xdrSwap.value=""; disableSwapButtons();
+      }
+    }
+
+    // strict-receive flow (typing in BUY box)
+    async function quoteStrictReceive(){
+      disableSwapButtons();
+      xdrSwap.value=""; rateLine.textContent="";
+      const pk = pubkeyEl.value.trim();
+      const wantOut = cleanAmt(swapEst.value.trim());
+      if(!isValidG(pk) || !wantOut) return;
+
+      const sendAsset = getCurrentSendAsset();
+      const sendCode  = getSelectedOption()?.dataset.code || toNativeLabel(sendAsset);
+
+      try{
+        const body = {
+          token_in_address:  contractId(sendAsset),
+          token_out_address: contractId(AQUAm25),
+          amount: String(Math.round(parseFloat(wantOut)*1e7))
+        };
+        const res = await fetch(`${baseApi}/find-path-strict-receive/`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+        const j = await res.json();
+        if(!j?.success) throw new Error("No route from Aquarius AMM");
+
+        lastQuote = j; lastIsSend = false;
+
+        const inNeeded = BigInt(j.amount);
+        const estIn = Number(inNeeded) / 1e7;
+
+        swapAmount.value = plain(estIn);
+
+        const perOne = Number(wantOut) / (estIn || 1);
+        renderRateLine(sendCode, perOne);
+
+        // Balance guard (spendable for XLM)
+        let available = parseFloat(getSelectedOption()?.dataset.balance || "0");
+        if (swapFrom.value === "XLM") {
+          try { available = await getSpendableXLM(pk); } catch {}
+        }
+
+        const inMax = inNeeded + (inNeeded / 100n); // +1% cushion
+        if (available * 1e7 < Number(inMax)) {
+          pushToast("Sell amount exceeds balance", true);
+          swapAmount.classList.add("error");
+          lastQuote = null; xdrSwap.value = ""; disableSwapButtons();
+          return;
+        }
+
+        const needTL = !(await hasTrustline(pk, AQUAm25));
+        setTrustlineUI(!needTL, false);
+        if (needTL) { enableSwapButtons(); return; }
+
+        const outExact = BigInt(Math.round(parseFloat(wantOut)*1e7));
+        const tx = await buildSorobanSwapTx({
+          account: pk, isSend: false, tokenIn: sendAsset,
+          inAmountStroops: inMax,           // MAX IN
+          limitOutOrExact: outExact,        // EXACT OUT
+          swapChainXdr: j.swap_chain_xdr
+        });
+        xdrSwap.value = tx.toXDR();
+        enableSwapButtons();
+        onValidate().catch(()=>{});
+      }catch(e){
+        console.error(e);
+        const msg = String(e?.message||"");
+        if (msg.includes("Error(Contract, #10)") || msg.includes("resulting balance is not within the allowed range")) {
+          pushToast("Sell amount exceeds balance", true);
+          swapAmount.classList.add("error");
+        } else {
+          pushToast(`Aquarius quote failed (strict receive). ${msg}`, true);
+        }
+        lastQuote=null; xdrSwap.value=""; disableSwapButtons();
+      }
+    }
+
+    // ---------- Build Soroban swap tx ----------
+    async function buildSorobanSwapTx({ account, isSend, tokenIn, inAmountStroops, limitOutOrExact, swapChainXdr }){
+      const server = rpc();
+      const acc = await server.getAccount(account);
+      const router = new SDK.Contract(routerContractId);
+      const tokenInCid = tokenIn.contractId(NETWORK);
+      const addrAccount  = SDK.Address.fromString(account).toScVal();
+      const addrTokenIn  = SDK.Address.fromString(tokenInCid).toScVal();
+      const u128In       = SDK.nativeToScVal(BigInt(inAmountStroops), { type: "u128" });
+      const u128LimOrEx  = SDK.nativeToScVal(BigInt(limitOutOrExact), { type: "u128" });
+      const swapChainVal = SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64");
+      const op = isSend
+        ? router.call("swap_chained", addrAccount, swapChainVal, addrTokenIn, u128In, u128LimOrEx)
+        : router.call("swap_chained_strict_receive", addrAccount, swapChainVal, addrTokenIn, u128LimOrEx, u128In);
+      let tx = new SDK.TransactionBuilder(acc, { fee: "20000", networkPassphrase })
+        .setTimeout(300)
+        .addOperation(op)
+        .build();
+      try { tx = await server.prepareTransaction(tx); }
+      catch (e) {
+        console.error("prepareTransaction failed:", e);
+        const raw = String(
+          e?.response?.data?.error?.message ||
+          e?.data?.error?.message ||
+          e?.message || "unknown"
+        );
+        if (raw.includes("Error(Contract, #10)") || raw.includes("resulting balance is not within the allowed range")) {
+          throw new Error("Sell amount exceeds balance");
+        }
+        throw new Error(`prepareTransaction failed: ${raw}`);
+      }
+      return tx;
+    }
+
+    // ---------- Classic trustline helper ----------
+    async function buildTrustlineXDR(pk){
+      const src = await getServer().loadAccount(pk);
+      const tx = new SDK.TransactionBuilder(src, { fee: "10000", networkPassphrase: NETWORK })
+        .addOperation(SDK.Operation.changeTrust({ asset: AQUAm25 }))
+        .setTimeout(180)
+        .build();
+      return tx.toXDR();
+    }
+
+    on(btnAddTrustline, "click", async ()=>{
+      try{
+        const pk = pubkeyEl.value.trim();
+        if(!isValidG(pk)) { toast("Connect a wallet first.", true); return; }
+        if(await hasTrustline(pk, AQUAm25)){ toast("AQUAm25 trustline already exists."); await onValidate(); return; }
+        toast("Preparing trustline transaction…");
+        const trustXdr = await buildTrustlineXDR(pk);
+
+        // Show signing modal (WC/Freighter)
+        openSignModal();
+        if (connectionMode === "wc") pushToast("Check your WalletConnect wallet to sign…");
+        else pushToast("Check Freighter to sign…");
+
+        const signed = await signCurrent(trustXdr);
+        toast("Submitting trustline…");
+        const hash = await submitToHorizon(signed);
+        toast(`Trustline added ✓ tx: ${hash}`);
+        closeSignModal();
+
+        await onValidate();
+        await initForNewAccount();
+
+        try {
+          if (lastQuote) { if (lastIsSend) await quoteStrictSend(); else await quoteStrictReceive(); }
+        } catch(_) {}
+      }catch(e){
+        console.error(e);
+        closeSignModal();
+        toast(e.message || "Trustline add failed.", true);
+      }
+    });
+
+    // Submit Soroban
+    async function submitToSoroban(signedXdr){
+      const tx = SDK.TransactionBuilder.fromXDR(signedXdr, NETWORK);
+      const send = await rpc().sendTransaction(tx);
+      if (send.status !== "PENDING" && send.status !== "SUCCESS")
+        throw new Error(`Soroban send failed: ${send.status}`);
+      let final = await rpc().getTransaction(send.hash);
+      let tries = 0;
+      while(final.status === "NOT_FOUND" && tries < 10){
+        await new Promise(r=>setTimeout(r, 800));
+        final = await rpc().getTransaction(send.hash);
+        tries++;
+      }
+      if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
+      return final;
+    }
+
+    // ---------- Swap buttons / input binding ----------
+    function disableSwapButtons(){ [swapSignSubmit,swapCopy].forEach(b=>b.disabled=true); }
+    function enableSwapButtons(){ const ok=!!xdrSwap.value.trim(); [swapSignSubmit,swapCopy].forEach(b=>b.disabled=!ok); }
+    function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 400); }
+
+    function bindSwapInputListeners(){
+      if(!swapAmount || !swapEst) return;
+
+      swapAmount.oninput = ()=>{
+        swapAmount.classList.remove("error");
+        if(!swapAmount.value || Number(swapAmount.value) <= 0){
+          xdrSwap.value=""; rateLine.textContent=""; disableSwapButtons(); return;
+        }
+        debounceQuote(quoteStrictSend);
+      };
+
+      swapEst.oninput = ()=>{
+        if(!swapEst.value || Number(swapEst.value) <= 0){
+          xdrSwap.value=""; rateLine.textContent=""; disableSwapButtons(); return;
+        }
+        debounceQuote(quoteStrictReceive);
+      };
+    }
+
+    on(swapFrom,"change", ()=>{
+      updateSelectedAssetUI();
+      swapAmount.value = ""; swapEst.value = ""; xdrSwap.value = ""; rateLine.textContent = "";
+      swapAmount.classList.remove("error");
+      disableSwapButtons();
+    });
+
+    on(fillMaxBtn,"click", async ()=>{
+      const opt = getSelectedOption(); if(!opt) return;
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)){ toast("Connect first to auto-fill balance.", true); return; }
+      if(opt.value === "XLM"){
+        try{ const { spendable } = await getXlmBreakdown(pk); swapAmount.value = plain(spendable); await refreshXlmBreakdownMaybe(); }
+        catch(e){ console.error(e); toast("Could not compute spendable XLM.", true); return; }
+      }else{
+        const bal = parseFloat(opt.dataset.balance || "0");
+        swapAmount.value = plain(bal);
+      }
+      quoteStrictSend();
+    });
+
+    // Toggle XDR areas
+    function toggleEl(el, btn){ const isHidden = el.style.display === "none" || !el.style.display; el.style.display = isHidden ? "block" : "none"; btn.textContent = isHidden ? "Hide XDR" : "Reveal XDR"; }
+    on(toggleSwapXdr, "click", ()=> toggleEl(xdrSwap, toggleSwapXdr));
+    on(toggleLockerXdr, "click", ()=> toggleEl(xdrOut,  toggleLockerXdr));
+
+    // Copy helpers
+    on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
+    on(copyBtn,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrOut.value); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy XDR",1500); } catch(e){ console.error(e); } });
+
+    // Sign prompt openers (deep-link helpers)
+    $("signLobstr").onclick = ()=> { if(latestWcUri) openLobstrApp(latestWcUri); };
+    $("signFreighter").onclick = async ()=> {
+      if(!latestWcUri) return;
+      const links = await getFreighterLinks();
+      openFreighterSmart(links, latestWcUri);
+    };
+
+    // Swap signing & submit
+    on(swapSignSubmit,"click", async ()=>{
+      swapResult.textContent="";
+      try{
+        const needTL = !(await hasTrustline(pubkeyEl.value.trim(), AQUAm25));
+        if (needTL) { pushToast("Please add the AQUAm25 trustline first.", true); return; }
+
+        let xdrToSubmit = xdrSwap.value.trim();
+        if(!xdrToSubmit || !/AAAA/.test(xdrToSubmit)){
+          if (lastIsSend) { await quoteStrictSend(); } else { await quoteStrictReceive(); }
+          xdrToSubmit = xdrSwap.value.trim();
+          if(!xdrToSubmit) throw new Error("No prepared XDR.");
+        }
+
+        // Show signing modal for both WC and Freighter
+        openSignModal();
+        if (connectionMode === "wc") { pushToast("Check your WalletConnect wallet to sign…"); }
+        else { pushToast("Check Freighter to sign…"); }
+
+        const signed = await signCurrent(xdrToSubmit);
+        const final = await submitToSoroban(signed);
+        const u = BigInt(final.returnValue?.u128 ?? 0n);
+        const msg = lastIsSend
+          ? `Amount OUT: ${plain(Number(u)/1e7)} ${AQUAm25_CODE}`
+          : `Amount IN spent: ${plain(Number(u)/1e7)} ${(getSelectedOption()?.dataset.code)||"asset"}`;
+        swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${msg}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
+        closeSignModal();
+
+        setTimeout(async ()=>{
+          const pk = pubkeyEl.value.trim();
+          if(isValidG(pk)){
+            try{ const { balance } = await loadAquaM25Balance(pk); aquaBalEl.textContent = plain(balance); }catch{}
+          }
+        }, 1200);
+      }catch(e){ console.error(e); closeSignModal(); pushToast(e.message||"Sign/submit failed.", true); }
+    });
+
+    // ---------- Picker logic ----------
+    function openPicker(){
+      pickerBackdrop.classList.add("picker-open");
+      assetPicker.classList.add("picker-open");
+      pickerBody.innerHTML = `<div class="spinner-wrap"><div class="ring"></div></div>`;
+      hydratePicker().catch((e)=>{
+        pickerBody.innerHTML = `<div class="small" style="text-align:center;color:#ffb3b3">Failed to load assets: ${e?.message||"unknown"}</div>`;
+      });
+    }
+    function closePicker(){
+      pickerBackdrop.classList.remove("picker-open");
+      assetPicker.classList.remove("picker-open");
+      bindSwapInputListeners();
+    }
+    on(openPickerBtn,"click", openPicker);
+    on(pickerClose,"click", closePicker);
+    on(pickerBackdrop,"click", (e)=>{ if(e.target===pickerBackdrop) closePicker(); });
+
+    async function hydratePicker(){
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)){
+        pickerBody.innerHTML = `<div class="small" style="text-align:center;color:#9db0c6">Connect a wallet to list your assets.</div>`;
+        return;
+      }
+      const { items } = await loadAllBalances(pk);
+      await fetchDomainsForIssuers(items.map(i=>i.issuer).filter(Boolean));
+      const frag = document.createDocumentFragment();
+      for(const it of items){
+        const row = document.createElement("div");
+        row.className = "asset-row";
+        row.innerHTML = `
+          <div class="asset-left">
+            <img class="icon" alt="${it.code}" />
+            <div class="asset-meta">
+              <span class="asset-code">${it.code}</span>
+              <span class="asset-domain">${it.issuer? (DOMAIN_CACHE.get(it.issuer)||shortG(it.issuer)) : "native"}</span>
+            </div>
+          </div>
+          <div class="asset-bal">${plain(it.balance)}</div>`;
+        const img = row.querySelector("img.icon");
+        setChipIcon(img, it.code, it.issuer||null);
+
+        row.addEventListener("click", ()=>{
+          const value = it.issuer ? `${it.code}:${it.issuer}` : "XLM";
+          swapFrom.value = value;
+          updateSelectedAssetUI();
+          swapAmount.value = ""; swapEst.value=""; xdrSwap.value=""; rateLine.textContent="";
+          disableSwapButtons();
+          closePicker();
+        });
+        frag.appendChild(row);
+      }
+      pickerBody.innerHTML = "";
+      pickerBody.appendChild(frag);
+    }
+
+    // ---------- First-load ----------
+    window.addEventListener("load", async ()=>{
+      setChipIcon(buyIcon, AQUAm25_CODE, AQUAm25_ISSUER);
+      sellLabel.textContent = "Select asset";
+      const pk = pubkeyEl.value.trim();
+      if(isValidG(pk)){ await initForNewAccount(); startLockerAutoRefresh(); }
+      disableLockerButtons();
+      disableSwapButtons();
+      bindSwapInputListeners();
+    });
+
+    // ---------- Sign helpers (shared) ----------
+    const wcRequest = (method, xdr) => client.request({
+      topic: session.topic, chainId: "stellar:pubnet",
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
+    });
+    async function signCurrent(xdr){
+      if(connectionMode==="wc"){
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      if(connectionMode==="freighter"){
+        const api = await ensureFreighterApi();
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
+        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      throw new Error("Not connected");
+    }
+
+    // ---------- Locker submit (classic) ----------
+    async function submitToHorizon(signedXdr){
+      const resp = await fetch(`${HORIZON}/transactions`,{ method:"POST", headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" }, body:"tx="+encodeURIComponent(signedXdr) });
+      const data = await resp.json().catch(()=> ({}));
+      if(!resp.ok){
+        const code = data?.extras?.result_codes?.transaction || resp.status;
+        const op   = data?.extras?.result_codes?.operations || [];
+        throw new Error(`Horizon error: ${code}${op.length?` (${op.join(",")})`:""}`);
+      }
+      return data.hash;
+    }
+
+  </script>
+
+  <!-- Freighter UMD fallback -->
+  <script>
+    if(!window.freighterApi){
+      const s = document.createElement('script');
+      s.src = "https://cdn.freighter.app/freighter-api-v1.js";
+      document.head.appendChild(s);
+    }
+  </script>
+</body>
+</html>
