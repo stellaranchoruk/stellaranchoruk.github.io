@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Mirrasets — Locker (v15 demo, layout adj.)</title>
+<title>Mirrasets — Locker (v15 demo with APY)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --err:#ff6b6b; --border:#1c242c; }
@@ -30,6 +30,7 @@
 
   .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:#0e1627;border:1px solid #2a3656;color:#cfe0ff;font-size:12px}
   .pill.clickable{cursor:pointer}
+  .pill.apy{border-color:#3d2e6d;background:#1b1233;color:#d9caff;font-weight:600}
   .i-ico{width:18px;height:18px;border-radius:50%;border:1px solid #2a3340;background:#0c1520;color:#cfe0ff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 
   .right-stack{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:2px}
@@ -49,7 +50,7 @@
   .primary{flex:1;background:var(--accent);border-color:#8b66d8;color:#fff}
   .divider{height:1px;background:#1a232c;margin:10px 0 8px}
 
-  /* Toasts (v4-lite) */
+  /* Toasts */
   .toast-wrap{position:fixed;right:18px;top:18px;z-index:9;display:grid;gap:10px;width:min(92vw,420px);pointer-events:none}
   .toast{pointer-events:auto;display:grid;grid-template-columns:28px 1fr auto;align-items:start;gap:10px;
     padding:12px 14px;border-radius:14px;border:1px solid #253244;background:#0f1a24;color:#e7f2ff;box-shadow:0 12px 28px rgba(0,0,0,.35)}
@@ -103,11 +104,14 @@
         <div id="usablePopover" class="popover" role="dialog" aria-modal="false" aria-live="polite"></div>
       </div>
 
-      <!-- DURATION slab (fixed 12 months) -->
+      <!-- DURATION slab -->
       <div class="slab">
         <div class="slab-top" style="margin-bottom:4px">
           <div class="slab-label">Duration</div>
-          <span class="pill">12 months</span>
+          <div class="row" style="gap:8px">
+            <span class="pill">12 months</span>
+            <span class="pill apy">7.5% APY</span>
+          </div>
         </div>
       </div>
 
@@ -158,89 +162,40 @@
     const close=()=>el.remove(); el.querySelector(".x").onclick=close; setTimeout(close,2600);
   };
 
-  // Demo “connection” & balances
-  let connected=false;
-  let usable=0;
+  let connected=false, usable=0;
   $("demoConnect").onclick = ()=>{
     connected=!connected;
     $("status").textContent = connected ? "Connected (demo)" : "Not connected";
     if(connected){ usable=1200; $("usablePill").textContent = fmt7(usable); toast("Wallet connected (demo)","ok"); }
     else{ usable=0; $("usablePill").textContent = "0.0000000"; $("amount").value=""; $("xdr").value=""; toast("Disconnected","ok"); }
-    updatePreview();
-    hydratePopover();
+    updatePreview(); hydratePopover();
   };
 
-  // Usable pill click → autofill input
-  $("usablePill").addEventListener("click", ()=>{
-    if(!connected){ toast("Connect first (demo).","err"); return; }
-    $("amount").value = fmt7(usable);
-    updatePreview();
-  });
+  $("usablePill").onclick=()=>{ if(!connected)return toast("Connect first (demo).","err"); $("amount").value=fmt7(usable); updatePreview(); };
+  document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ if(!connected)return toast("Connect first (demo).","err"); const p=Number(b.dataset.p)/100; $("amount").value=fmt7(usable*p); updatePreview(); });
 
-  // Percent buttons (based on usable)
-  document.querySelectorAll("[data-p]").forEach(b=>{
-    b.addEventListener("click", ()=>{
-      if(!connected){ toast("Connect first (demo).","err"); return; }
-      const pct = Number(b.dataset.p)/100;
-      $("amount").value = fmt7(usable * pct);
-      updatePreview();
-    });
-  });
-
-  // Info popover (sample content)
-  const infoBtn = $("usableInfo");
-  const pop = $("usablePopover");
-  function hydratePopover(){
-    pop.innerHTML = `
-      <div class="line"><span class="muted">AQUAm25 balance</span><span>${fmt7(connected?1234.5678901:0)}</span></div>
-      <div class="line"><span class="muted">In active offers</span><span>${fmt7(connected?34.5678901:0)}</span></div>
-      <div class="line"><span class="muted"><b>Usable</b></span><span><b>${fmt7(usable)}</b></span></div>
-    `;
-  }
+  const infoBtn=$("usableInfo"), pop=$("usablePopover");
+  function hydratePopover(){ pop.innerHTML=`<div class="line"><span class="muted">AQUAm25 balance</span><span>${fmt7(connected?1234.5678901:0)}</span></div>
+    <div class="line"><span class="muted">In active offers</span><span>${fmt7(connected?34.5678901:0)}</span></div>
+    <div class="line"><span class="muted"><b>Usable</b></span><span><b>${fmt7(usable)}</b></span></div>`; }
   hydratePopover();
+  let sticky=false; function openPop(){pop.classList.add("open");} function closePop(){pop.classList.remove("open");sticky=false;}
+  infoBtn.onmouseenter=openPop; infoBtn.onmouseleave=()=>{if(!sticky)closePop();}; pop.onmouseenter=openPop; pop.onmouseleave=closePop;
+  infoBtn.onclick=e=>{e.stopPropagation(); sticky=!sticky; sticky?openPop():closePop();}; document.addEventListener("click",e=>{if(!pop.contains(e.target)&&!infoBtn.contains(e.target))closePop();},{passive:true});
 
-  let sticky=false;
-  function openPop(){ pop.classList.add("open"); }
-  function closePop(){ pop.classList.remove("open"); sticky=false; }
-  infoBtn.addEventListener("mouseenter", openPop);
-  infoBtn.addEventListener("mouseleave", ()=>{ if(!sticky) closePop(); });
-  pop.addEventListener("mouseenter", openPop);
-  pop.addEventListener("mouseleave", closePop);
-  infoBtn.addEventListener("click",(e)=>{ e.stopPropagation(); sticky = !sticky; sticky?openPop():closePop(); });
-  document.addEventListener("click",(e)=>{ if(!pop.contains(e.target) && !infoBtn.contains(e.target)) closePop(); }, {passive:true});
-
-  // Amount input → preview
-  $("amount").addEventListener("input", updatePreview);
-
+  $("amount").oninput=updatePreview;
   function updatePreview(){
-    const amt = Number($("amount").value||0);
-    const now = new Date();
-    const end = new Date(now); end.setMonth(end.getMonth()+12);
-    $("whenStart").textContent = now.toLocaleString();
-    $("whenEnd").textContent   = end.toLocaleString(undefined,{timeZone:"UTC", timeZoneName:"short"});
-    $("previewLine").textContent = amt>0
-      ? `Locking ${amt.toLocaleString()} AQUAm25 for 12 months`
-      : "Enter an amount to preview your lock.";
+    const amt=Number($("amount").value||0);
+    const now=new Date(), end=new Date(now); end.setMonth(end.getMonth()+12);
+    $("whenStart").textContent=now.toLocaleString();
+    $("whenEnd").textContent=end.toLocaleString(undefined,{timeZone:"UTC",timeZoneName:"short"});
+    $("previewLine").textContent=amt>0?`Locking ${amt.toLocaleString()} AQUAm25 for 12 months`:"Enter an amount to preview your lock.";
   }
 
-  // Build / Copy / Toggle (demo)
-  $("build").onclick = ()=>{
-    const amt = Number($("amount").value||0);
-    if(!connected){ toast("Connect your wallet first (demo).","err"); return; }
-    if(!(amt>0)){ toast("Enter a valid amount.","err"); return; }
-    $("xdr").value = btoa(`LOCK|AQUAm25|amount=${amt}|months=12|ts=${Date.now()}`);
-    toast("XDR built (demo).","ok");
-  };
-  $("copy").onclick = async ()=>{
-    const v=$("xdr").value.trim(); if(!v){ toast("Nothing to copy yet.","err"); return; }
-    try{ await navigator.clipboard.writeText(v); toast("XDR copied.","ok"); }catch{ toast("Copy failed.","err"); }
-  };
-  $("toggleXdr").onclick = ()=>{
-    const tx=$("xdr"); const show = tx.style.display==="none";
-    tx.style.display = show ? "block":"none";
-    $("toggleXdr").textContent = show ? "Hide" : "Reveal";
-  };
-
+  $("build").onclick=()=>{const amt=Number($("amount").value||0);if(!connected)return toast("Connect your wallet first (demo).","err");if(!(amt>0))return toast("Enter a valid amount.","err");
+    $("xdr").value=btoa(`LOCK|AQUAm25|amount=${amt}|months=12|ts=${Date.now()}`);toast("XDR built (demo).","ok");};
+  $("copy").onclick=async()=>{const v=$("xdr").value.trim();if(!v)return toast("Nothing to copy yet.","err");try{await navigator.clipboard.writeText(v);toast("XDR copied.","ok");}catch{toast("Copy failed.","err");}};
+  $("toggleXdr").onclick=()=>{const tx=$("xdr");const show=tx.style.display==="none";tx.style.display=show?"block":"none";$("toggleXdr").textContent=show?"Hide":"Reveal";};
   updatePreview();
 </script>
 </body>
