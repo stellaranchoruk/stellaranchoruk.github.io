@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Mirrasets — Locker (v15 demo)</title>
+<title>Mirrasets — Locker (v15 demo, polish pass)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --ok:#57d29a; --err:#ff6b6b; --border:#1c242c; }
@@ -16,33 +16,43 @@
   button:hover{filter:brightness(1.08)}
   button.ghost{background:#141b22;border-color:#2a3340}
   button:disabled{opacity:.55;cursor:not-allowed}
-  input,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid #1e2831;background:#0e1419;color:#fff}
+  input,textarea{width:100%;padding:12px;border-radius:16px;border:1px solid #1e2831;background:#0e1419;color:#fff}
   label{display:block;margin:10px 0 6px;font-size:12px;color:var(--muted)}
   .small{font-size:12px;opacity:.92}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px}
-  .box{background:#0f1520;border:1px solid #1b2633;border-radius:22px;padding:16px}
-  .section{margin-top:22px}
-  /* Swap-style card shell */
+
+  /* Swap-style shell */
   #lockerCard{max-width:520px;margin:6px auto 0;position:relative}
   .slab{background:#0f1520;border:1px solid #1b2633;border-radius:22px;padding:16px;margin-bottom:12px}
   .slab-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
   .slab-label{font-size:14px;color:var(--muted)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .right{justify-content:flex-end}
+  .between{justify-content:space-between}
   .asset-chip{display:inline-flex;align-items:center;gap:10px}
   .chip-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;border:1px solid #1e2831;background:#0e1419}
-  .icon{width:32px;height:32px;border-radius:50%;background:#0b1115;display:inline-block}
+  .chip-btn{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;border:1px solid #1e2831;background:#0e1419;color:#dfe8ff}
+  .icon{width:32px;height:32px;border-radius:50%;background:#6b4dd8;display:inline-block}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:#0e1627;border:1px solid #2a3656;color:#cfe0ff;font-size:12px}
+  .pill.clickable{cursor:pointer}
+  .i-ico{width:18px;height:18px;border-radius:50%;border:1px solid #2a3340;background:#0c1520;color:#cfe0ff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+  .popover{position:absolute;z-index:50;right:8px;top:94px;background:#0f1526;border:1px solid #26324a;border-radius:12px;padding:10px 12px;min-width:240px;max-width:320px;text-align:left;display:none;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .popover.open{display:block}
+  .popover .line{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#cfe0ff;padding:3px 0}
+  .popover .muted{color:#9db0c6}
+
+  .percent-btns button{padding:8px 10px;border-radius:10px}
   .big-input{
-    width:100%;border:1px solid #1e2831;background:#0e1419;color:#fff;border-radius:16px;padding:10px 12px;margin-top:4px;
+    width:100%;border:1px solid #1e2831;background:#0e1419;color:#fff;border-radius:16px;padding:10px 12px;margin-top:6px;
     font-variant-numeric:tabular-nums;font-size:clamp(20px,5.4vw,32px);line-height:1.15;font-weight:700
   }
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
   .actions{display:flex;gap:10px;margin-top:10px}
   .primary{flex:1;background:var(--accent);border-color:#8b66d8;color:#fff}
-  .badge{font-size:11px;padding:2px 8px;border-radius:999px;background:#0e1627;border:1px solid #2a3656;color:#cfe0ff}
-  .inline{display:flex;align-items:center;gap:8px}
-  .percent-btns button{padding:8px 10px;border-radius:10px}
   .divider{height:1px;background:#1a232c;margin:10px 0 8px}
-  .rate-line{text-align:center;padding:6px 0 2px;color:#9aa5b1;font-size:13px}
-  /* v4 toasts (top-right) */
+  .rate-line{text-align:left;padding:4px 0 0;color:#9aa5b1;font-size:13px}
+
+  /* v4 toasts */
   .toast-wrap{position:fixed;right:18px;top:18px;z-index:9;display:grid;gap:10px;width:min(92vw,420px);pointer-events:none}
   .toast{pointer-events:auto;display:grid;grid-template-columns:28px 1fr auto;align-items:start;gap:10px;
     padding:12px 14px;border-radius:14px;border:1px solid #253244;background:#0f1a24;color:#e7f2ff;box-shadow:0 12px 28px rgba(0,0,0,.35)}
@@ -64,54 +74,62 @@
     <div class="card" id="lockerCard">
       <h2 style="margin:0 0 8px">Locker</h2>
 
-      <!-- “From” slab (mirrors swap’s top slab) -->
-      <div class="slab">
-        <div class="slab-top">
-          <div class="slab-label">From</div>
+      <!-- LOCK slab -->
+      <div class="slab" style="position:relative">
+        <div class="slab-top between">
+          <div class="slab-label">Lock</div>
           <div class="asset-chip">
             <div class="chip-pill">
-              <span class="icon" style="background:#6b4dd8"></span>
+              <span class="icon" aria-hidden="true"></span>
               <b>AQUAm25</b>
             </div>
           </div>
         </div>
 
-        <input id="amount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
-        <div class="row" style="justify-content:space-between;margin-top:6px">
-          <div class="inline small muted">
-            <span>Balance:</span><span id="bal" class="badge">0.0000000</span>
-            <span>Usable:</span><span id="usable" class="badge">0.0000000</span>
+        <!-- Usable + info under asset pill (like Swap) -->
+        <div class="row between" style="align-items:center;margin-top:2px">
+          <div class="row" style="gap:8px;align-items:center">
+            <span class="muted small">Usable:</span>
+            <span id="usablePill" class="pill clickable" title="Tap to fill input">0.0000000</span>
+            <span id="usableInfo" class="i-ico" title="Details">i</span>
           </div>
-          <div class="row percent-btns">
+          <!-- Percent buttons, right & above input -->
+          <div class="row percent-btns right">
             <button data-p="25" class="ghost small">25%</button>
             <button data-p="50" class="ghost small">50%</button>
             <button data-p="75" class="ghost small">75%</button>
             <button data-p="100" class="ghost small">MAX</button>
           </div>
         </div>
+
+        <input id="amount" class="big-input" type="number" step="any" inputmode="decimal" placeholder="0" />
+        <!-- Popover -->
+        <div id="usablePopover" class="popover" role="dialog" aria-modal="false" aria-live="polite"></div>
       </div>
 
-      <!-- Duration slab (styled like a swap slab) -->
+      <!-- DURATION slab (fixed 12 months) -->
       <div class="slab">
-        <div class="slab-top">
+        <div class="slab-top between">
           <div class="slab-label">Duration</div>
-          <span class="badge">Fixed demo</span>
-        </div>
-        <div class="row">
-          <button data-d="3m" class="ghost">3 months</button>
-          <button data-d="6m" class="ghost">6 months</button>
-          <button data-d="12m" class="ghost" id="defaultDur">12 months</button>
-          <button data-d="24m" class="ghost">24 months</button>
+          <span class="pill">12 months</span>
         </div>
       </div>
 
-      <!-- Summary / preview slab -->
+      <!-- PREVIEW slab -->
       <div class="slab">
-        <div class="inline" style="justify-content:space-between;width:100%">
-          <div class="small muted">Lock preview</div>
-          <div class="small"><span id="whenStart" class="badge">—</span> → <span id="whenEnd" class="badge">—</span></div>
+        <div class="slab-top" style="margin-bottom:4px">
+          <div class="slab-label">Lock preview</div>
         </div>
-        <div class="rate-line" id="previewLine">Enter an amount to preview your lock.</div>
+        <div class="row" style="gap:8px;margin:2px 0">
+          <span class="small muted" style="min-width:82px">Lock Start:</span>
+          <span id="whenStart" class="pill">—</span>
+        </div>
+        <div class="row" style="gap:8px;margin:2px 0">
+          <span class="small muted" style="min-width:82px">Lock End:</span>
+          <span id="whenEnd" class="pill">—</span>
+          <span class="small muted">(UTC)</span>
+        </div>
+        <div class="rate-line" id="previewLine" style="margin-top:6px">Enter an amount to preview your lock.</div>
       </div>
 
       <div class="actions">
@@ -120,14 +138,14 @@
       </div>
 
       <div class="divider"></div>
-      <div class="row" style="justify-content:space-between">
+      <div class="row between">
         <label for="xdr" style="margin:0">Locker Transaction XDR</label>
         <button id="toggleXdr" class="ghost small" style="padding:8px 10px">Reveal</button>
       </div>
       <textarea id="xdr" rows="7" placeholder="Built XDR appears here" style="display:none" readonly></textarea>
 
-      <p id="note" class="small muted" style="margin-top:8px">
-        Demo page: buttons simulate behavior (no SDKs or network calls). Perfect for styling & layout passes.
+      <p class="small muted" style="margin-top:8px">
+        Demo page: no SDKs or network calls; perfect for styling. Usable popover is sample data.
       </p>
     </div>
   </div>
@@ -137,98 +155,99 @@
 
 <script>
   const $=id=>document.getElementById(id);
-  const fmt=v=> (Number(v||0)).toFixed(7).replace(/\.?0+$/,'').padEnd(2,'.0'); // light formatter
-
-  // Demo “connection”
-  let connected=false;
-  $("demoConnect").onclick = ()=>{
-    connected = !connected;
-    $("status").textContent = connected ? "Connected (demo)" : "Not connected";
-    toast(connected?"Wallet connected (demo)":"Disconnected","ok");
-    // Give the user a pretend balance
-    if(connected){ $("bal").textContent = "1234.5678901"; $("usable").textContent = "1200.0000000"; }
-    else { $("bal").textContent = "0.0000000"; $("usable").textContent = "0.0000000"; $("amount").value=""; $("xdr").value=""; }
-    updatePreview();
+  const fmt7 = v => (Number(v||0)).toFixed(7).replace(/\.?0+$/,'');
+  const toast = (msg,type="ok")=>{
+    const box=$("toasts");
+    const el=document.createElement("div");
+    el.className=`toast ${type}`;
+    el.innerHTML=`<div class="ico">${type==="ok"?"✓":type==="err"?"!":"ℹ︎"}</div><div>${msg}</div><button class="x">×</button>`;
+    box.appendChild(el);
+    const close=()=>el.remove(); el.querySelector(".x").onclick=close; setTimeout(close,2600);
   };
 
-  // Percent fill buttons
+  // Demo “connection” & balances
+  let connected=false;
+  let usable=0;
+  $("demoConnect").onclick = ()=>{
+    connected=!connected;
+    $("status").textContent = connected ? "Connected (demo)" : "Not connected";
+    if(connected){ usable=1200; $("usablePill").textContent = fmt7(usable); toast("Wallet connected (demo)","ok"); }
+    else{ usable=0; $("usablePill").textContent = "0.0000000"; $("amount").value=""; $("xdr").value=""; toast("Disconnected","ok"); }
+    updatePreview();
+    hydratePopover();
+  };
+
+  // Usable pill click → autofill input
+  $("usablePill").addEventListener("click", ()=>{
+    if(!connected){ toast("Connect first (demo).","err"); return; }
+    $("amount").value = fmt7(usable);
+    updatePreview();
+  });
+
+  // Percent buttons (based on usable)
   document.querySelectorAll("[data-p]").forEach(b=>{
     b.addEventListener("click", ()=>{
+      if(!connected){ toast("Connect first (demo).","err"); return; }
       const pct = Number(b.dataset.p)/100;
-      const usable = parseFloat($("usable").textContent) || 0;
-      $("amount").value = (usable*pct).toFixed(7).replace(/\.?0+$/,'');
+      $("amount").value = fmt7(usable * pct);
       updatePreview();
     });
   });
 
-  // Duration buttons
-  let months = 12;
-  document.querySelectorAll("[data-d]").forEach(b=>{
-    b.addEventListener("click", ()=>{
-      const map={ "3m":3,"6m":6,"12m":12,"24m":24 };
-      months = map[b.dataset.d]||12;
-      document.querySelectorAll("[data-d]").forEach(x=>x.classList.remove("primary"));
-      b.classList.add("primary");
-      updatePreview();
-    });
-  });
-  // default highlight
-  $("defaultDur").classList.add("primary");
+  // Info popover (sample content)
+  const infoBtn = $("usableInfo");
+  const pop = $("usablePopover");
+  function hydratePopover(){
+    pop.innerHTML = `
+      <div class="line"><span class="muted">AQUAm25 balance</span><span>${fmt7(connected?1234.5678901:0)}</span></div>
+      <div class="line"><span class="muted">In active offers</span><span>${fmt7(connected?34.5678901:0)}</span></div>
+      <div class="line"><span class="muted"><b>Usable</b></span><span><b>${fmt7(usable)}</b></span></div>
+    `;
+  }
+  hydratePopover();
 
-  // Amount input
+  let sticky=false;
+  function openPop(){ pop.classList.add("open"); }
+  function closePop(){ pop.classList.remove("open"); sticky=false; }
+  infoBtn.addEventListener("mouseenter", openPop);
+  infoBtn.addEventListener("mouseleave", ()=>{ if(!sticky) closePop(); });
+  pop.addEventListener("mouseenter", openPop);
+  pop.addEventListener("mouseleave", closePop);
+  infoBtn.addEventListener("click",(e)=>{ e.stopPropagation(); sticky = !sticky; sticky?openPop():closePop(); });
+  document.addEventListener("click",(e)=>{ if(!pop.contains(e.target) && !infoBtn.contains(e.target)) closePop(); }, {passive:true});
+
+  // Amount input → preview
   $("amount").addEventListener("input", updatePreview);
 
   function updatePreview(){
     const amt = Number($("amount").value||0);
     const now = new Date();
-    const end = new Date(now); end.setMonth(end.getMonth()+months);
+    const end = new Date(now); end.setMonth(end.getMonth()+12);
     $("whenStart").textContent = now.toLocaleString();
-    $("whenEnd").textContent = end.toLocaleString(undefined,{timeZoneName:"short"});
+    $("whenEnd").textContent   = end.toLocaleString(undefined,{timeZone:"UTC", timeZoneName:"short"});
     $("previewLine").textContent = amt>0
-      ? `Locking ~ ${amt.toLocaleString()} AQUAm25 for ${months} months`
+      ? `Locking ~ ${amt.toLocaleString()} AQUAm25 for 12 months`
       : "Enter an amount to preview your lock.";
   }
 
-  // Build XDR (demo stub)
+  // Build / Copy / Toggle (demo)
   $("build").onclick = ()=>{
     const amt = Number($("amount").value||0);
     if(!connected){ toast("Connect your wallet first (demo).","err"); return; }
     if(!(amt>0)){ toast("Enter a valid amount.","err"); return; }
-    const fake = b64(`LOCK|AQUAm25|amount=${amt}|months=${months}|ts=${Date.now()}`);
-    $("xdr").value = fake;
+    $("xdr").value = btoa(`LOCK|AQUAm25|amount=${amt}|months=12|ts=${Date.now()}`);
     toast("XDR built (demo).","ok");
   };
-
-  // Copy XDR
   $("copy").onclick = async ()=>{
-    const v = $("xdr").value.trim();
-    if(!v){ toast("Nothing to copy yet.","err"); return; }
+    const v=$("xdr").value.trim(); if(!v){ toast("Nothing to copy yet.","err"); return; }
     try{ await navigator.clipboard.writeText(v); toast("XDR copied.","ok"); }catch{ toast("Copy failed.","err"); }
   };
-
-  // Reveal/Hide
   $("toggleXdr").onclick = ()=>{
-    const tx = $("xdr");
-    const show = tx.style.display==="none";
+    const tx=$("xdr"); const show = tx.style.display==="none";
     tx.style.display = show ? "block":"none";
     $("toggleXdr").textContent = show ? "Hide" : "Reveal";
   };
 
-  // Tiny helpers
-  function b64(s){ return btoa(unescape(encodeURIComponent(s))); }
-  function toast(msg,type="ok"){
-    const box = $("toasts");
-    const el = document.createElement("div");
-    el.className = `toast ${type}`;
-    el.innerHTML = `<div class="ico">${type==="ok"?"✓":type==="err"?"!":"ℹ︎"}</div>
-      <div>${msg}</div><button class="x">×</button>`;
-    box.appendChild(el);
-    const close=()=>{ el.remove(); };
-    el.querySelector(".x").onclick=close;
-    setTimeout(close, 2600);
-  }
-
-  // first paint
   updatePreview();
 </script>
 </body>
