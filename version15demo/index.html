@@ -2,57 +2,54 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Mirrasets — Locker (v15 demo, polish pass)</title>
+<title>Mirrasets — Locker (v15 demo, layout adj.)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --ok:#57d29a; --err:#ff6b6b; --border:#1c242c; }
+  :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --err:#ff6b6b; --border:#1c242c; }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{max-width:980px;margin:28px auto;padding:0 16px}
   .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
   h1{margin:0;font-size:20px;letter-spacing:.3px}
-  .muted{color:var(--muted)}
+  .muted{color:var(--muted)} .small{font-size:12px;opacity:.92}
   button{cursor:pointer;font-weight:700;border-radius:12px;border:1px solid #253244;background:#0f1824;color:#e7f2ff;padding:11px 14px;transition:.15s}
-  button:hover{filter:brightness(1.08)}
-  button.ghost{background:#141b22;border-color:#2a3340}
+  button:hover{filter:brightness(1.08)} button.ghost{background:#141b22;border-color:#2a3340}
   button:disabled{opacity:.55;cursor:not-allowed}
   input,textarea{width:100%;padding:12px;border-radius:16px;border:1px solid #1e2831;background:#0e1419;color:#fff}
-  label{display:block;margin:10px 0 6px;font-size:12px;color:var(--muted)}
-  .small{font-size:12px;opacity:.92}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px}
 
-  /* Swap-style shell */
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px}
   #lockerCard{max-width:520px;margin:6px auto 0;position:relative}
   .slab{background:#0f1520;border:1px solid #1b2633;border-radius:22px;padding:16px;margin-bottom:12px}
   .slab-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
   .slab-label{font-size:14px;color:var(--muted)}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .right{justify-content:flex-end}
-  .between{justify-content:space-between}
+
   .asset-chip{display:inline-flex;align-items:center;gap:10px}
   .chip-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;border:1px solid #1e2831;background:#0e1419}
-  .chip-btn{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;border:1px solid #1e2831;background:#0e1419;color:#dfe8ff}
   .icon{width:32px;height:32px;border-radius:50%;background:#6b4dd8;display:inline-block}
+
   .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:#0e1627;border:1px solid #2a3656;color:#cfe0ff;font-size:12px}
   .pill.clickable{cursor:pointer}
   .i-ico{width:18px;height:18px;border-radius:50%;border:1px solid #2a3340;background:#0c1520;color:#cfe0ff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+
+  .right-stack{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:2px}
+  .percent-btns button{padding:8px 10px;border-radius:10px}
+
   .popover{position:absolute;z-index:50;right:8px;top:94px;background:#0f1526;border:1px solid #26324a;border-radius:12px;padding:10px 12px;min-width:240px;max-width:320px;text-align:left;display:none;box-shadow:0 10px 30px rgba(0,0,0,.35)}
   .popover.open{display:block}
   .popover .line{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#cfe0ff;padding:3px 0}
   .popover .muted{color:#9db0c6}
 
-  .percent-btns button{padding:8px 10px;border-radius:10px}
   .big-input{
-    width:100%;border:1px solid #1e2831;background:#0e1419;color:#fff;border-radius:16px;padding:10px 12px;margin-top:6px;
+    width:100%;border:1px solid #1e2831;background:#0e1419;color:#fff;border-radius:16px;padding:10px 12px;margin-top:8px;
     font-variant-numeric:tabular-nums;font-size:clamp(20px,5.4vw,32px);line-height:1.15;font-weight:700
   }
 
   .actions{display:flex;gap:10px;margin-top:10px}
   .primary{flex:1;background:var(--accent);border-color:#8b66d8;color:#fff}
   .divider{height:1px;background:#1a232c;margin:10px 0 8px}
-  .rate-line{text-align:left;padding:4px 0 0;color:#9aa5b1;font-size:13px}
 
-  /* v4 toasts */
+  /* Toasts (v4-lite) */
   .toast-wrap{position:fixed;right:18px;top:18px;z-index:9;display:grid;gap:10px;width:min(92vw,420px);pointer-events:none}
   .toast{pointer-events:auto;display:grid;grid-template-columns:28px 1fr auto;align-items:start;gap:10px;
     padding:12px 14px;border-radius:14px;border:1px solid #253244;background:#0f1a24;color:#e7f2ff;box-shadow:0 12px 28px rgba(0,0,0,.35)}
@@ -76,7 +73,7 @@
 
       <!-- LOCK slab -->
       <div class="slab" style="position:relative">
-        <div class="slab-top between">
+        <div class="slab-top">
           <div class="slab-label">Lock</div>
           <div class="asset-chip">
             <div class="chip-pill">
@@ -86,15 +83,14 @@
           </div>
         </div>
 
-        <!-- Usable + info under asset pill (like Swap) -->
-        <div class="row between" style="align-items:center;margin-top:2px">
+        <!-- RIGHT column under the asset chip -->
+        <div class="right-stack">
           <div class="row" style="gap:8px;align-items:center">
             <span class="muted small">Usable:</span>
             <span id="usablePill" class="pill clickable" title="Tap to fill input">0.0000000</span>
             <span id="usableInfo" class="i-ico" title="Details">i</span>
           </div>
-          <!-- Percent buttons, right & above input -->
-          <div class="row percent-btns right">
+          <div class="row percent-btns">
             <button data-p="25" class="ghost small">25%</button>
             <button data-p="50" class="ghost small">50%</button>
             <button data-p="75" class="ghost small">75%</button>
@@ -109,7 +105,7 @@
 
       <!-- DURATION slab (fixed 12 months) -->
       <div class="slab">
-        <div class="slab-top between">
+        <div class="slab-top" style="margin-bottom:4px">
           <div class="slab-label">Duration</div>
           <span class="pill">12 months</span>
         </div>
@@ -117,9 +113,7 @@
 
       <!-- PREVIEW slab -->
       <div class="slab">
-        <div class="slab-top" style="margin-bottom:4px">
-          <div class="slab-label">Lock preview</div>
-        </div>
+        <div class="slab-label" style="margin-bottom:6px">Lock preview</div>
         <div class="row" style="gap:8px;margin:2px 0">
           <span class="small muted" style="min-width:82px">Lock Start:</span>
           <span id="whenStart" class="pill">—</span>
@@ -127,9 +121,8 @@
         <div class="row" style="gap:8px;margin:2px 0">
           <span class="small muted" style="min-width:82px">Lock End:</span>
           <span id="whenEnd" class="pill">—</span>
-          <span class="small muted">(UTC)</span>
         </div>
-        <div class="rate-line" id="previewLine" style="margin-top:6px">Enter an amount to preview your lock.</div>
+        <div id="previewLine" class="small muted" style="margin-top:6px">Enter an amount to preview your lock.</div>
       </div>
 
       <div class="actions">
@@ -138,14 +131,14 @@
       </div>
 
       <div class="divider"></div>
-      <div class="row between">
+      <div class="row" style="justify-content:space-between">
         <label for="xdr" style="margin:0">Locker Transaction XDR</label>
         <button id="toggleXdr" class="ghost small" style="padding:8px 10px">Reveal</button>
       </div>
       <textarea id="xdr" rows="7" placeholder="Built XDR appears here" style="display:none" readonly></textarea>
 
       <p class="small muted" style="margin-top:8px">
-        Demo page: no SDKs or network calls; perfect for styling. Usable popover is sample data.
+        Demo page: no SDKs or network calls; Usable popover is sample data.
       </p>
     </div>
   </div>
@@ -226,7 +219,7 @@
     $("whenStart").textContent = now.toLocaleString();
     $("whenEnd").textContent   = end.toLocaleString(undefined,{timeZone:"UTC", timeZoneName:"short"});
     $("previewLine").textContent = amt>0
-      ? `Locking ~ ${amt.toLocaleString()} AQUAm25 for 12 months`
+      ? `Locking ${amt.toLocaleString()} AQUAm25 for 12 months`
       : "Enter an amount to preview your lock.";
   }
 
