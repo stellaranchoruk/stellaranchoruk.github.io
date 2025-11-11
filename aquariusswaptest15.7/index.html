@@ -613,7 +613,6 @@
 
     // ---------- Helpers ----------
     const isValidG = k => { try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
-    const cleanAmt = a => { const n=Number(a); if(!isFinite(n) || n<=0) return null; return n.toFixed(7).replace(/\.0+$/,""); };
     const toNativeLabel = asset => (asset.isNative && asset.isNative()) ? "XLM" : (asset.code || (asset.getCode ? asset.getCode() : "asset"));
     // Number helpers (with separators)
 const stripCommas = (s) => String(s||"").replace(/,/g,"");
@@ -782,7 +781,7 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
         setTrustlineUI(false, true); // reset swap UI
         usablePill.textContent = "0.0000000";
         hydrateUsablePopover({balance:0,inOffers:0,usable:0});
-        swapUsablePill.textContent = formatDisp(usable);
+        swapUsablePill.textContent = "0";
       }
     }
 
@@ -923,7 +922,7 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
     }
 
     function updatePreviewNow(){
-  const amt = Number(amountEl.value || 0);
+  const amt = Number(stripCommas(amountEl.value || "0"));
 
   if (!(amt > 0)) {
     // show placeholders when nothing (or 0) entered
@@ -946,12 +945,12 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
 }
 
     function hydrateUsablePopover({balance=0, inOffers=0, usable=0}={}){
-      usablePopover.innerHTML = `
-        <div class="line"><span class="muted">AQUAm25 balance</span><span>${plain(balance)}</span></div>
-        <div class="line"><span class="muted">In active offers</span><span>${plain(inOffers)}</span></div>
-        <div class="line"><span class="muted"><b>Usable</b></span><span><b>${plain(usable)}</b></span></div>
-      `;
-    }
+  usablePopover.innerHTML = `
+    <div class="line"><span class="muted">AQUAm25 balance</span><span>${formatDisp(balance)}</span></div>
+    <div class="line"><span class="muted">In active offers</span><span>${formatDisp(inOffers)}</span></div>
+    <div class="line"><span class="muted"><b>Usable</b></span><span><b>${formatDisp(usable)}</b></span></div>
+  `;
+}
     const openUP = ()=>usablePopover.classList.add("open");
     const closeUP= ()=>usablePopover.classList.remove("open");
     usableInfo.addEventListener("mouseenter", openUP);
@@ -995,7 +994,7 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
     document.querySelectorAll("#lockerCard [data-p]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         const pct = Number(btn.dataset.p)/100;
-        const currentUsable = Number(usablePill.textContent || 0);
+        const currentUsable = Number(stripCommas(usablePill.textContent || "0"));
         amountEl.value = cleanAmt(currentUsable * pct) || "";
         formatFieldOnBlur(amountEl);
         scheduleLockerBuild();
@@ -1004,7 +1003,7 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
     });
 
     usablePill.addEventListener("click", ()=>{
-      const u = Number(usablePill.textContent || 0);
+      const u = Number(stripCommas(usablePill.textContent || "0"));
       if (u>0){ amountEl.value = plain(u); scheduleLockerBuild(); updatePreviewNow(); }
       formatFieldOnBlur(amountEl);
     });
@@ -1033,8 +1032,8 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
         const { balance, selling_liabilities } = await loadAquaM25Balance(pk);
         const bal = Number(balance||0), liab = Number(selling_liabilities||0);
         const usable = Math.max(bal - liab, 0);
-        aquaBalEl.textContent = plain(bal);
-        usablePill.textContent = plain(usable);
+        aquaBalEl.textContent = formatDisp(bal);
+        usablePill.textContent = formatDisp(usable);
         swapUsablePill.textContent = formatDisp(usable);
         hydrateUsablePopover({balance:bal, inOffers:liab, usable});
         updatePreviewNow();
@@ -1256,15 +1255,14 @@ availPopover.innerHTML = `
   <div class="line"><span class="muted"><b>Estimated total locked</b></span><span><b>${formatDisp(b.totalLocked)} XLM</b></span></div>
 `;
       } else {
-        const bal = parseFloat(opt.dataset.balance || "0");
-        const liab = parseFloat(opt.dataset.selling_liabilities || "0");
-        availPopover.innerHTML = `
-availPopover.innerHTML = `
-  <div class="line"><span class="muted">${opt.dataset.code} balance</span><span>${formatDisp(bal)}</span></div>
-  <div class="line"><span class="muted">${opt.dataset.code} in active offers</span><span>${formatDisp(liab)}</span></div>
-  <div class="line"><span class="muted"><b>Usable</b></span><span><b>${formatDisp(Math.max(bal - liab, 0))}</b></span></div>
-`;
-      }
+  const bal = parseFloat(opt.dataset.balance || "0");
+  const liab = parseFloat(opt.dataset.selling_liabilities || "0");
+  availPopover.innerHTML = `
+    <div class="line"><span class="muted">${opt.dataset.code} balance</span><span>${formatDisp(bal)}</span></div>
+    <div class="line"><span class="muted">${opt.dataset.code} in active offers</span><span>${formatDisp(liab)}</span></div>
+    <div class="line"><span class="muted"><b>Usable</b></span><span><b>${formatDisp(Math.max(bal - liab, 0))}</b></span></div>
+  `;
+}
     }
 
     function needVsAvailToast(need, avail, code){
@@ -1308,7 +1306,7 @@ availPopover.innerHTML = `
 
         swapEst.value = formatDisp(estOut);
 
-        const perOne = estOut / Number(swapAmount.value || 1);
+        const perOne = estOut / Number(stripCommas(swapAmount.value || "1"));
         const sendCode = getSelectedOption()?.dataset.code || sendLabel;
         updateRateLine(sendCode, perOne);
 
@@ -1669,8 +1667,8 @@ const msg = lastIsSend
               const { balance, selling_liabilities } = await loadAquaM25Balance(pk);
               const bal = Number(balance||0), liab = Number(selling_liabilities||0);
               const usable = Math.max(bal - liab, 0);
-              aquaBalEl.textContent = plain(bal);
-              usablePill.textContent = plain(usable);
+              aquaBalEl.textContent = formatDisp(bal);
+              usablePill.textContent = formatDisp(usable);
               hydrateUsablePopover({balance:bal, inOffers:liab, usable});
             }catch{}
           }
