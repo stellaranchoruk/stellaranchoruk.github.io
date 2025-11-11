@@ -1568,38 +1568,6 @@ function bindSwapInputListeners(){
     debounceQuote(quoteStrictSend);
   };
 
-  // Attach live behavior to a set of fields (uses GLOBAL helpers)
-  [ amountEl, swapAmount, swapEst ].forEach(el=>{
-    if(!el) return;
-    el.addEventListener("input", ()=> sanitizeTyping(el));
-    el.addEventListener("focus", ()=> { el.value = stripCommas(el.value || ""); });
-    el.addEventListener("blur",  ()=> formatFieldOnBlur(el));
-  });
-
-  // BUY input reacts -> strict receive
-  swapEst.oninput = ()=>{
-    if(!swapEst.value || Number(stripCommas(swapEst.value)) <= 0){
-      xdrSwap.value=""; clearRate(); disableSwapButtons(); return;
-    }
-    debounceQuote(quoteStrictReceive);
-  };
-}
-// Attach live behavior to a set of fields
-[ amountEl, swapAmount, swapEst ].forEach(el=>{
-  if(!el) return;
-  el.addEventListener("input", ()=> sanitizeTyping(el));
-  el.addEventListener("focus", ()=> { el.value = stripCommas(el.value || ""); });
-  el.addEventListener("blur",  ()=> formatFieldOnBlur(el));
-});
-
-      swapEst.oninput = ()=>{
-        if(!swapEst.value || Number(swapEst.value) <= 0){
-          xdrSwap.value=""; clearRate(); disableSwapButtons(); return;
-        }
-        debounceQuote(quoteStrictReceive);
-      };
-    }
-
     // Swap % buttons
     document.querySelectorAll('[data-sp]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
