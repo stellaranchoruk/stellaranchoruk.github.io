@@ -631,6 +631,22 @@ const formatDisp = (num) => {              // for UI display: 1,234,567.1234567
   const withSep = i.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return d ? `${withSep}.${d}` : withSep;
 };
+    // --- formatting helpers (global) ---
+function sanitizeTyping(el){
+  const cur = el.value;
+  // Drop invalid chars except digits , .
+  let s = cur.replace(/[^\d.,]/g,"");
+  // Keep only the first dot
+  const parts = s.split(".");
+  s = parts.shift() + (parts.length ? "." + parts.join("").replace(/\./g,"") : "");
+  el.value = s;
+}
+function formatFieldOnBlur(el){
+  const val = stripCommas(el.value || "");
+  if(val && isFinite(Number(val))){
+    el.value = formatDisp(val);
+  }
+}
 const cleanAmt = (a) => {                  // accepts "1,234.56"
   const s = stripCommas(a);
   const n = Number(s);
@@ -1540,32 +1556,33 @@ availPopover.innerHTML = `
     function enableSwapButtons(){ const ok=!!xdrSwap.value.trim(); [swapSignSubmit,swapCopy].forEach(b=>b.disabled=!ok); }
     function debounceQuote(fn){ if(swapTimer) clearTimeout(swapTimer); swapTimer = setTimeout(fn, 400); }
 
-    function bindSwapInputListeners(){
-      if(!swapAmount || !swapEst) return;
+function bindSwapInputListeners(){
+  if(!swapAmount || !swapEst) return;
 
-      swapAmount.oninput = ()=>{
-        swapAmount.classList.remove("error");
-        if(!swapAmount.value || Number(swapAmount.value) <= 0){
-          xdrSwap.value=""; clearRate(); disableSwapButtons(); return;
-        }
-        debounceQuote(quoteStrictSend);
-      };
+  // SELL input reacts -> strict send
+  swapAmount.oninput = ()=>{
+    swapAmount.classList.remove("error");
+    if(!swapAmount.value || Number(stripCommas(swapAmount.value)) <= 0){
+      xdrSwap.value=""; clearRate(); disableSwapButtons(); return;
+    }
+    debounceQuote(quoteStrictSend);
+  };
 
-      // Input sanitizing: allow digits, one dot, and commas (which we strip)
-function sanitizeTyping(el){
-  const cur = el.value;
-  // Drop invalid chars except digits , .
-  let s = cur.replace(/[^\d.,]/g,"");
-  // Keep only the first dot
-  const parts = s.split(".");
-  s = parts.shift() + (parts.length ? "." + parts.join("").replace(/\./g,"") : "");
-  el.value = s;
-}
-function formatFieldOnBlur(el){
-  const val = stripCommas(el.value || "");
-  if(val && isFinite(Number(val))){
-    el.value = formatDisp(val);
-  }
+  // Attach live behavior to a set of fields (uses GLOBAL helpers)
+  [ amountEl, swapAmount, swapEst ].forEach(el=>{
+    if(!el) return;
+    el.addEventListener("input", ()=> sanitizeTyping(el));
+    el.addEventListener("focus", ()=> { el.value = stripCommas(el.value || ""); });
+    el.addEventListener("blur",  ()=> formatFieldOnBlur(el));
+  });
+
+  // BUY input reacts -> strict receive
+  swapEst.oninput = ()=>{
+    if(!swapEst.value || Number(stripCommas(swapEst.value)) <= 0){
+      xdrSwap.value=""; clearRate(); disableSwapButtons(); return;
+    }
+    debounceQuote(quoteStrictReceive);
+  };
 }
 // Attach live behavior to a set of fields
 [ amountEl, swapAmount, swapEst ].forEach(el=>{
