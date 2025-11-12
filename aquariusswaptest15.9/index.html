@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Mirrasets — Swap & Lock (v15.9:1)</title>
+  <title>Mirrasets — Swap & Lock (v15.9:3)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Freighter API (UMD) -->
@@ -197,14 +197,31 @@
 }
 .wallet-pill:hover { filter:brightness(1.05); }
 
-/* Make sure the icon sits cleanly inside the circle */
-.identicon{
-  width:22px; 
-  height:22px; 
-  border-radius:50%; 
-  display:block; 
-  object-fit:cover;     /* for <img> */
-  background:#0b1115;  /* subtle backdrop */
+/* --- Wallet identicon wrapper (circle frame, square icon inside) --- */
+.ident-wrap{
+  width:26px; 
+  height:26px;
+  border-radius:999px;              /* circular frame */
+  background:#0e1419;               /* frame fill */
+  border:1px solid #1e2831;         /* subtle ring */
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:3px;                      /* spacing between circle & square */
+  overflow:hidden;
+}
+
+.ident-wrap img,
+.ident-wrap canvas{
+  width:100%;
+  height:100%;
+  border-radius:6px;                /* gentle rounded corners (not full circle) */
+  display:block;
+}
+
+    @media (max-width: 380px){
+  .ident-wrap{ width:24px; height:24px; padding:3px; }
+  .ident-wrap img, .ident-wrap canvas{ border-radius:5px; }
 }
 
     /* Lock preview row – tighter label so pill fits on one line (mobile) */
@@ -230,8 +247,10 @@
 
   <!-- Shown when connected -->
 <button id="walletBtn" class="ghost wallet-pill" style="display:none" title="Connected account">
-  <img id="identImg" class="identicon" alt="" width="22" height="22" />
-  <canvas id="identCanvas" width="22" height="22" class="identicon" aria-hidden="true" style="display:none"></canvas>
+  <span class="ident-wrap">
+    <img id="identImg" alt="" style="display:none" />
+    <canvas id="identCanvas" width="20" height="20" style="display:none"></canvas>
+  </span>
   <span id="walletLabel" class="mono">G......G</span>
 </button>
 
@@ -678,22 +697,33 @@ function seededRand(seed){
   let x = seed || 1;
   return ()=>{ x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x>>>0)/0xFFFFFFFF; };
 }
-function drawIdenticon(canvas, accountId, size=24){
+function fitHiDPICanvas(canvas, cssSize){
+  const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+  canvas.width  = cssSize * dpr;
+  canvas.height = cssSize * dpr;
+  // ensure CSS size remains cssSize px
+  canvas.style.width  = cssSize + "px";
+  canvas.style.height = cssSize + "px";
+  return dpr;
+}   
+function drawIdenticon(canvas, accountId, cssSize=20){
   if(!canvas || !accountId) return;
+  const dpr = fitHiDPICanvas(canvas, cssSize);
+  const size = cssSize * dpr;
   const ctx = canvas.getContext("2d");
-  const N = 5;                         // 5×5 mirrored grid
-  const pad = Math.max(1, Math.round(size*0.08));
+  const N = 5;
+  const pad = Math.max(1*dpr, Math.round(size*0.08));
   const cell = Math.floor((size - pad*2) / N);
   const ox = Math.floor((size - cell*N)/2);
   const oy = Math.floor((size - cell*N)/2);
 
   ctx.clearRect(0,0,size,size);
-  ctx.save();
-  ctx.beginPath(); ctx.arc(size/2, size/2, size/2, 0, Math.PI*2); ctx.clip();
+
+  // no circular clipping — keep full square pattern visible
   ctx.fillStyle = "#0b1115";
   ctx.fillRect(0,0,size,size);
 
-  const h = hash32(accountId);
+  const h   = hash32(accountId);
   const rng = seededRand(h);
   const hue = h % 360;
   const sat = 50 + Math.floor((h>>8)%40);
@@ -704,58 +734,50 @@ function drawIdenticon(canvas, accountId, size=24){
   const dotChance = 0.55;
   for(let y=0;y<N;y++){
     const row=[];
-    for(let x=0;x<Math.ceil(N/2);x++) row[x]=rng()<dotChance;
+    for(let x=0;x<Math.ceil(N/2);x++) row[x] = rng() < dotChance;
     for(let x=0;x<N;x++){
       const val = x<Math.ceil(N/2)?row[x]:row[N-1-x];
-      if(val) ctx.fillRect(ox+pad+x*cell, oy+pad+y*cell, cell-1, cell-1);
+      if(val) ctx.fillRect(ox + pad + x*cell, oy + pad + y*cell, cell-1, cell-1);
     }
   }
-  ctx.restore();
 }
 
-    // Try LOBSTR/ StellarTerm avatar; if it fails, use the local canvas
-async function setIdenticonFor(accountId){
-  if(!accountId){ 
-    identImg.style.display = "none"; 
-    identCanvas.style.display = "none"; 
-    return; 
-  }
-
-  // 1) Try the official avatar (matches StellarTerm)
-  // Known working patterns. We'll try a couple of common query shapes:
-  const candidates = [
-    `https://id.lobstr.co/avatars/${accountId}?s=64`,
-    `https://id.lobstr.co/${accountId}.png?size=64`
-  ];
-
-  let loaded = false;
-  for (const url of candidates){
-    try {
-      await new Promise((resolve, reject)=>{
-        identImg.onload  = ()=>resolve();
-        identImg.onerror = ()=>reject();
-        identImg.src = url;
-      });
-      loaded = true;
-      break;
-    } catch(_) { /* try next */ }
-  }
-
-  if (loaded){
-    identImg.style.display = "";
+// --- Identicon loader: use official LOBSTR image with safe fallback ---
+async function setIdenticonFor(address){
+  if(!address){ 
+    identImg.style.display = "none";
     identCanvas.style.display = "none";
     return;
   }
 
-  // 2) Fallback to local canvas renderer
-  try {
-    drawIdenticon(identCanvas, accountId, 22);
-    identCanvas.style.display = "";
-    identImg.style.display = "none";
-  } catch {
-    identImg.style.display = "none";
+  // 1) Try official LOBSTR identicon (PNG)
+  const url = `https://id.lobstr.co/${address}.png`;
+  let usedImage = false;
+
+  // Use onload/onerror to control which one is visible
+  identImg.onload  = () => {
+    identImg.style.display = "block";
     identCanvas.style.display = "none";
-  }
+    usedImage = true;
+  };
+  identImg.onerror = () => {
+    // Fallback if image fails
+    identImg.style.display = "none";
+    identCanvas.style.display = "block";
+    drawIdenticon(identCanvas, address, 20);
+  };
+
+  // Assign after listeners are set
+  identImg.src = url;
+
+  // 2) Safety timeout (covers odd cases where onerror never fires)
+  setTimeout(() => {
+    if (!usedImage && identImg.style.display !== "block") {
+      identImg.style.display = "none";
+      identCanvas.style.display = "block";
+      drawIdenticon(identCanvas, address, 20);
+    }
+  }, 1200);
 }
     
 // --- live numeric formatter (caret-safe, IME-safe, ≤7dp) ---
@@ -1047,14 +1069,13 @@ function setConnected(address, mode){
     connectBtn.style.display = "none";
     walletBtn.style.display  = "inline-flex";
 
-    // shorten the G...G address and show identicon
+    // shorten the G...G address and show identicon (official + fallback)
     const short = `${address.slice(0,5)}...${address.slice(-5)}`;
     walletLabel.textContent = short;
-    setIdenticonFor(address); // 👈 goes right here!
+    setIdenticonFor(address);  // ✅ new helper does the image + fallback logic
 
     initForNewAccount();
     startLockerAutoRefresh();
-
   } else {
     pubkey = null;
     pubkeyEl.value = "";
