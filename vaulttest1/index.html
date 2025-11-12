@@ -103,6 +103,8 @@
 <script type="module">
   import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
   import QRCode     from "https://esm.sh/qrcode@1.5.3";
+  // expose on window so non-module code can use them
+  window.WC = { SignClient, QRCode };
 </script>
 
 <!-- Stellar SDK (UMD v14.3.0) -->
@@ -191,17 +193,14 @@
   }
 
   // ---------- WalletConnect ----------
-  async function ensureClient(){
-    if(wcClient) return wcClient;
-    wcClient = await window.importShim?.("https://esm.sh/@walletconnect/sign-client@2.21.8").catch(()=>null);
-    if(!wcClient){
-      // fallback to global if module preloaded above
-      wcClient = await window.SignClient.init({ projectId: PROJECT_ID });
-    }else{
-      wcClient = await wcClient.default.init({ projectId: PROJECT_ID });
-    }
-    return wcClient;
+async function ensureClient(){
+  if (wcClient) return wcClient;
+  if (!window.WC || !window.WC.SignClient) {
+    throw new Error("WalletConnect SignClient failed to load");
   }
+  wcClient = await window.WC.SignClient.init({ projectId: PROJECT_ID });
+  return wcClient;
+}
 
   async function connectWC(){
     const sc = await ensureClient();
@@ -214,7 +213,7 @@
       // Quick QR for convenience (in the log, not UI)
       try{
         const canvas = document.createElement("canvas");
-        await (await import("https://esm.sh/qrcode@1.5.3")).default.toCanvas(canvas, uri, { width: 160, margin: 1 });
+        await window.WC.QRCode.toCanvas(canvas, uri, { width: 160, margin: 1 });
         log("Scan this WalletConnect URI with LOBSTR/Freighter (mobile):");
         log(canvas.toDataURL().slice(0,80)+"... (QR shown in WC-capable apps)");
       }catch{}
