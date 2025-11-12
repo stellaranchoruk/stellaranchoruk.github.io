@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Mirrasets — Swap & Lock (v14.9)</title>
+  <title>Mirrasets — Swap & Lock (v14.10)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Freighter API (UMD) -->
@@ -630,21 +630,137 @@ const formatDisp = (num) => {              // for UI display: 1,234,567.1234567
   const withSep = i.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return d ? `${withSep}.${d}` : withSep;
 };
-    // --- formatting helpers (global) ---
-function sanitizeTyping(el){
-  const cur = el.value;
-  // Drop invalid chars except digits , .
-  let s = cur.replace(/[^\d.,]/g,"");
-  // Keep only the first dot
+// --- live numeric formatter (caret-safe, IME-safe, ≤7dp) ---
+// Keeps commas in the integer part while typing, single dot allowed, trims to 7 dp.
+
+function _sanitizeNumericRaw(s){
+  // keep only digits and dots; collapse multiple dots
+  s = String(s || "").replace(/[^\d.]/g, "");
   const parts = s.split(".");
-  s = parts.shift() + (parts.length ? "." + parts.join("").replace(/\./g,"") : "");
-  el.value = s;
+  const head = parts.shift() || "";
+  const tail = parts.join(""); // remove extra dots by joining
+  return tail ? `${head}.${tail}` : head;
 }
+
+function _clampDecimals(raw, maxDp = 7){
+  const [i = "", d = ""] = String(raw).split(".");
+  const d7 = d.slice(0, maxDp);
+  return d7 ? `${i}.${d7}` : i;
+}
+
+function _stripIntLeadingZeros(intStr){
+  // "000123" -> "123", BUT keep "0" if string becomes empty
+  const z = String(intStr || "").replace(/^0+(?=\d)/, "");
+  return z === "" ? "0" : z;
+}
+
+function _formatIntWithCommas(intStr){
+  return String(intStr || "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+// Maps a raw (no commas) caret index -> formatted index (with commas)
+function _mapRawIdxToFmt(rawIdx, formatted){
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i++){
+    if (formatted[i] !== ",") seen++;
+    if (seen >= rawIdx) return i + 1;
+  }
+  return formatted.length;
+}
+
+// Convert current input value to formatted-with-commas while
+// preserving caret for typing/paste/delete and IME composition.
+function formatAsYouType(el, { maxDp = 7 } = {}){
+  if (!el || el._fmtLock) return;
+  el._fmtLock = true;
+
+  // composition guard: during IME composition, don’t format
+  if (el._composing) { el._fmtLock = false; return; }
+
+  const selStart = el.selectionStart ?? el.value.length;
+  const value    = String(el.value || "");
+
+  // Build a "raw" equivalent (single dot, only digits)
+  const rawAll   = _sanitizeNumericRaw(value);
+  const capped   = _clampDecimals(rawAll, maxDp);
+
+  // Determine how many *raw, non-comma* characters exist before the caret
+  const before   = value.slice(0, selStart);
+  const rawBefore = _sanitizeNumericRaw(before);
+  let rawCaretIdx = rawBefore.length;
+
+  // Split to integer/decimal and apply display formatting
+  const [ri = "", rd = ""] = capped.split(".");
+  const riNoZeros = _stripIntLeadingZeros(ri);
+  const iWithCommas = _formatIntWithCommas(riNoZeros);
+  const formatted = rd ? `${iWithCommas}.${rd}` : iWithCommas;
+
+  // Special case: allow a trailing "." the user just typed
+  // If user typed "." and there were no decimals yet, keep it visible
+  if (value.endsWith(".") && !rd && capped.indexOf(".") >= 0) {
+    // Ensure we don’t add another dot if commas changed length
+    const fmtNoDot = _formatIntWithCommas(_stripIntLeadingZeros(capped.replace(/\./g,"")));
+    el.value = fmtNoDot + ".";
+    el.setSelectionRange(el.value.length, el.value.length);
+    el._fmtLock = false;
+    return;
+  }
+
+  // Map caret position
+  const newCaret = _mapRawIdxToFmt(rawCaretIdx, formatted);
+
+  el.value = formatted;
+  try { el.setSelectionRange(newCaret, newCaret); } catch {}
+
+  el._fmtLock = false;
+}
+
+// Blur snap (pretty-prints using your existing formatDisp)
 function formatFieldOnBlur(el){
   const val = stripCommas(el.value || "");
-  if(val && isFinite(Number(val))){
-    el.value = formatDisp(val);
+  if(val && isFinite(Number(val))) el.value = formatDisp(val);
+}
+
+// Utility to attach typing formatter + hooks
+function attachLiveNumericFormatter(el, {
+  maxDp = 7,
+  onEdited,         // fires after each keystroke/paste (post-format)
+  onEmpty,          // fires when field becomes empty or 0-ish
+  selectAllOnFirstFocus = true, // optional extra
+} = {}){
+  if (!el || el._fmtAttached) return;
+  el._fmtAttached = true;
+
+  // IME composition handling
+  el.addEventListener("compositionstart", ()=>{ el._composing = true; });
+  el.addEventListener("compositionend",   ()=>{
+    el._composing = false;
+    formatAsYouType(el, { maxDp });
+    onEdited && onEdited(el);
+  });
+
+  // Typing/paste
+  el.addEventListener("input", ()=>{
+    formatAsYouType(el, { maxDp });
+    const n = Number(stripCommas(el.value || "0"));
+    if (!el.value || !(n > 0)) {
+      onEmpty && onEmpty(el);
+    } else {
+      onEdited && onEdited(el);
+    }
+  });
+
+  // Optional: select-all on first focus (handy on mobile)
+  if (selectAllOnFirstFocus){
+    el.addEventListener("focus", function onFirstFocus(){
+      // Only do this once to avoid fighting the caret on subsequent focuses
+      el.removeEventListener("focus", onFirstFocus);
+      try { el.select(); } catch {}
+    });
   }
+
+  // Snap to pretty on blur
+  el.addEventListener("blur", ()=> formatFieldOnBlur(el));
 }
 const cleanAmt = (a) => {                  // accepts "1,234.56"
   const s = stripCommas(a);
@@ -1004,7 +1120,18 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
       }catch(e){ console.error(e); return null; }
     }
 
-    amountEl.addEventListener("input", ()=>{ scheduleLockerBuild(); updatePreviewNow(); });
+    attachLiveNumericFormatter(amountEl, {
+  maxDp: 7,
+  onEdited: ()=>{
+    scheduleLockerBuild();
+    updatePreviewNow();
+  },
+  onEmpty: ()=>{
+    // When emptied, keep preview placeholders consistent
+    updatePreviewNow();
+  },
+  selectAllOnFirstFocus: true, // optional extra
+});
 
     document.querySelectorAll("#lockerCard [data-p]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
@@ -1558,64 +1685,88 @@ availPopover.innerHTML = `
 function bindSwapInputListeners(){
   if(!swapAmount || !swapEst) return;
 
-  // SELL input reacts -> strict send
-  swapAmount.oninput = ()=>{
-    swapAmount.classList.remove("error");
-    if(!swapAmount.value || Number(stripCommas(swapAmount.value)) <= 0){
-      xdrSwap.value=""; clearRate(); disableSwapButtons(); return;
-    }
-    debounceQuote(quoteStrictSend);
-  };
+  // SELL -> strict send (live)
+  attachLiveNumericFormatter(swapAmount, {
+    maxDp: 7,
+    onEdited: ()=>{
+      swapAmount.classList.remove("error");
+      const val = Number(stripCommas(swapAmount.value||"0"));
+      if(!(val>0)){
+        xdrSwap.value=""; clearRate(); disableSwapButtons(); return;
+      }
+      debounceQuote(quoteStrictSend);
+    },
+    onEmpty: ()=>{
+      xdrSwap.value=""; clearRate(); disableSwapButtons();
+    },
+    selectAllOnFirstFocus: true,
+  });
 
-    // Swap % buttons
-    document.querySelectorAll('[data-sp]').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const pk = pubkeyEl.value.trim();
-        if(!isValidG(pk)) { toast("Connect first to auto-fill balance.", true); return; }
-        const pct = Number(btn.dataset.sp)/100;
-        try{
-          const usable = await getAvailableForCurrent(pk);
-          const amt = (usable * pct);
-          swapAmount.value = cleanAmt(amt) || "";
-          formatFieldOnBlur(swapAmount);
-          quoteStrictSend();
-        }catch(e){ console.error(e); toast("Could not compute balance.", true); }
-      });
-    });
-    swapUsablePill.addEventListener('click', async ()=>{
+  // BUY -> strict receive (live)
+  attachLiveNumericFormatter(swapEst, {
+    maxDp: 7,
+    onEdited: ()=>{
+      swapAmount.classList.remove("error");
+      const val = Number(stripCommas(swapEst.value||"0"));
+      if(!(val>0)){
+        xdrSwap.value=""; clearRate(); disableSwapButtons(); return;
+      }
+      debounceQuote(quoteStrictReceive);
+    },
+    onEmpty: ()=>{
+      xdrSwap.value=""; clearRate(); disableSwapButtons();
+    },
+    selectAllOnFirstFocus: true,
+  });
+
+  // Swap % buttons (keep your logic; just snap display nicely afterwards)
+  document.querySelectorAll('[data-sp]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
       const pk = pubkeyEl.value.trim();
       if(!isValidG(pk)) { toast("Connect first to auto-fill balance.", true); return; }
+      const pct = Number(btn.dataset.sp)/100;
       try{
         const usable = await getAvailableForCurrent(pk);
-        swapAmount.value = cleanAmt(usable) || "";
+        const amt = (usable * pct);
+        swapAmount.value = cleanAmt(amt) || "";
+        // Format visibly and trigger send quote
         formatFieldOnBlur(swapAmount);
         quoteStrictSend();
       }catch(e){ console.error(e); toast("Could not compute balance.", true); }
     });
+  });
 
-    on(swapFrom,"change", async ()=>{
-      await updateSelectedAssetUI();
-      swapAmount.value = ""; swapEst.value = ""; xdrSwap.value = ""; clearRate();
-      swapAmount.classList.remove("error");
-      disableSwapButtons();
-    });
+  swapUsablePill.addEventListener('click', async ()=>{
+    const pk = pubkeyEl.value.trim();
+    if(!isValidG(pk)) { toast("Connect first to auto-fill balance.", true); return; }
+    try{
+      const usable = await getAvailableForCurrent(pk);
+      swapAmount.value = cleanAmt(usable) || "";
+      formatFieldOnBlur(swapAmount);
+      quoteStrictSend();
+    }catch(e){ console.error(e); toast("Could not compute balance.", true); }
+  });
 
-    // Toggle XDR areas
-    function toggleEl(el, btn){ const isHidden = el.style.display === "none" || !el.style.display; el.style.display = isHidden ? "block" : "none"; btn.textContent = isHidden ? "Hide XDR" : "Reveal XDR"; }
-    on(toggleSwapXdr, "click", ()=> toggleEl(xdrSwap, toggleSwapXdr));
-    on(toggleLockerXdr, "click", ()=> toggleEl(xdrOut,  toggleLockerXdr));
+  on(swapFrom,"change", async ()=>{
+    await updateSelectedAssetUI();
+    swapAmount.value = ""; swapEst.value = ""; xdrSwap.value = ""; clearRate();
+    swapAmount.classList.remove("error");
+    disableSwapButtons();
+  });
 
-    // Copy helpers
-    on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
-    on(copyBtn,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrOut.value); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy XDR",1500); } catch(e){ console.error(e); } });
+  // Toggle XDR, copy, sign, etc. (keep the rest of your original function)
+  function toggleEl(el, btn){ const isHidden = el.style.display === "none" || !el.style.display; el.style.display = isHidden ? "block" : "none"; btn.textContent = isHidden ? "Hide XDR" : "Reveal XDR"; }
+  on(toggleSwapXdr, "click", ()=> toggleEl(xdrSwap, toggleSwapXdr));
+  on(toggleLockerXdr, "click", ()=> toggleEl(xdrOut,  toggleLockerXdr));
+  on(swapCopy,"click", async ()=>{ try{ await navigator.clipboard.writeText(xdrSwap.value); swapCopy.textContent="Copied!"; setTimeout(()=>swapCopy.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
+  on(copyBtn,"click",  async ()=>{ try{ await navigator.clipboard.writeText(xdrOut.value);  copyBtn.textContent="Copied!";  setTimeout(()=>copyBtn.textContent="Copy XDR",1500);}catch(e){console.error(e);} });
 
-    // Sign prompt openers
-    $("signLobstr").onclick = ()=> { if(latestWcUri) openLobstrApp(latestWcUri); };
-    $("signFreighter").onclick = async ()=> {
-      if(!latestWcUri) return;
-      const links = await getFreighterLinks();
-      openFreighterSmart(links, latestWcUri);
-    };
+  $("signLobstr").onclick = ()=> { if(latestWcUri) openLobstrApp(latestWcUri); };
+  $("signFreighter").onclick = async ()=> {
+    if(!latestWcUri) return;
+    const links = await getFreighterLinks();
+    openFreighterSmart(links, latestWcUri);
+  };
 
     // Swap signing & submit
     on(swapSignSubmit,"click", async ()=>{
