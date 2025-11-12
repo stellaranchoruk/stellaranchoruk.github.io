@@ -199,24 +199,26 @@
 
 /* --- Wallet identicon wrapper (circle frame, square icon inside) --- */
 .ident-wrap{
-  width:26px; 
+  width:26px;              /* circle diameter */
   height:26px;
-  border-radius:999px;              /* circular frame */
-  background:#0e1419;               /* frame fill */
-  border:1px solid #1e2831;         /* subtle ring */
+  border-radius:999px;
+  background:#0e1419;
+  border:1px solid #1e2831;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:3px;                      /* spacing between circle & square */
-  overflow:hidden;
+  padding:3px;             /* space between ring and square */
+  overflow:hidden;         /* keep it circular */
 }
 
+/* Square inside the circle (smaller than before) */
 .ident-wrap img,
 .ident-wrap canvas{
-  width:100%;
-  height:100%;
-  border-radius:6px;                /* gentle rounded corners (not full circle) */
+  width:16px;              /* ↓ from 18–20 to 16 to avoid clipping */
+  height:16px;
+  border-radius:6px;       /* gentle rounding; keep it square-ish */
   display:block;
+  image-rendering: crisp-edges;
 }
 
     @media (max-width: 380px){
@@ -247,10 +249,10 @@
 
   <!-- Shown when connected -->
 <button id="walletBtn" class="ghost wallet-pill" style="display:none" title="Connected account">
-  <span class="ident-wrap">
-    <img id="identImg" alt="" style="display:none" />
-    <canvas id="identCanvas" width="20" height="20" style="display:none"></canvas>
-  </span>
+<span class="ident-wrap">
+  <img id="identImg" alt="" style="display:none" />
+  <canvas id="identCanvas" width="16" height="16" style="display:none"></canvas>
+</span>
   <span id="walletLabel" class="mono">G......G</span>
 </button>
 
@@ -764,7 +766,7 @@ async function setIdenticonFor(address){
     // Fallback if image fails
     identImg.style.display = "none";
     identCanvas.style.display = "block";
-    drawIdenticon(identCanvas, address, 20);
+    drawIdenticon(identCanvas, address, 16);
   };
 
   // Assign after listeners are set
@@ -775,7 +777,7 @@ async function setIdenticonFor(address){
     if (!usedImage && identImg.style.display !== "block") {
       identImg.style.display = "none";
       identCanvas.style.display = "block";
-      drawIdenticon(identCanvas, address, 20);
+      drawIdenticon(identCanvas, address, 16);
     }
   }, 1200);
 }
