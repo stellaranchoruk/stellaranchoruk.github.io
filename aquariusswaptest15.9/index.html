@@ -184,7 +184,7 @@
     .percent-btns button{padding:8px 10px;border-radius:10px}
     #usablePill, #swapUsablePill {cursor:pointer}
 
-    .wallet-pill {
+.wallet-pill {
   display:inline-flex;
   align-items:center;
   gap:8px;
@@ -197,12 +197,14 @@
 }
 .wallet-pill:hover { filter:brightness(1.05); }
 
-.identicon {
-  width:24px;
-  height:24px;
-  border-radius:50%;
-  background:#0b1115;
-  display:block;
+/* Make sure the icon sits cleanly inside the circle */
+.identicon{
+  width:22px; 
+  height:22px; 
+  border-radius:50%; 
+  display:block; 
+  object-fit:cover;     /* for <img> */
+  background:#0b1115;  /* subtle backdrop */
 }
 
     /* Lock preview row – tighter label so pill fits on one line (mobile) */
@@ -227,10 +229,11 @@
   <button id="connectBtn">Connect Wallet</button>
 
   <!-- Shown when connected -->
-  <button id="walletBtn" class="ghost wallet-pill" style="display:none" title="Connected account">
-    <canvas id="identCanvas" width="24" height="24" class="identicon" aria-hidden="true"></canvas>
-    <span id="walletLabel" class="mono">G......G</span>
-  </button>
+<button id="walletBtn" class="ghost wallet-pill" style="display:none" title="Connected account">
+  <img id="identImg" class="identicon" alt="" width="22" height="22" />
+  <canvas id="identCanvas" width="22" height="22" class="identicon" aria-hidden="true" style="display:none"></canvas>
+  <span id="walletLabel" class="mono">G......G</span>
+</button>
 
   <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
   <span id="status" class="muted" aria-live="polite">Not connected</span>
@@ -541,9 +544,11 @@
     const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn);
     const isIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    const walletBtn = $("walletBtn");
-    const identCanvas = $("identCanvas");
-    const walletLabel = $("walletLabel");
+// New wallet pill elements
+const walletBtn = $("walletBtn");
+const walletLabel = $("walletLabel");
+const identImg = $("identImg");
+const identCanvas = $("identCanvas");
 
     const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), statusEl=$("status");
     const backdrop=$("backdrop"), loginModal=$("loginModal"), closeModalBtn=$("closeModal");
@@ -706,6 +711,51 @@ function drawIdenticon(canvas, accountId, size=24){
     }
   }
   ctx.restore();
+}
+
+    // Try LOBSTR/ StellarTerm avatar; if it fails, use the local canvas
+async function setIdenticonFor(accountId){
+  if(!accountId){ 
+    identImg.style.display = "none"; 
+    identCanvas.style.display = "none"; 
+    return; 
+  }
+
+  // 1) Try the official avatar (matches StellarTerm)
+  // Known working patterns. We'll try a couple of common query shapes:
+  const candidates = [
+    `https://id.lobstr.co/avatars/${accountId}?s=64`,
+    `https://id.lobstr.co/${accountId}.png?size=64`
+  ];
+
+  let loaded = false;
+  for (const url of candidates){
+    try {
+      await new Promise((resolve, reject)=>{
+        identImg.onload  = ()=>resolve();
+        identImg.onerror = ()=>reject();
+        identImg.src = url;
+      });
+      loaded = true;
+      break;
+    } catch(_) { /* try next */ }
+  }
+
+  if (loaded){
+    identImg.style.display = "";
+    identCanvas.style.display = "none";
+    return;
+  }
+
+  // 2) Fallback to local canvas renderer
+  try {
+    drawIdenticon(identCanvas, accountId, 22);
+    identCanvas.style.display = "";
+    identImg.style.display = "none";
+  } catch {
+    identImg.style.display = "none";
+    identCanvas.style.display = "none";
+  }
 }
     
 // --- live numeric formatter (caret-safe, IME-safe, ≤7dp) ---
@@ -983,7 +1033,7 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
     function closeSignModal(){ signBackdrop.classList.remove('open'); signModal.classList.remove('open'); }
     on(closeSign,"click",closeSignModal); on(signBackdrop,"click",closeSignModal);
 
-   function setConnected(address, mode){
+function setConnected(address, mode){
   statusEl.textContent = address
     ? `Connected (${mode === "wc" ? "WalletConnect" : "Freighter"})`
     : "Not connected";
@@ -997,13 +1047,14 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
     connectBtn.style.display = "none";
     walletBtn.style.display  = "inline-flex";
 
-    // shorten the G...G address and draw identicon
+    // shorten the G...G address and show identicon
     const short = `${address.slice(0,5)}...${address.slice(-5)}`;
     walletLabel.textContent = short;
-    drawIdenticon(identCanvas, address, 24);
+    setIdenticonFor(address); // 👈 goes right here!
 
     initForNewAccount();
     startLockerAutoRefresh();
+
   } else {
     pubkey = null;
     pubkeyEl.value = "";
