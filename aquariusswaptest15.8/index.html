@@ -1313,29 +1313,44 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
       return !!j && (typeof j.success === "boolean");
     }
     async function onValidate(){
-      try{
-        const tokenIn = getCurrentSendAsset();
-        const tokenOut = AQUAm25;
-        const bits = [];
-        const [okIn, okOut, tl] = await Promise.all([
-          softTokenCheck(tokenIn),
-          softTokenCheck(tokenOut),
-          pubkey ? hasTrustline(pubkey, tokenOut) : Promise.resolve(false)
-        ]);
-        bits.push(okIn ? `<div style="color:#57d29a">Token In recognized by Aquarius</div>` : `<div style="color:#ff6b6b">Token In not recognized</div>`);
-        bits.push(okOut ? `<div style="color:#57d29a">Token Out recognized by Aquarius</div>` : `<div style="color:#ff6b6b">Token Out not recognized</div>`);
-        if(pubkey){
-          bits.push(tl ? `<div style="color:#57d29a">Trustline: OK for output asset</div>` : `<div style="color:#ff6b6b">No trustline for output asset — please add it first</div>`);
-          setTrustlineUI(tl, false);
-        } else {
-          bits.push(`<div>Connect to check trustline</div>`);
-          setTrustlineUI(false, true);
-        }
-        validationBox.innerHTML = bits.join("");
-      } catch(e){
-        validationBox.innerHTML = `<span style="color:#ff6b6b">${e.message}</span>`;
-      }
-    }
+  const section = document.querySelector('#validationBox').closest('.section');
+  try {
+    const tokenIn  = getCurrentSendAsset();
+    const tokenOut = AQUAm25;
+
+    const [okIn, okOut, tl] = await Promise.all([
+      softTokenCheck(tokenIn),
+      softTokenCheck(tokenOut),
+      pubkey ? hasTrustline(pubkey, tokenOut) : Promise.resolve(false)
+    ]);
+
+    const lines = [
+      { ok: okIn,  text: "Token In recognized by Aquarius" },
+      { ok: okOut, text: "Token Out recognized by Aquarius" },
+      { ok: !pubkey ? null : tl, text: "Trustline: OK for output asset" }
+    ];
+
+    // Build HTML
+    const html = lines.map(l => {
+      if (l.ok === null) return `<div>Connect to check trustline</div>`;
+      const color = l.ok ? "#57d29a" : "#ff6b6b";
+      return `<div style="color:${color}">${l.text}</div>`;
+    }).join("");
+    validationBox.innerHTML = html;
+
+    // Hide section if all OK
+    const allOk = lines.every(l => l.ok === true);
+    section.style.display = allOk ? "none" : "";
+
+    // Update trustline-related buttons
+    if (pubkey) setTrustlineUI(tl, false);
+    else        setTrustlineUI(false, true);
+
+  } catch(e){
+    validationBox.innerHTML = `<span style="color:#ff6b6b">${e.message}</span>`;
+    section.style.display = ""; // show if error
+  }
+}
 
     // ---------- Quotes ----------
     function getCurrentSendAsset(){
