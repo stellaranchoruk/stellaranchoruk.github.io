@@ -184,6 +184,7 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
     const WC_CHAIN   = "stellar:pubnet";
+    const RELAY_URL  = "wss://relay.walletconnect.com";
 
     // ---------- DOM ----------
     const $ = (id)=>document.getElementById(id);
@@ -230,12 +231,45 @@
     closeModalBtn.addEventListener("click", closeModal);
     backdrop.addEventListener("click", closeModal);
 
-    // ---------- WC CLIENT (restored) ----------
+    // ---------- WC CLIENT (robust + single) ----------
     let wcClient=null, session=null, latestWcUri=null;
     let connectionMode="none", pubkey="";
-
     const isIOS = ()=>/iPhone|iPad|iPod/i.test(navigator.userAgent);
-    async function ensureClient(){ if(!wcClient){ wcClient = await SignClient.init({ projectId: PROJECT_ID }); } return wcClient; }
+
+    async function purgeWcStorage(){
+      try{
+        const keys = Object.keys(localStorage);
+        for(const k of keys){ if(k.startsWith("wc@2")) localStorage.removeItem(k); }
+      }catch{}
+    }
+
+    async function ensureClient({retry=false} = {}){
+      if (wcClient) return wcClient;
+      try{
+        wcClient = await SignClient.init({
+          projectId: PROJECT_ID,
+          relayUrl: RELAY_URL,
+          metadata: {
+            name: "Mirrasets Demo",
+            description: "Vault-aware Soroban swap demo",
+            url: location.origin,
+            icons: ["https://walletconnect.com/walletconnect-logo.png"]
+          }
+        });
+        // Clean up dead pairings/sessions (best-effort)
+        try{
+          const pairings = wcClient.core.pairing.getPairings?.() || [];
+          for(const p of pairings){ if(p.expiry && p.expiry*1000 < Date.now()) wcClient.core.pairing.disconnect({ topic:p.topic }); }
+        }catch{}
+        return wcClient;
+      }catch(e){
+        if(!retry && /No matching key/i.test(String(e.message||e))){
+          await purgeWcStorage();
+          return ensureClient({retry:true});
+        }
+        throw e;
+      }
+    }
 
     async function getFreighterLinks(){
       try{
@@ -306,12 +340,24 @@
         acctEl.textContent = pubkey;
         await detectVault(pubkey);
       }catch(e){
+        // Handle “No matching key” by purging storage and retrying once
+        if(/No matching key/i.test(String(e?.message||e))){
+          info("Recovering WalletConnect state…");
+          await purgeWcStorage();
+          wcClient = null;
+          try{
+            const sc = await ensureClient({retry:true});
+            // Re-run click handler (no infinite loop since retry:true)
+            wcBtn.click();
+            return;
+          }catch(e2){}
+        }
         console.error(e);
         tErr(e.message || "WC connect failed");
       }
     });
 
-    // Freighter (extension)
+    // Freighter (extension) — ESM only (no UMD fallback to avoid DNS noise)
     freighterExtBtn.addEventListener("click", async ()=>{
       try{
         const mod = await import('https://esm.sh/@stellar/freighter-api@5.0.0');
@@ -434,7 +480,6 @@
 
     // ---------- Vault relay (serverless best-effort) ----------
     async function relayToLobstrVaultApi(xdr){
-      // If CORS blocks, we’ll fall back to web link
       const url = "https://vault.lobstr.co/api/transactions";
       const payload = { xdr, network: "PUBLIC" };
       const r = await fetch(url, {
@@ -450,7 +495,6 @@
       window.open(href, "_blank", "noopener");
     }
     async function relayToVaultServerless(xdr){
-      // Try sendBeacon first (no-cors), then no-cors fetch; if both uncertain, show web link.
       const url = "https://vault.lobstr.co/api/transactions";
       const blob = new Blob([JSON.stringify({ xdr, network:"PUBLIC" })], { type:"text/plain;charset=UTF-8" });
       if (navigator.sendBeacon) {
@@ -524,12 +568,10 @@
           await relayToLobstrVaultApi(signed);
         }catch{
           relMode = await relayToVaultServerless(signed);
-          if (relMode === "beacon_failed" || relMode === "fetch_failed") {
-            relMode = "weblink";
-          }
+          if (relMode === "beacon_failed" || relMode === "fetch_failed") relMode = "weblink";
         }
         if (relMode === "weblink") {
-          tErr("Direct relay failed — use web link");
+          tErr("Direct relay failed — using web link");
           openVaultWebLink(signed);
         } else {
           tOk(`Relayed to Vault (${relMode}). Approve in your Vault app.`);
@@ -555,15 +597,6 @@
     copyXdr.disabled = true;
     signSubmit.disabled = true;
     setVaultUi(false);
-  </script>
-
-  <!-- Freighter UMD fallback (optional) -->
-  <script>
-    if(!window.freighterApi){
-      const s = document.createElement('script');
-      s.src = "https://cdn.freighter.app/freighter-api-v1.js";
-      document.head.appendChild(s);
-    }
   </script>
 </body>
 </html>
