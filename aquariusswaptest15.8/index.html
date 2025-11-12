@@ -317,12 +317,6 @@
               <span id="usablePill" class="locker-pill" title="Tap to fill input">0.0000000</span>
               <span id="usableInfo" title="Details" class="info-ico">i</span>
             </div>
-            <div class="row percent-btns">
-              <button data-p="25" class="ghost small">25%</button>
-              <button data-p="50" class="ghost small">50%</button>
-              <button data-p="75" class="ghost small">75%</button>
-              <button data-p="100" class="ghost small">MAX</button>
-            </div>
           </div>
 
           <!-- Hidden balance line kept for JS but not shown -->
@@ -331,6 +325,12 @@
           <!-- Amount -->
           <label for="amount">AQUAm25 Amount</label>
           <input id="amount" class="big-input" type="text" step="any" placeholder="0" inputmode="decimal" />
+          <div class="row percent-btns" style="justify-content:flex-end;margin-top:8px">
+            <button data-p="25" class="ghost small">25%</button>
+            <button data-p="50" class="ghost small">50%</button>
+            <button data-p="75" class="ghost small">75%</button>
+            <button data-p="100" class="ghost small">MAX</button>
+          </div>
           <div id="usablePopover" role="dialog" aria-modal="false" aria-live="polite"></div>
         </div>
 
