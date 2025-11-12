@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vault Routing Swap Test — AQUA → AQUAm25</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --bg:#0b0f12; --panel:#131a21; --ink:#e7f2ff; --muted:#9db0c6; --accent:#7d4bd1; --border:#1e2831; }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:900px;margin:26px auto;padding:0 14px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
+  h1{margin:0 0 8px;font-size:20px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  label{display:block;margin:10px 0 6px;font-size:12px;color:var(--muted)}
+  input,textarea,button{border-radius:10px;border:1px solid #223040;background:#0e1419;color:#fff;padding:10px 12px}
+  textarea{width:100%}
+  button{cursor:pointer;font-weight:700}
+  button.primary{background:var(--accent);border-color:#8a6ee0}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .muted{color:var(--muted)}
+  .section{margin-top:18px;padding-top:14px;border-top:1px dashed #1b2530}
+  .log{background:#0d1319;border:1px solid #1b2633;border-radius:10px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;white-space:pre-wrap}
+  .good{color:#85e0b7}
+  .bad{color:#ffb3b3}
+  .pill{display:inline-block;padding:4px 8px;border:1px solid #2a3650;border-radius:999px;background:#0e1622}
+  /* Modal */
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9997}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9998}
+  .open{display:flex}
+  .modal-inner{width:min(560px,92vw);background:#0e1627;border:1px solid #22315c;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .x{background:none;border:none;color:#bcc6d4;font-size:22px;line-height:1;cursor:pointer}
+  .wallet-choices{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Vault Routing Swap Test</h1>
+    <div class="row" style="justify-content:space-between">
+      <div id="status" class="muted">Not connected</div>
+      <div class="row">
+        <button id="connectBtn" class="primary">Connect (WalletConnect)</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="row" style="gap:10px">
+        <span>Account:</span>
+        <span id="acct" class="pill">—</span>
+        <span id="vaultPill" class="pill muted">Vault: unknown</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <label for="amt">Amount to SELL (AQUA → AQUAm25)</label>
+      <input id="amt" type="number" step="0.0000001" placeholder="e.g. 1.5" />
+      <div class="row" style="margin-top:8px;gap:8px">
+        <button id="btnQuote" class="">1) Get Aquarius Quote</button>
+        <button id="btnBuild" class="">2) Build Soroban Swap Tx</button>
+        <button id="btnSignRoute" class="primary">3) Sign & Route (Vault-aware)</button>
+      </div>
+      <div class="muted small" style="margin-top:6px">You’ll need an AQUAm25 trustline for a real submit, but for this test we mostly care about **sign → route to Vault**.</div>
+
+      <div class="section">
+        <label for="xdr">Prepared / Signed XDR</label>
+        <textarea id="xdr" rows="7" placeholder="XDR appears here"></textarea>
+      </div>
+
+      <div class="section">
+        <div class="row" style="gap:8px">
+          <span class="muted">Quote OUT (AQUAm25):</span>
+          <b id="quotedOut">—</b>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="log" id="log">Ready.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vault routing modal -->
+<div id="vaultBackdrop" class="backdrop"></div>
+<div id="vaultModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <h2 id="vaultTitle" style="font-size:18px;margin:0">Send to LOBSTR Vault</h2>
+      <button class="x" id="vaultClose" aria-label="Close">×</button>
+    </div>
+    <p class="muted">We detected LOBSTR Vault for this account. The first signature is collected via WalletConnect. Now finish in Vault:</p>
+    <div class="wallet-choices" style="margin:8px 0 0">
+      <button id="vaultOpenDeeplink">Open in Vault app</button>
+      <button id="vaultOpenWeb">Open Vault (web)</button>
+    </div>
+    <p class="muted" id="vaultNote" style="margin-top:10px"></p>
+  </div>
+</div>
+
+<script type="module">
+  import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+  import QRCode     from "https://esm.sh/qrcode@1.5.3";
+</script>
+
+<!-- Stellar SDK (UMD v14.3.0) -->
+<script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.3.0/dist/stellar-sdk.min.js" crossorigin="anonymous"></script>
+
+<script>
+  // ---------- Config ----------
+  const SDK = window.StellarSdk;
+  const HORIZON = "https://horizon.stellar.org";
+  const NETWORK = SDK.Networks.PUBLIC;
+  const networkPassphrase = NETWORK;
+
+  // Soroban & Aquarius
+  const sorobanRpcUrl = "https://mainnet.sorobanrpc.com";
+  const routerContractId = "CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK";
+  const baseApi = "https://amm-api.aqua.network/api/external/v1";
+
+  // Assets
+  const AQUA_CODE   = "AQUA";
+  const AQUA_ISSUER = "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA";
+  const AQUAm25_CODE   = "AQUAm25";
+  const AQUAm25_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+
+  const AQUA    = new SDK.Asset(AQUA_CODE, AQUA_ISSUER);
+  const AQUAm25 = new SDK.Asset(AQUAm25_CODE, AQUAm25_ISSUER);
+
+  // WalletConnect
+  const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39"; // your test project id
+
+  // LOBSTR Vault detection signer
+  const LOBSTR_VAULT_DETECT_KEY =
+    "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
+
+  // ---------- DOM ----------
+  const $ = (id)=>document.getElementById(id);
+  const status = $("status");
+  const acctEl = $("acct");
+  const vaultPill = $("vaultPill");
+  const connectBtn = $("connectBtn");
+  const disconnectBtn = $("disconnectBtn");
+  const btnQuote = $("btnQuote");
+  const btnBuild = $("btnBuild");
+  const btnSignRoute = $("btnSignRoute");
+  const quotedOut = $("quotedOut");
+  const xdrEl = $("xdr");
+  const amtEl = $("amt");
+  const logEl = $("log");
+
+  // Vault modal
+  const vaultBackdrop = $("vaultBackdrop");
+  const vaultModal = $("vaultModal");
+  const vaultClose = $("vaultClose");
+  const vaultOpenDeeplink = $("vaultOpenDeeplink");
+  const vaultOpenWeb = $("vaultOpenWeb");
+  const vaultNote = $("vaultNote");
+
+  // ---------- State ----------
+  let wcClient = null;
+  let session = null;
+  let pubkey = null;
+  let hasLobstrVault = false;
+  let lastQuote = null; // Aquarius result for strict-send
+  let _soro = null;
+
+  function rpc(){ if(_soro) return _soro; const S=SDK.rpc?.Server; _soro=new S(sorobanRpcUrl,{allowHttp:false}); return _soro; }
+
+  function log(msg, cls=""){ logEl.innerHTML += `\n${cls?`<span class="${cls}">`:``}${msg}${cls?`</span>`:``}`; logEl.scrollTop = logEl.scrollHeight; }
+  function setStatusConnected(){ status.textContent = `Connected (WalletConnect)`; }
+  function setStatusDisconnected(){ status.textContent = "Not connected"; }
+
+  // ---------- Vault detection ----------
+  async function detectLobstrVault(pk){
+    try{
+      const r = await fetch(`${HORIZON}/accounts/${pk}`);
+      const j = await r.json();
+      const signers = j?.signers || [];
+      return signers.some(s => s.key === LOBSTR_VAULT_DETECT_KEY);
+    }catch{ return false; }
+  }
+
+  function setVaultPillFlag(v){
+    hasLobstrVault = !!v;
+    vaultPill.textContent = `Vault: ${v ? "detected" : "not detected"}`;
+    vaultPill.style.borderColor = v ? "#1e3c33" : "#2a3650";
+    vaultPill.style.background = v ? "#0f1f1a" : "#0e1622";
+  }
+
+  // ---------- WalletConnect ----------
+  async function ensureClient(){
+    if(wcClient) return wcClient;
+    wcClient = await window.importShim?.("https://esm.sh/@walletconnect/sign-client@2.21.8").catch(()=>null);
+    if(!wcClient){
+      // fallback to global if module preloaded above
+      wcClient = await window.SignClient.init({ projectId: PROJECT_ID });
+    }else{
+      wcClient = await wcClient.default.init({ projectId: PROJECT_ID });
+    }
+    return wcClient;
+  }
+
+  async function connectWC(){
+    const sc = await ensureClient();
+    const { uri, approval } = await sc.connect({
+      optionalNamespaces: {
+        stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+      }
+    });
+    if(uri){
+      // Quick QR for convenience (in the log, not UI)
+      try{
+        const canvas = document.createElement("canvas");
+        await (await import("https://esm.sh/qrcode@1.5.3")).default.toCanvas(canvas, uri, { width: 160, margin: 1 });
+        log("Scan this WalletConnect URI with LOBSTR/Freighter (mobile):");
+        log(canvas.toDataURL().slice(0,80)+"... (QR shown in WC-capable apps)");
+      }catch{}
+    }
+    session = await approval();
+    const accounts = session.namespaces?.stellar?.accounts || [];
+    const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+    pubkey = first.split(":")[2] || "";
+    setStatusConnected();
+    acctEl.textContent = pubkey || "—";
+    log(`Connected: ${pubkey}`, "good");
+
+    const v = await detectLobstrVault(pubkey);
+    setVaultPillFlag(v);
+  }
+
+  async function disconnectWC(){
+    try{
+      if(wcClient && session) await wcClient.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
+    }catch{}
+    session = null; pubkey = null; lastQuote = null; xdrEl.value = ""; quotedOut.textContent = "—";
+    setVaultPillFlag(false);
+    setStatusDisconnected();
+    acctEl.textContent = "—";
+    log("Disconnected.", "muted");
+  }
+
+  function wcRequest(method, xdr){
+    return wcClient.request({
+      topic: session.topic,
+      chainId: "stellar:pubnet",
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
+    });
+  }
+
+  async function signCurrent(xdr){
+    if(!session || !wcClient) throw new Error("Not connected.");
+    const r = await wcRequest("stellar_signXDR", xdr);
+    if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+    return r.signedXDR;
+  }
+
+  // ---------- Helpers ----------
+  function contractId(asset){ return asset.contractId(NETWORK); }
+
+  // Aquarius strict-send quote
+  async function getQuoteStrictSendAquaToM25(amountAqua){
+    const body = {
+      token_in_address:  contractId(AQUA),
+      token_out_address: contractId(AQUAm25),
+      amount: String(Math.round(parseFloat(amountAqua)*1e7)) // stroops of AQUA
+    };
+    const res = await fetch(`${baseApi}/find-path/`, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+    const j = await res.json();
+    if(!j?.success) throw new Error("Aquarius: no route");
+    return j; // { amount (out u128), swap_chain_xdr, ... }
+  }
+
+  async function buildSorobanSwapTx({ account, inAmountStroops, outMinStroops, swapChainXdr }){
+    const server = rpc();
+    const acc = await server.getAccount(account);
+    const router = new SDK.Contract(routerContractId);
+    const tokenInCid = AQUA.contractId(NETWORK);
+    const addrAccount = SDK.Address.fromString(account).toScVal();
+    const addrTokenIn = SDK.Address.fromString(tokenInCid).toScVal();
+    const u128In      = SDK.nativeToScVal(BigInt(inAmountStroops), { type: "u128" });
+    const u128OutMin  = SDK.nativeToScVal(BigInt(outMinStroops),   { type: "u128" });
+    const swapChainVal= SDK.xdr.ScVal.fromXDR(swapChainXdr, "base64");
+
+    let tx = new SDK.TransactionBuilder(acc, { fee: "20000", networkPassphrase })
+      .setTimeout(300)
+      .addOperation(
+        router.call("swap_chained", addrAccount, swapChainVal, addrTokenIn, u128In, u128OutMin)
+      )
+      .build();
+
+    tx = await server.prepareTransaction(tx);
+    return tx;
+  }
+
+  async function submitToSoroban(signedXdr){
+    const tx = SDK.TransactionBuilder.fromXDR(signedXdr, NETWORK);
+    const send = await rpc().sendTransaction(tx);
+    if (send.status !== "PENDING" && send.status !== "SUCCESS")
+      throw new Error(`Soroban send failed: ${send.status}`);
+    let final = await rpc().getTransaction(send.hash);
+    let tries = 0;
+    while(final.status === "NOT_FOUND" && tries < 12){
+      await new Promise(r=>setTimeout(r, 800));
+      final = await rpc().getTransaction(send.hash);
+      tries++;
+    }
+    if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
+    return final;
+  }
+
+  // ---------- Vault modal ----------
+  let _pendingVaultXdr = "";
+  function openVault(xdr){
+    _pendingVaultXdr = xdr;
+    vaultNote.textContent = `Network: ${NETWORK}`;
+    vaultBackdrop.classList.add("open");
+    vaultModal.classList.add("open");
+  }
+  function closeVault(){
+    _pendingVaultXdr = "";
+    vaultBackdrop.classList.remove("open");
+    vaultModal.classList.remove("open");
+  }
+  vaultClose.addEventListener("click", closeVault);
+  vaultBackdrop.addEventListener("click", (e)=>{ if(e.target===vaultBackdrop) closeVault(); });
+
+  vaultOpenDeeplink.addEventListener("click", ()=>{
+    if(!_pendingVaultXdr) return;
+    // NOTE: replace with the exact scheme when you finalize
+    const url = `lobstrvault://sign?xdr=${encodeURIComponent(_pendingVaultXdr)}&network=${encodeURIComponent(NETWORK)}`;
+    window.location.href = url;
+    log("Attempted Vault deeplink.", "muted");
+  });
+  vaultOpenWeb.addEventListener("click", ()=>{
+    if(!_pendingVaultXdr) return;
+    // NOTE: replace with the exact web signer URL when you finalize
+    const url = `https://vault.lobstr.co/sign?xdr=${encodeURIComponent(_pendingVaultXdr)}&network=${encodeURIComponent(NETWORK)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    log("Opened Vault web signer.", "muted");
+  });
+
+  // ---------- Button handlers ----------
+  connectBtn.addEventListener("click", async ()=>{
+    try{ await connectWC(); }
+    catch(e){ log(`Connect error: ${e.message}`, "bad"); }
+  });
+
+  disconnectBtn.addEventListener("click", async ()=>{
+    await disconnectWC();
+  });
+
+  // Enable/disable buttons by connection
+  const setUiByConn = ()=>{
+    const c = !!pubkey;
+    disconnectBtn.disabled = !c;
+    btnQuote.disabled = !c;
+    btnBuild.disabled = !c || !lastQuote;
+    btnSignRoute.disabled = !c || !xdrEl.value.trim();
+  };
+  setInterval(setUiByConn, 400);
+
+  btnQuote.addEventListener("click", async ()=>{
+    if(!pubkey) return log("Connect first.", "bad");
+    const amount = Number(amtEl.value || "0");
+    if(!(amount>0)) return log("Enter a positive AQUA amount.", "bad");
+
+    try{
+      log("Requesting Aquarius quote (strict-send)…");
+      const q = await getQuoteStrictSendAquaToM25(amount);
+      lastQuote = q;
+      const out = Number(BigInt(q.amount))/1e7;
+      quotedOut.textContent = out.toFixed(7).replace(/\.?0+$/,"");
+      log(`Quote OK. Estimated OUT: ${quotedOut.textContent} AQUAm25`, "good");
+      btnBuild.disabled = false;
+    }catch(e){
+      log(`Quote failed: ${e.message}`, "bad");
+    }
+  });
+
+  btnBuild.addEventListener("click", async ()=>{
+    if(!pubkey) return log("Connect first.", "bad");
+    if(!lastQuote) return log("Get a quote first.", "bad");
+    try{
+      const inAmt = Number(amtEl.value||"0");
+      const inStroops = Math.round(inAmt * 1e7);
+      const outStroops = BigInt(lastQuote.amount);
+      // simple 1% slippage floor
+      const outMin = outStroops - (outStroops * 100n / 10000n); // 100 bps
+
+      log("Building Soroban swap tx via router…");
+      const tx = await buildSorobanSwapTx({
+        account: pubkey,
+        inAmountStroops: inStroops,
+        outMinStroops: outMin,
+        swapChainXdr: lastQuote.swap_chain_xdr
+      });
+      xdrEl.value = tx.toXDR();
+      log("Tx prepared. Ready to sign.", "good");
+      btnSignRoute.disabled = false;
+    }catch(e){
+      log(`Build failed: ${e.message}`, "bad");
+    }
+  });
+
+  btnSignRoute.addEventListener("click", async ()=>{
+    if(!pubkey) return log("Connect first.", "bad");
+    const raw = xdrEl.value.trim();
+    if(!/^AAAA/.test(raw)) return log("No prepared XDR.", "bad");
+    try{
+      log("Requesting signature via WalletConnect…");
+      const signed = await signCurrent(raw);
+      log("First signature obtained.", "good");
+
+      if(hasLobstrVault){
+        log("LOBSTR Vault detected — opening Vault handoff modal.", "good");
+        openVault(signed);
+        return; // stop here; Vault will co-sign & submit
+      }
+
+      log("No Vault — submitting to Soroban…");
+      const final = await submitToSoroban(signed);
+      const u = BigInt(final.returnValue?.u128 ?? 0n);
+      const out = Number(u)/1e7;
+      log(`Submitted ✓ hash: ${final.hash}\nReturn u128: ~${out.toFixed(7)} (units depend on router method)`, "good");
+    }catch(e){
+      log(`Sign/submit failed: ${e.message}`, "bad");
+    }
+  });
+
+  // initial UI
+  setStatusDisconnected();
+  acctEl.textContent = "—";
+  setVaultPillFlag(false);
+</script>
+</body>
+</html>
