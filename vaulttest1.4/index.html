@@ -203,7 +203,7 @@
     // LOBSTR Vault sentinel
     const VAULT_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
 
-    // WalletConnect (hardened)
+    // WalletConnect / Freighter
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
@@ -476,7 +476,7 @@
 
     const toCid = (asset)=> asset.contractId(NETWORK);
 
-    // ---------- Build Soroban swap (AQUA -> AQUAm25, strict-send ~1% slippage) ----------
+    // ---------- Build Soroban swap (AQUA -> AQUAm25, ~1% slippage) ----------
     async function buildSwapXdr(account, sellAmount){
       // 1) Aquarius route
       const body = {
@@ -556,7 +556,17 @@
     }
 
     // ---------- UI bindings ----------
-    buildBtn.addEventListener("click", async ()=>{
+    $("openVault").addEventListener("click", ()=>{
+      if(!xdrEl.value) return;
+      openVaultWebLink(xdrEl.value);
+    });
+
+    $("copyXdr").addEventListener("click", async ()=>{
+      try{ await navigator.clipboard.writeText(xdrEl.value); tOk("XDR copied"); }
+      catch(e){ tErr("Clipboard failed"); }
+    });
+
+    $("buildBtn").addEventListener("click", async ()=>{
       resultEl.textContent = "";
       xdrEl.value = "";
       copyXdr.disabled = true;
@@ -576,30 +586,17 @@
       }
     });
 
-    copyXdr.addEventListener("click", async ()=>{
-      try{ await navigator.clipboard.writeText(xdrEl.value); tOk("XDR copied"); }
-      catch(e){ tErr("Clipboard failed"); }
-    });
-
-    // Show manual Vault link button only if vault present
-    openVaultBtn.addEventListener("click", ()=>{
-      if(!xdrEl.value) return;
-      openVaultWebLink(xdrEl.value);
-    });
-
-    // Sign flow (Vault-aware)
-    signSubmit.addEventListener("click", async ()=>{
+    $("signSubmit").addEventListener("click", async ()=>{
       resultEl.innerHTML = "";
       try{
         if(!xdrEl.value) throw new Error("No XDR to sign.");
         const hasVault = await detectVault(pubkey); // refresh status
-        openVaultBtn.style.display = hasVault ? "" : "none";
+        $("openVault").style.display = hasVault ? "" : "none";
 
         info("Check your wallet to sign…");
         const signed = await signViaCurrent(xdrEl.value);
 
         if(!hasVault){
-          // Simple path — submit to Soroban now
           info("Submitting to Soroban…");
           const final = await submitSoroban(signed);
           const u = BigInt(final.returnValue?.u128 ?? 0n);
@@ -608,14 +605,10 @@
           return;
         }
 
-        // Vault-protected account: show modal with signed XDR + web link
+        // Vault-protected: show modal with signed XDR + link
         vaultSignedXdr.value = signed;
         openVaultModal();
-
-        // Also copy automatically as a nicety
         try{ await navigator.clipboard.writeText(signed); info("Signed XDR copied"); }catch{}
-
-        // And show a small note in result
         resultEl.innerHTML = `Signed XDR prepared for LOBSTR Vault co-signature. Use the modal to copy / open Vault.`;
       }catch(e){
         console.error(e);
@@ -638,36 +631,21 @@
     function logd(x){ dbg.push(x); debugEl.textContent = dbg.slice(-20).map(v=>typeof v==="string"?v:JSON.stringify(v)).join("\n"); }
     window.addEventListener("error", (e)=>logd("ERR: "+(e.message||"unknown")));
 
-    // ---------- Connect modal QR helpers ----------
-    async function getFreighterLinks(){
-      try{
-        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
-        const res = await fetch(url); const data = await res.json();
-        const arr = (data?.listings ?? data?.data ?? []);
-        const list = Array.isArray(arr) ? arr : Object.values(arr);
-        const w = list.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
-        const mobile = w?.mobile || w?.app?.mobile || {};
-        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
-      }catch{ return { native:null, universal:null, found:false }; }
-    }
+    // ---------- Connect modal wiring ----------
+    const qrCanvas = $("qrCanvas"), qrArea = $("qrArea"), rawWcLink=$("rawWcLink"), linkStatus=$("linkStatus");
+    const btnLobstr=$("btnLobstr"), btnFreighter=$("btnFreighter");
+
+    const wcBtn = $("wcBtn");
+    const freighterExtBtn = $("freighterExtBtn");
+    const connectBtn = $("connectBtn");
+    const closeModalBtn = $("closeModal");
 
     // Initial UI
     setConnPill({ text:"Not connected", kind:"info" });
     xdrEl.value = "";
     copyXdr.disabled = true;
     signSubmit.disabled = true;
-    openVaultBtn.style.display = "none";
-  </script>
-
-  <!-- Freighter UMD fallback (optional; sometimes the CDN name can hiccup — WC path does not depend on this) -->
-  <script>
-    if(!window.freighterApi){
-      const s = document.createElement('script');
-      s.src = "https://cdn.freighter.app/freighter-api-v1.js";
-      s.defer = true;
-      s.onerror = ()=>{/* ignore - we import from esm.sh in-module when needed */};
-      document.head.appendChild(s);
-    }
+    $("openVault").style.display = "none";
   </script>
 </body>
 </html>
