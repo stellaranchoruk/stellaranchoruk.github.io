@@ -63,6 +63,10 @@
     .mono-block{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; background:#0c141a; border:1px dashed #2a3340; padding:8px 10px; border-radius:10px}
     .steps{margin:0 0 10px; color:#cde; font-size:14px; line-height:1.5}
     .steps li{margin:4px 0}
+
+    /* Vault modal overrides */
+    .vault-modal-inner{width:min(480px,92vw);}
+    .vault-logo{display:block;margin:10px auto 4px;max-width:180px;width:70%;height:auto;}
   </style>
 </head>
 <body>
@@ -151,12 +155,59 @@
   <!-- Vault Guidance Modal -->
   <div id="vaultBackdrop" class="backdrop"></div>
   <div id="vaultModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
-    <div class="modal-inner">
+    <div class="modal-inner vault-modal-inner">
       <div class="modal-header">
         <h2 id="vaultTitle" style="font-size:18px;margin:0">LOBSTR Vault Protected</h2>
         <button class="x" id="closeVault" aria-label="Close">×</button>
       </div>
-      <p class="small" style="margin-top:0">
+
+      <!-- LOBSTR Vault logo -->
+      <svg class="vault-logo" viewBox="0 0 244 244" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="3" width="238" height="238" rx="58" fill="url(#paint0_linear_2740_9594)" stroke="#411286" stroke-width="6"/>
+        <path d="M151.209 108.487C153.908 71.0573 144.152 52.3425 121.941 52.3425C99.7304 52.3425 89.9744 71.0573 92.6733 108.487H76.6456C72.4688 60.1623 87.5673 36 121.941 36C156.315 36 171.414 60.1623 167.237 108.487H151.209Z" fill="url(#paint1_linear_2740_9594)"/>
+        <path d="M121.941 89.7803L181.402 103.237C182.043 128.08 182.043 144.999 181.402 153.994C180.299 169.475 174.492 175.712 168.158 182.304C159.862 190.938 144.457 199.652 121.941 208.448C99.4264 199.652 84.0208 190.938 75.7248 182.304C69.3905 175.712 63.584 169.475 62.4808 153.994C61.8397 144.999 61.8397 128.08 62.4808 103.237L121.941 89.7803Z" fill="url(#paint2_linear_2740_9594)" fill-opacity="0.31"/>
+        <path d="M151.039 84.5192C150.667 62.6952 140.947 51.7832 121.88 51.7832C102.813 51.7832 93.1342 62.6952 92.8438 84.5192C96.1 65.1275 105.779 55.4317 121.88 55.4317C137.981 55.4317 147.701 65.1275 151.039 84.5192Z" fill="url(#paint3_linear_2740_9594)"/>
+        <path d="M121.941 89.7803L181.402 102.575C182.043 126.193 182.043 142.279 181.402 150.831C180.299 165.55 174.492 171.479 168.158 177.746C159.862 185.954 144.457 194.24 121.941 202.603C99.4264 194.24 84.0208 185.954 75.7248 177.746C69.3905 171.479 63.584 165.55 62.4808 150.831C61.8397 142.279 61.8397 126.193 62.4808 102.575L121.941 89.7803Z" fill="url(#paint4_linear_2740_9594)"/>
+        <path d="M121.941 89.7803L181.402 102.575C182.043 126.193 182.043 142.279 181.402 150.831C180.299 165.55 174.492 171.479 168.158 177.746C159.862 185.954 144.457 194.24 121.941 202.603V89.7803Z" fill="url(#paint5_linear_2740_9594)"/>
+        <path d="M121.942 89.7803V99.12L62.2803 111.285L62.4808 102.575L121.942 89.7803Z" fill="url(#paint6_linear_2740_9594)"/>
+        <path d="M121.941 89.7803V99.12L181.611 111.217L181.416 102.566L121.941 89.7803Z" fill="url(#paint7_linear_2740_9594)"/>
+        <defs>
+          <linearGradient id="paint0_linear_2740_9594" x1="216.5" y1="24.5" x2="27" y2="220" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#5218A6"/>
+            <stop offset="1" stop-color="#9769FF"/>
+          </linearGradient>
+          <linearGradient id="paint1_linear_2740_9594" x1="71.5176" y1="51.0569" x2="89.4992" y2="104.069" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FBF8FF"/>
+            <stop offset="1" stop-color="#D0B1FF"/>
+          </linearGradient>
+          <linearGradient id="paint2_linear_2740_9594" x1="198.502" y1="150.41" x2="109.64" y2="57.0717" gradientUnits="userSpaceOnUse">
+            <stop/>
+            <stop offset="1" stop-color="#090114" stop-opacity="0.01"/>
+          </linearGradient>
+          <linearGradient id="paint3_linear_2740_9594" x1="116.076" y1="48.5008" x2="116.076" y2="55.1001" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#EEEEEE"/>
+            <stop offset="1" stop-color="#DAC1FF"/>
+          </linearGradient>
+          <linearGradient id="paint4_linear_2740_9594" x1="62" y1="165.456" x2="121.941" y2="165.456" gradientUnits="userSpaceOnUse">
+            <stop stop-color="white"/>
+            <stop offset="1" stop-color="#DBC3FF"/>
+          </linearGradient>
+          <linearGradient id="paint5_linear_2740_9594" x1="139.305" y1="259.014" x2="212.436" y2="236.504" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#B27EFF"/>
+            <stop offset="1" stop-color="#B482FF"/>
+          </linearGradient>
+          <linearGradient id="paint6_linear_2740_9594" x1="62.2803" y1="104.205" x2="92.1109" y2="104.205" gradientUnits="userSpaceOnUse">
+            <stop stop-color="white"/>
+            <stop offset="1" stop-color="#E8D8FF"/>
+          </linearGradient>
+          <linearGradient id="paint7_linear_2740_9594" x1="165.912" y1="117.499" x2="141.688" y2="82.0186" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#C7A1FF"/>
+            <stop offset="1" stop-color="#BE92FF"/>
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <p class="small" style="margin-top:6px">
         This account is protected with <b>LOBSTR Vault</b>. Please add the additional signature in Vault to complete your transaction.
       </p>
       <ol class="steps">
