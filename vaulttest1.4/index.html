@@ -166,16 +166,14 @@
       </ol>
 
       <div class="actions" style="margin-top:12px">
-        <button id="copySignedXdr" class="primary">Copy Signed XDR</button>
-        <button id="openVaultWeb" class="ghost">Open LOBSTR Vault (web)</button>
+        <button id="copySignedXdr" class="primary" style="width:100%;">Copy Signed XDR</button>
       </div>
 
-      <label style="margin-top:14px">Signed XDR</label>
-      <textarea id="signedXdrOut" rows="8" readonly class="mono" placeholder="Signed XDR will appear here"></textarea>
-
-      <p class="small muted" style="margin-top:10px">
-        Tip: If the Vault app is installed, opening the web link usually redirects you. Otherwise, copy the XDR and paste manually.
-      </p>
+      <label style="margin-top:14px">
+        Signed XDR
+        · <a href="#" id="revealSignedXdr" class="link small">Reveal XDR</a>
+      </label>
+      <textarea id="signedXdrOut" rows="8" readonly class="mono" placeholder="Signed XDR will appear here" style="display:none"></textarea>
     </div>
   </div>
 
@@ -249,11 +247,27 @@
 
     // Vault modal
     const vaultBackdrop=$("vaultBackdrop"), vaultModal=$("vaultModal"), closeVault=$("closeVault");
-    const copySignedXdrBtn=$("copySignedXdr"), openVaultWebBtn=$("openVaultWeb"), signedXdrOut=$("signedXdrOut");
-    function openVaultModal(signed){ signedXdrOut.value=signed||""; vaultBackdrop.classList.add('open'); vaultModal.classList.add('open'); }
-    function closeVaultModal(){ vaultBackdrop.classList.remove('open'); vaultModal.classList.remove('open'); }
+    const copySignedXdrBtn=$("copySignedXdr"), signedXdrOut=$("signedXdrOut"), revealSignedXdr=$("revealSignedXdr");
+    function openVaultModal(signed){
+      signedXdrOut.value=signed||"";
+      signedXdrOut.style.display="none";
+      revealSignedXdr.textContent="Reveal XDR";
+      vaultBackdrop.classList.add('open');
+      vaultModal.classList.add('open');
+    }
+    function closeVaultModal(){
+      vaultBackdrop.classList.remove('open');
+      vaultModal.classList.remove('open');
+    }
     closeVault.addEventListener("click", closeVaultModal);
     vaultBackdrop.addEventListener("click", (e)=>{ if(e.target===vaultBackdrop) closeVaultModal(); });
+
+    revealSignedXdr.addEventListener("click",(e)=>{
+      e.preventDefault();
+      const hidden = signedXdrOut.style.display==="none";
+      signedXdrOut.style.display = hidden ? "block" : "none";
+      revealSignedXdr.textContent = hidden ? "Hide XDR" : "Reveal XDR";
+    });
 
     // ----- WC client -----
     let wcClient=null, session=null, latestWcUri=null;
@@ -271,7 +285,6 @@
     async function ensureClient({retry=false}={}){
       if(wcClient) return wcClient;
       try{
-        // clear stale WC data once on first init
         if(!retry) await purgeWcStorage();
 
         wcClient = await SignClient.init({
@@ -285,7 +298,6 @@
           }
         });
 
-        // Basic listeners to avoid "no listeners" warnings + surface to debug slab
         wcClient.on("session_request", (e)=>logd({session_request:e}));
         wcClient.on("session_event",   (e)=>logd({session_event:e}));
         wcClient.on("session_update",  (e)=>logd({session_update:e}));
@@ -303,7 +315,6 @@
         return wcClient;
       }catch(e){
         if(!retry && /No matching key/i.test(String(e?.message||e))){
-          // one retry after a full purge
           await purgeWcStorage();
           wcClient=null;
           return ensureClient({retry:true});
@@ -506,11 +517,6 @@
       return final;
     }
 
-    function openVaultWebLink(xdr){
-      const href=`https://vault.lobstr.co/sign?network=PUBLIC&xdr=${encodeURIComponent(xdr)}`;
-      window.open(href,"_blank","noopener");
-    }
-
     // UI actions
     buildBtn.addEventListener("click", async ()=>{
       resultEl.textContent=""; xdrEl.value=""; copyXdr.disabled=true; signSubmit.disabled=true;
@@ -548,11 +554,13 @@
           return;
         }
 
-        // Vault path: copy + modal + web link
+        // Vault path: copy + modal
         try{ await navigator.clipboard.writeText(signed); }catch{}
         openVaultModal(signed);
-        copySignedXdrBtn.onclick = async ()=>{ try{ await navigator.clipboard.writeText(signed); tOk("Signed XDR copied"); }catch{ tErr("Clipboard failed"); } };
-        openVaultWebBtn.onclick = ()=> openVaultWebLink(signed);
+        copySignedXdrBtn.onclick = async ()=>{
+          try{ await navigator.clipboard.writeText(signed); tOk("Signed XDR copied"); }
+          catch{ tErr("Clipboard failed"); }
+        };
         tOk("Signed XDR ready for Vault");
         resultEl.innerHTML = `This account requires a Vault co-signature. Follow the steps in the popup to finish.`;
       }catch(e){ console.error(e); tErr(e.message || "Sign/submit failed"); }
