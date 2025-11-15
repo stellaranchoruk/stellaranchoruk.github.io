@@ -1211,14 +1211,7 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
       }
     }
 
-async function setConnected(address, mode){
-  // Update connection pill instead of text
-  if (!address) {
-    setConnPill({ text:"Not connected", kind:"info" });
-  } else {
-    setConnPill({ text:"Connected", kind:"info" });
-  }
-
+function setConnected(address, mode){
   disconnectBtn.disabled = !address;
 
   if(address){
@@ -1229,28 +1222,23 @@ async function setConnected(address, mode){
     connectBtn.style.display = "none";
     walletBtn.style.display  = "inline-flex";
 
-    // shorten the G...G address and show identicon
+    // shorten the G...G address and show identicon (official + fallback)
     const short = `${address.slice(0,5)}...${address.slice(-5)}`;
     walletLabel.textContent = short;
-    setIdenticonFor(address);
-
-    // 🔍 Now that we have a pubkey, check for Vault
-    const hasVault = await detectVault(address);
-    if (hasVault) {
-      setConnPill({ text:"LOBSTR Vault Protected", kind:"ok" });
-    }
+    setIdenticonFor(address);  // ✅ new helper does the image + fallback logic
 
     initForNewAccount();
+    detectVault(address).catch(()=>{});
     startLockerAutoRefresh();
-
-  } else {
-
+    } else {
     pubkey = null;
     pubkeyEl.value = "";
 
-    // show "Connect", hide wallet pill
     walletBtn.style.display  = "none";
     connectBtn.style.display = "";
+
+    statusEl.textContent = "Not connected";
+    statusEl.classList.remove("vault");
 
     setTrustlineUI(false, true);
     usablePill.textContent = "0.0000000";
