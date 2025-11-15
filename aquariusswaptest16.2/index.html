@@ -2158,44 +2158,56 @@ function bindSwapInputListeners(){
     // Swap signing & submit
     on(swapSignSubmit,"click", async ()=>{
       if(!pubkey){ openModal(); return; }
-      swapResult.textContent="";
+      swapResult.textContent = "";
       try{
         const needTL = !(await hasTrustline(pubkeyEl.value.trim(), AQUAm25));
         if (needTL) { toast("Please add the AQUAm25 trustline first.", true); return; }
 
         let xdrToSubmit = xdrSwap.value.trim();
         if(!xdrToSubmit || !/AAAA/.test(xdrToSubmit)){
-          if (lastIsSend) { await quoteStrictSend(); } else { await quoteStrictReceive(); }
+          if (lastIsSend) await quoteStrictSend();
+          else            await quoteStrictReceive();
           xdrToSubmit = xdrSwap.value.trim();
           if(!xdrToSubmit) throw new Error("No prepared XDR.");
         }
 
-        if (connectionMode === "wc") { openSignModal(); toast("Check your wallet to sign…"); }
-        else { toast("Check Freighter to sign…"); }
+        if (connectionMode === "wc") openSignModal();
+        toast("Check your wallet to sign…");
 
         const signed = await signCurrent(xdrToSubmit);
-        const final = await submitToSoroban(signed);
-        const u = BigInt(final.returnValue?.u128 ?? 0n);
-const msg = lastIsSend
-  ? `Amount OUT: ${formatDisp(Number(u)/1e7)} ${AQUAm25_CODE}`
-  : `Amount IN spent: ${formatDisp(Number(u)/1e7)} ${(getSelectedOption()?.dataset.code)||"asset"}`;
-        swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${msg}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
+
+        const final = await handleSignedSorobanXdr(signed);
+        if(final){
+          const u = BigInt(final.returnValue?.u128 ?? 0n);
+          const msg = lastIsSend
+            ? `Amount OUT: ${formatDisp(Number(u)/1e7)} ${AQUAm25_CODE}`
+            : `Amount IN spent: ${formatDisp(Number(u)/1e7)} ${(getSelectedOption()?.dataset.code)||"asset"}`;
+          swapResult.innerHTML = `Submitted ✓ hash: ${final.hash}<br/>${msg}<br/>View: https://stellar.expert/explorer/public/tx/${final.hash}`;
+          toast("Swap submitted.");
+        }
         closeSignModal();
 
-        setTimeout(async ()=>{
-          const pk = pubkeyEl.value.trim();
-          if(isValidG(pk)){
-            try{
-              const { balance, selling_liabilities } = await loadAquaM25Balance(pk);
-              const bal = Number(balance||0), liab = Number(selling_liabilities||0);
-              const usable = Math.max(bal - liab, 0);
-              aquaBalEl.textContent = formatDisp(bal);
-              usablePill.textContent = formatDisp(usable);
-              hydrateUsablePopover({balance:bal, inOffers:liab, usable});
-            }catch{}
-          }
-        }, 1200);
-      }catch(e){ console.error(e); closeSignModal(); toast(e.message||"Sign/submit failed.", true); }
+        // Refresh AQUAm25 balance after a (non-Vault) swap
+        if(final){
+          setTimeout(async ()=>{
+            const pk = pubkeyEl.value.trim();
+            if(isValidG(pk)){
+              try{
+                const { balance, selling_liabilities } = await loadAquaM25Balance(pk);
+                const bal = Number(balance||0), liab = Number(selling_liabilities||0);
+                const usable = Math.max(bal - liab, 0);
+                aquaBalEl.textContent = formatDisp(bal);
+                usablePill.textContent = formatDisp(usable);
+                hydrateUsablePopover({balance:bal, inOffers:liab, usable});
+              }catch{}
+            }
+          }, 1200);
+        }
+      }catch(e){
+        console.error(e);
+        closeSignModal();
+        toast(e.message || "Sign/submit failed.", true);
+      }
     });
 }
 
@@ -2321,6 +2333,100 @@ const msg = lastIsSend
         return res.signedTxXdr || res.signedXDR || res;
       }
       throw new Error("Not connected");
+    }
+
+        // Generic post-sign handler for classic (Horizon) txs
+    async function handleSignedClassicXdr(signedXdr, { sourceAccountLabel = "Locker" } = {}){
+      const pk = pubkeyEl.value.trim();
+      const hasVault = await detectVault(pk);
+      if(hasVault){
+        // Do NOT submit – Vault will co-sign & submit
+        try{ await navigator.clipboard.writeText(signedXdr); }catch{}
+        openVaultModal(signedXdr);
+        actionResult.textContent = `${sourceAccountLabel} tx signed. This account requires a LOBSTR Vault co-signature – follow the popup to finish.`;
+        return null;
+      }
+      const hash = await submitToHorizon(signedXdr);
+      return hash;
+    }
+
+        // Locker "Lock AQUAm25" button
+    on(signSubmitBtn, "click", async ()=>{
+      if (!pubkey) { 
+        openModal(); 
+        return; 
+      }
+
+      actionResult.textContent = "";
+
+      try{
+        // Ensure we actually have an XDR to sign
+        let xdrToSign = xdrOut.value.trim();
+        if (!xdrToSign || !/AAAA/.test(xdrToSign)) {
+          const rebuilt = await buildLockXDR();
+          if (!rebuilt) {
+            toast("Enter an amount to lock first.", true);
+            return;
+          }
+          xdrOut.value = rebuilt;
+          xdrToSign    = rebuilt;
+          enableLockerButtons();
+        }
+
+        // Show WC sign modal (desktop/mobile hint) if using WalletConnect
+        if (connectionMode === "wc") {
+          openSignModal();
+        }
+
+        toast("Check your wallet to sign…");
+
+        // Sign via WC or Freighter
+        const signed = await signCurrent(xdrToSign);
+
+        // Vault-aware handling (may submit directly or just copy for Vault)
+        const hash = await handleSignedClassicXdr(signed, { sourceAccountLabel: "Locker" });
+
+        // If hash is null, it means Vault flow (user finishes in LOBSTR Vault)
+        if (hash) {
+          actionResult.innerHTML = `
+            Submitted ✓ hash: ${hash}<br/>
+            View: <a href="https://stellar.expert/explorer/public/tx/${hash}" target="_blank" rel="noreferrer">stellar.expert</a>
+          `;
+          toast("Lock submitted.");
+
+          // Refresh AQUAm25 balance / usable pills
+          try{
+            const { balance, selling_liabilities } = await loadAquaM25Balance(pubkey);
+            const bal  = Number(balance || 0);
+            const liab = Number(selling_liabilities || 0);
+            const usable = Math.max(bal - liab, 0);
+            aquaBalEl.textContent   = formatDisp(bal);
+            usablePill.textContent  = formatDisp(usable);
+            swapUsablePill.textContent = formatDisp(usable);
+            hydrateUsablePopover({ balance: bal, inOffers: liab, usable });
+          }catch(e){ console.warn(e); }
+        }
+
+        closeSignModal();
+      }catch(e){
+        console.error(e);
+        closeSignModal();
+        toast(e.message || "Locker sign/submit failed.", true);
+      }
+    });
+
+    // For Soroban swap txs
+    async function handleSignedSorobanXdr(signedXdr){
+      const pk = pubkeyEl.value.trim();
+      const hasVault = await detectVault(pk);
+      if(hasVault){
+        try{ await navigator.clipboard.writeText(signedXdr); }catch{}
+        openVaultModal(signedXdr);
+        swapResult.textContent = `Swap transaction signed. This account needs a LOBSTR Vault co-signature – follow the popup to complete.`;
+        return null;
+      }
+      const final = await submitToSoroban(signedXdr);
+      return final;
     }
 
     // ---------- Locker submit (classic) ----------
