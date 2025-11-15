@@ -1182,10 +1182,43 @@ const cleanAmt = (a) => {                  // accepts "1,234.56"
     function closeSignModal(){ signBackdrop.classList.remove('open'); signModal.classList.remove('open'); }
     on(closeSign,"click",closeSignModal); on(signBackdrop,"click",closeSignModal);
 
-function setConnected(address, mode){
-  statusEl.textContent = address
-    ? `Connected (${mode === "wc" ? "WalletConnect" : "Freighter"})`
-    : "Not connected";
+        async function detectVault(account){
+      if(!account) {
+        statusEl.textContent = "Not connected";
+        statusEl.classList.remove("vault");
+        return false;
+      }
+      try{
+        const r  = await fetch(`${HORIZON}/accounts/${account}`);
+        const j  = await r.json();
+        const ks = (j.signers || []).map(s => s.key);
+        const hasVault = ks.includes(VAULT_KEY);
+
+        if(hasVault){
+          statusEl.textContent = "LOBSTR Vault Protected";
+          statusEl.classList.add("vault");
+        }else{
+          statusEl.textContent = connectionMode === "wc"
+            ? "Connected (WalletConnect)"
+            : "Connected (Freighter)";
+          statusEl.classList.remove("vault");
+        }
+        return hasVault;
+      }catch(e){
+        console.warn("Vault detect failed", e);
+        // Leave existing status text as-is, don't flip anything
+        return false;
+      }
+    }
+
+async function setConnected(address, mode){
+  // Update connection pill instead of text
+  if (!address) {
+    setConnPill({ text:"Not connected", kind:"info" });
+  } else {
+    setConnPill({ text:"Connected", kind:"info" });
+  }
+
   disconnectBtn.disabled = !address;
 
   if(address){
@@ -1196,14 +1229,22 @@ function setConnected(address, mode){
     connectBtn.style.display = "none";
     walletBtn.style.display  = "inline-flex";
 
-    // shorten the G...G address and show identicon (official + fallback)
+    // shorten the G...G address and show identicon
     const short = `${address.slice(0,5)}...${address.slice(-5)}`;
     walletLabel.textContent = short;
-    setIdenticonFor(address);  // ✅ new helper does the image + fallback logic
+    setIdenticonFor(address);
+
+    // 🔍 Now that we have a pubkey, check for Vault
+    const hasVault = await detectVault(address);
+    if (hasVault) {
+      setConnPill({ text:"LOBSTR Vault Protected", kind:"ok" });
+    }
 
     initForNewAccount();
     startLockerAutoRefresh();
+
   } else {
+
     pubkey = null;
     pubkeyEl.value = "";
 
