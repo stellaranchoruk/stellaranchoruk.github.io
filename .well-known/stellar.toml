@@ -9,7 +9,8 @@ ACCOUNTS=[
 "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC",
 "GCV5FAHGGXBDOUKST2GLBZMIGGEJSM4LAQKBGF2Z33W3DYWFGQAR6EUR",
 "GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC",
-"GCUBSJRDDDYD74MLTKL4TZVVDAJZVZFVFL52MDF6SDNBXJMWBA5RMUSD"]
+"GCUBSJRDDDYD74MLTKL4TZVVDAJZVZFVFL52MDF6SDNBXJMWBA5RMUSD",
+"GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB"]
 
 [DOCUMENTATION]
 ORG_NAME="Mirrasets"
@@ -48,6 +49,19 @@ redemption_instructions="Redeemable through the AQUAm25/AQUA trading pair on the
 name="AQUAm25 Draw"
 desc="AQUAm25 is a weekly draw to win 100,000 AQUA. Every Sunday, one of the top 25 holders of AQUAm25 is selected at random to win 100,000 AQUA. To participate, all you need to do is be in the top 25 holders when the random draw takes place on a Sunday. AQUAm25 has to be in your G wallet for us to see them and to be eligible. Deposits of AQUAm25 in lending protocols, AMMs, or other places can't be seen so do not count towards the draw. Visit us at https://mirrasets.com"
 image="https://mirrasets.com/images/tokens/AQUAm25.png"
+
+[[CURRENCIES]]
+code="AQUAmb"
+issuer="GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC"
+status="live"
+display_decimals=7
+is_asset_anchored=false
+anchor_asset_type="crypto"
+anchor_asset="AQUA"
+redemption_instructions="Redeemable through the AQUAmb/AQUA trading pair on SDEX and Aquarius AMMs."
+name="AQUA MirraBond"
+desc="AQUAmb is a yield bearing asset for AQUA by aqua.network. You swap AQUA, or any other asset, into AQUAmb then lock for 12 months to start earning yield. Visit us at https://mirrasets.com for more information."
+image="https://mirrasets.com/images/tokens/AQUAmb.png"
 
 [[CURRENCIES]]
 code="KRWC"
