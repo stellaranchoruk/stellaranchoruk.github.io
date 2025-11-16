@@ -1995,11 +1995,20 @@ availPopover.innerHTML = `
         const trustXdr = await buildTrustlineXDR(pk);
         toast("Signing trustline…");
         const signed = await signCurrent(trustXdr);
-        toast("Submitting trustline…");
-        const hash = await submitToHorizon(signed);
-        toast(`Trustline added ✓ tx: ${hash}`);
-        await onValidate();
-        await initForNewAccount();
+
+        // Use the Vault-aware classic handler
+        toast("Processing trustline transaction…");
+        const hash = await handleSignedClassicXdr(signed, { sourceAccountLabel: "Trustline" });
+
+        if (hash) {
+          // Non-Vault account: we submitted to Horizon and got a hash
+          toast(`Trustline added ✓ tx: ${hash}`);
+          await onValidate();
+          await initForNewAccount();
+        } else {
+          // Vault account: signed, copied to clipboard, Vault modal opened
+          toast("Trustline signed. Please co-sign in LOBSTR Vault to finish.");
+        }
 
         try {
           if (lastQuote) { if (lastIsSend) await quoteStrictSend(); else await quoteStrictReceive(); }
