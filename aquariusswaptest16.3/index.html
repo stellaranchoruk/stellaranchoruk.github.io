@@ -1634,6 +1634,8 @@ function setConnected(address, mode){
       const issuer = opt.dataset.issuer || null;
       setSellChip(code, issuer);
 
+      setChipIcon(sellIcon, code, issuer);   // force icon fetch regardless of validation
+
       localStorage.setItem(LS_ASSET_KEY, opt.value);
 
       const pk = pubkeyEl.value.trim();
