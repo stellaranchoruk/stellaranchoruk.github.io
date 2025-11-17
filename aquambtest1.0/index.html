@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AQUAmb — 1-Day Lock Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Stellar SDK UMD (classic + Soroban helpers if needed later) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/14.3.0/stellar-sdk.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <!-- Freighter API (UMD fallback is added at bottom) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <style>
+    :root {
+      --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6;
+      --muted:#94a3ad; --accent:#7d4bd1; --border:#1c242c;
+      --ok:#57d29a; --err:#ff6b6b;
+    }
+    *{box-sizing:border-box;}
+    html,body{
+      margin:0; padding:0;
+      background:var(--bg); color:var(--ink);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    .wrap{max-width:960px;margin:28px auto;padding:0 16px;}
+    .card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:20px;
+    }
+    h1{margin:0 0 10px;font-size:20px;letter-spacing:.3px;}
+    h2{margin:18px 0 8px;font-size:17px;}
+    p{margin:.25rem 0 .75rem;}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .small{font-size:12px;}
+    .muted{color:var(--muted);}
+    button{
+      cursor:pointer;border-radius:10px;border:1px solid #21464f;
+      background:#0c1c20;color:#d9f6ff;padding:9px 14px;font-weight:600;
+    }
+    button:hover{filter:brightness(1.08);}
+    button.ghost{background:#141b22;border-color:#2a3340;}
+    button:disabled{opacity:.5;cursor:not-allowed;}
+    input{
+      width:100%;padding:10px 12px;border-radius:10px;
+      border:1px solid #1e2831;background:#0e1419;color:#fff;
+      font-size:15px;
+    }
+    input[readonly]{opacity:.95;background:#0b1115;border-style:dashed;}
+    label{display:block;margin:8px 0 4px;font-size:13px;color:var(--muted);}
+    table{
+      width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;
+    }
+    th,td{padding:6px 8px;border-bottom:1px solid #1b252e;text-align:left;}
+    th{font-weight:600;color:#cfd8e6;}
+    .tag{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:3px 8px;border-radius:999px;font-size:11px;
+      border:1px solid #2a3656;background:#0e1627;color:#cfe0ff;
+    }
+    .tag.ok{border-color:#214a3a;background:#0f1f1a;color:#cfeede;}
+    .tag.err{border-color:#5a2a2a;background:#201114;color:#ffd8d8;}
+    .pill{
+      display:inline-block;padding:4px 9px;border-radius:999px;
+      border:1px solid #243045;background:#0f1520;font-size:12px;
+    }
+    .grid-2{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:16px;
+      margin-top:16px;
+    }
+    .status-line{
+      margin-top:8px;font-size:13px;
+    }
+    .status-line.ok{color:var(--ok);}
+    .status-line.err{color:var(--err);}
+    .mono{font-family:ui-monospace,Menlo,Consolas,"SF Mono",monospace;}
+
+    /* Modal basics (for Vault hint + WC QR) */
+    .backdrop{
+      position:fixed;inset:0;background:rgba(0,0,0,.55);
+      display:none;z-index:999;
+    }
+    .backdrop.open{display:block;}
+    .modal{
+      position:fixed;inset:0;display:none;
+      align-items:center;justify-content:center;z-index:1000;
+    }
+    .modal.open{display:flex;}
+    .modal-inner{
+      width:min(520px,92vw);
+      background:#0e1627;border:1px solid #22315c;
+      border-radius:16px;padding:18px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .modal-header{
+      display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;
+    }
+    .x{
+      background:none;border:none;color:#bcc6d4;
+      font-size:20px;cursor:pointer;
+    }
+    .wallet-btn{
+      width:100%;margin-top:8px;
+      padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:8px;
+      border-radius:10px;border:1px solid #2a3340;background:#141b22;color:#d9f6ff;
+      font-size:14px;
+    }
+    .qr-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:10px;}
+    .toast-wrap{
+      position:fixed;right:16px;top:16px;z-index:2000;
+      display:grid;gap:8px;width:min(92vw,360px);
+    }
+    .toast{
+      border-radius:12px;padding:10px 12px;
+      border:1px solid #253244;background:#0f1a24;
+      font-size:13px;display:flex;justify-content:space-between;gap:8px;
+      color:#e7f2ff;
+    }
+    .toast.ok{border-color:#214a3a;background:#0f1f1a;}
+    .toast.err{border-color:#5a2a2a;background:#201114;color:#ffd8d8;}
+    .toast .x{font-size:16px;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <h1>AQUAmb — 1-Day Lock Demo</h1>
+          <p class="small muted">
+            Classic claimable-balance locker for <b>AQUAmb</b> (1-day test).<br>
+            Owner can claim after unlock; tracker can <b>never</b> claim.
+          </p>
+        </div>
+        <div class="row">
+          <button id="connectBtn">Connect Wallet</button>
+          <button id="walletBtn" class="ghost" style="display:none;">
+            <span class="small mono" id="walletLabel">G……G</span>
+          </button>
+          <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
+        </div>
+      </div>
+
+      <p class="small">
+        Status: <span id="statusTag" class="tag">Not connected</span>
+      </p>
+
+      <div class="grid-2">
+        <!-- Lock builder -->
+        <div>
+          <h2>Create 1-Day AQUAmb Lock</h2>
+          <label for="amount">Amount to lock (AQUAmb, 7 dp)</label>
+          <input id="amount" type="text" placeholder="0.0000000" inputmode="decimal" />
+
+          <p class="small muted">
+            Unlock time is set to <b>tomorrow 23:59:59 UTC</b>.
+            A second claimant (<span class="mono">TRACKER_KEY</span>) can never claim.
+          </p>
+
+          <div class="row" style="margin-top:10px;">
+            <button id="buildLockBtn">Build &amp; Sign Lock</button>
+            <button id="copyXdrBtn" class="ghost" disabled>Copy XDR</button>
+          </div>
+
+          <label for="xdrOut" style="margin-top:12px;">Latest lock transaction XDR</label>
+          <textarea id="xdrOut" rows="6" readonly style="width:100%;resize:vertical;background:#0b1115;border-radius:10px;border:1px dashed #1e2831;color:#e8f0f6;font-size:12px;"></textarea>
+
+          <div id="builderStatus" class="status-line muted small"></div>
+        </div>
+
+        <!-- Lock overview for THIS wallet -->
+        <div>
+          <h2>Your 1-Day AQUAmb Locks</h2>
+          <div class="small muted" id="locksHint">Connect a wallet to scan its locks.</div>
+
+          <div style="margin-top:6px;">
+            <span class="small muted">Unclaimed total (this page):</span>
+            <span id="totalLocked" class="pill">0.0000000 AQUAmb</span>
+          </div>
+          <div style="margin-top:4px;">
+            <span class="small muted">Interest eligibility (threshold 10,000 AQUAmb):</span>
+            <span id="eligibilityTag" class="tag err">Not eligible</span>
+          </div>
+
+          <div id="locksTableWrap" style="margin-top:10px;max-height:320px;overflow:auto;display:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Amount</th>
+                  <th>Created</th>
+                  <th>Unlock (UTC)</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="locksBody"></tbody>
+            </table>
+          </div>
+          <div id="locksStatus" class="status-line small muted"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
+
+  <!-- Connect Modal -->
+  <div id="connectBackdrop" class="backdrop"></div>
+  <div id="connectModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 style="font-size:18px;margin:0;">Connect Wallet</h2>
+        <button class="x" id="closeConnect" aria-label="Close">×</button>
+      </div>
+      <p class="small muted" style="margin-top:0;">
+        Choose a connection method. WalletConnect is recommended for mobile/Vault accounts.
+      </p>
+      <button id="wcBtn" class="wallet-btn">🔗 WalletConnect (mobile / Vault)</button>
+      <button id="freighterBtn" class="wallet-btn">🧩 Freighter (browser extension)</button>
+
+      <div id="qrArea" class="qr-wrap" style="display:none;">
+        <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px;"></canvas>
+        <p class="small muted" id="wcHint" style="margin:0;text-align:center;">
+          Scan with LOBSTR / Freighter on your phone.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign Modal (WC guidance) -->
+  <div id="signBackdrop" class="backdrop"></div>
+  <div id="signModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 style="font-size:18px;margin:0;">Sign Transaction</h2>
+        <button class="x" id="closeSign" aria-label="Close">×</button>
+      </div>
+      <p class="small muted">
+        Check your connected wallet (WalletConnect or Freighter) to review and sign the transaction.
+      </p>
+    </div>
+  </div>
+
+  <!-- Vault Modal -->
+  <div id="vaultBackdrop" class="backdrop"></div>
+  <div id="vaultModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 style="font-size:18px;margin:0;">LOBSTR Vault Protected</h2>
+        <button class="x" id="closeVault" aria-label="Close">×</button>
+      </div>
+      <p class="small muted">
+        This account requires a <b>LOBSTR Vault</b> co-signature.
+        <br><br>
+        1) Click “Copy Signed XDR” below.<br>
+        2) Open LOBSTR Vault and paste the XDR into the signer.<br>
+        3) Approve in Vault – then the transaction will be submitted.
+      </p>
+      <button id="copySignedXdr" class="wallet-btn">Copy Signed XDR</button>
+      <label for="signedXdrOut" class="small muted" style="margin-top:10px;">Signed XDR</label>
+      <textarea id="signedXdrOut" rows="6" readonly style="width:100%;background:#0b1115;border-radius:10px;border:1px dashed #1e2831;color:#e8f0f6;font-size:12px;"></textarea>
+    </div>
+  </div>
+
+  <script>window.process = window.process || { env:{} };</script>
+
+  <script type="module">
+    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+    import QRCode from "https://esm.sh/qrcode@1.5.3";
+
+    const SDK = window.StellarSdk;
+    if (!SDK) throw new Error("Stellar SDK failed to load");
+
+    // --- Network / asset config ---
+    const HORIZON = "https://horizon.stellar.org";
+    const NETWORK = SDK.Networks.PUBLIC;
+
+    const AQUAmb_CODE   = "AQUAmb";
+    const AQUAmb_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+    const TRACKER_KEY   = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
+    const AQUAmb = new SDK.Asset(AQUAmb_CODE, AQUAmb_ISSUER);
+
+    // LOBSTR Vault signer (fixed key you provided)
+    const VAULT_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
+
+    // WalletConnect
+    const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
+
+    // --- Helpers ---
+    const $ = id => document.getElementById(id);
+    const on = (el,ev,fn)=> el && el.addEventListener(ev,fn);
+
+    const connectBtn    = $("connectBtn");
+    const walletBtn     = $("walletBtn");
+    const walletLabel   = $("walletLabel");
+    const disconnectBtn = $("disconnectBtn");
+    const statusTag     = $("statusTag");
+
+    const amountEl      = $("amount");
+    const buildLockBtn  = $("buildLockBtn");
+    const copyXdrBtn    = $("copyXdrBtn");
+    const xdrOut        = $("xdrOut");
+    const builderStatus = $("builderStatus");
+
+    const totalLockedEl   = $("totalLocked");
+    const eligibilityTag  = $("eligibilityTag");
+    const locksHint       = $("locksHint");
+    const locksTableWrap  = $("locksTableWrap");
+    const locksBody       = $("locksBody");
+    const locksStatus     = $("locksStatus");
+
+    // Modals
+    const connectBackdrop = $("connectBackdrop");
+    const connectModal    = $("connectModal");
+    const closeConnect    = $("closeConnect");
+    const wcBtn           = $("wcBtn");
+    const freighterBtn    = $("freighterBtn");
+    const qrArea          = $("qrArea");
+    const qrCanvas        = $("qrCanvas");
+
+    const signBackdrop = $("signBackdrop");
+    const signModal    = $("signModal");
+    const closeSign    = $("closeSign");
+
+    const vaultBackdrop   = $("vaultBackdrop");
+    const vaultModal      = $("vaultModal");
+    const closeVault      = $("closeVault");
+    const copySignedXdr   = $("copySignedXdr");
+    const signedXdrOut    = $("signedXdrOut");
+
+    // Toasts
+    const toastWrap = $("toastWrap");
+    function toast(msg, isErr=false, timeout=2800){
+      const el = document.createElement("div");
+      el.className = "toast " + (isErr ? "err" : "ok");
+      el.innerHTML = `<span>${msg}</span><button class="x" aria-label="Close">×</button>`;
+      toastWrap.appendChild(el);
+      const close = ()=>{ el.remove(); };
+      el.querySelector(".x").onclick = close;
+      if(timeout) setTimeout(close, timeout);
+    }
+
+    function shortG(g){
+      if(!g || g.length<12) return g||"";
+      return g.slice(0,5)+"…"+g.slice(-5);
+    }
+
+    function format7(n){
+      const x = Number(n);
+      if(!isFinite(x)) return "0.0000000";
+      return x.toFixed(7).replace(/\.0+$/,".0000000");
+    }
+
+    function parseAmount(str){
+      if(!str) return null;
+      const s = String(str).replace(/,/g,"").trim();
+      if(!s) return null;
+      const n = Number(s);
+      if(!isFinite(n) || n<=0) return null;
+      // clamp to 7dp
+      const t = Math.floor(n * 1e7) / 1e7;
+      return t;
+    }
+
+    // --- Connection state ---
+    let connectionMode = "none"; // 'none' | 'wc' | 'freighter'
+    let pubkey         = null;
+
+    let _server = null;
+    function getServer(){
+      if(_server) return _server;
+      const ServerCtor = SDK.Horizon?.Server || SDK.Server;
+      _server = new ServerCtor(HORIZON);
+      return _server;
+    }
+
+    // --- Modal helpers ---
+    function openConnectModal(){
+      connectBackdrop.classList.add("open");
+      connectModal.classList.add("open");
+    }
+    function closeConnectModal(){
+      connectBackdrop.classList.remove("open");
+      connectModal.classList.remove("open");
+      qrArea.style.display = "none";
+    }
+    on(connectBtn,"click", openConnectModal);
+    on(closeConnect,"click", closeConnectModal);
+    on(connectBackdrop,"click", e=>{ if(e.target===connectBackdrop) closeConnectModal(); });
+
+    function openSignModal(){
+      signBackdrop.classList.add("open");
+      signModal.classList.add("open");
+    }
+    function closeSignModal(){
+      signBackdrop.classList.remove("open");
+      signModal.classList.remove("open");
+    }
+    on(closeSign,"click", closeSignModal);
+    on(signBackdrop,"click", e=>{ if(e.target===signBackdrop) closeSignModal(); });
+
+    function openVaultModal(xdr){
+      signedXdrOut.value = xdr || "";
+      vaultBackdrop.classList.add("open");
+      vaultModal.classList.add("open");
+    }
+    function closeVaultModal(){
+      vaultBackdrop.classList.remove("open");
+      vaultModal.classList.remove("open");
+    }
+    on(closeVault,"click", closeVaultModal);
+    on(vaultBackdrop,"click", e=>{ if(e.target===vaultBackdrop) closeVaultModal(); });
+
+    on(copySignedXdr,"click", async ()=>{
+      try{
+        await navigator.clipboard.writeText(signedXdrOut.value || "");
+        toast("Signed XDR copied.");
+      }catch{
+        toast("Clipboard failed – copy manually from the box.", true, 3500);
+      }
+    });
+
+    // --- WalletConnect client ---
+    let wcClient   = null;
+    let session    = null;
+    let latestWcUri = null;
+
+    async function ensureClient(){
+      if(wcClient) return wcClient;
+      wcClient = await SignClient.init({
+        projectId: PROJECT_ID,
+        relayUrl: "wss://relay.walletconnect.com",
+        metadata: {
+          name: "AQUAmb 1-Day Lock Demo",
+          description: "Test locker for AQUAmb claimable balances",
+          url: location.origin,
+          icons:["https://walletconnect.com/walletconnect-logo.png"]
+        }
+      });
+      return wcClient;
+    }
+
+    function openSignHint(){
+      if(connectionMode === "wc"){
+        openSignModal();
+      }
+    }
+
+    // --- Freighter helper ---
+    async function ensureFreighterApi(){
+      if(window.freighterApi) return window.freighterApi;
+      try{
+        const mod = await import("https://esm.sh/@stellar/freighter-api@5.0.0");
+        window.freighterApi = mod?.default ?? mod;
+        return window.freighterApi;
+      }catch{
+        return null;
+      }
+    }
+
+    // --- Detect Vault signer ---
+    async function detectVault(account){
+      if(!account) return false;
+      try{
+        const r = await fetch(`${HORIZON}/accounts/${account}`);
+        const j = await r.json();
+        const ks = (j.signers || []).map(s=>s.key);
+        const hasVault = ks.includes(VAULT_KEY);
+        if(hasVault){
+          statusTag.textContent = "LOBSTR Vault Protected";
+          statusTag.className = "tag ok";
+        }else{
+          statusTag.textContent = connectionMode === "wc"
+            ? "Connected (WalletConnect)"
+            : "Connected (Freighter)";
+          statusTag.className = "tag ok";
+        }
+        return hasVault;
+      }catch(e){
+        console.warn("Vault detect failed", e);
+        return false;
+      }
+    }
+
+    // --- Set connected / disconnected UI ---
+    async function setConnected(address, mode){
+      pubkey = address || null;
+      connectionMode = address ? mode : "none";
+
+      disconnectBtn.disabled = !address;
+      connectBtn.style.display = address ? "none" : "";
+      walletBtn.style.display  = address ? "inline-flex" : "none";
+
+      if(address){
+        walletLabel.textContent = shortG(address);
+        statusTag.textContent = "Connected";
+        statusTag.className = "tag ok";
+        await detectVault(address);
+        toast("Wallet connected.");
+        scanLocksForCurrent();
+      }else{
+        statusTag.textContent = "Not connected";
+        statusTag.className   = "tag";
+        locksBody.innerHTML   = "";
+        locksTableWrap.style.display = "none";
+        locksHint.textContent = "Connect a wallet to scan its locks.";
+        totalLockedEl.textContent = "0.0000000 AQUAmb";
+        eligibilityTag.textContent = "Not eligible";
+        eligibilityTag.className = "tag err";
+      }
+    }
+
+    // --- Connect handlers ---
+    on(disconnectBtn,"click", async ()=>{
+      try{
+        if(connectionMode==="wc" && wcClient && session){
+          await wcClient.disconnect({
+            topic: session.topic,
+            reason:{ code:6000, message:"User disconnected" }
+          });
+        }
+      }catch(e){ console.warn(e); }
+      session = null;
+      await setConnected(null, "none");
+      toast("Disconnected.");
+    });
+
+    // WalletConnect connect
+    on(wcBtn,"click", async ()=>{
+      try{
+        const sc = await ensureClient();
+        toast("Starting WalletConnect…");
+
+        const { uri, approval } = await sc.connect({
+          optionalNamespaces:{
+            stellar: {
+              chains: ["stellar:pubnet"],
+              methods:["stellar_signXDR","stellar_signAndSubmitXDR"],
+              events:[]
+            }
+          }
+        });
+
+        if(!uri) throw new Error("No WalletConnect URI");
+        latestWcUri = uri;
+
+        // Show QR
+        try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); } catch(e){ console.warn(e); }
+        qrArea.style.display = "flex";
+
+        // Wait for session approval
+        session = await approval();
+        const accounts = session.namespaces?.stellar?.accounts || [];
+        const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+        const address = first.split(":")[2] || "";
+        qrArea.style.display = "none";
+        await setConnected(address, "wc");
+        wcClient = sc;
+        closeConnectModal();
+      }catch(e){
+        console.error(e);
+        toast("WalletConnect canceled or failed.", true);
+      }
+    });
+
+    // Freighter connect
+    on(freighterBtn,"click", async ()=>{
+      try{
+        const freighter = await ensureFreighterApi();
+        if(!freighter){ toast("Freighter extension not detected.", true); return; }
+
+        let address = "";
+        try { address = await freighter.getPublicKey(); } catch {}
+        if(!address && freighter.getAddress){
+          const r = await freighter.getAddress();
+          address = r?.address || "";
+        }
+        if(!address && freighter.requestAccess){
+          const r = await freighter.requestAccess();
+          address = r?.address || "";
+        }
+        if(!address){
+          toast("Freighter connect denied or failed.", true);
+          return;
+        }
+        await setConnected(address, "freighter");
+        closeConnectModal();
+      }catch(e){
+        console.error(e);
+        toast("Freighter connect failed.", true);
+      }
+    });
+
+    on(walletBtn,"click", ()=>{
+      if(!pubkey) return;
+      const url = `https://stellar.expert/explorer/public/account/${pubkey}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    });
+
+    // --- Sign request helper (WC / Freighter) ---
+    const wcRequest = (method, xdr) => wcClient.request({
+      topic: session.topic, chainId:"stellar:pubnet",
+      request:{ jsonrpc:"2.0", method, params:{ xdr } }
+    });
+
+    async function signCurrent(xdr){
+      if(connectionMode === "wc"){
+        if(!wcClient || !session) throw new Error("WalletConnect session missing");
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      if(connectionMode === "freighter"){
+        const api = await ensureFreighterApi();
+        if(!api) throw new Error("Freighter API missing");
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
+        if(res?.error) throw new Error(res.error.message || "Freighter sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      throw new Error("No wallet connected");
+    }
+
+    // --- Submit helpers (classic only) ---
+    async function submitToHorizon(signedXdr){
+      const resp = await fetch(`${HORIZON}/transactions`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+        body:"tx="+encodeURIComponent(signedXdr)
+      });
+      const data = await resp.json().catch(()=> ({}));
+      if(!resp.ok){
+        const code = data?.extras?.result_codes?.transaction || resp.status;
+        const ops  = data?.extras?.result_codes?.operations || [];
+        throw new Error(`Horizon error: ${code}${ops.length?` (${ops.join(",")})`:""}`);
+      }
+      return data.hash;
+    }
+
+    async function handleSignedClassicXdr(signedXdr, label="Locker"){
+      const pk = pubkey;
+      const hasVault = await detectVault(pk);
+
+      if(hasVault){
+        try{ await navigator.clipboard.writeText(signedXdr); }catch{}
+        openVaultModal(signedXdr);
+        builderStatus.textContent = `${label} transaction signed. Complete it in LOBSTR Vault.`;
+        builderStatus.className = "status-line small ok";
+        return null;
+      }
+
+      const hash = await submitToHorizon(signedXdr);
+      return hash;
+    }
+
+    // --- Build 1-day lock XDR ---
+    async function buildLockXdr(){
+      builderStatus.textContent = "";
+      if(!pubkey){
+        builderStatus.textContent = "Connect a wallet first.";
+        builderStatus.className = "status-line small err";
+        toast("Connect a wallet first.", true);
+        return null;
+      }
+
+      const amt = parseAmount(amountEl.value);
+      if(!amt){
+        builderStatus.textContent = "Enter a valid amount > 0.";
+        builderStatus.className = "status-line small err";
+        return null;
+      }
+
+      try{
+        const server = getServer();
+        const src = await server.loadAccount(pubkey);
+
+        // Unlock: tomorrow at 23:59:59 UTC
+        const now = new Date();
+        const unlock = new Date(now);
+        unlock.setUTCDate(unlock.getUTCDate() + 1);
+        unlock.setUTCHours(23,59,59,0);
+        const unlockTs = Math.floor(unlock.getTime() / 1000).toString();
+
+        const ownerPredicate   = SDK.Claimant.predicateNot(
+          SDK.Claimant.predicateBeforeAbsoluteTime(unlockTs)
+        );
+        const trackerPredicate = SDK.Claimant.predicateBeforeAbsoluteTime("0");
+
+        const claimants = [
+          new SDK.Claimant(pubkey,      ownerPredicate),
+          new SDK.Claimant(TRACKER_KEY, trackerPredicate)
+        ];
+
+        const tx = new SDK.TransactionBuilder(src, {
+          fee: "20000",
+          networkPassphrase: NETWORK
+        })
+        .addOperation(SDK.Operation.createClaimableBalance({
+          asset: AQUAmb,
+          amount: amt.toFixed(7),
+          claimants
+        }))
+        .setTimeout(180)
+        .build();
+
+        return { xdr: tx.toXDR(), unlock, amount: amt };
+      }catch(e){
+        console.error(e);
+        builderStatus.textContent = e.message || "Failed to build transaction.";
+        builderStatus.className = "status-line small err";
+        toast("Failed to build transaction.", true);
+        return null;
+      }
+    }
+
+    on(buildLockBtn,"click", async ()=>{
+      if(!pubkey){ toast("Connect a wallet first.", true); return; }
+      const built = await buildLockXdr();
+      if(!built) return;
+
+      xdrOut.value = built.xdr;
+      copyXdrBtn.disabled = !xdrOut.value.trim();
+
+      try{
+        openSignHint();
+        toast("Check your wallet to sign…");
+        const signed = await signCurrent(built.xdr);
+        const hash = await handleSignedClassicXdr(signed, "1-day lock");
+
+        if(hash){
+          builderStatus.textContent = `Lock submitted ✓ tx: ${hash}`;
+          builderStatus.className = "status-line small ok";
+          toast("Lock submitted.");
+          // Re-scan locks after a short delay
+          setTimeout(scanLocksForCurrent, 2000);
+        }
+      }catch(e){
+        console.error(e);
+        closeSignModal();
+        builderStatus.textContent = e.message || "Sign/submit failed.";
+        builderStatus.className = "status-line small err";
+        toast(e.message || "Sign/submit failed.", true);
+      }
+    });
+
+    on(copyXdrBtn,"click", async ()=>{
+      try{
+        await navigator.clipboard.writeText(xdrOut.value || "");
+        toast("XDR copied.");
+      }catch{
+        toast("Clipboard failed – copy manually.", true);
+      }
+    });
+
+    // --- Scan locks for current wallet ---
+    async function fetchTrackedBalances(){
+      const assetStr = `${AQUAmb_CODE}:${AQUAmb_ISSUER}`;
+      let next = `${HORIZON}/claimable_balances?claimant=${TRACKER_KEY}&asset=${encodeURIComponent(assetStr)}&limit=200&order=asc`;
+      const all = [];
+
+      while(next){
+        const res = await fetch(next);
+        const j = await res.json();
+        const recs = j?._embedded?.records || [];
+        all.push(...recs);
+        const nextHref = j?._links?.next?.href;
+        if(!nextHref || recs.length === 0) break;
+        next = nextHref;
+      }
+      return all;
+    }
+
+    function extractOwnerInfo(rec){
+      // Expect: two claimants: owner (NOT before abs_time) + tracker (before "1970...Z")
+      const claimants = rec.claimants || [];
+      if(claimants.length < 2) return null;
+
+      let owner = null;
+      let tracker = null;
+      for(const c of claimants){
+        if(c.destination === TRACKER_KEY){
+          tracker = c;
+        }else{
+          owner = c;
+        }
+      }
+      if(!owner || !tracker) return null;
+
+      // Owner predicate: not.abs_before
+      const pred = owner.predicate || {};
+      const not  = pred.not || {};
+      const abs  = not.abs_before;
+      if(!abs) return null;
+
+      const unlockIso = abs; // e.g. "2025-11-17T23:59:59Z"
+      const unlockDate = new Date(unlockIso);
+      if(!isFinite(unlockDate.getTime())) return null;
+
+      return {
+        owner: owner.destination,
+        unlockIso,
+        unlockDate
+      };
+    }
+
+    async function scanLocksForCurrent(){
+      locksStatus.textContent = "";
+      locksBody.innerHTML = "";
+      locksTableWrap.style.display = "none";
+      if(!pubkey){
+        locksHint.textContent = "Connect a wallet to scan its locks.";
+        return;
+      }
+
+      locksHint.textContent = "Scanning TRACKER_KEY for your AQUAmb locks…";
+      try{
+        const all = await fetchTrackedBalances();
+        const mine = [];
+
+        for(const rec of all){
+          const info = extractOwnerInfo(rec);
+          if(!info) continue;
+          if(info.owner !== pubkey) continue;
+
+          const createdAt = rec.created_at ? new Date(rec.created_at) : null;
+          const amount = Number(rec.amount || "0");
+          const now = new Date();
+          const matured = now >= info.unlockDate;
+
+          mine.push({
+            id: rec.id,
+            amount,
+            createdAt,
+            unlockDate: info.unlockDate,
+            unlockIso: info.unlockIso,
+            matured
+          });
+        }
+
+        if(mine.length === 0){
+          locksHint.textContent = "No 1-day AQUAmb locks found for this wallet (with this TRACKER_KEY).";
+          totalLockedEl.textContent = "0.0000000 AQUAmb";
+          eligibilityTag.textContent = "Not eligible";
+          eligibilityTag.className = "tag err";
+          return;
+        }
+
+        locksHint.textContent = "";
+        locksTableWrap.style.display = "block";
+
+        // Sort by unlock date ascending
+        mine.sort((a,b)=> a.unlockDate - b.unlockDate);
+
+        locksBody.innerHTML = "";
+        let total = 0;
+        for(const item of mine){
+          total += item.amount;
+          const tr = document.createElement("tr");
+
+          const createdStr = item.createdAt
+            ? item.createdAt.toLocaleString()
+            : "—";
+
+          const unlockStr = item.unlockDate.toISOString().replace(".000Z","Z");
+
+          const statusText = item.matured ? "Matured" : "Pending";
+          const statusClass = item.matured ? "ok" : "";
+
+          tr.innerHTML = `
+            <td>${format7(item.amount)}</td>
+            <td>${createdStr}</td>
+            <td>${unlockStr}</td>
+            <td><span class="pill ${statusClass}">${statusText}</span></td>
+            <td></td>
+          `;
+
+          const actionCell = tr.lastElementChild;
+          if(item.matured){
+            const btn = document.createElement("button");
+            btn.textContent = "Claim";
+            btn.className = "ghost";
+            btn.onclick = ()=> claimLock(item);
+            actionCell.appendChild(btn);
+          }else{
+            actionCell.textContent = "—";
+          }
+
+          locksBody.appendChild(tr);
+        }
+
+        totalLockedEl.textContent = `${format7(total)} AQUAmb`;
+
+        if(total >= 10000){
+          eligibilityTag.textContent = "Eligible (≥ 10,000 AQUAmb)";
+          eligibilityTag.className = "tag ok";
+        }else{
+          eligibilityTag.textContent = "Not eligible (< 10,000 AQUAmb)";
+          eligibilityTag.className = "tag err";
+        }
+
+        locksStatus.textContent = `Found ${mine.length} unclaimed lock(s) for this wallet.`;
+        locksStatus.className = "status-line small muted";
+      }catch(e){
+        console.error(e);
+        locksStatus.textContent = e.message || "Failed to scan locks.";
+        locksStatus.className = "status-line small err";
+        toast("Failed to scan locks.", true);
+      }
+    }
+
+    // --- Claim a matured lock (single balance) ---
+    async function claimLock(item){
+      if(!pubkey){ toast("Connect a wallet first.", true); return; }
+      try{
+        const server = getServer();
+        const src = await server.loadAccount(pubkey);
+        const tx = new SDK.TransactionBuilder(src, {
+          fee:"10000",
+          networkPassphrase:NETWORK
+        })
+        .addOperation(SDK.Operation.claimClaimableBalance({
+          balanceId: item.id
+        }))
+        .setTimeout(180)
+        .build();
+
+        const xdr = tx.toXDR();
+        toast("Check your wallet to sign claim…");
+        openSignHint();
+        const signed = await signCurrent(xdr);
+        const hash = await handleSignedClassicXdr(signed, "Lock claim");
+
+        if(hash){
+          toast("Claim submitted.");
+          locksStatus.textContent = `Claim submitted ✓ tx: ${hash}`;
+          locksStatus.className = "status-line small ok";
+          setTimeout(scanLocksForCurrent, 2000);
+        }
+      }catch(e){
+        console.error(e);
+        closeSignModal();
+        toast(e.message || "Claim failed.", true);
+      }
+    }
+
+    // --- Wire up amount blur formatting ---
+    on(amountEl,"blur", ()=>{
+      const amt = parseAmount(amountEl.value);
+      if(amt){
+        amountEl.value = format7(amt);
+      }
+    });
+
+    // Initial
+    builderStatus.textContent = "Enter an amount and click “Build & Sign Lock” to create a 1-day AQUAmb lock.";
+    builderStatus.className = "status-line small muted";
+  </script>
+
+  <!-- Freighter UMD fallback (if not already present) -->
+  <script>
+    if(!window.freighterApi){
+      const s = document.createElement("script");
+      s.src = "https://cdn.freighter.app/freighter-api-v1.js";
+      document.head.appendChild(s);
+    }
+  </script>
+</body>
+</html>
