@@ -548,80 +548,75 @@ th{
     </div>
   </div>
 
-  <!-- ========================= -->
-<!--   AQUAmb Locks & APY      -->
-<!-- ========================= -->
-<div class="card" id="locksApyCard" style="margin-top:28px;">
+      <!-- ========================= -->
+      <!--   AQUAmb Locks & APY      -->
+      <!-- ========================= -->
+      <div class="section box" id="locksApyCard" style="margin-top:28px;">
+        <h2 class="title" style="margin-top:0;">
+          AQUAmb Locks & APY Dashboard
+        </h2>
 
-  <h2 class="title" style="margin-top:0;">AQUAmb Locks & APY Dashboard</h2>
+        <!-- === AQUAmb Locks Overview === -->
+        <div class="section" id="locksSection" style="margin-top:18px;">
+          <h3 style="margin:0 0 6px;">Your AQUAmb Locks</h3>
+          <p class="small muted" id="locksHint" style="margin-top:0;">
+            Connect a wallet to scan AQUAmb locks created with the official AQUAmb locker (TRACKER_KEY).
+          </p>
 
-  <!-- === AQUAmb Locks Overview === -->
-  <div class="wrap">
-  <div class="card" id="locksApyCard" style="margin-top:28px;">
-    <h2 class="title" style="margin-top:0;">
-      AQUAmb Locks & APY Dashboard
-    </h2>
+          <div style="margin-top:6px;">
+            <span class="small muted">Interest-earning total (pending, valid term ≥ 365 days):</span>
+            <span id="locksTotal" class="pill">0.0000000 AQUAmb</span>
+          </div>
 
-    <!-- === AQUAmb Locks Overview === -->
-    <div class="section" id="locksSection" style="margin-top:18px;">
-      <h3 style="margin:0 0 6px;">Your AQUAmb Locks</h3>
-      <p class="small muted" id="locksHint" style="margin-top:0;">
-        Connect a wallet to scan AQUAmb locks created with the official AQUAmb locker (TRACKER_KEY).
-      </p>
+          <div style="margin-top:4px;">
+            <span class="small muted">Interest eligibility (threshold 10,000 AQUAmb):</span>
+            <span id="eligibilityTag" class="tag err">Not eligible</span>
+          </div>
 
-      <div style="margin-top:6px;">
-        <span class="small muted">Interest-earning total (pending, valid term ≥ 365 days):</span>
-        <span id="locksTotal" class="pill">0.0000000 AQUAmb</span>
+          <div id="locksTableWrap" style="margin-top:10px;max-height:260px;overflow:auto;display:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Amount</th>
+                  <th>Created</th>
+                  <th>Unlock (UTC)</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="locksBody"></tbody>
+            </table>
+          </div>
+
+          <div id="locksStatus" class="status-line small muted"></div>
+        </div>
+
+        <!-- === Interest Payments === -->
+        <div class="section" id="interestSection" style="margin-top:28px;">
+          <h3 style="margin:0 0 6px;">Interest Payments</h3>
+          <p class="small muted" style="margin-top:0;">
+            Displays AQUAmb payments sent to your wallet with the memo
+            <span class="mono">"AQUAmb APY Payment"</span>.
+          </p>
+
+          <div id="interestTableWrap" style="margin-top:10px;max-height:240px;overflow:auto;display:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Memo</th>
+                  <th>Amount (AQUAmb)</th>
+                </tr>
+              </thead>
+              <tbody id="interestBody"></tbody>
+            </table>
+          </div>
+
+          <div id="interestStatus" class="status-line small muted"></div>
+        </div>
       </div>
-
-      <div style="margin-top:4px;">
-        <span class="small muted">Interest eligibility (threshold 10,000 AQUAmb):</span>
-        <span id="eligibilityTag" class="tag err">Not eligible</span>
-      </div>
-
-      <div id="locksTableWrap" style="margin-top:10px;max-height:260px;overflow:auto;display:none;">
-        <table>
-          <thead>
-            <tr>
-              <th>Amount</th>
-              <th>Created</th>
-              <th>Unlock (UTC)</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="locksBody"></tbody>
-        </table>
-      </div>
-
-      <div id="locksStatus" class="status-line small muted"></div>
-    </div>
-
-  <!-- === Interest Payments === -->
-  <div class="section" id="interestSection" style="margin-top:28px;">
-    <h3 style="margin:0 0 6px;">Interest Payments</h3>
-    <p class="small muted" style="margin-top:0;">
-      Displays AQUAmb payments sent to your wallet with the memo  
-      <span class="mono">"AQUAmb APY Payment"</span>.
-    </p>
-
-    <div id="interestTableWrap" style="margin-top:10px;max-height:240px;overflow:auto;display:none;">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Memo</th>
-            <th>Amount (AQUAmb)</th>
-          </tr>
-        </thead>
-        <tbody id="interestBody"></tbody>
-      </table>
-    </div>
-
-    <div id="interestStatus" class="status-line small muted"></div>
-  </div>
-
-</div>
+    </div> <!-- end main .card -->
+  </div>   <!-- end .wrap -->
 
   <!-- Old toast container (kept) -->
   <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
