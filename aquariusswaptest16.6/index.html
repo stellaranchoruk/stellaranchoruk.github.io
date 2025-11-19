@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Mirrasets — Swap & Lock (v16.3 AQUAmb)</title>
+  <title>Mirrasets — Swap & Lock (v16.6 AQUAmb)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Freighter API (UMD) -->
@@ -230,6 +230,45 @@ th{
   font-weight:600;
   color:#cfd8e6;
 }
+
+        @media (max-width: 640px){
+      #locksTableWrap table,
+      #locksTableWrap thead,
+      #locksTableWrap tbody,
+      #locksTableWrap th,
+      #locksTableWrap td,
+      #locksTableWrap tr{
+        display:block;
+      }
+
+      #locksTableWrap thead{
+        display:none;
+      }
+
+      #locksTableWrap tr{
+        border-bottom:1px solid #1b252e;
+        margin-bottom:8px;
+        padding-bottom:6px;
+      }
+
+      #locksTableWrap td{
+        border:none;
+        padding:2px 0;
+      }
+
+      #locksTableWrap td::before{
+        content: attr(data-label);
+        display:inline-block;
+        min-width:80px;
+        margin-right:6px;
+        font-size:11px;
+        color:var(--muted);
+      }
+
+      #locksTableWrap td:last-child{
+        text-align:right;
+      }
+    }
 
 .tag{
   display:inline-flex;
@@ -517,38 +556,46 @@ th{
   <h2 class="title" style="margin-top:0;">AQUAmb Locks & APY Dashboard</h2>
 
   <!-- === AQUAmb Locks Overview === -->
-  <div class="section" id="locksSection" style="margin-top:18px;">
-    <h3 style="margin:0 0 6px;">Your AQUAmb Locks</h3>
-    <p class="small muted" id="locksHint" style="margin-top:0;">
-      Connect a wallet to scan AQUAmb locks created with the official AQUAmb locker (TRACKER_KEY).
-    </p>
+  <div class="wrap">
+  <div class="card" id="locksApyCard" style="margin-top:28px;">
+    <h2 class="title" style="margin-top:0;">
+      AQUAmb Locks & APY Dashboard
+    </h2>
 
-    <div style="margin-top:6px;">
-      <span class="small muted">Interest-earning total (pending, valid term ≥ 365 days):</span>
-      <span id="locksTotal" class="pill">0.0000000 AQUAmb</span>
-    </div>
-    <div style="margin-top:4px;">
-      <span class="small muted">Interest eligibility (threshold 10,000 AQUAmb):</span>
-      <span id="eligibilityTag" class="tag err">Not eligible</span>
-    </div>
+    <!-- === AQUAmb Locks Overview === -->
+    <div class="section" id="locksSection" style="margin-top:18px;">
+      <h3 style="margin:0 0 6px;">Your AQUAmb Locks</h3>
+      <p class="small muted" id="locksHint" style="margin-top:0;">
+        Connect a wallet to scan AQUAmb locks created with the official AQUAmb locker (TRACKER_KEY).
+      </p>
 
-    <div id="locksTableWrap" style="margin-top:10px;max-height:260px;overflow:auto;display:none;">
-      <table>
-        <thead>
-          <tr>
-            <th>Amount</th>
-            <th>Created</th>
-            <th>Unlock (UTC)</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="locksBody"></tbody>
-      </table>
-    </div>
+      <div style="margin-top:6px;">
+        <span class="small muted">Interest-earning total (pending, valid term ≥ 365 days):</span>
+        <span id="locksTotal" class="pill">0.0000000 AQUAmb</span>
+      </div>
 
-    <div id="locksStatus" class="status-line small muted"></div>
-  </div>
+      <div style="margin-top:4px;">
+        <span class="small muted">Interest eligibility (threshold 10,000 AQUAmb):</span>
+        <span id="eligibilityTag" class="tag err">Not eligible</span>
+      </div>
+
+      <div id="locksTableWrap" style="margin-top:10px;max-height:260px;overflow:auto;display:none;">
+        <table>
+          <thead>
+            <tr>
+              <th>Amount</th>
+              <th>Created</th>
+              <th>Unlock (UTC)</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="locksBody"></tbody>
+        </table>
+      </div>
+
+      <div id="locksStatus" class="status-line small muted"></div>
+    </div>
 
   <!-- === Interest Payments === -->
   <div class="section" id="interestSection" style="margin-top:28px;">
@@ -1012,6 +1059,19 @@ const formatDisp = (num) => {              // for UI display: 1,234,567.1234567
   const withSep = i.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return d ? `${withSep}.${d}` : withSep;
 };
+
+      function formatDateTime(dt, options){
+    if(!(dt instanceof Date) || !isFinite(dt.getTime())) return "—";
+    return dt.toLocaleString(undefined, Object.assign({
+      year:  'numeric',
+      month: '2-digit',
+      day:   '2-digit',
+      hour:  '2-digit',
+      minute:'2-digit',
+      second:'2-digit',
+      hour12:false
+    }, options || {}));
+  }
 
     // === Stellar-style Identicon (SEP-33-like 5×5 mirrored pattern) ===
 function hash32(s){
@@ -1863,11 +1923,8 @@ function setConnected(address, mode){
 
           const tr = document.createElement("tr");
 
-          const createdStr = item.createdAt
-            ? item.createdAt.toLocaleString()
-            : "—";
-
-          const unlockStr = item.unlockDate.toISOString().replace(".000Z","Z");
+          const createdStr = formatDateTime(item.createdAt);                // local time
+          const unlockStr  = formatDateTime(item.unlockDate, { timeZone:"UTC" }); // UTC
 
           let statusText, statusClass;
           if(item.matured){
@@ -1877,16 +1934,16 @@ function setConnected(address, mode){
             statusText  = "Pending";
             statusClass = "";
           }else{
-            statusText  = "Void Lock";
+            statusText  = "No Yield";
             statusClass = "err";
           }
 
           tr.innerHTML = `
-            <td>${formatDisp(item.amount)}</td>
-            <td>${createdStr}</td>
-            <td>${unlockStr}</td>
-            <td><span class="pill ${statusClass}">${statusText}</span></td>
-            <td></td>
+            <td data-label="Amount">${formatDisp(item.amount)}</td>
+            <td data-label="Created">${createdStr}</td>
+            <td data-label="Unlock">${unlockStr}</td>
+            <td data-label="Status"><span class="pill ${statusClass}">${statusText}</span></td>
+            <td data-label="Action"></td>
           `;
 
           const actionCell = tr.lastElementChild;
