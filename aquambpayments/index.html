@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>AQUAmb APY Admin – Interest Payments</title>
+  <title>AQUAmb APR Admin – Interest Payments</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Stellar SDK (classic only needed) -->
@@ -100,19 +100,27 @@
     .toast{
       border-radius:10px;padding:9px 11px;
       border:1px solid #253244;background:#0f1a24;
-      font-size:12px;color:#e7f2ff;
+      font-size:12px;color:#e8f0ff;
       display:flex;justify-content:space-between;gap:6px;
     }
     .toast.err{border-color:#5a2a2a;background:#201114;color:#ffd8d8;}
     .toast .x{background:none;border:none;color:#9fb2c6;font-size:14px;cursor:pointer;}
+    .checkbox-row{
+      margin-top:8px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      color:var(--muted);
+    }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>AQUAmb APY Admin</h1>
+  <h1>AQUAmb APR Admin</h1>
   <p class="muted small">
-    Internal tool to snapshot AQUAmb locks, calculate weekly interest, and build payment XDRs with memo
-    <span class="mono">"AQUAmb APY Payment"</span>.
+    Internal tool to snapshot AQUAmb locks, calculate <b>APR-based</b> interest for a period, and build payment XDRs with memo
+    <span class="mono">"AQUAmb APR Payment"</span>.
     Uses the same <span class="mono">TRACKER_KEY</span> logic as the public dashboard.
   </p>
 
@@ -141,8 +149,8 @@
     <h2 style="margin-top:0;">Interest Parameters</h2>
     <div class="row">
       <div style="flex:1;min-width:140px;">
-        <label for="apyInput">APY %</label>
-        <input id="apyInput" type="number" step="0.01" value="7.5" />
+        <label for="aprInput">APR %</label>
+        <input id="aprInput" type="number" step="0.01" value="7.5" />
       </div>
       <div style="flex:1;min-width:140px;">
         <label for="daysInput">Period length (days)</label>
@@ -150,11 +158,17 @@
       </div>
       <div style="flex:2;min-width:220px;">
         <label for="memoInput">Memo text (max 28 bytes)</label>
-        <input id="memoInput" type="text" value="AQUAmb APY Payment" />
+        <input id="memoInput" type="text" value="AQUAmb APR Payment" />
       </div>
     </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="include10k" checked />
+      <label for="include10k" style="margin:0;">
+        Include only wallets with <b>interest-eligible pending ≥ 10,000 AQUAmb</b> when calculating interest.
+      </label>
+    </div>
     <p class="small muted" style="margin-top:6px;">
-      Weekly interest ≈ <span class="mono">principal × APY/100 × days/365</span>.
+      Interest for this period ≈ <span class="mono">principal × APR/100 × days/365</span> (simple APR, no compounding).
       Snapshot is taken when you click “Scan locks &amp; compute interest”.
     </p>
     <button id="scanBtn" class="primary" style="margin-top:8px;">1) Scan locks &amp; compute interest</button>
@@ -237,17 +251,18 @@
   if(!SDK) throw new Error("Stellar SDK failed to load");
 
   // --- Network / asset config ---
-  const HORIZON      = "https://horizon.stellar.org";
-  const NETWORK      = SDK.Networks.PUBLIC;
-  const AQUAmb_CODE  = "AQUAmb";
-  const AQUAmb_ISSUER= "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
-  const AQUAmb       = new SDK.Asset(AQUAmb_CODE, AQUAmb_ISSUER);
+  const HORIZON       = "https://horizon.stellar.org";
+  const NETWORK       = SDK.Networks.PUBLIC;
+  const AQUAmb_CODE   = "AQUAmb";
+  const AQUAmb_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+  const AQUAmb        = new SDK.Asset(AQUAmb_CODE, AQUAmb_ISSUER);
 
-  const TRACKER_KEY  = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
-  const VAULT_KEY    = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
-  const PROJECT_ID   = "f658ce3a7c8a185214974f71539fea39"; // WalletConnect project
+  const TRACKER_KEY   = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
+  const VAULT_KEY     = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
+  const PROJECT_ID    = "f658ce3a7c8a185214974f71539fea39"; // WalletConnect project
 
-  const MIN_TERM_MS  = 365 * 24 * 60 * 60 * 1000; // 365 days
+  const MIN_TERM_MS   = 365 * 24 * 60 * 60 * 1000; // 365 days in ms
+  const MIN_ELIGIBLE  = 10000; // 10,000 AQUAmb threshold
 
   // --- DOM helpers ---
   const $  = id => document.getElementById(id);
@@ -259,9 +274,10 @@
   const walletLabel     = $("walletLabel");
   const statusTag       = $("statusTag");
 
-  const apyInput        = $("apyInput");
+  const aprInput        = $("aprInput");
   const daysInput       = $("daysInput");
   const memoInput       = $("memoInput");
+  const include10k      = $("include10k");
   const scanBtn         = $("scanBtn");
   const scanStatus      = $("scanStatus");
 
@@ -332,8 +348,8 @@
       projectId: PROJECT_ID,
       relayUrl: "wss://relay.walletconnect.com",
       metadata: {
-        name: "AQUAmb APY Admin",
-        description: "Admin panel for AQUAmb interest payments",
+        name: "AQUAmb APR Admin",
+        description: "Admin panel for AQUAmb interest payments (APR)",
         url: location.origin,
         icons:["https://walletconnect.com/walletconnect-logo.png"]
       }
@@ -544,7 +560,7 @@
     }
   });
 
-  // --- Lock scanning helpers (same logic as public dashboard, but aggregated) ---
+  // --- Lock scanning helpers (same base as public dashboard, but aggregated) ---
 
   // cache ledger → close time
   const ledgerTimeCache = new Map();
@@ -608,9 +624,11 @@
     signSubmitBtn.disabled = true;
     xdrOutput.value        = "";
 
-    const apy  = Number(apyInput.value)  || 0;
+    const apr  = Number(aprInput.value)  || 0;
     const days = Number(daysInput.value) || 0;
-    const periodFactor = apy > 0 && days > 0 ? (apy/100)*(days/365) : 0;
+    const includeOnly10k = !!include10k.checked;
+
+    const periodFactor = apr > 0 && days > 0 ? (apr/100)*(days/365) : 0;
 
     try{
       const all = await fetchTrackedBalances();
@@ -669,8 +687,14 @@
       let rows = [];
 
       for(const entry of byOwner.values()){
-        const interest = entry.eligiblePending * periodFactor;
-        totalEligible += entry.eligiblePending;
+        const meetsMin = entry.eligiblePending >= MIN_ELIGIBLE;
+        const baseForInterest = includeOnly10k && !meetsMin
+          ? 0
+          : entry.eligiblePending;
+
+        const interest = baseForInterest * periodFactor;
+
+        totalEligible += baseForInterest;
         totalShort    += entry.shortPending;
         totalMatured  += entry.matured;
         totalInterest += interest;
@@ -699,11 +723,16 @@
 
       walletTable.style.display = "table";
       scanStatus.textContent = `Scan complete: ${byOwner.size} wallet(s).`;
+
+      const eligLabel = includeOnly10k
+        ? "Interest-eligible total after ≥ 10,000 filter"
+        : "Interest-eligible total";
+
       summaryLine.textContent =
-        `Eligible pending total: ${format7(totalEligible)} AQUAmb · `
+        `${eligLabel}: ${format7(totalEligible)} AQUAmb · `
         + `Short-term pending: ${format7(totalShort)} · `
         + `Matured: ${format7(totalMatured)} · `
-        + `Interest this period (all wallets): ${format7(totalInterest)} AQUAmb`;
+        + `Interest this period (all wallets with >0 interest): ${format7(totalInterest)} AQUAmb`;
 
       // Store rows for later steps
       window.__aquambRows = rows;
@@ -743,7 +772,7 @@
       return;
     }
 
-    const memoText = (memoInput.value || "AQUAmb APY Payment").slice(0,28);
+    const memoText = (memoInput.value || "AQUAmb APR Payment").slice(0,28);
     const server   = getServer();
     let account    = await server.loadAccount(pubkey);
 
@@ -791,7 +820,7 @@
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href = url;
-    a.download = "aquamb-interest-payments.csv";
+    a.download = "aquamb-interest-payments-apr.csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -809,7 +838,7 @@
       toast("No rows selected with positive interest.", true);
       return;
     }
-    const memoText = (memoInput.value || "AQUAmb APY Payment").slice(0,28);
+    const memoText = (memoInput.value || "AQUAmb APR Payment").slice(0,28);
     const server   = getServer();
     let account    = await server.loadAccount(pubkey);
     const memo     = memoText ? SDK.Memo.text(memoText) : undefined;
@@ -856,7 +885,7 @@
   on(signSubmitBtn,"click", ()=>{ signAndSubmitSelected().catch(e=>console.error(e)); });
 
   // Initial status
-  scanStatus.textContent = "Set APY + period, then click “Scan locks & compute interest”.";
+  scanStatus.textContent = "Set APR + period, then click “Scan locks & compute interest”.";
 </script>
 </body>
 </html>
