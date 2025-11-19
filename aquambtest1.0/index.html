@@ -333,6 +333,29 @@
     const copySignedXdr   = $("copySignedXdr");
     const signedXdrOut    = $("signedXdrOut");
 
+    // --- Helpers ---
+const $ = id => document.getElementById(id);
+const on = (el,ev,fn)=> el && el.addEventListener(ev,fn);
+
+// cache ledger → Date
+const ledgerTimeCache = new Map();
+async function getLedgerCloseTime(ledgerSeq) {
+  if (!ledgerSeq) return null;
+  if (ledgerTimeCache.has(ledgerSeq)) return ledgerTimeCache.get(ledgerSeq);
+
+  try {
+    const res = await fetch(`${HORIZON}/ledgers/${ledgerSeq}`);
+    const j = await res.json();
+    const dt = j.closed_at ? new Date(j.closed_at) : null;
+    ledgerTimeCache.set(ledgerSeq, dt);
+    return dt;
+  } catch (e) {
+    console.warn("Failed to fetch ledger time", e);
+    ledgerTimeCache.set(ledgerSeq, null);
+    return null;
+  }
+}
+
     // Toasts
     const toastWrap = $("toastWrap");
     function toast(msg, isErr=false, timeout=2800){
@@ -821,25 +844,26 @@
         const all = await fetchTrackedBalances();
         const mine = [];
 
-        for(const rec of all){
-          const info = extractOwnerInfo(rec);
-          if(!info) continue;
-          if(info.owner !== pubkey) continue;
+        for (const rec of all) {
+  const info = extractOwnerInfo(rec);
+  if (!info) continue;
+  if (info.owner !== pubkey) continue;
 
-          const createdAt = rec.created_at ? new Date(rec.created_at) : null;
-          const amount = Number(rec.amount || "0");
-          const now = new Date();
-          const matured = now >= info.unlockDate;
+  const amount   = Number(rec.amount || "0");
+  const now      = new Date();
+  const matured  = now >= info.unlockDate;
+  const ledgerNo = rec.last_modified_ledger;   // 🔹 keep ledger seq
 
-          mine.push({
-            id: rec.id,
-            amount,
-            createdAt,
-            unlockDate: info.unlockDate,
-            unlockIso: info.unlockIso,
-            matured
-          });
-        }
+  mine.push({
+    id: rec.id,
+    amount,
+    createdAt: null,        // we’ll fill this from the ledger
+    ledgerNo,
+    unlockDate: info.unlockDate,
+    unlockIso: info.unlockIso,
+    matured
+  });
+}
 
         if(mine.length === 0){
           locksHint.textContent = "No 1-day AQUAmb locks found for this wallet (with this TRACKER_KEY).";
@@ -853,11 +877,18 @@
         locksTableWrap.style.display = "block";
 
         // Sort by unlock date ascending
-        mine.sort((a,b)=> a.unlockDate - b.unlockDate);
+mine.sort((a, b) => a.unlockDate - b.unlockDate);
 
-        locksBody.innerHTML = "";
-        let total = 0;
-        for(const item of mine){
+// fetch ledger times (once per ledger)
+for (const item of mine) {
+  if (!item.createdAt && item.ledgerNo) {
+    item.createdAt = await getLedgerCloseTime(item.ledgerNo);
+  }
+}
+
+locksBody.innerHTML = "";
+let total = 0;
+for (const item of mine) {
           total += item.amount;
           const tr = document.createElement("tr");
 
