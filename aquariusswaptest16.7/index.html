@@ -11,7 +11,7 @@
 
   <!-- Open Graph -->
   <meta property="og:site_name" content="Mirrasets" />
-  <meta property="og:title" content="AQUAmb Swap, Lock & APY Dashboard" />
+  <meta property="og:title" content="AQUAmb Swap, Lock & APR Dashboard" />
   <meta property="og:url" content="https://mirrasets.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:description" content="Swap AQUAmb, lock for 12 months, and track your interest payments on Stellar." />
@@ -35,7 +35,7 @@
   <meta itemprop="image" content="https://mirrasets.com/images/header_image_mobile.png" />
 
   <!-- Generic description -->
-  <meta name="description" content="Mirrasets AQUAmb Swap & Lock — swap AQUAmb, create 12-month locks, and view APY interest payments in one dashboard." />
+  <meta name="description" content="Mirrasets AQUAmb Swap & Lock — swap AQUAmb, create 12-month locks, and view APR interest payments in one dashboard." />
 
   <!-- Viewport -->
   <meta
@@ -59,7 +59,7 @@
   <!-- Stellar SDK (UMD v14.3.0) — includes Soroban (SDK.rpc) -->
   <script src="/sdk/stellar-sdk-14.3.0.min.js?v=12"></script>
 
-  <!-- Page-specific styles for Swap / Lock / APY -->
+  <!-- Page-specific styles for Swap / Lock / APR -->
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --accent-2:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
     * { box-sizing: border-box; }
@@ -119,7 +119,7 @@
     .sell-ticker { font-size: 16px; font-weight: 500; letter-spacing: 0.2px; color: #eaf2ff; }
     .down-arrow { font-size: 13px; opacity: 0.6; margin-left: 2px; position: relative; top: -0.5px; }
 
-    /* Big section titles: Swap / Locker / APY Dashboard */
+    /* Big section titles: Swap / Locker / APR Dashboard */
 .section-title{
   font-size: clamp(24px, 3.1vw, 30px);
   font-weight: 800;
@@ -263,7 +263,7 @@
     /* Locker visuals (also reused for "Usable" pill in Swap) */
     .locker-slab { background:#0f1520; border:1px solid #1b2633; border-radius:22px; padding:16px; margin-bottom:12px; position:relative; }
     .locker-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:#0e1627;border:1px solid #2a3656;color:#cfe0ff;font-size:12px}
-    .locker-pill.apy{border-color:#3d2e6d;background:#1b1233;color:#d9caff;font-weight:600}
+    .locker-pill.APR{border-color:#3d2e6d;background:#1b1233;color:#d9caff;font-weight:600}
     .locker-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:2px}
     .percent-btns button{padding:8px 10px;border-radius:10px}
     #usablePill, #swapUsablePill {cursor:pointer}
@@ -662,7 +662,7 @@
             <div class="slab-label">Duration</div>
             <div class="row" style="gap:8px">
               <span class="locker-pill">12 months</span>
-              <span class="locker-pill apy">7.5% APY</span>
+              <span class="locker-pill APR">7.5% APR</span>
             </div>
           </div>
         </div>
@@ -701,10 +701,10 @@
       </div>
 
       <!-- ========================= -->
-      <!--   AQUAmb Locks & APY      -->
+      <!--   AQUAmb Locks & APR      -->
       <!-- ========================= -->
-      <div class="section box" id="locksApyCard" style="margin-top:28px;">
-        <h2 class="section-title">AQUAmb Locks & APY Dashboard</h2>
+      <div class="section box" id="locksAPRCard" style="margin-top:28px;">
+        <h2 class="section-title">AQUAmb Locks & APR Dashboard</h2>
 
         <!-- === AQUAmb Locks Overview === -->
         <div class="section" id="locksSection" style="margin-top:18px;">
@@ -746,7 +746,7 @@
           <h3 style="margin:0 0 6px;">Interest Payments</h3>
           <p class="small muted" style="margin-top:0;">
             Displays AQUAmb payments sent to your wallet with the memo
-            <span class="mono">"AQUAmb APY Payment"</span>.
+            <span class="mono">"AQUAmb APR Payment"</span>.
           </p>
 
           <div id="interestTableWrap" style="margin-top:10px;max-height:240px;overflow:auto;display:none;">
@@ -2171,7 +2171,7 @@ function setConnected(address, mode){
     }
 
         // --- Interest payments tracker (by memo) ---
-    const INTEREST_MEMO_TAG = "AQUAmb APY Payment";
+    const INTEREST_MEMO_TAG = "AQUAmb APR Payment";
     const txMetaCache = new Map();
 
     async function getTxMeta(hash){
