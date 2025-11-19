@@ -1,16 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Mirrasets — Swap & Lock (v16.6 AQUAmb)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+  <title>AQUAmb Swap, Lock & APY Dashboard | Mirrasets</title>
+
+  <base href="" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="canonical" href="/" />
+
+  <!-- Open Graph -->
+  <meta property="og:site_name" content="Mirrasets" />
+  <meta property="og:title" content="AQUAmb Swap, Lock & APY Dashboard" />
+  <meta property="og:url" content="https://mirrasets.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:description" content="Swap AQUAmb, lock for 12 months, and track your interest payments on Stellar." />
+  <meta property="og:image" content="https://mirrasets.com/images/open_graph2.png" />
+  <meta property="og:image:width" content="1388" />
+  <meta property="og:image:height" content="694" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AQUAmb Swap, Lock & APY Dashboard" />
+  <meta name="twitter:image" content="https://mirrasets.com/images/open_graph2.png" />
+  <meta name="twitter:description" content="Swap AQUAmb, lock for 12 months, and track your interest payments on Stellar." />
+  <meta name="twitter:url" content="https://mirrasets.com/" />
+
+  <!-- Schema.org -->
+  <meta itemprop="name" content="Mirrasets" />
+  <meta itemprop="url" content="/" />
+  <meta itemprop="description" content="Real world assets, mirrored on Stellar." />
+  <meta itemprop="thumbnailUrl" content="https://mirrasets.com/images/header_image_mobile.png" />
+  <link rel="image_src" href="https://mirrasets.com/images/header_image_mobile.png" />
+  <meta itemprop="image" content="https://mirrasets.com/images/header_image_mobile.png" />
+
+  <!-- Generic description -->
+  <meta name="description" content="Mirrasets AQUAmb Swap & Lock — swap AQUAmb, create 12-month locks, and view APY interest payments in one dashboard." />
+
+  <!-- Viewport -->
+  <meta
+    name="viewport"
+    content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes"
+  />
+
+  <!-- Global Mirrasets styles -->
+  <link rel="stylesheet" href="https://mirrasets.com/styles/info.css" />
+
+  <!-- Modernizr (used on other Mirrasets pages) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
 
   <!-- Freighter API (UMD) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
 
   <!-- Stellar SDK (UMD v14.3.0) — includes Soroban (SDK.rpc) -->
   <script src="/sdk/stellar-sdk-14.3.0.min.js?v=12"></script>
 
+  <!-- Page-specific styles for Swap / Lock / APY -->
   <style>
     :root { --bg:#0b0f12; --panel:#12181d; --ink:#e8f0f6; --muted:#94a3ad; --accent:#7d4bd1; --accent-2:#4fd1c5; --err:#ff6b6b; --ok:#57d29a; --border:#1c242c; }
     * { box-sizing: border-box; }
@@ -184,54 +233,54 @@
     .percent-btns button{padding:8px 10px;border-radius:10px}
     #usablePill, #swapUsablePill {cursor:pointer}
 
-.wallet-pill {
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  border-radius:999px;
-  padding:5px 9px;
-  background:#0e1419;
-  border:1px solid #1e2831;
-  color:#d9f6ff;
-  cursor:pointer;
-}
-.wallet-pill:hover { filter:brightness(1.05); }
+    .wallet-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border-radius:999px;
+      padding:5px 9px;
+      background:#0e1419;
+      border:1px solid #1e2831;
+      color:#d9f6ff;
+      cursor:pointer;
+    }
+    .wallet-pill:hover { filter:brightness(1.05); }
 
-.status-pill {
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:4px 8px;
-  border-radius:999px;
-  border:1px solid #2a3656;
-  background:#0e1627;
-  color:#cfe0ff;
-  font-size:11px;
-}
-.status-pill.vault {
-  border-color:#214a3a;
-  background:#0f1f1a;
-  color:#cfeede;
-}
+    .status-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid #2a3656;
+      background:#0e1627;
+      color:#cfe0ff;
+      font-size:11px;
+    }
+    .status-pill.vault {
+      border-color:#214a3a;
+      background:#0f1f1a;
+      color:#cfeede;
+    }
 
     /* --- Locks & interest tables --- */
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:8px;
-  font-size:13px;
-}
-th,td{
-  padding:6px 8px;
-  border-bottom:1px solid #1b252e;
-  text-align:left;
-}
-th{
-  font-weight:600;
-  color:#cfd8e6;
-}
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:8px;
+      font-size:13px;
+    }
+    th,td{
+      padding:6px 8px;
+      border-bottom:1px solid #1b252e;
+      text-align:left;
+    }
+    th{
+      font-weight:600;
+      color:#cfd8e6;
+    }
 
-        @media (max-width: 640px){
+    @media (max-width: 640px){
       #locksTableWrap table,
       #locksTableWrap thead,
       #locksTableWrap tbody,
@@ -270,86 +319,90 @@ th{
       }
     }
 
-.tag{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:3px 8px;
-  border-radius:999px;
-  font-size:11px;
-  border:1px solid #2a3656;
-  background:#0e1627;
-  color:#cfe0ff;
-}
-.tag.ok{
-  border-color:#214a3a;
-  background:#0f1f1a;
-  color:#cfeede;
-}
-.tag.err{
-  border-color:#5a2a2a;
-  background:#201114;
-  color:#ffd8d8;
-}
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:3px 8px;
+      border-radius:999px;
+      font-size:11px;
+      border:1px solid #2a3656;
+      background:#0e1627;
+      color:#cfe0ff;
+    }
+    .tag.ok{
+      border-color:#214a3a;
+      background:#0f1f1a;
+      color:#cfeede;
+    }
+    .tag.err{
+      border-color:#5a2a2a;
+      background:#201114;
+      color:#ffd8d8;
+    }
 
-.pill{
-  display:inline-block;
-  padding:4px 9px;
-  border-radius:999px;
-  border:1px solid #243045;
-  background:#0f1520;
-  font-size:12px;
-}
-.pill.ok{
-  border-color:var(--ok);
-  color:var(--ok);
-}
-.pill.err{
-  border-color:var(--err);
-  color:var(--err);
-}
+    .pill{
+      display:inline-block;
+      padding:4px 9px;
+      border-radius:999px;
+      border:1px solid #243045;
+      background:#0f1520;
+      font-size:12px;
+    }
+    .pill.ok{
+      border-color:var(--ok);
+      color:var(--ok);
+    }
+    .pill.err{
+      border-color:var(--err);
+      color:var(--err);
+    }
 
-.status-line{
-  margin-top:6px;
-  font-size:12px;
-}
-.status-line.ok{ color:var(--ok); }
+    .status-line{
+      margin-top:6px;
+      font-size:12px;
+    }
+    .status-line.ok{ color:var(--ok); }
 
-/* --- Wallet identicon wrapper (circle frame, square icon inside) --- */
-.ident-wrap{
-  width:26px;              /* circle diameter */
-  height:26px;
-  border-radius:999px;
-  background:#0e1419;
-  border:1px solid #1e2831;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:1px;             /* space between ring and square */
-  overflow:hidden;         /* keep it circular */
-}
+    /* --- Wallet identicon wrapper (circle frame, square icon inside) --- */
+    .ident-wrap{
+      width:26px;
+      height:26px;
+      border-radius:999px;
+      background:#0e1419;
+      border:1px solid #1e2831;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:1px;
+      overflow:hidden;
+    }
 
-/* Square inside the circle (smaller than before) */
-.ident-wrap img,
-.ident-wrap canvas{
-  width:16px;              /* ↓ from 18–20 to 16 to avoid clipping */
-  height:16px;
-  display:block;
-  image-rendering: crisp-edges;
-}
+    .ident-wrap img,
+    .ident-wrap canvas{
+      width:16px;
+      height:16px;
+      display:block;
+      image-rendering: crisp-edges;
+    }
 
     @media (max-width: 380px){
-  .ident-wrap{ width:24px; height:24px; padding:3px; }
-  .ident-wrap img, .ident-wrap canvas{ border-radius:5px; }
-}
+      .ident-wrap{ width:24px; height:24px; padding:3px; }
+      .ident-wrap img, .ident-wrap canvas{ border-radius:5px; }
+    }
 
     /* Lock preview row – tighter label so pill fits on one line (mobile) */
-.preview-row{display:flex;align-items:center;gap:4px;margin:2px 0}
-.preview-row .label{min-width:68px}
-@media (max-width:420px){ .preview-row .label{min-width:64px} }
+    .preview-row{display:flex;align-items:center;gap:4px;margin:2px 0}
+    .preview-row .label{min-width:68px}
+    @media (max-width:420px){ .preview-row .label{min-width:64px} }
 
     /* Locker popover */
-    #usablePopover{ position:absolute; z-index:50; right:8px; top:94px; background:#0f1526; border:1px solid #26324a; border-radius:12px; padding:10px 12px; min-width:240px; max-width:320px; text-align:left; display:none; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+    #usablePopover{
+      position:absolute; z-index:50; right:8px; top:94px;
+      background:#0f1526; border:1px solid #26324a; border-radius:12px;
+      padding:10px 12px; min-width:240px; max-width:320px; text-align:left;
+      display:none; box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
     #usablePopover.open{ display:block; }
     #usablePopover .line{ display:flex; justify-content:space-between; gap:10px; font-size:12px; color:#cfe0ff; padding:3px 0; }
     #usablePopover .muted{ color:#9db0c6; }
