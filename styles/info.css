@@ -927,6 +927,51 @@ section.main-block {
     }
 }
 
+section.main-block-aquamb {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 25vw;
+    background-color: #FAFAFB;
+    padding-top: 11rem;
+    overflow: hidden;
+    background-image: url(https://mirrasets.com/images/aquamb_header.png);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin-top: 80px;
+}
+
+
+@media screen and (max-width: 800px){
+    section.main-block-aquamb {
+        height: 46rem;
+        justify-content: center;
+        padding-bottom: 10rem;
+        background-image: url(https://mirrasets.com/images/aquamb_header_mobile.png);
+    }
+}
+
+@media screen and (max-width: 600px){
+    section.main-block-aquamb {
+        height: 35rem;
+    }
+}
+
+@media screen and (max-width: 470px){
+    section.main-block-aquamb {
+        justify-content: flex-start;
+        height: 27rem;
+    }
+}
+
+@media screen and (max-width: 370px){
+    section.main-block-aquamb {
+        height: 22rem;
+    }
+}
+
 section.main-block-gbpc {
     position: relative;
     display: flex;
