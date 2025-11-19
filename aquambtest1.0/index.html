@@ -830,118 +830,118 @@ async function getLedgerCloseTime(ledgerSeq) {
       };
     }
 
-    async function scanLocksForCurrent(){
-      locksStatus.textContent = "";
-      locksBody.innerHTML = "";
-      locksTableWrap.style.display = "none";
-      if(!pubkey){
-        locksHint.textContent = "Connect a wallet to scan its locks.";
-        return;
-      }
-
-      locksHint.textContent = "Scanning TRACKER_KEY for your AQUAmb locks…";
-      try{
-        const all = await fetchTrackedBalances();
-        const mine = [];
-
-        for (const rec of all) {
-  const info = extractOwnerInfo(rec);
-  if (!info) continue;
-  if (info.owner !== pubkey) continue;
-
-  const amount   = Number(rec.amount || "0");
-  const now      = new Date();
-  const matured  = now >= info.unlockDate;
-  const ledgerNo = rec.last_modified_ledger;   // 🔹 keep ledger seq
-
-  mine.push({
-    id: rec.id,
-    amount,
-    createdAt: null,        // we’ll fill this from the ledger
-    ledgerNo,
-    unlockDate: info.unlockDate,
-    unlockIso: info.unlockIso,
-    matured
-  });
-}
-
-        if(mine.length === 0){
-          locksHint.textContent = "No 1-day AQUAmb locks found for this wallet (with this TRACKER_KEY).";
-          totalLockedEl.textContent = "0.0000000 AQUAmb";
-          eligibilityTag.textContent = "Not eligible";
-          eligibilityTag.className = "tag err";
-          return;
-        }
-
-        locksHint.textContent = "";
-        locksTableWrap.style.display = "block";
-
-        // Sort by unlock date ascending
-mine.sort((a, b) => a.unlockDate - b.unlockDate);
-
-// fetch ledger times (once per ledger)
-for (const item of mine) {
-  if (!item.createdAt && item.ledgerNo) {
-    item.createdAt = await getLedgerCloseTime(item.ledgerNo);
+async function scanLocksForCurrent(){
+  locksStatus.textContent = "";
+  locksBody.innerHTML = "";
+  locksTableWrap.style.display = "none";
+  if(!pubkey){
+    locksHint.textContent = "Connect a wallet to scan its locks.";
+    return;
   }
-}
 
-locksBody.innerHTML = "";
-let total = 0;
-for (const item of mine) {
-          total += item.amount;
-          const tr = document.createElement("tr");
+  locksHint.textContent = "Scanning TRACKER_KEY for your AQUAmb locks…";
+  try{
+    const all = await fetchTrackedBalances();
+    const mine = [];
 
-          const createdStr = item.createdAt
-            ? item.createdAt.toLocaleString()
-            : "—";
+    for(const rec of all){
+      const info = extractOwnerInfo(rec);
+      if(!info) continue;
+      if(info.owner !== pubkey) continue;
 
-          const unlockStr = item.unlockDate.toISOString().replace(".000Z","Z");
+      const amount   = Number(rec.amount || "0");
+      const now      = new Date();
+      const matured  = now >= info.unlockDate;
+      const ledgerNo = rec.last_modified_ledger;   // 🔹 use this to get created time
 
-          const statusText = item.matured ? "Matured" : "Pending";
-          const statusClass = item.matured ? "ok" : "";
+      mine.push({
+        id: rec.id,
+        amount,
+        createdAt: null,    // will be filled from ledger
+        ledgerNo,
+        unlockDate: info.unlockDate,
+        unlockIso: info.unlockIso,
+        matured
+      });
+    }
 
-          tr.innerHTML = `
-            <td>${format7(item.amount)}</td>
-            <td>${createdStr}</td>
-            <td>${unlockStr}</td>
-            <td><span class="pill ${statusClass}">${statusText}</span></td>
-            <td></td>
-          `;
+    if(mine.length === 0){
+      locksHint.textContent = "No 1-day AQUAmb locks found for this wallet (with this TRACKER_KEY).";
+      totalLockedEl.textContent = "0.0000000 AQUAmb";
+      eligibilityTag.textContent = "Not eligible";
+      eligibilityTag.className = "tag err";
+      return;
+    }
 
-          const actionCell = tr.lastElementChild;
-          if(item.matured){
-            const btn = document.createElement("button");
-            btn.textContent = "Claim";
-            btn.className = "ghost";
-            btn.onclick = ()=> claimLock(item);
-            actionCell.appendChild(btn);
-          }else{
-            actionCell.textContent = "—";
-          }
+    locksHint.textContent = "";
+    locksTableWrap.style.display = "block";
 
-          locksBody.appendChild(tr);
-        }
+    // Sort by unlock date ascending
+    mine.sort((a,b)=> a.unlockDate - b.unlockDate);
 
-        totalLockedEl.textContent = `${format7(total)} AQUAmb`;
-
-        if(total >= 10000){
-          eligibilityTag.textContent = "Eligible (≥ 10,000 AQUAmb)";
-          eligibilityTag.className = "tag ok";
-        }else{
-          eligibilityTag.textContent = "Not eligible (< 10,000 AQUAmb)";
-          eligibilityTag.className = "tag err";
-        }
-
-        locksStatus.textContent = `Found ${mine.length} unclaimed lock(s) for this wallet.`;
-        locksStatus.className = "status-line small muted";
-      }catch(e){
-        console.error(e);
-        locksStatus.textContent = e.message || "Failed to scan locks.";
-        locksStatus.className = "status-line small err";
-        toast("Failed to scan locks.", true);
+    // 🔹 fill createdAt from ledger close time
+    for(const item of mine){
+      if(!item.createdAt && item.ledgerNo){
+        item.createdAt = await getLedgerCloseTime(item.ledgerNo);
       }
     }
+
+    locksBody.innerHTML = "";
+    let total = 0;
+    for(const item of mine){
+      total += item.amount;
+      const tr = document.createElement("tr");
+
+      const createdStr = item.createdAt
+        ? item.createdAt.toLocaleString()
+        : "—";
+
+      const unlockStr = item.unlockDate.toISOString().replace(".000Z","Z");
+
+      const statusText = item.matured ? "Matured" : "Pending";
+      const statusClass = item.matured ? "ok" : "";
+
+      tr.innerHTML = `
+        <td>${format7(item.amount)}</td>
+        <td>${createdStr}</td>
+        <td>${unlockStr}</td>
+        <td><span class="pill ${statusClass}">${statusText}</span></td>
+        <td></td>
+      `;
+
+      const actionCell = tr.lastElementChild;
+      if(item.matured){
+        const btn = document.createElement("button");
+        btn.textContent = "Claim";
+        btn.className = "ghost";
+        btn.onclick = ()=> claimLock(item);
+        actionCell.appendChild(btn);
+      }else{
+        actionCell.textContent = "—";
+      }
+
+      locksBody.appendChild(tr);
+    }
+
+    totalLockedEl.textContent = `${format7(total)} AQUAmb`;
+
+    if(total >= 10000){
+      eligibilityTag.textContent = "Eligible (≥ 10,000 AQUAmb)";
+      eligibilityTag.className = "tag ok";
+    }else{
+      eligibilityTag.textContent = "Not eligible (< 10,000 AQUAmb)";
+      eligibilityTag.className = "tag err";
+    }
+
+    locksStatus.textContent = `Found ${mine.length} unclaimed lock(s) for this wallet.`;
+    locksStatus.className = "status-line small muted";
+  }catch(e){
+    console.error(e);
+    locksStatus.textContent = e.message || "Failed to scan locks.";
+    locksStatus.className = "status-line small err";
+    toast("Failed to scan locks.", true);
+  }
+}
 
     // --- Claim a matured lock (single balance) ---
     async function claimLock(item){
