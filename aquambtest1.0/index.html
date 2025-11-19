@@ -333,10 +333,6 @@
     const copySignedXdr   = $("copySignedXdr");
     const signedXdrOut    = $("signedXdrOut");
 
-    // --- Helpers ---
-const $ = id => document.getElementById(id);
-const on = (el,ev,fn)=> el && el.addEventListener(ev,fn);
-
 // cache ledger → Date
 const ledgerTimeCache = new Map();
 async function getLedgerCloseTime(ledgerSeq) {
