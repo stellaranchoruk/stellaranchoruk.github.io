@@ -83,16 +83,10 @@
     tr:nth-child(even){background:#0c1119;}
     .right{text-align:right;}
     .small{font-size:12px;}
-    .status-pill{
-      display:inline-flex;align-items:center;justify-content:center;
-      padding:2px 8px;border-radius:999px;font-size:11px;
-      border:1px solid #2a3656;background:#0e1627;color:#cfe0ff;
-    }
-    .status-pill.short{border-color:#5a2a2a;color:#ffb0b0;}
-    .status-pill.matured{border-color:#666;background:#181818;color:#ddd;}
-    .status-pill.eligible{border-color:#214a3a;background:#0f1f1a;color:#b4f5cf;}
     .summary{margin-top:6px;font-size:12px;color:var(--muted);}
     .checkbox-cell{width:40px;text-align:center;}
+    .below-min{color:#ffb0b0;font-size:11px;}
+
     .toast-wrap{
       position:fixed;right:16px;top:16px;z-index:2000;
       display:grid;gap:8px;width:min(92vw,360px);
@@ -100,30 +94,24 @@
     .toast{
       border-radius:10px;padding:9px 11px;
       border:1px solid #253244;background:#0f1a24;
-      font-size:12px;color:#e8f0ff;
+      font-size:12px;color:#e7f2ff;
       display:flex;justify-content:space-between;gap:6px;
     }
     .toast.err{border-color:#5a2a2a;background:#201114;color:#ffd8d8;}
     .toast .x{background:none;border:none;color:#9fb2c6;font-size:14px;cursor:pointer;}
-    .checkbox-row{
-      margin-top:8px;
-      display:flex;
-      align-items:center;
-      gap:6px;
-      font-size:12px;
-      color:var(--muted);
-    }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>AQUAmb APR Admin</h1>
   <p class="muted small">
-    Internal tool to snapshot AQUAmb locks, calculate <b>APR-based</b> interest for a period, and build payment XDRs with memo
+    Internal tool to snapshot AQUAmb locks, calculate period interest at a fixed
+    <b>7.5% APR</b>, and build batched payment XDRs with memo
     <span class="mono">"AQUAmb APR Payment"</span>.
     Uses the same <span class="mono">TRACKER_KEY</span> logic as the public dashboard.
   </p>
 
+  <!-- Wallet connection -->
   <div class="panel">
     <div class="row" style="justify-content:space-between;align-items:center;">
       <div>
@@ -145,12 +133,13 @@
     </p>
   </div>
 
+  <!-- Interest parameters -->
   <div class="panel">
     <h2 style="margin-top:0;">Interest Parameters</h2>
     <div class="row">
-      <div style="flex:1;min-width:140px;">
-        <label for="aprInput">APR %</label>
-        <input id="aprInput" type="number" step="0.01" value="7.5" />
+      <div style="flex:1;min-width:160px;">
+        <label>APR % (fixed)</label>
+        <input type="text" value="7.5" readonly />
       </div>
       <div style="flex:1;min-width:140px;">
         <label for="daysInput">Period length (days)</label>
@@ -161,19 +150,23 @@
         <input id="memoInput" type="text" value="AQUAmb APR Payment" />
       </div>
     </div>
-    <div class="checkbox-row">
-      <input type="checkbox" id="include10k" checked />
-      <label for="include10k" style="margin:0;">
-        Include only wallets with <b>interest-eligible pending ≥ 10,000 AQUAmb</b> when calculating interest.
+
+    <div class="row" style="margin-top:6px;">
+      <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:12px;">
+        <input id="minToggle" type="checkbox" checked />
+        Include only wallets with <b>eligible pending ≥ 10,000 AQUAmb</b>
       </label>
     </div>
+
     <p class="small muted" style="margin-top:6px;">
-      Interest for this period ≈ <span class="mono">principal × APR/100 × days/365</span> (simple APR, no compounding).
-      Snapshot is taken when you click “Scan locks &amp; compute interest”.
+      Period interest ≈ <span class="mono">principal × (APR / 100) × days / 365</span>.
+      APR is fixed at <b>7.5%</b>. Snapshot is taken when you click
+      “Scan locks &amp; compute interest”.
     </p>
     <button id="scanBtn" class="primary" style="margin-top:8px;">1) Scan locks &amp; compute interest</button>
   </div>
 
+  <!-- Aggregated wallet view -->
   <div class="panel">
     <h2 style="margin-top:0;">Aggregated Wallet View</h2>
     <p id="scanStatus" class="small muted">No data yet.</p>
@@ -184,7 +177,7 @@
           <tr>
             <th class="checkbox-cell"><input type="checkbox" id="selectAll" /></th>
             <th>Wallet</th>
-            <th class="right">Interest-eligible pending (AQUAmb)</th>
+            <th class="right">Eligible pending (≥ 365d)</th>
             <th class="right">Short-term pending</th>
             <th class="right">Matured</th>
             <th class="right">Locks</th>
@@ -199,13 +192,13 @@
 
     <div class="row" style="margin-top:10px;">
       <button id="buildXdrBtn" class="primary" disabled>
-        2) Build payment XDRs for selected
+        2) Build batched payment XDRs
       </button>
-      <button id="downloadCsvBtn" disabled>Download CSV of XDRs</button>
-      <button id="signSubmitBtn" disabled>3) Sign &amp; submit selected via wallet</button>
+      <button id="downloadCsvBtn" disabled>Download CSV (batches)</button>
+      <button id="signSubmitBtn" disabled>3) Sign &amp; submit batches via wallet</button>
     </div>
 
-    <label for="xdrOutput" style="margin-top:10px;">Built XDRs (one per line: account | amount | XDR)</label>
+    <label for="xdrOutput" style="margin-top:10px;">Built batches (one block per transaction)</label>
     <textarea id="xdrOutput" readonly></textarea>
   </div>
 </div>
@@ -213,7 +206,7 @@
 <!-- Toasts -->
 <div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
 
-<!-- Simple connect modal (just two buttons) -->
+<!-- Connect modal -->
 <div id="connectModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:1500;">
   <div style="background:#101824;border-radius:14px;padding:16px 16px 12px;border:1px solid #263244;max-width:360px;width:92vw;">
     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -235,7 +228,7 @@
       <button id="closeVault" class="toast x" style="border:none;background:none;padding:0;">×</button>
     </div>
     <p class="small muted" style="margin-top:0;">
-      This account is Vault-protected. For each transaction:
+      This account is Vault-protected. For each batch transaction:
       <br>1) Click “Copy signed XDR”,<br>2) Paste into LOBSTR Vault and approve,<br>3) Vault will submit the fully signed transaction.
     </p>
     <button id="copySignedXdrBtn" style="width:100%;margin:6px 0 8px;">Copy signed XDR</button>
@@ -251,18 +244,20 @@
   if(!SDK) throw new Error("Stellar SDK failed to load");
 
   // --- Network / asset config ---
-  const HORIZON       = "https://horizon.stellar.org";
-  const NETWORK       = SDK.Networks.PUBLIC;
-  const AQUAmb_CODE   = "AQUAmb";
-  const AQUAmb_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
-  const AQUAmb        = new SDK.Asset(AQUAmb_CODE, AQUAmb_ISSUER);
+  const HORIZON      = "https://horizon.stellar.org";
+  const NETWORK      = SDK.Networks.PUBLIC;
+  const AQUAmb_CODE  = "AQUAmb";
+  const AQUAmb_ISSUER= "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+  const AQUAmb       = new SDK.Asset(AQUAmb_CODE, AQUAmb_ISSUER);
 
-  const TRACKER_KEY   = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
-  const VAULT_KEY     = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
-  const PROJECT_ID    = "f658ce3a7c8a185214974f71539fea39"; // WalletConnect project
+  const TRACKER_KEY  = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
+  const VAULT_KEY    = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
+  const PROJECT_ID   = "f658ce3a7c8a185214974f71539fea39"; // WalletConnect project
 
-  const MIN_TERM_MS   = 365 * 24 * 60 * 60 * 1000; // 365 days in ms
-  const MIN_ELIGIBLE  = 10000; // 10,000 AQUAmb threshold
+  const MIN_TERM_MS  = 365 * 24 * 60 * 60 * 1000; // 365 days
+  const APR          = 7.5;                        // fixed APR %
+  const MIN_ELIGIBLE = 10000;                      // min eligible pending for toggle
+  const MAX_OPS_PER_TX = 100;                      // Stellar op limit
 
   // --- DOM helpers ---
   const $  = id => document.getElementById(id);
@@ -274,10 +269,9 @@
   const walletLabel     = $("walletLabel");
   const statusTag       = $("statusTag");
 
-  const aprInput        = $("aprInput");
   const daysInput       = $("daysInput");
   const memoInput       = $("memoInput");
-  const include10k      = $("include10k");
+  const minToggle       = $("minToggle");
   const scanBtn         = $("scanBtn");
   const scanStatus      = $("scanStatus");
 
@@ -349,7 +343,7 @@
       relayUrl: "wss://relay.walletconnect.com",
       metadata: {
         name: "AQUAmb APR Admin",
-        description: "Admin panel for AQUAmb interest payments (APR)",
+        description: "Admin panel for AQUAmb interest payments",
         url: location.origin,
         icons:["https://walletconnect.com/walletconnect-logo.png"]
       }
@@ -560,7 +554,7 @@
     }
   });
 
-  // --- Lock scanning helpers (same base as public dashboard, but aggregated) ---
+  // --- Lock scanning helpers (same logic as public dashboard, but aggregated) ---
 
   // cache ledger → close time
   const ledgerTimeCache = new Map();
@@ -623,12 +617,11 @@
     downloadCsvBtn.disabled= true;
     signSubmitBtn.disabled = true;
     xdrOutput.value        = "";
+    window.__aquambRows    = [];
+    window.__aquambBatches = [];
 
-    const apr  = Number(aprInput.value)  || 0;
     const days = Number(daysInput.value) || 0;
-    const includeOnly10k = !!include10k.checked;
-
-    const periodFactor = apr > 0 && days > 0 ? (apr/100)*(days/365) : 0;
+    const periodFactor = days > 0 ? (APR/100)*(days/365) : 0;
 
     try{
       const all = await fetchTrackedBalances();
@@ -684,26 +677,24 @@
       let totalShort    = 0;
       let totalMatured  = 0;
       let totalInterest = 0;
-      let rows = [];
+      const rows = [];
 
       for(const entry of byOwner.values()){
-        const meetsMin = entry.eligiblePending >= MIN_ELIGIBLE;
-        const baseForInterest = includeOnly10k && !meetsMin
-          ? 0
-          : entry.eligiblePending;
-
-        const interest = baseForInterest * periodFactor;
-
-        totalEligible += baseForInterest;
+        const interest = entry.eligiblePending * periodFactor;
+        totalEligible += entry.eligiblePending;
         totalShort    += entry.shortPending;
         totalMatured  += entry.matured;
         totalInterest += interest;
 
         const tr = document.createElement("tr");
+        const below = entry.eligiblePending < MIN_ELIGIBLE ? `<div class="below-min">below 10,000</div>` : "";
         tr.innerHTML = `
           <td class="checkbox-cell"><input type="checkbox" class="rowCheck" /></td>
           <td class="mono">${entry.owner}</td>
-          <td class="right">${format7(entry.eligiblePending)}</td>
+          <td class="right">
+            ${format7(entry.eligiblePending)}
+            ${below}
+          </td>
           <td class="right">${format7(entry.shortPending)}</td>
           <td class="right">${format7(entry.matured)}</td>
           <td class="right">${entry.locks}</td>
@@ -723,16 +714,11 @@
 
       walletTable.style.display = "table";
       scanStatus.textContent = `Scan complete: ${byOwner.size} wallet(s).`;
-
-      const eligLabel = includeOnly10k
-        ? "Interest-eligible total after ≥ 10,000 filter"
-        : "Interest-eligible total";
-
       summaryLine.textContent =
-        `${eligLabel}: ${format7(totalEligible)} AQUAmb · `
+        `Eligible pending total: ${format7(totalEligible)} AQUAmb · `
         + `Short-term pending: ${format7(totalShort)} · `
         + `Matured: ${format7(totalMatured)} · `
-        + `Interest this period (all wallets with >0 interest): ${format7(totalInterest)} AQUAmb`;
+        + `Interest this period (all wallets): ${format7(totalInterest)} AQUAmb`;
 
       // Store rows for later steps
       window.__aquambRows = rows;
@@ -748,126 +734,161 @@
     }
   }
 
-  // --- Build XDRs for selected rows ---
+  // --- Selection helpers ---
   function getSelectedRows(){
     const rows  = window.__aquambRows || [];
     const checks= Array.from(document.querySelectorAll(".rowCheck"));
     const out   = [];
+    const includeMin = !!minToggle.checked;
+
     checks.forEach((chk,idx)=>{
-      if(chk.checked && rows[idx] && rows[idx].interest > 0){
-        out.push(rows[idx]);
-      }
+      const row = rows[idx];
+      if(!row) return;
+      if(!chk.checked) return;
+      if(row.interest <= 0) return;
+      if(includeMin && row.eligiblePending < MIN_ELIGIBLE) return;
+      out.push(row);
     });
     return out;
   }
 
+  function buildBatchesFromSelected(){
+    const selected = getSelectedRows();
+    if(selected.length === 0){
+      toast("No selected wallets with positive interest (and passing the min threshold toggle).", true);
+      return [];
+    }
+    const batches = [];
+    let current = [];
+    for(const row of selected){
+      if(current.length >= MAX_OPS_PER_TX){
+        batches.push(current);
+        current = [];
+      }
+      current.push(row);
+    }
+    if(current.length) batches.push(current);
+    return batches;
+  }
+
+  // --- Build XDRs for selected rows (batched) ---
   async function buildXdrsForSelected(){
     if(!pubkey){
       toast("Connect the paying wallet first.", true);
-      return;
+      return [];
     }
-    const selected = getSelectedRows();
-    if(selected.length === 0){
-      toast("No rows selected with positive interest.", true);
-      return;
+    const days = Number(daysInput.value) || 0;
+    if(days <= 0){
+      toast("Period length (days) must be > 0.", true);
+      return [];
     }
+
+    const batches = buildBatchesFromSelected();
+    if(!batches.length) return [];
 
     const memoText = (memoInput.value || "AQUAmb APR Payment").slice(0,28);
     const server   = getServer();
     let account    = await server.loadAccount(pubkey);
-
     const memo     = memoText ? SDK.Memo.text(memoText) : undefined;
 
-    const lines    = [];
-    window.__aquambXdrRows = [];
+    const batchInfos = [];
+    const lines = [];
 
-    for(const row of selected){
-      const builder = new SDK.TransactionBuilder(account, {
-        fee:"20000",
+    for(let i=0;i<batches.length;i++){
+      const batch = batches[i];
+      const batchId = i+1;
+      let totalAmount = 0;
+
+      let builder = new SDK.TransactionBuilder(account, {
+        fee:(20000).toString(),
         networkPassphrase: NETWORK,
         memo
-      })
-      .addOperation(SDK.Operation.payment({
-        destination: row.owner,
-        asset: AQUAmb,
-        amount: format7(row.interest)
-      }))
-      .setTimeout(180);
+      });
 
-      const tx  = builder.build();
+      for(const row of batch){
+        const amtStr = format7(row.interest);
+        totalAmount += row.interest;
+        builder = builder.addOperation(SDK.Operation.payment({
+          destination: row.owner,
+          asset: AQUAmb,
+          amount: amtStr
+        }));
+      }
+
+      const tx  = builder.setTimeout(180).build();
       const xdr = tx.toXDR();
-      lines.push(`${row.owner} | ${format7(row.interest)} | ${xdr}`);
-      window.__aquambXdrRows.push({ owner:row.owner, amount:row.interest, xdr });
+      batchInfos.push({
+        batchId,
+        numOps: batch.length,
+        totalAmount,
+        xdr
+      });
+
+      // For display in textarea
+      lines.push(
+        `Batch ${batchId} | ops: ${batch.length} | total: ${format7(totalAmount)} AQUAmb`
+        + `\nWallets:`
+        + batch.map(r => `\n  ${r.owner} | ${format7(r.interest)}`).join("")
+        + `\nXDR:\n${xdr}\n----\n`
+      );
+
       account.incrementSequenceNumber();
     }
 
     xdrOutput.value = lines.join("\n");
     downloadCsvBtn.disabled = false;
-    toast(`Built ${selected.length} payment XDR(s).`);
+    window.__aquambBatches = batchInfos;
+
+    toast(`Built ${batchInfos.length} batch transaction XDR(s).`);
+    return batchInfos;
   }
 
+  // --- CSV download (per-batch) ---
   function downloadCsv(){
-    const rows = window.__aquambXdrRows || [];
-    if(!rows.length){
-      toast("No XDRs to export.", true);
+    const batches = window.__aquambBatches || [];
+    if(!batches.length){
+      toast("No batches to export.", true);
       return;
     }
-    const header = "account,amount,xdr\n";
-    const body = rows.map(r =>
-      `"${r.owner}",${format7(r.amount)},"${r.xdr.replace(/"/g,'""')}"`
+    const header = "batch_id,num_operations,total_amount,xdr\n";
+    const body = batches.map(b =>
+      `${b.batchId},${b.numOps},${format7(b.totalAmount)},"${b.xdr.replace(/"/g,'""')}"`
     ).join("\n");
     const blob = new Blob([header+body], {type:"text/csv;charset=utf-8;"});
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href = url;
-    a.download = "aquamb-interest-payments-apr.csv";
+    a.download = "aquamb-interest-batches.csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
   }
 
-  // --- Sign & submit selected rows immediately ---
+  // --- Sign & submit selected batches ---
   async function signAndSubmitSelected(){
     if(!pubkey){
       toast("Connect the paying wallet first.", true);
       return;
     }
-    const selected = getSelectedRows();
-    if(selected.length === 0){
-      toast("No rows selected with positive interest.", true);
+    const days = Number(daysInput.value) || 0;
+    if(days <= 0){
+      toast("Period length (days) must be > 0.", true);
       return;
     }
-    const memoText = (memoInput.value || "AQUAmb APR Payment").slice(0,28);
-    const server   = getServer();
-    let account    = await server.loadAccount(pubkey);
-    const memo     = memoText ? SDK.Memo.text(memoText) : undefined;
 
-    for(const row of selected){
+    // Always rebuild batches so it matches the current selection + days
+    const batches = await buildXdrsForSelected();
+    if(!batches.length) return;
+
+    for(const batch of batches){
       try{
-        const builder = new SDK.TransactionBuilder(account, {
-          fee:"20000",
-          networkPassphrase: NETWORK,
-          memo
-        })
-        .addOperation(SDK.Operation.payment({
-          destination: row.owner,
-          asset: AQUAmb,
-          amount: format7(row.interest)
-        }))
-        .setTimeout(180);
-
-        const tx  = builder.build();
-        const xdr = tx.toXDR();
-
-        const signed = await signCurrent(xdr);
-        await handleSignedClassicXdr(signed, `Interest → ${shortG(row.owner)}`);
-
-        account.incrementSequenceNumber();
+        const signed = await signCurrent(batch.xdr);
+        await handleSignedClassicXdr(signed, `Batch ${batch.batchId}`);
       }catch(e){
         console.error(e);
-        toast(`Failed for ${shortG(row.owner)}: ${e.message || e}`, true, 6000);
-        // continue with next wallet
+        toast(`Failed for batch ${batch.batchId}: ${e.message || e}`, true, 6000);
+        // continue with next batch
       }
     }
   }
@@ -885,7 +906,7 @@
   on(signSubmitBtn,"click", ()=>{ signAndSubmitSelected().catch(e=>console.error(e)); });
 
   // Initial status
-  scanStatus.textContent = "Set APR + period, then click “Scan locks & compute interest”.";
+  scanStatus.textContent = "Set period length (days), then click “Scan locks & compute interest”. APR is fixed at 7.5%.";
 </script>
 </body>
 </html>
