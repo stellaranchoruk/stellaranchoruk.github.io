@@ -127,6 +127,33 @@
   margin: 0 0 14px;
 }
 
+    /* Dedicated pill style for AQUAmb asset (Swap + Locker) */
+.asset-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 6px 10px;
+  border-radius: 999px;
+
+  border: 1px solid #1e2831;
+  background: #0e1419;
+
+  font-size: 14px;
+  font-weight: 600;
+  color: #eaf2ff;
+
+  line-height: 1;
+  white-space: nowrap;
+}
+.asset-pill img,
+.asset-pill canvas {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
     .big-input {
       width:100%; border:1px solid #1e2831; background:#0e1419; color:#fff;
       border-radius:16px; padding:10px 12px; margin-top:4px;
@@ -549,19 +576,19 @@
           <div id="availPopover" class="popover" role="dialog" aria-modal="false" aria-live="polite"></div>
         </div>
 
-        <!-- BUY -->
-        <div class="slab">
-          <div class="slab-top">
-            <div class="slab-label">Buy</div>
-            <div class="asset-chip">
-              <div class="chip-pill">
-                <img id="buyIcon" class="icon" alt="AQUAmb" />
-                <span>AQUAmb</span>
-              </div>
-            </div>
-          </div>
-          <input id="swapEst" class="big-input" type="text" step="any" inputmode="decimal" placeholder="0" />
-        </div>
+<!-- BUY -->
+<div class="slab">
+  <div class="slab-top">
+    <div class="slab-label">Buy</div>
+    <div class="asset-chip">
+      <div class="asset-pill">
+        <img id="buyIcon" src="/icons/aquamb.png" alt="AQUAmb" />
+        <span>AQUAmb</span>
+      </div>
+    </div>
+  </div>
+  <input id="swapEst" class="big-input" type="text" step="any" inputmode="decimal" placeholder="0" />
+</div>
 
         <div class="rate-line small muted" id="rateLine" aria-live="polite"></div>
 
@@ -594,17 +621,17 @@
         <!-- hidden pubkey (used internally) -->
         <input id="pubkey" type="hidden" />
 
-        <!-- LOCK slab -->
-        <div class="locker-slab">
-          <div class="slab-top">
-            <div class="slab-label">Lock</div>
-            <div class="asset-chip">
-              <div class="chip-pill">
-                <img id="lockAquaIcon" class="icon" alt="AQUAmb" />
-                <span>AQUAmb</span>
-              </div>
-            </div>
-          </div>
+<!-- LOCK slab -->
+<div class="locker-slab">
+  <div class="slab-top">
+    <div class="slab-label">Lock</div>
+    <div class="asset-chip">
+      <div class="asset-pill">
+        <img id="lockAquaIcon" src="/icons/aquamb.png" alt="AQUAmb" />
+        <span>AQUAmb</span>
+      </div>
+    </div>
+  </div>
 
           <!-- Right column: usable + % buttons -->
           <div class="locker-right">
