@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AQUAmb APR Admin – Interest Payments</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Stellar SDK (classic only needed) -->
+  <script src="https://cdn.jsdelivr.net/npm/stellar-sdk@10.4.0/dist/stellar-sdk.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Freighter API (optional) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-freighter-api/5.0.0/index.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <style>
+    :root{
+      --bg:#05070a; --panel:#10151d; --ink:#e8f0f6;
+      --muted:#9ba8b6; --accent:#7d4bd1;
+      --ok:#57d29a; --err:#ff6b6b; --border:#1b2430;
+    }
+    *{box-sizing:border-box;}
+    html,body{
+      margin:0; padding:0;
+      background:var(--bg); color:var(--ink);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      font-size:14px;
+    }
+    .wrap{
+      max-width:1100px;
+      margin:20px auto;
+      padding:0 16px 40px;
+    }
+    h1{margin:0 0 8px;font-size:22px;}
+    h2{margin:18px 0 8px;font-size:18px;}
+    h3{margin:16px 0 6px;font-size:15px;}
+    p{margin:4px 0 8px;}
+    .muted{color:var(--muted);}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px 16px;
+      margin-top:14px;
+    }
+    button{
+      cursor:pointer;
+      border-radius:8px;
+      border:1px solid #263547;
+      background:#0f1822;
+      color:#e8f0f6;
+      padding:7px 12px;
+      font-weight:600;
+      font-size:13px;
+    }
+    button:hover{filter:brightness(1.08);}
+    button:disabled{opacity:.5;cursor:not-allowed;}
+    button.primary{
+      background:var(--accent);
+      border-color:#8f67dd;
+      color:#fff;
+    }
+    input,textarea{
+      background:#071018;
+      border-radius:8px;
+      border:1px solid #1b2530;
+      color:#e8f0f6;
+      padding:6px 8px;
+      font-size:13px;
+      width:100%;
+    }
+    label{display:block;margin:6px 0 3px;font-size:12px;color:var(--muted);}
+    textarea{min-height:90px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;}
+    .tag{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:2px 8px;border-radius:999px;font-size:11px;
+      border:1px solid #2a3656;background:#0e1627;color:#cfe0ff;
+    }
+    .tag.ok{border-color:#214a3a;background:#0f1f1a;color:#cfeede;}
+    .tag.err{border-color:#5a2a2a;background:#201114;color:#ffd8d8;}
+    .mono{font-family:ui-monospace,Menlo,Consolas,"SF Mono",monospace;}
+
+    table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;}
+    th,td{padding:5px 6px;border-bottom:1px solid #171f2a;text-align:left;}
+    th{color:#cfd8e6;font-weight:600;}
+    tr:nth-child(even){background:#0c1119;}
+    .right{text-align:right;}
+    .small{font-size:12px;}
+    .summary{margin-top:6px;font-size:12px;color:var(--muted);}
+    .checkbox-cell{width:40px;text-align:center;}
+
+    .toast-wrap{
+      position:fixed;right:16px;top:16px;z-index:2000;
+      display:grid;gap:8px;width:min(92vw,360px);
+    }
+    .toast{
+      border-radius:10px;padding:9px 11px;
+      border:1px solid #253244;background:#0f1a24;
+      font-size:12px;color:#e7f2ff;
+      display:flex;justify-content:space-between;gap:6px;
+    }
+    .toast.err{border-color:#5a2a2a;background:#201114;color:#ffd8d8;}
+    .toast .x{background:none;border:none;color:#9fb2c6;font-size:14px;cursor:pointer;}
+
+    .batch-info{
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AQUAmb APR Admin</h1>
+  <p class="muted small">
+    Internal tool to snapshot AQUAmb locks, calculate simple APR interest for a fixed period, and build payment XDRs
+    with memo <span class="mono">"AQUAmb APR Payment"</span>. Uses the same <span class="mono">TRACKER_KEY</span>
+    logic as the public dashboard.
+  </p>
+
+  <!-- Wallet connection -->
+  <div class="panel">
+    <div class="row" style="justify-content:space-between;align-items:center;">
+      <div>
+        <h2 style="margin:0 0 4px;">Wallet Connection</h2>
+        <p class="small muted" style="margin:0;">
+          This wallet will be the <b>payer</b> of interest (AQUAmb) and must hold enough balance.
+        </p>
+      </div>
+      <div class="row">
+        <button id="connectBtn">Connect</button>
+        <button id="walletBtn" style="display:none;">
+          <span id="walletLabel" class="mono">G…G</span>
+        </button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+      </div>
+    </div>
+    <p class="small" style="margin-top:6px;">
+      Status: <span id="statusTag" class="tag">Not connected</span>
+    </p>
+  </div>
+
+  <!-- Interest parameters -->
+  <div class="panel">
+    <h2 style="margin-top:0;">Interest Parameters</h2>
+    <div class="row">
+      <div style="flex:1;min-width:140px;">
+        <label for="aprInput">APR % (simple, annual)</label>
+        <input id="aprInput" type="number" step="0.01" value="7.5" />
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <label for="daysInput">Period length (days)</label>
+        <input id="daysInput" type="number" step="1" value="7" />
+      </div>
+      <div style="flex:2;min-width:220px;">
+        <label for="memoInput">Memo text (max 28 bytes)</label>
+        <input id="memoInput" type="text" value="AQUAmb APR Payment" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);">
+        <input type="checkbox" id="minThresholdChk" checked />
+        Include only wallets with total ≥ 10,000 AQUAmb
+      </label>
+    </div>
+
+    <p class="small muted" style="margin-top:6px;">
+      Period interest ≈ <span class="mono">principal × APR/100 × days/365</span>.
+      Snapshot is taken when you click “Scan locks &amp; compute interest”.
+    </p>
+
+    <button id="scanBtn" class="primary" style="margin-top:8px;">1) Scan locks &amp; compute interest</button>
+  </div>
+
+  <!-- Aggregated view -->
+  <div class="panel">
+    <h2 style="margin-top:0;">Aggregated Wallet View</h2>
+    <p id="scanStatus" class="small muted">No data yet.</p>
+
+    <div style="overflow:auto;max-height:420px;margin-top:6px;">
+      <table id="walletTable" style="display:none;">
+        <thead>
+          <tr>
+            <th class="checkbox-cell"><input type="checkbox" id="selectAll" /></th>
+            <th>Wallet</th>
+            <th class="right">Interest-eligible pending (AQUAmb)</th>
+            <th class="right">Short-term pending</th>
+            <th class="right">Matured</th>
+            <th class="right">Locks</th>
+            <th class="right">Interest this period</th>
+          </tr>
+        </thead>
+        <tbody id="walletBody"></tbody>
+      </table>
+    </div>
+
+    <p id="summaryLine" class="summary"></p>
+    <p id="batchInfo" class="batch-info"></p>
+
+    <div class="row" style="margin-top:10px;">
+      <button id="buildXdrBtn" class="primary" disabled>
+        2) Build payment XDRs for selected
+      </button>
+      <button id="downloadCsvBtn" disabled>Download CSV of XDRs</button>
+      <button id="signSubmitBtn" disabled>3) Sign &amp; submit selected via wallet</button>
+    </div>
+
+    <label for="xdrOutput" style="margin-top:10px;">Built XDRs (one per line: account | amount | XDR)</label>
+    <textarea id="xdrOutput" readonly></textarea>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
+
+<!-- Connect modal -->
+<div id="connectModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:1500;">
+  <div style="background:#101824;border-radius:14px;padding:16px 16px 12px;border:1px solid #263244;max-width:360px;width:92vw;">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-weight:600;">Connect Wallet</div>
+      <button id="closeConnect" class="toast x" style="border:none;background:none;padding:0;">×</button>
+    </div>
+    <p class="small muted" style="margin-top:0;">Choose a connection method for the paying account.</p>
+    <button id="wcBtn" style="width:100%;margin-top:4px;">🔗 WalletConnect (mobile / Vault)</button>
+    <button id="freighterBtn" style="width:100%;margin-top:6px;">🧩 Freighter (browser)</button>
+
+    <canvas id="qrCanvas" width="256" height="256"
+            style="display:none;margin:10px auto 0;background:#fff;border-radius:10px;"></canvas>
+
+    <!-- WC app shortcuts for mobile -->
+    <div id="wcAppButtons" style="display:none;margin-top:8px;">
+      <button id="wcLobstrBtn" style="width:100%;margin-top:4px;">
+        Open in LOBSTR (app)
+      </button>
+      <button id="wcFreighterAppBtn" style="width:100%;margin-top:4px;">
+        Open in Freighter (app)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Vault modal for signed XDRs -->
+<div id="vaultModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:1500;">
+  <div style="background:#101824;border-radius:14px;padding:16px 16px 12px;border:1px solid #263244;max-width:520px;width:92vw;">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-weight:600;">LOBSTR Vault – Next step</div>
+      <button id="closeVault" class="toast x" style="border:none;background:none;padding:0;">×</button>
+    </div>
+    <p class="small muted" style="margin-top:0;">
+      This account is Vault-protected. For each transaction:
+      <br>1) Click “Copy signed XDR”,<br>2) Paste into LOBSTR Vault and approve,<br>3) Vault will submit the fully signed transaction.
+    </p>
+    <button id="copySignedXdrBtn" style="width:100%;margin:6px 0 8px;">Copy signed XDR</button>
+    <textarea id="signedXdrBox" readonly></textarea>
+  </div>
+</div>
+
+<script type="module">
+  import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+  import QRCode from "https://esm.sh/qrcode@1.5.3";
+
+  const SDK = window.StellarSdk;
+  if(!SDK) throw new Error("Stellar SDK failed to load");
+
+  // --- Network / asset config ---
+  const HORIZON       = "https://horizon.stellar.org";
+  const NETWORK       = SDK.Networks.PUBLIC;
+  const AQUAmb_CODE   = "AQUAmb";
+  const AQUAmb_ISSUER = "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC";
+  const AQUAmb        = new SDK.Asset(AQUAmb_CODE, AQUAmb_ISSUER);
+
+  const TRACKER_KEY   = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
+  const VAULT_KEY     = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
+  const PROJECT_ID    = "f658ce3a7c8a185214974f71539fea39"; // WalletConnect project
+
+  const MIN_TERM_MS   = 365 * 24 * 60 * 60 * 1000; // 365 days
+  const MIN_ELIGIBLE_THRESHOLD = 10000;            // ≥ 10,000 AQUAmb
+  const BATCH_SIZE    = 80;                        // wallets per signing batch
+
+  // --- DOM helpers ---
+  const $  = id => document.getElementById(id);
+  const on = (el,ev,fn)=> el && el.addEventListener(ev,fn);
+
+  const connectBtn      = $("connectBtn");
+  const disconnectBtn   = $("disconnectBtn");
+  const walletBtn       = $("walletBtn");
+  const walletLabel     = $("walletLabel");
+  const statusTag       = $("statusTag");
+
+  const aprInput        = $("aprInput");
+  const daysInput       = $("daysInput");
+  const memoInput       = $("memoInput");
+  const minThresholdChk = $("minThresholdChk");
+  const scanBtn         = $("scanBtn");
+  const scanStatus      = $("scanStatus");
+
+  const walletTable     = $("walletTable");
+  const walletBody      = $("walletBody");
+  const selectAll       = $("selectAll");
+  const summaryLine     = $("summaryLine");
+  const batchInfo       = $("batchInfo");
+
+  const buildXdrBtn     = $("buildXdrBtn");
+  const downloadCsvBtn  = $("downloadCsvBtn");
+  const signSubmitBtn   = $("signSubmitBtn");
+  const xdrOutput       = $("xdrOutput");
+
+  const toastWrap       = $("toastWrap");
+
+  const connectModal    = $("connectModal");
+  const closeConnect    = $("closeConnect");
+  const wcBtn           = $("wcBtn");
+  const freighterBtn    = $("freighterBtn");
+  const qrCanvas        = $("qrCanvas");
+  const wcAppButtons    = $("wcAppButtons");
+  const wcLobstrBtn     = $("wcLobstrBtn");
+  const wcFreighterAppBtn = $("wcFreighterAppBtn");
+
+  const vaultModal      = $("vaultModal");
+  const closeVault      = $("closeVault");
+  const copySignedXdrBtn= $("copySignedXdrBtn");
+  const signedXdrBox    = $("signedXdrBox");
+
+  // --- Toasts ---
+  function toast(msg, isErr=false, timeout=2800){
+    const el = document.createElement("div");
+    el.className = "toast" + (isErr ? " err" : "");
+    el.innerHTML = `<span>${msg}</span><button class="x" aria-label="Close">×</button>`;
+    toastWrap.appendChild(el);
+    const close = ()=> el.remove();
+    el.querySelector(".x").onclick = close;
+    if(timeout) setTimeout(close, timeout);
+  }
+
+  function shortG(g){
+    if(!g) return "";
+    if(g.length <= 10) return g;
+    return g.slice(0,5)+"…"+g.slice(-5);
+  }
+
+  function format7(n){
+    const x = Number(n);
+    if(!isFinite(x)) return "0.0000000";
+    return x.toFixed(7);
+  }
+
+  // --- Horizon server ---
+  let _server = null;
+  function getServer(){
+    if(_server) return _server;
+    const Srv = SDK.Server;
+    _server = new Srv(HORIZON);
+    return _server;
+  }
+
+  // --- WalletConnect / Freighter state ---
+  let wcClient       = null;
+  let session        = null;
+  let connectionMode = "none"; // 'none' | 'wc' | 'freighter'
+  let pubkey         = null;
+  let latestWcUri    = null;
+
+  // --- Ensure WC client ---
+  async function ensureClient(){
+    if(wcClient) return wcClient;
+    wcClient = await SignClient.init({
+      projectId: PROJECT_ID,
+      relayUrl: "wss://relay.walletconnect.com",
+      metadata: {
+        name: "AQUAmb APR Admin",
+        description: "Admin panel for AQUAmb interest payments",
+        url: location.origin,
+        icons:["https://walletconnect.com/walletconnect-logo.png"]
+      }
+    });
+    return wcClient;
+  }
+
+  // --- Freighter helper ---
+  async function ensureFreighterApi(){
+    if(window.freighterApi) return window.freighterApi;
+    try{
+      const mod = await import("https://esm.sh/@stellar/freighter-api@5.0.0");
+      window.freighterApi = mod?.default ?? mod;
+      return window.freighterApi;
+    }catch{
+      return null;
+    }
+  }
+
+  // --- Vault detection ---
+  async function detectVault(account){
+    if(!account) return false;
+    try{
+      const res = await fetch(`${HORIZON}/accounts/${account}`);
+      const j   = await res.json();
+      const signers = (j.signers || []).map(s=>s.key);
+      const hasVault = signers.includes(VAULT_KEY);
+      if(hasVault){
+        statusTag.textContent = "Connected (Vault protected)";
+        statusTag.className   = "tag ok";
+      }else{
+        statusTag.textContent = connectionMode === "wc"
+          ? "Connected (WalletConnect)"
+          : "Connected (Freighter)";
+        statusTag.className   = "tag ok";
+      }
+      return hasVault;
+    }catch(e){
+      console.warn("Vault detect failed", e);
+      return false;
+    }
+  }
+
+  async function setConnected(address, mode){
+    pubkey = address || null;
+    connectionMode = address ? mode : "none";
+
+    disconnectBtn.disabled = !address;
+    connectBtn.disabled    = !!address;
+    connectBtn.style.opacity = address ? 0.5 : 1;
+    walletBtn.style.display  = address ? "inline-flex" : "none";
+
+    if(address){
+      walletLabel.textContent = shortG(address);
+      statusTag.textContent   = "Connected";
+      statusTag.className     = "tag ok";
+      await detectVault(address);
+    }else{
+      statusTag.textContent = "Not connected";
+      statusTag.className   = "tag";
+    }
+  }
+
+  // --- Sign helpers ---
+  const wcRequest = (method, xdr) => wcClient.request({
+    topic: session.topic,
+    chainId:"stellar:pubnet",
+    request:{ jsonrpc:"2.0", method, params:{ xdr } }
+  });
+
+  async function signCurrent(xdr){
+    if(connectionMode === "wc"){
+      if(!wcClient || !session) throw new Error("WalletConnect session missing");
+      const r = await wcRequest("stellar_signXDR", xdr);
+      if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+      return r.signedXDR;
+    }
+    if(connectionMode === "freighter"){
+      const api = await ensureFreighterApi();
+      if(!api) throw new Error("Freighter API missing");
+      const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
+      if(res?.error) throw new Error(res.error.message || "Freighter sign failed");
+      return res.signedTxXdr || res.signedXDR || res;
+    }
+    throw new Error("No wallet connected");
+  }
+
+  async function submitToHorizon(signedXdr){
+    const resp = await fetch(`${HORIZON}/transactions`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+      body:"tx="+encodeURIComponent(signedXdr)
+    });
+    const data = await resp.json().catch(()=> ({}));
+    if(!resp.ok){
+      const code = data?.extras?.result_codes?.transaction || resp.status;
+      const ops  = data?.extras?.result_codes?.operations || [];
+      throw new Error(`Horizon error: ${code}${ops.length?` (${ops.join(",")})`:""}`);
+    }
+    return data.hash;
+  }
+
+  async function handleSignedClassicXdr(signedXdr, label){
+    const hasVault = await detectVault(pubkey);
+    if(hasVault){
+      signedXdrBox.value = signedXdr;
+      vaultModal.style.display = "flex";
+      try{ await navigator.clipboard.writeText(signedXdr); }catch{}
+      toast(`${label} signed – paste into LOBSTR Vault.`, false, 5000);
+      return null;
+    }
+    const hash = await submitToHorizon(signedXdr);
+    toast(`${label} submitted: ${hash.slice(0,10)}…`, false, 4000);
+    return hash;
+  }
+
+  // --- WC app deep-link helper ---
+  function openAppDeepLink(prefix){
+    if(!latestWcUri){
+      toast("WalletConnect URI not ready yet – tap ‘WalletConnect’ first.", true);
+      return;
+    }
+    const url = `${prefix}${encodeURIComponent(latestWcUri)}`;
+    window.open(url, "_blank");
+  }
+
+  // --- Connect modal wiring ---
+  on(connectBtn,"click", ()=>{ connectModal.style.display = "flex"; });
+  on(closeConnect,"click", ()=>{
+    connectModal.style.display = "none";
+    qrCanvas.style.display="none";
+    if(wcAppButtons) wcAppButtons.style.display="none";
+  });
+  on(connectModal,"click", e=>{
+    if(e.target===connectModal){
+      connectModal.style.display="none";
+      qrCanvas.style.display="none";
+      if(wcAppButtons) wcAppButtons.style.display="none";
+    }
+  });
+
+  on(walletBtn,"click", ()=>{
+    if(!pubkey) return;
+    window.open(`https://stellar.expert/explorer/public/account/${pubkey}`,"_blank","noopener,noreferrer");
+  });
+
+  on(disconnectBtn,"click", async ()=>{
+    try{
+      if(connectionMode==="wc" && wcClient && session){
+        await wcClient.disconnect({
+          topic:session.topic,
+          reason:{code:6000,message:"Admin disconnected"}
+        });
+      }
+    }catch(e){ console.warn(e); }
+    session = null;
+    await setConnected(null,"none");
+    toast("Disconnected.");
+  });
+
+  // WalletConnect button
+  on(wcBtn,"click", async ()=>{
+    try{
+      const sc = await ensureClient();
+      toast("Starting WalletConnect…");
+
+      const { uri, approval } = await sc.connect({
+        optionalNamespaces:{
+          stellar:{
+            chains:["stellar:pubnet"],
+            methods:["stellar_signXDR","stellar_signAndSubmitXDR"],
+            events:[]
+          }
+        }
+      });
+
+      if(!uri) throw new Error("No WalletConnect URI");
+      latestWcUri = uri;
+
+      // Show QR
+      await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+      qrCanvas.style.display = "block";
+
+      // Show app buttons (mobile helpers)
+      if(wcAppButtons) wcAppButtons.style.display = "block";
+
+      // Wait for session approval
+      session = await approval();
+      wcClient = sc;
+      const accounts = session.namespaces?.stellar?.accounts || [];
+      const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+      const address = first.split(":")[2] || "";
+      await setConnected(address,"wc");
+      connectModal.style.display = "none";
+    }catch(e){
+      console.error(e);
+      toast("WalletConnect failed or canceled.", true);
+    }
+  });
+
+  // WC app buttons
+  on(wcLobstrBtn, "click", ()=>{
+    openAppDeepLink("lobstr://wc?uri=");
+  });
+  on(wcFreighterAppBtn, "click", ()=>{
+    openAppDeepLink("freighter://wc?uri=");
+  });
+
+  // Freighter button
+  on(freighterBtn,"click", async ()=>{
+    try{
+      const api = await ensureFreighterApi();
+      if(!api){ toast("Freighter not detected.", true); return; }
+
+      let address = "";
+      try{ address = await api.getPublicKey(); }catch{}
+      if(!address && api.getAddress){
+        const r = await api.getAddress(); address = r?.address || "";
+      }
+      if(!address && api.requestAccess){
+        const r = await api.requestAccess(); address = r?.address || "";
+      }
+      if(!address){
+        toast("Freighter connection denied.", true);
+        return;
+      }
+      await setConnected(address,"freighter");
+      connectModal.style.display = "none";
+    }catch(e){
+      console.error(e);
+      toast("Freighter connect failed.", true);
+    }
+  });
+
+  // Vault modal
+  on(closeVault,"click", ()=>{ vaultModal.style.display = "none"; });
+  on(vaultModal,"click", e=>{ if(e.target===vaultModal){ vaultModal.style.display="none"; } });
+  on(copySignedXdrBtn,"click", async ()=>{
+    try{
+      await navigator.clipboard.writeText(signedXdrBox.value||"");
+      toast("Signed XDR copied.");
+    }catch{
+      toast("Clipboard failed – copy manually.", true);
+    }
+  });
+
+  // --- Lock scanning helpers (same logic as public dashboard, but aggregated) ---
+
+  // cache ledger → close time
+  const ledgerTimeCache = new Map();
+  async function getLedgerCloseTime(ledgerSeq){
+    if(!ledgerSeq) return null;
+    if(ledgerTimeCache.has(ledgerSeq)) return ledgerTimeCache.get(ledgerSeq);
+    try{
+      const res = await fetch(`${HORIZON}/ledgers/${ledgerSeq}`);
+      const j   = await res.json();
+      const dt  = j.closed_at ? new Date(j.closed_at) : null;
+      ledgerTimeCache.set(ledgerSeq, dt);
+      return dt;
+    }catch(e){
+      console.warn("Ledger fetch failed", e);
+      ledgerTimeCache.set(ledgerSeq, null);
+      return null;
+    }
+  }
+
+  async function fetchTrackedBalances(){
+    const assetStr = `${AQUAmb_CODE}:${AQUAmb_ISSUER}`;
+    let next = `${HORIZON}/claimable_balances?claimant=${TRACKER_KEY}&asset=${encodeURIComponent(assetStr)}&limit=200&order=asc`;
+    const all = [];
+    while(next){
+      const res = await fetch(next);
+      const j   = await res.json();
+      const recs= j?._embedded?.records || [];
+      all.push(...recs);
+      const nextHref = j?._links?.next?.href;
+      if(!nextHref || recs.length===0) break;
+      next = nextHref;
+    }
+    return all;
+  }
+
+  function extractOwnerInfo(rec){
+    const claimants = rec.claimants || [];
+    if(claimants.length < 2) return null;
+    let owner = null, tracker = null;
+    for(const c of claimants){
+      if(c.destination === TRACKER_KEY) tracker = c;
+      else owner = c;
+    }
+    if(!owner || !tracker) return null;
+    const pred = owner.predicate || {};
+    const not  = pred.not || {};
+    const abs  = not.abs_before;
+    if(!abs) return null;
+    const unlockDate = new Date(abs);
+    if(!isFinite(unlockDate.getTime())) return null;
+    return { owner:owner.destination, unlockIso:abs, unlockDate };
+  }
+
+  let allRows = [];        // rows in the table (after threshold/filter)
+  let lastPeriodFactor = 0; // store APR factor used for scan
+
+  async function scanAllLocksAndAggregate(){
+    scanStatus.textContent = "Scanning TRACKER_KEY for all AQUAmb locks…";
+    walletBody.innerHTML   = "";
+    walletTable.style.display = "none";
+    summaryLine.textContent= "";
+    batchInfo.textContent  = "";
+    buildXdrBtn.disabled   = true;
+    downloadCsvBtn.disabled= true;
+    signSubmitBtn.disabled = true;
+    xdrOutput.value        = "";
+
+    const apr  = Number(aprInput.value)  || 0;
+    const days = Number(daysInput.value) || 0;
+    const periodFactor = apr > 0 && days > 0 ? (apr/100)*(days/365) : 0;
+    lastPeriodFactor = periodFactor;
+
+    try{
+      const all = await fetchTrackedBalances();
+
+      // Aggregate by owner
+      const byOwner = new Map();
+      const now = new Date();
+
+      for(const rec of all){
+        const info = extractOwnerInfo(rec);
+        if(!info) continue;
+
+        const amount   = Number(rec.amount || "0");
+        const unlock   = info.unlockDate;
+        const ledgerNo = rec.last_modified_ledger;
+        const owner    = info.owner;
+
+        const createdAt = await getLedgerCloseTime(ledgerNo);
+        const termMs    = createdAt ? (unlock - createdAt) : 0;
+        const matured   = now >= unlock;
+
+        const isLong   = termMs >= MIN_TERM_MS && termMs > 0;
+        const isShort  = !isLong && !matured;
+        const eligiblePending = (!matured && isLong) ? amount : 0;
+        const shortPending    = isShort ? amount : 0;
+        const maturedAmt      = matured ? amount : 0;
+
+        let entry = byOwner.get(owner);
+        if(!entry){
+          entry = {
+            owner,
+            eligiblePending:0,
+            shortPending:0,
+            matured:0,
+            locks:0
+          };
+          byOwner.set(owner, entry);
+        }
+        entry.eligiblePending += eligiblePending;
+        entry.shortPending    += shortPending;
+        entry.matured         += maturedAmt;
+        entry.locks++;
+      }
+
+      if(byOwner.size === 0){
+        scanStatus.textContent = "No AQUAmb locks found for this TRACKER_KEY.";
+        return;
+      }
+
+      // Build table rows
+      walletBody.innerHTML = "";
+      allRows = [];
+
+      let totalEligible = 0;
+      let totalShort    = 0;
+      let totalMatured  = 0;
+      let totalInterest = 0;
+
+      const includeOnlyBig = !!minThresholdChk?.checked;
+
+      for(const entry of byOwner.values()){
+        // apply ≥10k filter if toggle on
+        if(includeOnlyBig && entry.eligiblePending < MIN_ELIGIBLE_THRESHOLD) continue;
+
+        const interest = periodFactor > 0 ? entry.eligiblePending * periodFactor : 0;
+
+        totalEligible += entry.eligiblePending;
+        totalShort    += entry.shortPending;
+        totalMatured  += entry.matured;
+        totalInterest += interest;
+
+        const rowData = {
+          owner: entry.owner,
+          eligiblePending: entry.eligiblePending,
+          shortPending: entry.shortPending,
+          matured: entry.matured,
+          locks: entry.locks,
+          interest
+        };
+        allRows.push(rowData);
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="checkbox-cell"><input type="checkbox" class="rowCheck" /></td>
+          <td class="mono">${entry.owner}</td>
+          <td class="right">${format7(entry.eligiblePending)}</td>
+          <td class="right">${format7(entry.shortPending)}</td>
+          <td class="right">${format7(entry.matured)}</td>
+          <td class="right">${entry.locks}</td>
+          <td class="right">${interest>0 ? format7(interest) : "0.0000000"}</td>
+        `;
+        walletBody.appendChild(tr);
+      }
+
+      if(allRows.length === 0){
+        scanStatus.textContent = "No wallets passed the current filters (e.g. ≥10,000 AQUAmb).";
+        return;
+      }
+
+      walletTable.style.display = "table";
+      scanStatus.textContent = `Scan complete: ${allRows.length} wallet row(s) after filters.`;
+      summaryLine.textContent =
+        `Eligible pending total: ${format7(totalEligible)} AQUAmb · `
+        + `Short-term pending: ${format7(totalShort)} · `
+        + `Matured: ${format7(totalMatured)} · `
+        + `Interest this period (all rows): ${format7(totalInterest)} AQUAmb`;
+
+      const totalBatches = Math.ceil(allRows.length / BATCH_SIZE);
+      batchInfo.textContent = totalBatches > 1
+        ? `If you sign all selected: up to ${BATCH_SIZE} wallet(s) per signing batch. Estimated batches (if all selected): ${totalBatches}.`
+        : `All selected wallets will fit in a single signing batch.`;
+
+      buildXdrBtn.disabled   = false;
+      signSubmitBtn.disabled = false; // still requires wallet connection
+      downloadCsvBtn.disabled= true;
+      xdrOutput.value        = "";
+    }catch(e){
+      console.error(e);
+      scanStatus.textContent = e.message || "Scan failed.";
+      toast("Scan failed.", true);
+    }
+  }
+
+  // --- Selection helpers ---
+  function getSelectedRows(){
+    const checks = Array.from(document.querySelectorAll(".rowCheck"));
+    const out   = [];
+    checks.forEach((chk,idx)=>{
+      if(chk.checked && allRows[idx] && allRows[idx].interest > 0){
+        out.push(allRows[idx]);
+      }
+    });
+    return out;
+  }
+
+  // --- Build XDRs for selected rows ---
+  async function buildXdrsForSelected(){
+    if(!pubkey){
+      toast("Connect the paying wallet first.", true);
+      return;
+    }
+    const selected = getSelectedRows();
+    if(selected.length === 0){
+      toast("No rows selected with positive interest.", true);
+      return;
+    }
+
+    const memoText = (memoInput.value || "AQUAmb APR Payment").slice(0,28);
+    const server   = getServer();
+    let account    = await server.loadAccount(pubkey);
+    const memo     = memoText ? SDK.Memo.text(memoText) : undefined;
+
+    const lines    = [];
+    window.__aquambXdrRows = [];
+
+    for(const row of selected){
+      const amtStr = format7(row.interest);
+      const builder = new SDK.TransactionBuilder(account, {
+        fee:"20000",
+        networkPassphrase: NETWORK,
+        memo
+      })
+      .addOperation(SDK.Operation.payment({
+        destination: row.owner,
+        asset: AQUAmb,
+        amount: amtStr
+      }))
+      .setTimeout(180);
+
+      const tx  = builder.build();
+      const xdr = tx.toXDR();
+      lines.push(`${row.owner} | ${amtStr} | ${xdr}`);
+      window.__aquambXdrRows.push({ owner:row.owner, amount:row.interest, xdr });
+      account.incrementSequenceNumber();
+    }
+
+    xdrOutput.value = lines.join("\n");
+    downloadCsvBtn.disabled = false;
+    toast(`Built ${selected.length} payment XDR(s).`);
+  }
+
+  function downloadCsv(){
+    const rows = window.__aquambXdrRows || [];
+    if(!rows.length){
+      toast("No XDRs to export.", true);
+      return;
+    }
+    const header = "account,amount,xdr\n";
+    const body = rows.map(r =>
+      `"${r.owner}",${format7(r.amount)},"${r.xdr.replace(/"/g,'""')}"`
+    ).join("\n");
+    const blob = new Blob([header+body], {type:"text/csv;charset=utf-8;"});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url;
+    a.download = "aquamb-interest-payments.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // --- Sign & submit selected rows in batches ---
+  async function signAndSubmitSelected(){
+    if(!pubkey){
+      toast("Connect the paying wallet first.", true);
+      return;
+    }
+    const selected = getSelectedRows();
+    if(selected.length === 0){
+      toast("No rows selected with positive interest.", true);
+      return;
+    }
+
+    const memoText = (memoInput.value || "AQUAmb APR Payment").slice(0,28);
+    const server   = getServer();
+    let account    = await server.loadAccount(pubkey);
+    const memo     = memoText ? SDK.Memo.text(memoText) : undefined;
+
+    const totalBatches = Math.ceil(selected.length / BATCH_SIZE);
+    for(let b=0; b<totalBatches; b++){
+      const batch = selected.slice(b*BATCH_SIZE, (b+1)*BATCH_SIZE);
+      batchInfo.textContent = `Signing batch ${b+1} / ${totalBatches} (${batch.length} wallet(s))…`;
+
+      for(const row of batch){
+        try{
+          const amtStr = format7(row.interest);
+          const builder = new SDK.TransactionBuilder(account, {
+            fee:"20000",
+            networkPassphrase: NETWORK,
+            memo
+          })
+          .addOperation(SDK.Operation.payment({
+            destination: row.owner,
+            asset: AQUAmb,
+            amount: amtStr
+          }))
+          .setTimeout(180);
+
+          const tx  = builder.build();
+          const xdr = tx.toXDR();
+
+          const signed = await signCurrent(xdr);
+          await handleSignedClassicXdr(signed, `Interest → ${shortG(row.owner)}`);
+
+          account.incrementSequenceNumber();
+        }catch(e){
+          console.error(e);
+          toast(`Failed for ${shortG(row.owner)}: ${e.message || e}`, true, 6000);
+          // continue with next wallet
+        }
+      }
+    }
+
+    batchInfo.textContent = `All batches done for ${selected.length} wallet(s).`;
+  }
+
+  // --- UI wiring ---
+  on(scanBtn,"click", ()=>{ scanAllLocksAndAggregate().catch(e=>console.error(e)); });
+
+  on(selectAll,"change", ()=>{
+    const checks = document.querySelectorAll(".rowCheck");
+    checks.forEach(c=> c.checked = selectAll.checked);
+  });
+
+  on(buildXdrBtn,"click", ()=>{ buildXdrsForSelected().catch(e=>console.error(e)); });
+  on(downloadCsvBtn,"click", downloadCsv);
+  on(signSubmitBtn,"click", ()=>{ signAndSubmitSelected().catch(e=>console.error(e)); });
+
+  // Initial status
+  scanStatus.textContent = "Set APR + period, then click “Scan locks & compute interest”.";
+</script>
+</body>
+</html>
