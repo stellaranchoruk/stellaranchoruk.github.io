@@ -67,6 +67,10 @@
       font-size:13px;
       width:100%;
     }
+    /* Don’t stretch checkboxes to 100% width */
+input[type="checkbox"]{
+  width:auto;
+}
     label{display:block;margin:6px 0 3px;font-size:12px;color:var(--muted);}
     textarea{min-height:90px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;}
     .tag{
