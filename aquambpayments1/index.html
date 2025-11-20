@@ -105,6 +105,25 @@
       font-size:12px;
       color:var(--muted);
     }
+    .checkbox-label{
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+  font-size:12px;
+  color:var(--muted);
+  max-width:320px;    /* keeps it from running to the far right on mobile */
+  line-height:1.35;
+}
+
+.checkbox-label input{
+  margin-top:2px;     /* vertically centres the tick vs first line of text */
+}
+
+@media (min-width: 768px){
+  .checkbox-label{
+    max-width:none;   /* let it breathe on desktop */
+  }
+}
   </style>
 </head>
 <body>
@@ -156,12 +175,12 @@
       </div>
     </div>
 
-    <div class="row" style="margin-top:8px;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);">
-        <input type="checkbox" id="minThresholdChk" checked />
-        Include only wallets with total ≥ 10,000 AQUAmb
-      </label>
-    </div>
+<div class="row" style="margin-top:6px;align-items:flex-start;">
+  <label class="checkbox-label">
+    <input id="minThresholdChk" type="checkbox" />
+    <span>Include only wallets with interest-eligible pending ≥ 10,000 AQUAmb</span>
+  </label>
+</div>
 
     <p class="small muted" style="margin-top:6px;">
       Period interest ≈ <span class="mono">principal × APR/100 × days/365</span>.
