@@ -316,17 +316,11 @@
   const MIN_THRESHOLD = 10000; // 10k AQUAmb
   const MAX_OPS_PER_TX = 100;  // WalletConnect limit
 
-  const wcDeepLinks      = $("wcDeepLinks");
-  const lobstrDeepBtn    = $("lobstrDeepBtn");
-  const freighterDeepBtn = $("freighterDeepBtn");
-  const copyWcBtn        = $("copyWcBtn");
-
-  let currentWcUri = null;
-
-  // --- DOM helpers ---
+  // --- DOM helpers (MUST come before any $() calls) ---
   const $  = id => document.getElementById(id);
   const on = (el,ev,fn)=> el && el.addEventListener(ev,fn);
 
+  // --- DOM refs ---
   const connectBtn      = $("connectBtn");
   const disconnectBtn   = $("disconnectBtn");
   const walletBtn       = $("walletBtn");
@@ -360,6 +354,12 @@
   const wcBtn           = $("wcBtn");
   const freighterBtn    = $("freighterBtn");
   const qrCanvas        = $("qrCanvas");
+
+  // Deep-link elements (must be after DOM helpers)
+  const wcDeepLinks      = $("wcDeepLinks");
+  const lobstrDeepBtn    = $("lobstrDeepBtn");
+  const freighterDeepBtn = $("freighterDeepBtn");
+  const copyWcBtn        = $("copyWcBtn");
 
   const vaultModal      = $("vaultModal");
   const closeVault      = $("closeVault");
@@ -403,6 +403,7 @@
   let session    = null;
   let connectionMode = "none"; // 'none' | 'wc' | 'freighter'
   let pubkey     = null;
+  let currentWcUri = null;     // 🔹 store latest WC URI for deep-links
 
   async function ensureClient(){
     if(wcClient) return wcClient;
@@ -528,42 +529,53 @@
   }
 
   // --- Connect modal wiring ---
-  on(connectBtn,"click", ()=>{ connectModal.style.display = "flex"; });
+  on(connectBtn,"click", ()=>{
+    connectModal.style.display = "flex";
+  });
+
   on(closeConnect,"click", ()=>{
-  connectModal.style.display = "none";
-  qrCanvas.style.display = "none";
-  wcDeepLinks.style.display = "none";   // 🔹 hide deep-link buttons
-  currentWcUri = null;                  // 🔹 clear old WC URL
-});
-  on(connectModal,"click", e=>{ if(e.target===connectModal){ connectModal.style.display="none"; qrCanvas.style.display="none"; } });
+    connectModal.style.display = "none";
+    qrCanvas.style.display = "none";
+    wcDeepLinks.style.display = "none";
+    currentWcUri = null;
+  });
+
+  on(connectModal,"click", e=>{
+    if(e.target===connectModal){
+      connectModal.style.display="none";
+      qrCanvas.style.display="none";
+      wcDeepLinks.style.display = "none";
+      currentWcUri = null;
+    }
+  });
 
   on(walletBtn,"click", ()=>{
     if(!pubkey) return;
     window.open(`https://stellar.expert/explorer/public/account/${pubkey}`,"_blank","noopener,noreferrer");
   });
 
-on(disconnectBtn,"click", async ()=>{
-  try{
-    if(connectionMode==="wc" && wcClient && session){
-      await wcClient.disconnect({
-        topic:session.topic,
-        reason:{code:6000,message:"Admin disconnected"}
-      });
-    }
-  }catch(e){ console.warn(e); }
-  session = null;
+  on(disconnectBtn,"click", async ()=>{
+    try{
+      if(connectionMode==="wc" && wcClient && session){
+        await wcClient.disconnect({
+          topic:session.topic,
+          reason:{code:6000,message:"Admin disconnected"}
+        });
+      }
+    }catch(e){ console.warn(e); }
+    session = null;
 
-  // 🔹 Reset WalletConnect link + UI
-  currentWcUri = null;
-  qrCanvas.style.display = "none";
-  wcDeepLinks.style.display = "none";
+    // reset WC state + UI
+    currentWcUri = null;
+    qrCanvas.style.display = "none";
+    wcDeepLinks.style.display = "none";
 
-  await setConnected(null,"none");
-  toast("Disconnected.");
-});
+    await setConnected(null,"none");
+    toast("Disconnected.");
+  });
 
   // WalletConnect button
-   on(wcBtn,"click", async ()=>{
+  on(wcBtn,"click", async ()=>{
     try{
       const sc = await ensureClient();
       toast("Starting WalletConnect…");
@@ -580,10 +592,10 @@ on(disconnectBtn,"click", async ()=>{
 
       if(!uri) throw new Error("No WalletConnect URI");
 
-      currentWcUri = uri;                     // 🔹 store for deep-links
+      currentWcUri = uri;
       await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
       qrCanvas.style.display = "block";
-      wcDeepLinks.style.display = "flex";     // 🔹 show mobile helpers
+      wcDeepLinks.style.display = "flex";
 
       session = await approval();
       wcClient = sc;
@@ -624,39 +636,8 @@ on(disconnectBtn,"click", async ()=>{
     }
   });
 
-  // Vault modal
-  on(closeVault,"click", ()=>{ vaultModal.style.display = "none"; });
-  on(vaultModal,"click", e=>{ if(e.target===vaultModal){ vaultModal.style.display="none"; } });
-  on(copySignedXdrBtn,"click", async ()=>{
-    try{
-      await navigator.clipboard.writeText(signedXdrBox.value||"");
-      toast("Signed XDR copied.");
-    }catch{
-      toast("Clipboard failed – copy manually.", true);
-    }
-  });
-
-  // --- Lock scanning helpers (same logic as public dashboard, but aggregated) ---
-
-  // cache ledger → close time
-  const ledgerTimeCache = new Map();
-  async function getLedgerCloseTime(ledgerSeq){
-    if(!ledgerSeq) return null;
-    if(ledgerTimeCache.has(ledgerSeq)) return ledgerTimeCache.get(ledgerSeq);
-    try{
-      const res = await fetch(`${HORIZON}/ledgers/${ledgerSeq}`);
-      const j   = await res.json();
-      const dt  = j.closed_at ? new Date(j.closed_at) : null;
-      ledgerTimeCache.set(ledgerSeq, dt);
-      return dt;
-    }catch(e){
-      console.warn("Ledger fetch failed", e);
-      ledgerTimeCache.set(ledgerSeq, null);
-      return null;
-    }
-  }
-
-    function ensureWcUriOrToast(){
+  // --- Deep-link helpers ---
+  function ensureWcUriOrToast(){
     if(!currentWcUri){
       toast("Generate a WalletConnect link first.", true);
       return false;
@@ -676,19 +657,35 @@ on(disconnectBtn,"click", async ()=>{
 
   on(lobstrDeepBtn,"click", ()=>{
     if(!ensureWcUriOrToast()) return;
-    // LOBSTR WalletConnect deep-link (mobile)
     const deep = "lobstr://wc?uri=" + encodeURIComponent(currentWcUri);
     window.location.href = deep;
   });
 
   on(freighterDeepBtn,"click", ()=>{
     if(!ensureWcUriOrToast()) return;
-    // Freighter WalletConnect deep-link (mobile)
     const deep = "freighter://wc?uri=" + encodeURIComponent(currentWcUri);
     window.location.href = deep;
   });
 
-  // trustline check
+  // --- Lock scanning helpers (same logic as public dashboard, but aggregated) ---
+
+  const ledgerTimeCache = new Map();
+  async function getLedgerCloseTime(ledgerSeq){
+    if(!ledgerSeq) return null;
+    if(ledgerTimeCache.has(ledgerSeq)) return ledgerTimeCache.get(ledgerSeq);
+    try{
+      const res = await fetch(`${HORIZON}/ledgers/${ledgerSeq}`);
+      const j   = await res.json();
+      const dt  = j.closed_at ? new Date(j.closed_at) : null;
+      ledgerTimeCache.set(ledgerSeq, dt);
+      return dt;
+    }catch(e){
+      console.warn("Ledger fetch failed", e);
+      ledgerTimeCache.set(ledgerSeq, null);
+      return null;
+    }
+  }
+
   async function hasAquambTrustline(accountId){
     try{
       const res = await fetch(`${HORIZON}/accounts/${accountId}`);
@@ -743,197 +740,189 @@ on(disconnectBtn,"click", async ()=>{
   window.__aquambBatches = [];
   window.__aquambNoTlRows = [];
 
-async function scanAllLocksAndAggregate(){
-  scanStatus.textContent = "Scanning TRACKER_KEY for all AQUAmb locks…";
-  walletBody.innerHTML   = "";
-  walletTable.style.display = "none";
-  summaryLine.textContent= "";
-  batchPreview.textContent = "";
-  batchList.innerHTML    = "";
-  buildXdrBtn.disabled   = true;
-  downloadCsvBtn.disabled= true;
-  signAllBtn.disabled    = true;
-  signOneBtn.disabled    = true;
-  xdrOutput.value        = "";
-  window.__aquambRows    = [];
-  window.__aquambNoTlRows= [];
-  window.__aquambBatches = [];
+  async function scanAllLocksAndAggregate(){
+    scanStatus.textContent = "Scanning TRACKER_KEY for all AQUAmb locks…";
+    walletBody.innerHTML   = "";
+    walletTable.style.display = "none";
+    summaryLine.textContent= "";
+    batchPreview.textContent = "";
+    batchList.innerHTML    = "";
+    buildXdrBtn.disabled   = true;
+    downloadCsvBtn.disabled= true;
+    signAllBtn.disabled    = true;
+    signOneBtn.disabled    = true;
+    xdrOutput.value        = "";
+    window.__aquambRows    = [];
+    window.__aquambNoTlRows= [];
+    window.__aquambBatches = [];
 
-  const apr  = Number(aprInput.value)  || 0;
-  const days = Number(daysInput.value) || 0;
-  const periodFactor = apr > 0 && days > 0 ? (apr/100)*(days/365) : 0;
-  const thresholdOn   = !!minThresholdChk.checked;
+    const apr  = Number(aprInput.value)  || 0;
+    const days = Number(daysInput.value) || 0;
+    const periodFactor = apr > 0 && days > 0 ? (apr/100)*(days/365) : 0;
+    const thresholdOn   = !!minThresholdChk.checked;
 
-  try{
-    const all = await fetchTrackedBalances();
+    try{
+      const all = await fetchTrackedBalances();
 
-    // Aggregate by owner
-    const byOwner = new Map();
-    const now = new Date();
+      const byOwner = new Map();
+      const now = new Date();
 
-    for(const rec of all){
-      const info = extractOwnerInfo(rec);
-      if(!info) continue;
+      for(const rec of all){
+        const info = extractOwnerInfo(rec);
+        if(!info) continue;
 
-      const amount   = Number(rec.amount || "0");
-      const unlock   = info.unlockDate;
-      const ledgerNo = rec.last_modified_ledger;
-      const owner    = info.owner;
+        const amount   = Number(rec.amount || "0");
+        const unlock   = info.unlockDate;
+        const ledgerNo = rec.last_modified_ledger;
+        const owner    = info.owner;
 
-      const createdAt = await getLedgerCloseTime(ledgerNo);
-      const termMs    = createdAt ? (unlock - createdAt) : 0;
-      const matured   = now >= unlock;
+        const createdAt = await getLedgerCloseTime(ledgerNo);
+        const termMs    = createdAt ? (unlock - createdAt) : 0;
+        const matured   = now >= unlock;
 
-      const isLong   = termMs >= MIN_TERM_MS && termMs > 0;
-      const isShort  = !isLong && !matured;
+        const isLong   = termMs >= MIN_TERM_MS && termMs > 0;
+        const isShort  = !isLong && !matured;
 
-      const eligiblePending = (!matured && isLong) ? amount : 0;
-      const shortPending    = isShort ? amount : 0;
-      const maturedAmt      = matured ? amount : 0;
+        const eligiblePending = (!matured && isLong) ? amount : 0;
+        const shortPending    = isShort ? amount : 0;
+        const maturedAmt      = matured ? amount : 0;
 
-      let entry = byOwner.get(owner);
-      if(!entry){
-        entry = {
-          owner,
-          eligiblePending:0,
-          shortPending:0,
-          matured:0,
-          locks:0,
-          hasTrustline:false
-        };
-        byOwner.set(owner, entry);
-      }
-      entry.eligiblePending += eligiblePending;
-      entry.shortPending    += shortPending;
-      entry.matured         += maturedAmt;
-      entry.locks++;
-    }
-
-    if(byOwner.size === 0){
-      scanStatus.textContent = "No AQUAmb locks found for this TRACKER_KEY.";
-      return;
-    }
-
-    // Check trustlines for each owner
-    const ownerEntries = Array.from(byOwner.values());
-    for(const entry of ownerEntries){
-      entry.hasTrustline = await hasAquambTrustline(entry.owner);
-    }
-
-    // Build table rows + totals
-    walletBody.innerHTML = "";
-    let totalEligible         = 0;
-    let totalShort            = 0;
-    let totalMatured          = 0;
-    let totalInterestAll      = 0;
-    let belowThresholdWallets = 0;
-    let missingTrustlineCount = 0;
-
-    const rows          = [];
-    const allForPreview = [];
-    const noTlRows      = [];
-
-    for (const entry of ownerEntries) {
-      const expectedInterest = entry.eligiblePending * periodFactor;
-      const passesThreshold  = !thresholdOn || entry.eligiblePending >= MIN_THRESHOLD;
-      if (!passesThreshold) {
-        belowThresholdWallets++;
-      }
-
-      totalEligible    += entry.eligiblePending;
-      totalShort       += entry.shortPending;
-      totalMatured     += entry.matured;
-      totalInterestAll += expectedInterest;
-
-      const rowData = {
-        owner:           entry.owner,
-        eligiblePending: entry.eligiblePending,
-        shortPending:    entry.shortPending,
-        matured:         entry.matured,
-        locks:           entry.locks,
-        interest:        expectedInterest,
-        hasTrustline:    entry.hasTrustline
-      };
-      allForPreview.push(rowData);
-
-      // Below threshold: ignore for payments but keep in totals
-      if (!passesThreshold) continue;
-
-      // No trustline: track for CSV, but do not pay
-      if (!entry.hasTrustline) {
-        if (expectedInterest > 0) {
-          missingTrustlineCount++;
-          noTlRows.push(rowData);
+        let entry = byOwner.get(owner);
+        if(!entry){
+          entry = {
+            owner,
+            eligiblePending:0,
+            shortPending:0,
+            matured:0,
+            locks:0,
+            hasTrustline:false
+          };
+          byOwner.set(owner, entry);
         }
-        continue;
+        entry.eligiblePending += eligiblePending;
+        entry.shortPending    += shortPending;
+        entry.matured         += maturedAmt;
+        entry.locks++;
       }
 
-      const idx = rows.length;
-      rows.push(rowData);
+      if(byOwner.size === 0){
+        scanStatus.textContent = "No AQUAmb locks found for this TRACKER_KEY.";
+        return;
+      }
 
-      const tr = document.createElement("tr");
-      tr.setAttribute("data-row-index", String(idx));
-      tr.innerHTML = `
-        <td class="checkbox-cell"><input type="checkbox" class="rowCheck" /></td>
-        <td class="mono">${entry.owner}</td>
-        <td class="right">${format7(entry.eligiblePending)}</td>
-        <td class="right">${format7(entry.shortPending)}</td>
-        <td class="right">${format7(entry.matured)}</td>
-        <td class="right">${entry.locks}</td>
-        <td class="right">${expectedInterest > 0 ? format7(expectedInterest) : "0.0000000"}</td>
-      `;
-      walletBody.appendChild(tr);
+      const ownerEntries = Array.from(byOwner.values());
+      for(const entry of ownerEntries){
+        entry.hasTrustline = await hasAquambTrustline(entry.owner);
+      }
+
+      walletBody.innerHTML = "";
+      let totalEligible         = 0;
+      let totalShort            = 0;
+      let totalMatured          = 0;
+      let totalInterestAll      = 0;
+      let belowThresholdWallets = 0;
+      let missingTrustlineCount = 0;
+
+      const rows          = [];
+      const allForPreview = [];
+      const noTlRows      = [];
+
+      for (const entry of ownerEntries) {
+        const expectedInterest = entry.eligiblePending * periodFactor;
+        const passesThreshold  = !thresholdOn || entry.eligiblePending >= MIN_THRESHOLD;
+        if (!passesThreshold) {
+          belowThresholdWallets++;
+        }
+
+        totalEligible    += entry.eligiblePending;
+        totalShort       += entry.shortPending;
+        totalMatured     += entry.matured;
+        totalInterestAll += expectedInterest;
+
+        const rowData = {
+          owner:           entry.owner,
+          eligiblePending: entry.eligiblePending,
+          shortPending:    entry.shortPending,
+          matured:         entry.matured,
+          locks:           entry.locks,
+          interest:        expectedInterest,
+          hasTrustline:    entry.hasTrustline
+        };
+        allForPreview.push(rowData);
+
+        if (!passesThreshold) continue;
+
+        if (!entry.hasTrustline) {
+          if (expectedInterest > 0) {
+            missingTrustlineCount++;
+            noTlRows.push(rowData);
+          }
+          continue;
+        }
+
+        const idx = rows.length;
+        rows.push(rowData);
+
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-row-index", String(idx));
+        tr.innerHTML = `
+          <td class="checkbox-cell"><input type="checkbox" class="rowCheck" /></td>
+          <td class="mono">${entry.owner}</td>
+          <td class="right">${format7(entry.eligiblePending)}</td>
+          <td class="right">${format7(entry.shortPending)}</td>
+          <td class="right">${format7(entry.matured)}</td>
+          <td class="right">${entry.locks}</td>
+          <td class="right">${expectedInterest > 0 ? format7(expectedInterest) : "0.0000000"}</td>
+        `;
+        walletBody.appendChild(tr);
+      }
+
+      walletTable.style.display = "table";
+      scanStatus.textContent = `Scan complete: ${byOwner.size} wallet(s).`;
+
+      const totalLockedAll = totalEligible + totalShort + totalMatured;
+
+      let thresholdNote;
+      if (thresholdOn) {
+        thresholdNote =
+          ` · Threshold ON (≥ ${MIN_THRESHOLD.toLocaleString()} AQUAmb interest-eligible). ` +
+          `Excluded wallets (by threshold): ${belowThresholdWallets}.`;
+      } else {
+        thresholdNote = " · Threshold OFF (all wallets considered).";
+      }
+
+      const trustlineNote =
+        ` · Wallets without AQUAmb trustline (excluded from payments, but listed in CSV): ${missingTrustlineCount}.`;
+
+      summaryLine.textContent =
+        `Total locked across all wallets: ${format7(totalLockedAll)} AQUAmb · ` +
+        `Eligible pending: ${format7(totalEligible)} · ` +
+        `Short-term pending: ${format7(totalShort)} · ` +
+        `Matured: ${format7(totalMatured)} · ` +
+        `Interest this period (before threshold): ${format7(totalInterestAll)} AQUAmb` +
+        thresholdNote +
+        trustlineNote;
+
+      window.__aquambRows     = rows;
+      window.__aquambNoTlRows = noTlRows;
+
+      const previewRows = allForPreview.filter(r =>
+        r.hasTrustline && (!thresholdOn || r.eligiblePending >= MIN_THRESHOLD)
+      );
+      updateBatchPreview(previewRows, periodFactor);
+
+      buildXdrBtn.disabled    = false;
+      signAllBtn.disabled     = false;
+      signOneBtn.disabled     = false;
+      downloadCsvBtn.disabled = true;
+      xdrOutput.value         = "";
+    }catch(e){
+      console.error(e);
+      scanStatus.textContent = e.message || "Scan failed.";
+      toast("Scan failed.", true);
     }
-
-    walletTable.style.display = "table";
-    scanStatus.textContent = `Scan complete: ${byOwner.size} wallet(s).`;
-
-    const totalLockedAll = totalEligible + totalShort + totalMatured;
-
-    let thresholdNote;
-    if (thresholdOn) {
-      thresholdNote =
-        ` · Threshold ON (≥ ${MIN_THRESHOLD.toLocaleString()} AQUAmb interest-eligible). ` +
-        `Excluded wallets (by threshold): ${belowThresholdWallets}.`;
-    } else {
-      thresholdNote = " · Threshold OFF (all wallets considered).";
-    }
-
-    const trustlineNote =
-      ` · Wallets without AQUAmb trustline (excluded from payments, but listed in CSV): ${missingTrustlineCount}.`;
-
-    summaryLine.textContent =
-      `Total locked across all wallets: ${format7(totalLockedAll)} AQUAmb · ` +
-      `Eligible pending: ${format7(totalEligible)} · ` +
-      `Short-term pending: ${format7(totalShort)} · ` +
-      `Matured: ${format7(totalMatured)} · ` +
-      `Interest this period (before threshold): ${format7(totalInterestAll)} AQUAmb` +
-      thresholdNote +
-      trustlineNote;
-
-    // store rows (after threshold + trustline) for selection-based actions
-    window.__aquambRows     = rows;
-    window.__aquambNoTlRows = noTlRows;
-
-    // preview batches using only wallets that both pass threshold and have trustline
-    const previewRows = allForPreview.filter(r =>
-      r.hasTrustline && (!thresholdOn || r.eligiblePending >= MIN_THRESHOLD)
-    );
-    updateBatchPreview(previewRows, periodFactor);
-
-    buildXdrBtn.disabled    = false;
-    signAllBtn.disabled     = false;
-    signOneBtn.disabled     = false;
-    downloadCsvBtn.disabled = true;
-    xdrOutput.value         = "";
-  }catch(e){
-    console.error(e);
-    scanStatus.textContent = e.message || "Scan failed.";
-    toast("Scan failed.", true);
   }
-}
 
-  // --- Batch preview (dry run) ---
   function computeBatches(rows){
     const payers = rows.filter(r => r.interest > 0);
     const batches = [];
@@ -941,7 +930,7 @@ async function scanAllLocksAndAggregate(){
       const slice = payers.slice(i, i+MAX_OPS_PER_TX);
       const totalInterest = slice.reduce((s,r)=>s+r.interest,0);
       batches.push({
-        index: batches.length, // 0-based
+        index: batches.length,
         rows: slice,
         totalInterest,
         count: slice.length
@@ -964,9 +953,9 @@ async function scanAllLocksAndAggregate(){
 
     const totalInterestAll = payers.reduce((s,r)=>s+r.interest,0);
     batchPreview.textContent =
-      `If you paid all eligible wallets this period (with trustline): `
-      + `${payers.length} wallet(s) · ${batches.length} batch(es) of ≤ ${MAX_OPS_PER_TX} ops `
-      + `· total interest ≈ ${format7(totalInterestAll)} AQUAmb. (Dry run only – nothing signed yet.)`;
+      `If you paid all eligible wallets this period (with trustline): ` +
+      `${payers.length} wallet(s) · ${batches.length} batch(es) of ≤ ${MAX_OPS_PER_TX} ops ` +
+      `· total interest ≈ ${format7(totalInterestAll)} AQUAmb. (Dry run only – nothing signed yet.)`;
 
     batchList.innerHTML = "";
     batches.forEach((b,idx)=>{
@@ -978,7 +967,6 @@ async function scanAllLocksAndAggregate(){
     });
   }
 
-  // --- Selection helpers ---
   function getSelectedRows(){
     const rows  = window.__aquambRows || [];
     const checks= Array.from(document.querySelectorAll(".rowCheck"));
@@ -997,7 +985,6 @@ async function scanAllLocksAndAggregate(){
     return computeBatches(selected);
   }
 
-  // --- Build XDRs for selected rows (1 payment per tx, for CSV / Vault manual) ---
   async function buildXdrsForSelected(){
     if(!pubkey){
       toast("Connect the paying wallet first.", true);
@@ -1077,7 +1064,6 @@ async function scanAllLocksAndAggregate(){
     URL.revokeObjectURL(url);
   }
 
-  // --- Sign & submit batches (WalletConnect / Freighter) ---
   async function signAndSubmitBatches({ onlyFirst=false } = {}){
     if(!pubkey){
       toast("Connect the paying wallet first.", true);
@@ -1151,7 +1137,6 @@ async function scanAllLocksAndAggregate(){
   on(signAllBtn,"click", ()=>{ signAndSubmitBatches({onlyFirst:false}).catch(e=>console.error(e)); });
   on(signOneBtn,"click", ()=>{ signAndSubmitBatches({onlyFirst:true}).catch(e=>console.error(e)); });
 
-  // Initial status
   scanStatus.textContent = "Set APR + period, then click “Scan locks & compute interest” for a dry-run preview.";
 </script>
 </body>
