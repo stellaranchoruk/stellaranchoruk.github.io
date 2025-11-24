@@ -930,7 +930,7 @@ section.main-block {
 /* === AQUAmb header (clean, responsive, smaller) === */
 section.main-block-aquamb {
     width: 100%;
-    aspect-ratio: 4 / 1;   /* responsive height ~25% of width */
+    aspect-ratio: 6.67 / 1;  /* matches 2000x300 */
     background-image: url("https://mirrasets.com/images/aquamb_header_1.png");
     background-size: cover;
     background-position: center;
@@ -942,22 +942,22 @@ section.main-block-aquamb {
 /* Tablet */
 @media (max-width: 800px) {
     section.main-block-aquamb {
-        aspect-ratio: 16 / 9; /* taller but still proportional */
         background-image: url("https://mirrasets.com/images/aquamb_header_mobile_1.png");
+        aspect-ratio: 2.67 / 1;  /* matches 800x300 */
     }
 }
 
 /* Large mobile */
 @media (max-width: 600px) {
     section.main-block-aquamb {
-        aspect-ratio: 2 / 1;
+        aspect-ratio: 2.4 / 1; /* slightly taller for small screens */
     }
 }
 
 /* Small mobile */
 @media (max-width: 400px) {
     section.main-block-aquamb {
-        aspect-ratio: 1.5 / 1;
+        aspect-ratio: 2.1 / 1;
     }
 }
 
