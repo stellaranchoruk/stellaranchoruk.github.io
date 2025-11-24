@@ -245,9 +245,36 @@
       <button id="closeConnect" class="toast x" style="border:none;background:none;padding:0;">×</button>
     </div>
     <p class="small muted" style="margin-top:0;">Choose a connection method for the paying account.</p>
-    <button id="wcBtn" style="width:100%;margin-top:4px;">🔗 WalletConnect (mobile / Vault)</button>
-    <button id="freighterBtn" style="width:100%;margin-top:6px;">🧩 Freighter (browser)</button>
-    <canvas id="qrCanvas" width="256" height="256" style="display:none;margin:10px auto 0;background:#fff;border-radius:10px;"></canvas>
+
+<!-- Step 1: generate WC link / QR -->
+<button id="wcBtn" style="width:100%;margin-top:4px;">
+  🔗 Generate WalletConnect link / QR
+</button>
+
+<!-- Browser Freighter (extension) -->
+<button id="freighterBtn" style="width:100%;margin-top:6px;">
+  🧩 Freighter (browser)
+</button>
+
+<canvas
+  id="qrCanvas"
+  width="256"
+  height="256"
+  style="display:none;margin:10px auto 0;background:#fff;border-radius:10px;"
+></canvas>
+
+<!-- Mobile deep-links for the WC URI -->
+<div id="wcDeepLinks" style="display:none;margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+  <button id="lobstrDeepBtn" style="width:100%;">
+    📱 Open in LOBSTR (mobile)
+  </button>
+  <button id="freighterDeepBtn" style="width:100%;">
+    📱 Open in Freighter (mobile)
+  </button>
+  <button id="copyWcBtn" style="width:100%;">
+    📋 Copy WalletConnect link
+  </button>
+</div>
   </div>
 </div>
 
@@ -288,6 +315,13 @@
   const MIN_TERM_MS   = 365 * 24 * 60 * 60 * 1000; // 365 days
   const MIN_THRESHOLD = 10000; // 10k AQUAmb
   const MAX_OPS_PER_TX = 100;  // WalletConnect limit
+
+  const wcDeepLinks      = $("wcDeepLinks");
+  const lobstrDeepBtn    = $("lobstrDeepBtn");
+  const freighterDeepBtn = $("freighterDeepBtn");
+  const copyWcBtn        = $("copyWcBtn");
+
+  let currentWcUri = null;
 
   // --- DOM helpers ---
   const $  = id => document.getElementById(id);
@@ -495,7 +529,12 @@
 
   // --- Connect modal wiring ---
   on(connectBtn,"click", ()=>{ connectModal.style.display = "flex"; });
-  on(closeConnect,"click", ()=>{ connectModal.style.display = "none"; qrCanvas.style.display="none"; });
+  on(closeConnect,"click", ()=>{
+  connectModal.style.display = "none";
+  qrCanvas.style.display = "none";
+  wcDeepLinks.style.display = "none";   // 🔹 hide deep-link buttons
+  currentWcUri = null;                  // 🔹 clear old WC URL
+});
   on(connectModal,"click", e=>{ if(e.target===connectModal){ connectModal.style.display="none"; qrCanvas.style.display="none"; } });
 
   on(walletBtn,"click", ()=>{
@@ -503,22 +542,28 @@
     window.open(`https://stellar.expert/explorer/public/account/${pubkey}`,"_blank","noopener,noreferrer");
   });
 
-  on(disconnectBtn,"click", async ()=>{
-    try{
-      if(connectionMode==="wc" && wcClient && session){
-        await wcClient.disconnect({
-          topic:session.topic,
-          reason:{code:6000,message:"Admin disconnected"}
-        });
-      }
-    }catch(e){ console.warn(e); }
-    session = null;
-    await setConnected(null,"none");
-    toast("Disconnected.");
-  });
+on(disconnectBtn,"click", async ()=>{
+  try{
+    if(connectionMode==="wc" && wcClient && session){
+      await wcClient.disconnect({
+        topic:session.topic,
+        reason:{code:6000,message:"Admin disconnected"}
+      });
+    }
+  }catch(e){ console.warn(e); }
+  session = null;
+
+  // 🔹 Reset WalletConnect link + UI
+  currentWcUri = null;
+  qrCanvas.style.display = "none";
+  wcDeepLinks.style.display = "none";
+
+  await setConnected(null,"none");
+  toast("Disconnected.");
+});
 
   // WalletConnect button
-  on(wcBtn,"click", async ()=>{
+   on(wcBtn,"click", async ()=>{
     try{
       const sc = await ensureClient();
       toast("Starting WalletConnect…");
@@ -534,8 +579,11 @@
       });
 
       if(!uri) throw new Error("No WalletConnect URI");
+
+      currentWcUri = uri;                     // 🔹 store for deep-links
       await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
       qrCanvas.style.display = "block";
+      wcDeepLinks.style.display = "flex";     // 🔹 show mobile helpers
 
       session = await approval();
       wcClient = sc;
@@ -607,6 +655,38 @@
       return null;
     }
   }
+
+    function ensureWcUriOrToast(){
+    if(!currentWcUri){
+      toast("Generate a WalletConnect link first.", true);
+      return false;
+    }
+    return true;
+  }
+
+  on(copyWcBtn,"click", async ()=>{
+    if(!ensureWcUriOrToast()) return;
+    try{
+      await navigator.clipboard.writeText(currentWcUri);
+      toast("WalletConnect link copied.");
+    }catch{
+      toast("Clipboard failed – copy manually.", true);
+    }
+  });
+
+  on(lobstrDeepBtn,"click", ()=>{
+    if(!ensureWcUriOrToast()) return;
+    // LOBSTR WalletConnect deep-link (mobile)
+    const deep = "lobstr://wc?uri=" + encodeURIComponent(currentWcUri);
+    window.location.href = deep;
+  });
+
+  on(freighterDeepBtn,"click", ()=>{
+    if(!ensureWcUriOrToast()) return;
+    // Freighter WalletConnect deep-link (mobile)
+    const deep = "freighter://wc?uri=" + encodeURIComponent(currentWcUri);
+    window.location.href = deep;
+  });
 
   // trustline check
   async function hasAquambTrustline(accountId){
