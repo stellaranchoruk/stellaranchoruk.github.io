@@ -744,6 +744,7 @@
       let totalEligible = 0;
       let totalShort    = 0;
       let totalMatured  = 0;
+      const totalLockedAll = totalEligible + totalShort + totalMatured;
       let totalInterestAll = 0;
       let belowThresholdWallets = 0;
       let missingTrustlineCount = 0;
@@ -817,11 +818,12 @@
       const trustlineNote = ` · Wallets without AQUAmb trustline (excluded from payments, but listed in CSV): ${missingTrustlineCount}.`;
 
       summaryLine.textContent =
-        `Eligible pending total: ${format7(totalEligible)} AQUAmb · `
+        `Total locked across all wallets: ${format7(totalLockedAll)} AQUAmb · `
+        + `Eligible pending: ${format7(totalEligible)} · `
         + `Short-term pending: ${format7(totalShort)} · `
         + `Matured: ${format7(totalMatured)} · `
-        + `Interest this period (all wallets, before filters): ${format7(totalInterestAll)} AQUAmb`
-        + thresholdNote
+        + `Interest this period (before threshold): ${format7(totalInterest)} AQUAmb`
+        + thresholdNote;
         + trustlineNote;
 
       // store rows (after threshold + trustline) for selection-based actions
