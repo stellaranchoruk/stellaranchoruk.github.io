@@ -927,48 +927,37 @@ section.main-block {
     }
 }
 
+/* === AQUAmb header (clean, responsive, smaller) === */
 section.main-block-aquamb {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     width: 100%;
-    height: 25vw;
-    background-color: #FAFAFB;
-    padding-top: 11rem;
-    overflow: hidden;
-    background-image: url(https://mirrasets.com/images/aquamb_header.png);
-    background-size: 100%;
+    aspect-ratio: 4 / 1;   /* responsive height ~25% of width */
+    background-image: url("https://mirrasets.com/images/aquamb_header.png");
+    background-size: cover;
+    background-position: center;
     background-repeat: no-repeat;
     margin-top: 80px;
+    overflow: hidden;
 }
 
-
-@media screen and (max-width: 800px){
+/* Tablet */
+@media (max-width: 800px) {
     section.main-block-aquamb {
-        height: 46rem;
-        justify-content: center;
-        padding-bottom: 10rem;
-        background-image: url(https://mirrasets.com/images/aquamb_header_mobile.png);
+        aspect-ratio: 16 / 9; /* taller but still proportional */
+        background-image: url("https://mirrasets.com/images/aquamb_header_mobile.png");
     }
 }
 
-@media screen and (max-width: 600px){
+/* Large mobile */
+@media (max-width: 600px) {
     section.main-block-aquamb {
-        height: 35rem;
+        aspect-ratio: 2 / 1;
     }
 }
 
-@media screen and (max-width: 470px){
+/* Small mobile */
+@media (max-width: 400px) {
     section.main-block-aquamb {
-        justify-content: flex-start;
-        height: 27rem;
-    }
-}
-
-@media screen and (max-width: 370px){
-    section.main-block-aquamb {
-        height: 22rem;
+        aspect-ratio: 1.5 / 1;
     }
 }
 
