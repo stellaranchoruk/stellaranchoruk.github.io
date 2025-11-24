@@ -1169,6 +1169,7 @@ toggleVaultXdrBtn.addEventListener("click", ()=>{
     let buildTimer=null;       // locker debounce
     let swapTimer=null;        // swap debounce
     let lockerRefreshTimer=null;
+    let lockerRefreshTick  = 0;
 
     // Aquarius swap state
     let lastQuote=null;
@@ -1961,22 +1962,46 @@ scanInterestForCurrent().catch(()=>{});
       formatFieldOnBlur(amountEl);
     });
 
-    function startLockerAutoRefresh(){
-      stopLockerAutoRefresh();
-      lockerRefreshTimer = setInterval(async ()=>{
-        const pk = pubkeyEl.value.trim();
-        if(!isValidG(pk)) return;
-        try{
-          const { balance, selling_liabilities } = await loadAQUAmbBalance(pk);
-          const bal = Number(balance||0), liab = Number(selling_liabilities||0);
-          const usable = Math.max(bal - liab, 0);
-          aquaBalEl.textContent = formatDisp(bal);
-          usablePill.textContent = formatDisp(usable);
-          hydrateUsablePopover({balance:bal, inOffers:liab, usable});
-        }catch(e){ console.warn(e); }
-      }, 15000);
+function startLockerAutoRefresh(){
+  stopLockerAutoRefresh();
+  lockerRefreshTick = 0;
+
+  lockerRefreshTimer = setInterval(async ()=>{
+    const pk = pubkeyEl.value.trim();
+    if (!isValidG(pk)) return;
+
+    // 1) Always refresh AQUAmb balance / usable every 15s
+    try {
+      const { balance, selling_liabilities } = await loadAQUAmbBalance(pk);
+      const bal   = Number(balance || 0);
+      const liab  = Number(selling_liabilities || 0);
+      const usable = Math.max(bal - liab, 0);
+
+      aquaBalEl.textContent       = formatDisp(bal);
+      usablePill.textContent      = formatDisp(usable);
+      swapUsablePill.textContent  = formatDisp(usable);
+      hydrateUsablePopover({ balance: bal, inOffers: liab, usable });
+    } catch (e) {
+      console.warn("auto AQUAmb refresh failed", e);
     }
-    function stopLockerAutoRefresh(){ if(lockerRefreshTimer) clearInterval(lockerRefreshTimer); lockerRefreshTimer = null; }
+
+    // 2) Every ~60s also refresh locks + interest
+    lockerRefreshTick++;
+    if (lockerRefreshTick % 4 === 0) {
+      try {
+        await scanLocksForCurrent();
+        await scanInterestForCurrent();
+      } catch (e) {
+        console.warn("auto locks/interest refresh failed", e);
+      }
+    }
+  }, 15000);
+}
+
+function stopLockerAutoRefresh(){
+  if (lockerRefreshTimer) clearInterval(lockerRefreshTimer);
+  lockerRefreshTimer = null;
+}
 
     async function initForNewAccount(){
       const pk = pubkeyEl.value.trim();
