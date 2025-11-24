@@ -741,51 +741,50 @@
 
       // Build table rows
       walletBody.innerHTML = "";
-      let totalEligible = 0;
-      let totalShort    = 0;
-      let totalMatured  = 0;
-      const totalLockedAll = totalEligible + totalShort + totalMatured;
-      let totalInterestAll = 0;
-      let belowThresholdWallets = 0;
-      let missingTrustlineCount = 0;
+      let totalEligible          = 0;
+      let totalShort             = 0;
+      let totalMatured           = 0;
+      let totalInterestAll       = 0;
+      let belowThresholdWallets  = 0;
+      let missingTrustlineCount  = 0;
 
-      const rows = [];
-      const allForPreview = [];
-      const noTlRows = [];
+      const rows         = [];
+      const allForPreview= [];
+      const noTlRows     = [];
 
-      for(const entry of ownerEntries){
+      for (const entry of ownerEntries) {
         const expectedInterest = entry.eligiblePending * periodFactor;
         const passesThreshold  = !thresholdOn || entry.eligiblePending >= MIN_THRESHOLD;
-        if(!passesThreshold){
+        if (!passesThreshold) {
           belowThresholdWallets++;
         }
 
-        totalEligible     += entry.eligiblePending;
-        totalShort        += entry.shortPending;
-        totalMatured      += entry.matured;
-        totalInterestAll  += expectedInterest;
+        totalEligible    += entry.eligiblePending;
+        totalShort       += entry.shortPending;
+        totalMatured     += entry.matured;
+        totalInterestAll += expectedInterest;
 
         const rowData = {
-          owner: entry.owner,
-          eligiblePending: entry.eligiblePending,
-          shortPending: entry.shortPending,
-          matured: entry.matured,
-          locks: entry.locks,
-          interest: expectedInterest,
-          hasTrustline: entry.hasTrustline
+          owner:          entry.owner,
+          eligiblePending:entry.eligiblePending,
+          shortPending:   entry.shortPending,
+          matured:        entry.matured,
+          locks:          entry.locks,
+          interest:       expectedInterest,
+          hasTrustline:   entry.hasTrustline
         };
         allForPreview.push(rowData);
 
-        if(!passesThreshold){
-          continue; // ignore for payments, still in global totals
-        }
+        // Below threshold: skip from payment table, but remain in global totals
+        if (!passesThreshold) continue;
 
-        if(!entry.hasTrustline){
-          if(expectedInterest > 0){
+        // No trustline: track for CSV, but skip payments
+        if (!entry.hasTrustline) {
+          if (expectedInterest > 0) {
             missingTrustlineCount++;
             noTlRows.push(rowData);
           }
-          continue; // excluded from payment table
+          continue;
         }
 
         const idx = rows.length;
@@ -800,7 +799,7 @@
           <td class="right">${format7(entry.shortPending)}</td>
           <td class="right">${format7(entry.matured)}</td>
           <td class="right">${entry.locks}</td>
-          <td class="right">${expectedInterest>0 ? format7(expectedInterest) : "0.0000000"}</td>
+          <td class="right">${expectedInterest > 0 ? format7(expectedInterest) : "0.0000000"}</td>
         `;
         walletBody.appendChild(tr);
       }
@@ -808,23 +807,44 @@
       walletTable.style.display = "table";
       scanStatus.textContent = `Scan complete: ${byOwner.size} wallet(s).`;
 
+      const totalLockedAll = totalEligible + totalShort + totalMatured;
+
       let thresholdNote = "";
-      if(thresholdOn){
-        thresholdNote = ` · Threshold ON (≥ ${MIN_THRESHOLD.toLocaleString()} AQUAmb interest-eligible). Excluded wallets (by threshold): ${belowThresholdWallets}.`;
-      }else{
+      if (thresholdOn) {
+        thresholdNote =
+          ` · Threshold ON (≥ ${MIN_THRESHOLD.toLocaleString()} AQUAmb interest-eligible). ` +
+          `Excluded wallets (by threshold): ${belowThresholdWallets}.`;
+      } else {
         thresholdNote = " · Threshold OFF (all wallets considered).";
       }
 
-      const trustlineNote = ` · Wallets without AQUAmb trustline (excluded from payments, but listed in CSV): ${missingTrustlineCount}.`;
+      const trustlineNote =
+        ` · Wallets without AQUAmb trustline (excluded from payments, but listed in CSV): ${missingTrustlineCount}.`;
 
       summaryLine.textContent =
-        `Total locked across all wallets: ${format7(totalLockedAll)} AQUAmb · `
-        + `Eligible pending: ${format7(totalEligible)} · `
-        + `Short-term pending: ${format7(totalShort)} · `
-        + `Matured: ${format7(totalMatured)} · `
-        + `Interest this period (before threshold): ${format7(totalInterest)} AQUAmb`
-        + thresholdNote;
-        + trustlineNote;
+        `Total locked across all wallets: ${format7(totalLockedAll)} AQUAmb · ` +
+        `Eligible pending: ${format7(totalEligible)} · ` +
+        `Short-term pending: ${format7(totalShort)} · ` +
+        `Matured: ${format7(totalMatured)} · ` +
+        `Interest this period (before threshold): ${format7(totalInterestAll)} AQUAmb` +
+        thresholdNote +
+        trustlineNote;
+
+      // store rows (after threshold + trustline) for selection-based actions
+      window.__aquambRows     = rows;
+      window.__aquambNoTlRows = noTlRows;
+
+      // preview batches using only wallets that both pass threshold and have trustline
+      const previewRows = allForPreview.filter(r =>
+        r.hasTrustline && (!thresholdOn || r.eligiblePending >= MIN_THRESHOLD)
+      );
+      updateBatchPreview(previewRows, periodFactor);
+
+      buildXdrBtn.disabled    = false;
+      signAllBtn.disabled     = false;
+      signOneBtn.disabled     = false;
+      downloadCsvBtn.disabled = true;
+      xdrOutput.value         = "";
 
       // store rows (after threshold + trustline) for selection-based actions
       window.__aquambRows    = rows;
