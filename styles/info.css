@@ -931,7 +931,7 @@ section.main-block {
 section.main-block-aquamb {
     width: 100%;
     aspect-ratio: 4 / 1;   /* responsive height ~25% of width */
-    background-image: url("https://mirrasets.com/images/aquamb_header.png");
+    background-image: url("https://mirrasets.com/images/aquamb_header_1.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -943,7 +943,7 @@ section.main-block-aquamb {
 @media (max-width: 800px) {
     section.main-block-aquamb {
         aspect-ratio: 16 / 9; /* taller but still proportional */
-        background-image: url("https://mirrasets.com/images/aquamb_header_mobile.png");
+        background-image: url("https://mirrasets.com/images/aquamb_header_mobile_1.png");
     }
 }
 
