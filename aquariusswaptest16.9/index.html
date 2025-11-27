@@ -1252,9 +1252,6 @@ const formatDisp = (num) => {              // for UI display: 1,234,567.1234567
     }, options || {}));
   }
 
-    const $  = id => document.getElementById(id);
-    const on = (el,ev,fn)=> el && el.addEventListener(ev,fn);
-
     // === Stellar-style Identicon (SEP-33-like 5×5 mirrored pattern) ===
 function hash32(s){
   let h = 5381;
@@ -2431,7 +2428,7 @@ async function claimAllLocks(){
               memo,
               memoEsc,
               amount: amountNum,
-              amountStr: formatDisp ? formatDisp(amountNum) : format7(amountNum),
+              amountStr: formatDisp(amountNum),
               dateStr
             });
           }
@@ -3190,8 +3187,7 @@ function bindSwapInputListeners(){
     }
     function closePicker(){
       pickerBackdrop.classList.remove("picker-open");
-      assetPicker.classList.remove("picker-open");
-      bindSwapInputListeners();
+      assetPicker.classList.remove("picker-open");      
     }
     on(openPickerBtn,"click", openPicker);
     on(pickerClose,"click", closePicker);
