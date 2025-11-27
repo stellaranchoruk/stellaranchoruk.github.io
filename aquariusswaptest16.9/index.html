@@ -759,7 +759,7 @@
           <h3 style="margin:0 0 6px;">Interest Payments</h3>
           <p class="small muted" style="margin-top:0;">
             Displays AQUAmb payments sent to your wallet with a memo like
-            <span class="mono">"AQUAmb APR Payment — W48/25"</span>.
+            <span class="mono">"AQUAmb APR 7.5% W48/25"</span>.
           </p>
           <p class="small muted" style="margin-top:4px;">
             Current week tag (UTC): <span class="mono" id="interestWeekTag">W--/--</span>
@@ -2346,21 +2346,21 @@ async function claimAllLocks(){
       return meta;
     }
 
-    async function fetchInterestPaymentsFor(pk){
-      const assetStr = `${AQUAmb_CODE}:${AQUAmb_ISSUER}`;
-      let url = `${HORIZON}/payments?order=desc&limit=50&asset=${encodeURIComponent(assetStr)}&to=${pk}`;
-      const out = [];
-      while(url && out.length < 200){
-        const res = await fetch(url);
-        const j   = await res.json();
-        const recs = j?._embedded?.records || [];
-        out.push(...recs);
-        const nextHref = j?._links?.next?.href;
-        if(!nextHref || recs.length===0) break;
-        url = nextHref;
-      }
-      return out;
-    }
+//    async function fetchInterestPaymentsFor(pk){
+//      const assetStr = `${AQUAmb_CODE}:${AQUAmb_ISSUER}`;
+//      let url = `${HORIZON}/payments?order=desc&limit=50&asset=${encodeURIComponent(assetStr)}&to=${pk}`;
+//      const out = [];
+//      while(url && out.length < 200){
+//      const res = await fetch(url);
+//        const j   = await res.json();
+//        const recs = j?._embedded?.records || [];
+//        out.push(...recs);
+//        const nextHref = j?._links?.next?.href;
+//        if(!nextHref || recs.length===0) break;
+//        url = nextHref;
+//      }
+//      return out;
+//    } 
 
     async function scanInterestForCurrent(){
       interestStatus.textContent =
