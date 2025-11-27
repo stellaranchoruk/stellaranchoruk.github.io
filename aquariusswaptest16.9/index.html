@@ -2369,7 +2369,7 @@ async function claimAllLocks(){
       interestPager.style.display     = "none";
       interestBody.innerHTML          = "";
     
-      const pk = currentPubkey; // or whatever variable you use for the connected account
+      const pk = pubkeyEl.value.trim(); // or whatever variable you use for the connected account
       if(!pk){
         interestStatus.textContent = "Connect a wallet to view APR payments.";
         return;
@@ -2486,13 +2486,14 @@ async function claimAllLocks(){
       interestBody.innerHTML = "";
       slice.forEach(row => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.dateStr}</td>
-          <td class="right">${row.amountStr}</td>
+         tr.innerHTML = `
+          <td>
+            <a href="https://stellar.expert/explorer/public/tx/${row.hash}"
+               target="_blank" rel="noopener noreferrer"
+               class="mono">${row.dateStr}</a>
+          </td>
           <td>${row.memoEsc}</td>
-          <td><a href="https://stellar.expert/explorer/public/tx/${row.hash}"
-                 target="_blank" rel="noopener noreferrer"
-                 class="mono">${row.shortHash}</a></td>
+          <td class="right">${row.amountStr}</td>
         `;
         interestBody.appendChild(tr);
       });
@@ -3278,7 +3279,7 @@ window.addEventListener("load", async ()=>{
 
   // Show the current ISO week tag in the Interest section
   if (interestWeekTagEl) {
-    interestWeekTagEl.textContent = INTEREST_WEEK_TAG;
+    interestWeekTagEl.textContent = CURRENT_INTEREST_WEEK_TAG;
   }
 
   const pk = pubkeyEl.value.trim();
