@@ -480,7 +480,8 @@
             </div>
 
             <a href="https://mirrasets.com/reserves/" style="font-weight:bold;">Reserves</a>
-            <a href="https://mirrasets.com/aquamb/" target="_self" style="font-weight:bold;">AQUAmb</a>
+            <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" style="font-weight:bold;">AQUA Voting</a>
+            <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
           </nav>
         </div>
 
@@ -1969,22 +1970,25 @@ function startLockerAutoRefresh(){
     const pk = pubkeyEl.value.trim();
     if (!isValidG(pk)) return;
 
-    // 1) Always refresh AQUAmb balance / usable every 15s
     try {
+      // 1) Always refresh AQUAmb balance / usable (for the Locker UI)
       const { balance, selling_liabilities } = await loadAQUAmbBalance(pk);
       const bal   = Number(balance || 0);
       const liab  = Number(selling_liabilities || 0);
       const usable = Math.max(bal - liab, 0);
 
-      aquaBalEl.textContent       = formatDisp(bal);
-      usablePill.textContent      = formatDisp(usable);
-      swapUsablePill.textContent  = formatDisp(usable);
+      aquaBalEl.textContent      = formatDisp(bal);
+      usablePill.textContent     = formatDisp(usable);
       hydrateUsablePopover({ balance: bal, inOffers: liab, usable });
+
+      // 2) Refresh the SWAP "Usable" based on the CURRENTLY selected asset
+      const swapUsable = await getAvailableForCurrent(pk);
+      swapUsablePill.textContent = formatDisp(swapUsable);
     } catch (e) {
-      console.warn("auto AQUAmb refresh failed", e);
+      console.warn("auto refresh failed", e);
     }
 
-    // 2) Every ~60s also refresh locks + interest
+    // 3) Every ~60s also refresh locks + interest
     lockerRefreshTick++;
     if (lockerRefreshTick % 4 === 0) {
       try {
