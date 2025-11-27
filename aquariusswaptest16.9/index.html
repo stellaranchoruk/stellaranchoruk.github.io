@@ -2359,94 +2359,126 @@ async function claimAllLocks(){
 //      return out;
 //    } 
 
-    async function scanInterestForCurrent(){
-      interestStatus.textContent =
-        `Scanning AQUAmb payments with memos starting "${INTEREST_MEMO_PREFIX}"…`;
-      interestTableWrap.style.display = "none";
-      interestPager.style.display     = "none";
-      interestBody.innerHTML          = "";
-    
-      const pk = pubkeyEl.value.trim(); // or whatever variable you use for the connected account
-      if(!pk){
-        interestStatus.textContent = "Connect a wallet to view APR payments.";
-        return;
-      }
-    
-      try{
-        const server = getServer();
-        // you may already have a helper to page txs; keep that logic,
-        // just focus on meta extraction + filtering
-    
-        let records = [];
-        let page    = await server
-          .transactions()
-          .forAccount(pk)
-          .order("desc")
-          .limit(200)
-          .call();
-    
-        records.push(...page.records);
-    
-        // If you want to walk more pages, you can loop here:
-        // for (let i = 0; i < 2; i++) { page = await page.next(); records.push(...page.records); }
-    
-        // build full interest rows list
-        const rows = [];
-        for(const tx of records){
-          const hash = tx.hash;
-          let meta   = txMetaCache.get(hash);
-          if(!meta){
-            meta = {
-              memo: tx.memo || "",
-              createdAt: tx.created_at
-            };
-            txMetaCache.set(hash, meta);
-          }
-    
-          const memo = meta.memo || "";
-          if(!memo || !memo.startsWith(INTEREST_MEMO_PREFIX)) continue;
-    
-          // find AQUAmb payment ops for this account in this tx
-          const opsPage = await tx.operations();
-          const ops     = opsPage.records || [];
-          for(const op of ops){
-            if(op.type !== "payment") continue;
-            if(op.asset_code !== AQUAmb_CODE || op.asset_issuer !== AQUAmb_ISSUER) continue;
-            if(op.to !== pk) continue;
-    
-            const amountNum = Number(op.amount || "0");
-            if(!isFinite(amountNum) || amountNum <= 0) continue;
-    
-            const d = new Date(meta.createdAt);
-            const dateStr  = d.toISOString().replace("T"," ").slice(0,16); // "YYYY-MM-DD HH:MM"
-            const memoEsc  = memo.replace(/</g,"&lt;").replace(/>/g,"&gt;");
-            const shortHash= hash.slice(0,10) + "…";
-    
-            rows.push({
-              hash,
-              shortHash,
-              memo,
-              memoEsc,
-              amount: amountNum,
-              amountStr: formatDisp(amountNum),
-              dateStr
-            });
+async function scanInterestForCurrent(){
+  interestStatus.textContent =
+    `Scanning up to last ${MAX_INTEREST_PAYMENTS} AQUAmb APR payments (max ${INTEREST_YEARS_BACK} years back)…`;
+  interestTableWrap.style.display = "none";
+  interestPager.style.display     = "none";
+  interestBody.innerHTML          = "";
+
+  const pk = pubkeyEl.value.trim(); // or whatever variable you use for the connected account
+  if(!pk){
+    interestStatus.textContent = "Connect a wallet to view APR payments.";
+    return;
+  }
+
+  try{
+    const server   = getServer();
+    const nowMs    = Date.now();
+    const cutoffMs = nowMs - INTEREST_YEARS_BACK * 365 * 24 * 60 * 60 * 1000;
+
+    // reset global rows before we start
+    interestRowsAll   = [];
+    interestPageIndex = 0;
+
+    let page      = await server
+      .transactions()
+      .forAccount(pk)
+      .order("desc")
+      .limit(200)
+      .call();
+
+    let pagesSeen = 0;
+
+    outer: while(page && pagesSeen < MAX_TX_PAGES){
+      pagesSeen++;
+      const records = page.records || [];
+      if(!records.length) break;
+
+      for(const tx of records){
+        const hash       = tx.hash;
+        const createdAt  = tx.created_at;
+        const createdMs  = new Date(createdAt).getTime();
+
+        // Stop if this tx is older than our cutoff window
+        if(createdMs < cutoffMs){
+          break outer;
+        }
+
+        // memo meta (use cache if available)
+        let meta = txMetaCache.get(hash);
+        if(!meta){
+          meta = {
+            memo: tx.memo || "",
+            createdAt
+          };
+          txMetaCache.set(hash, meta);
+        }
+
+        const memo = meta.memo || "";
+        if(!memo || !memo.startsWith(INTEREST_MEMO_PREFIX)) continue;
+
+        // fetch operations for this tx and find AQUAmb payments TO pk
+        const opsPage = await tx.operations();
+        const ops     = opsPage.records || [];
+
+        for(const op of ops){
+          if(op.type !== "payment") continue;
+          if(op.asset_code !== AQUAmb_CODE || op.asset_issuer !== AQUAmb_ISSUER) continue;
+          if(op.to !== pk) continue;
+
+          const amountNum = Number(op.amount || "0");
+          if(!isFinite(amountNum) || amountNum <= 0) continue;
+
+          const d        = new Date(meta.createdAt);
+          const dateStr  = d.toISOString().replace("T"," ").slice(0,16); // "YYYY-MM-DD HH:MM"
+          const memoEsc  = memo.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+          const shortHash= hash.slice(0,10) + "…";
+
+          interestRowsAll.push({
+            hash,
+            shortHash,
+            memo,
+            memoEsc,
+            amount: amountNum,
+            amountStr: formatDisp(amountNum),
+            dateStr
+          });
+
+          // Hard stop once we have enough history
+          if(interestRowsAll.length >= MAX_INTEREST_PAYMENTS){
+            break outer;
           }
         }
-    
-        // sort newest → oldest
-        rows.sort((a,b)=> (a.dateStr < b.dateStr ? 1 : -1));
-    
-        interestRowsAll   = rows;
-        interestPageIndex = 0;
-        renderInterestPage();
-      }catch(e){
-        console.error(e);
-        interestTableWrap.style.display = "none";
-        interestPager.style.display     = "none";
-        interestStatus.textContent = e.message || "Failed to scan interest payments.";
       }
+
+      // If there's no next page, or we already hit our caps, stop
+      if(!page.next) break;
+      page = await page.next();
     }
+
+    if(!interestRowsAll.length){
+      interestStatus.textContent =
+        `No AQUAmb APR payments found with memos starting "${INTEREST_MEMO_PREFIX}".`;
+      interestTableWrap.style.display = "none";
+      interestPager.style.display     = "none";
+      return;
+    }
+
+    // newest → oldest
+    interestRowsAll.sort((a,b)=> (a.dateStr < b.dateStr ? 1 : -1));
+
+    interestStatus.textContent =
+      `Loaded ${interestRowsAll.length} AQUAmb APR payment(s). Use the arrows to page through history.`;
+
+    renderInterestPage();
+  }catch(e){
+    console.error(e);
+    interestTableWrap.style.display = "none";
+    interestPager.style.display     = "none";
+    interestStatus.textContent = e.message || "Failed to scan interest payments.";
+  }
+}
 
     on(interestPrevBtn, "click", ()=>{
       if(interestPageIndex > 0){
