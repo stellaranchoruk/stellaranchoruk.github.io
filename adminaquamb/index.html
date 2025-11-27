@@ -128,7 +128,8 @@
   <h1>AQUAmb APR Admin</h1>
   <p class="muted small">
     Internal tool to snapshot AQUAmb locks, calculate <b>APR-based</b> interest for a period,
-    and build payment XDRs with memo <span class="mono">"AQUAmb APR Payment"</span>.
+    and build payment XDRs with a weekly memo like
+    <span class="mono">"AQUAmb APR 7.5% W48/25"</span>.
     Uses the same <span class="mono">TRACKER_KEY</span> and 12-month lock rules as the public dashboard.
   </p>
 
@@ -168,7 +169,12 @@
       </div>
       <div style="flex:2;min-width:220px;">
         <label for="memoInput">Memo text (max 28 bytes)</label>
-        <input id="memoInput" type="text" value="AQUAmb APR Payment" />
+        <input
+          id="memoInput"
+          type="text"
+          value=""
+          placeholder="AQUAmb APR 7.5% W48/25"
+        />
       </div>
     </div>
     <div class="row" style="margin-top:6px;align-items:center;">
@@ -246,36 +252,36 @@
     </div>
     <p class="small muted" style="margin-top:0;">Choose a connection method for the paying account.</p>
 
-<!-- Step 1: generate WC link / QR -->
-<button id="wcBtn" style="width:100%;margin-top:4px;">
-  🔗 Generate WalletConnect link / QR
-</button>
+    <!-- Step 1: generate WC link / QR -->
+    <button id="wcBtn" style="width:100%;margin-top:4px;">
+      🔗 Generate WalletConnect link / QR
+    </button>
 
-<!-- Browser Freighter (extension) -->
-<button id="freighterBtn" style="width:100%;margin-top:6px;">
-  🧩 Freighter (browser)
-</button>
+    <!-- Browser Freighter (extension) -->
+    <button id="freighterBtn" style="width:100%;margin-top:6px;">
+      🧩 Freighter (browser)
+    </button>
 
-<canvas
-  id="qrCanvas"
-  width="256"
-  height="256"
-  style="display:none;margin:10px auto 0;background:#fff;border-radius:10px;"
-></canvas>
+    <canvas
+      id="qrCanvas"
+      width="256"
+      height="256"
+      style="display:none;margin:10px auto 0;background:#fff;border-radius:10px;"
+    ></canvas>
 
-<!-- Mobile deep-links for the WC URI -->
-<div id="wcDeepLinks"
-     style="display:none;margin-top:8px;flex-direction:column;gap:4px;">
-  <button id="lobstrDeepBtn" style="width:100%;">
-    📱 Open in LOBSTR (mobile)
-  </button>
-  <button id="freighterDeepBtn" style="width:100%;">
-    📱 Open in Freighter (mobile)
-  </button>
-  <button id="copyWcBtn" style="width:100%;">
-    📋 Copy WalletConnect link
-  </button>
-</div>
+    <!-- Mobile deep-links for the WC URI -->
+    <div id="wcDeepLinks"
+         style="display:none;margin-top:8px;flex-direction:column;gap:4px;">
+      <button id="lobstrDeepBtn" style="width:100%;">
+        📱 Open in LOBSTR (mobile)
+      </button>
+      <button id="freighterDeepBtn" style="width:100%;">
+        📱 Open in Freighter (mobile)
+      </button>
+      <button id="copyWcBtn" style="width:100%;">
+        📋 Copy WalletConnect link
+      </button>
+    </div>
   </div>
 </div>
 
@@ -317,7 +323,7 @@
   const MIN_THRESHOLD = 10000; // 10k AQUAmb
   const MAX_OPS_PER_TX = 100;  // WalletConnect limit
 
-  // --- DOM helpers (MUST come before any $() calls) ---
+  // --- DOM helpers (must come before any $() calls) ---
   const $  = id => document.getElementById(id);
   const on = (el,ev,fn)=> el && el.addEventListener(ev,fn);
 
@@ -356,7 +362,6 @@
   const freighterBtn    = $("freighterBtn");
   const qrCanvas        = $("qrCanvas");
 
-  // Deep-link elements (must be after DOM helpers)
   const wcDeepLinks      = $("wcDeepLinks");
   const lobstrDeepBtn    = $("lobstrDeepBtn");
   const freighterDeepBtn = $("freighterDeepBtn");
@@ -366,6 +371,49 @@
   const closeVault      = $("closeVault");
   const copySignedXdrBtn= $("copySignedXdrBtn");
   const signedXdrBox    = $("signedXdrBox");
+
+  // --- Memo helpers: ISO week + APR -> "AQUAmb APR 7.5% W48/25" ---
+
+  function getIsoWeekYear(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7; // Sunday = 7
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    return { week: weekNo, year: date.getUTCFullYear() };
+  }
+
+  function buildDefaultMemo() {
+    const rawApr = (aprInput?.value || "").trim();
+    const aprStr = rawApr || "7.5";
+
+    const now = new Date();
+    const { week, year } = getIsoWeekYear(now);
+    const weekStr = String(week).padStart(2, "0");
+    const yy = String(year).slice(-2);
+
+    let memo = `AQUAmb APR ${aprStr}% W${weekStr}/${yy}`;
+
+    // Enforce 28-char safety for Stellar text memo
+    if (memo.length > 28) {
+      memo = memo.slice(0, 28);
+    }
+    return memo;
+  }
+
+  function initMemoFromApr() {
+    if (!memoInput) return;
+    // Only auto-fill if user hasn't typed something custom
+    if (!memoInput.value || memoInput.value.startsWith("AQUAmb APR")) {
+      memoInput.value = buildDefaultMemo();
+    }
+  }
+
+  // Keep memo live-updated when APR changes
+  on(aprInput, "input", initMemoFromApr);
+
+  // Initialise memo once on load
+  initMemoFromApr();
 
   // --- Toasts ---
   function toast(msg, isErr=false, timeout=2800){
@@ -404,7 +452,7 @@
   let session    = null;
   let connectionMode = "none"; // 'none' | 'wc' | 'freighter'
   let pubkey     = null;
-  let currentWcUri = null;     // 🔹 store latest WC URI for deep-links
+  let currentWcUri = null;
 
   async function ensureClient(){
     if(wcClient) return wcClient;
@@ -566,7 +614,6 @@
     }catch(e){ console.warn(e); }
     session = null;
 
-    // reset WC state + UI
     currentWcUri = null;
     qrCanvas.style.display = "none";
     wcDeepLinks.style.display = "none";
@@ -997,7 +1044,7 @@
       return;
     }
 
-    const memoText = (memoInput.value || "AQUAmb APR Payment").slice(0,28);
+    const memoText = (memoInput.value || buildDefaultMemo()).slice(0,28);
     const server   = getServer();
     let account    = await server.loadAccount(pubkey);
     const memo     = memoText ? SDK.Memo.text(memoText) : undefined;
@@ -1079,7 +1126,7 @@
     const useBatches = onlyFirst ? [batches[0]] : batches;
     const totalBatches = useBatches.length;
 
-    const memoText = (memoInput.value || "AQUAmb APR Payment").slice(0,28);
+    const memoText = (memoInput.value || buildDefaultMemo()).slice(0,28);
     const server   = getServer();
     let account    = await server.loadAccount(pubkey);
     const memo     = memoText ? SDK.Memo.text(memoText) : undefined;
