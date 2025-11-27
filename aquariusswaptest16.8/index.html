@@ -758,8 +758,11 @@
         <div class="section" id="interestSection" style="margin-top:28px;">
           <h3 style="margin:0 0 6px;">Interest Payments</h3>
           <p class="small muted" style="margin-top:0;">
-            Displays AQUAmb payments sent to your wallet with the memo
-            <span class="mono">"AQUAmb APR Payment"</span>.
+            Displays AQUAmb payments sent to your wallet with a memo like
+            <span class="mono">"AQUAmb APR Payment — W48/25"</span>.
+          </p>
+          <p class="small muted" style="margin-top:4px;">
+            Current week tag (UTC): <span class="mono" id="interestWeekTag">W--/--</span>
           </p>
 
           <div id="interestTableWrap" style="margin-top:10px;max-height:240px;overflow:auto;display:none;">
@@ -1074,6 +1077,7 @@ const identCanvas = $("identCanvas");
     const interestTableWrap = $("interestTableWrap");
     const interestBody      = $("interestBody");
     const interestStatus    = $("interestStatus");
+    const interestWeekTagEl = $("interestWeekTag");
 
     // Swap DOM
     const swapFrom=$("swapFrom"), swapAmount=$("swapAmount"),
@@ -2280,9 +2284,33 @@ async function claimAllLocks(){
   }
 }
 
-        // --- Interest payments tracker (by memo) ---
-    const INTEREST_MEMO_TAG = "AQUAmb APR Payment";
-    const txMetaCache = new Map();
+// --- Interest payments tracker (by memo / ISO week tag) ---
+function getIsoWeekTag(date){
+  // Work in UTC to keep things stable
+  const d = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  ));
+
+  // ISO week: Monday = 1, Sunday = 7
+  const day = d.getUTCDay() || 7;
+  // Shift to Thursday of this week
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+
+  const ww = String(week).padStart(2, "0");
+  const yy = String(d.getUTCFullYear()).slice(-2);
+
+  // e.g. "W48/25"
+  return `W${ww}/${yy}`;
+}
+
+const INTEREST_WEEK_TAG = getIsoWeekTag(new Date()); // recalculates each page load
+const INTEREST_MEMO_TAG = `AQUAmb APR Payment — ${INTEREST_WEEK_TAG}`;
+const txMetaCache = new Map();
 
     async function getTxMeta(hash){
       if(txMetaCache.has(hash)) return txMetaCache.get(hash);
@@ -2323,7 +2351,8 @@ async function claimAllLocks(){
         return;
       }
 
-      interestStatus.textContent = "Scanning AQUAmb payments for interest memos…";
+      interestStatus.textContent =
+        `Scanning AQUAmb payments for memos containing "${INTEREST_MEMO_TAG}"…`;
 
       try{
         const pays = await fetchInterestPaymentsFor(pubkey);
@@ -2345,7 +2374,8 @@ async function claimAllLocks(){
 
         if(rows.length === 0){
           interestTableWrap.style.display = "none";
-          interestStatus.textContent = "No AQUAmb interest payments with that memo found for this wallet yet.";
+          interestStatus.textContent =
+            `No AQUAmb interest payments found for ${INTEREST_WEEK_TAG} for this wallet yet.`;
           interestStatus.className = "status-line small muted";
           return;
         }
@@ -2369,7 +2399,7 @@ async function claimAllLocks(){
         }
 
         interestStatus.textContent =
-          `Found ${rows.length} interest payment(s). Total received: ${formatDisp(total)} AQUAmb.`;
+          `Found ${rows.length} interest payment(s) for ${INTEREST_WEEK_TAG}. Total received: ${formatDisp(total)} AQUAmb.`;
         interestStatus.className = "status-line small muted";
       }catch(e){
         console.error(e);
@@ -3132,18 +3162,24 @@ function bindSwapInputListeners(){
     });
 
     // ---------- First-load ----------
-    window.addEventListener("load", async ()=>{
-      setChipIcon(buyIcon, AQUAmb_CODE, AQUAmb_ISSUER);
-      setChipIcon(lockAquaIcon, AQUAmb_CODE, AQUAmb_ISSUER);
-      sellLabel.textContent = "Select asset";
-      setSlipUi();
-      updatePreviewNow();
-      const pk = pubkeyEl.value.trim();
-      if(isValidG(pk)){ await initForNewAccount(); startLockerAutoRefresh(); }
-      disableLockerButtons();
-      disableSwapButtons();
-      bindSwapInputListeners();
-    });
+window.addEventListener("load", async ()=>{
+  setChipIcon(buyIcon, AQUAmb_CODE, AQUAmb_ISSUER);
+  setChipIcon(lockAquaIcon, AQUAmb_CODE, AQUAmb_ISSUER);
+  sellLabel.textContent = "Select asset";
+  setSlipUi();
+  updatePreviewNow();
+
+  // Show the current ISO week tag in the Interest section
+  if (interestWeekTagEl) {
+    interestWeekTagEl.textContent = INTEREST_WEEK_TAG;
+  }
+
+  const pk = pubkeyEl.value.trim();
+  if(isValidG(pk)){ await initForNewAccount(); startLockerAutoRefresh(); }
+  disableLockerButtons();
+  disableSwapButtons();
+  bindSwapInputListeners();
+});
 
     // ---------- Sign helpers (shared) ----------
     const wcRequest = (method, xdr) => wcClient.request({
