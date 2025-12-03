@@ -2390,13 +2390,18 @@ async function scanInterestForCurrent(){
     interestRowsAll   = [];
     interestPageIndex = 0;
 
-    // IMPORTANT: scan *this wallet’s* payments, not the interest payer’s
-    let page = await server
+    // --- PRE-FILTER: only AQUAmb payments to this wallet ---
+    let paymentsCb = server
       .payments()
       .forAccount(pk)
       .order("desc")
-      .limit(200)
-      .call(); // <— no need for .join("transactions") anymore
+      .limit(200);
+
+    paymentsCb.url.searchParams.set("asset_code",   AQUAmb_CODE);
+    paymentsCb.url.searchParams.set("asset_issuer", AQUAmb_ISSUER);
+
+    let page = await paymentsCb.call();
+    // -------------------------------------------------------
 
     let pagesSeen = 0;
 
@@ -2413,16 +2418,13 @@ async function scanInterestForCurrent(){
         // Must come FROM the interest payer
         if (op.from !== INTEREST_PAYER) continue;
 
-        // Must be AQUAmb
-        if (op.asset_code !== AQUAmb_CODE || op.asset_issuer !== AQUAmb_ISSUER) continue;
-
-        // Must be TO this wallet (defensive, even though forAccount(pk) already narrows it)
+        // Defensive: TO this wallet (forAccount(pk) already enforces this, but keep it)
         if (op.to !== pk) continue;
 
         const hash = op.transaction_hash;
         if (!hash) continue;
 
-        // Fetch memo + tx timestamp from /transactions/{hash}
+        // Fetch memo + tx timestamp
         const meta      = await getTxMeta(hash);
         const memo      = meta.memo || "";
         const createdAt = meta.created_at || op.created_at;
