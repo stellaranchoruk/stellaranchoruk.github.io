@@ -2376,7 +2376,7 @@ async function scanInterestForCurrent(){
   interestBody.innerHTML          = "";
 
   const pk = pubkeyEl.value.trim();
-  if(!pk){
+  if (!pk) {
     interestStatus.textContent = "Connect a wallet to view APR payments.";
     return;
   }
@@ -2386,12 +2386,14 @@ async function scanInterestForCurrent(){
     const nowMs    = Date.now();
     const cutoffMs = nowMs - INTEREST_YEARS_BACK * 365 * 24 * 60 * 60 * 1000;
 
+    // reset global rows before we start
     interestRowsAll   = [];
     interestPageIndex = 0;
 
+    // IMPORTANT: scan *this wallet’s* payments, not the interest payer’s
     let page = await server
       .payments()
-      .forAccount(INTEREST_PAYER)
+      .forAccount(pk)
       .order("desc")
       .limit(200)
       .join("transactions")
@@ -2406,35 +2408,43 @@ async function scanInterestForCurrent(){
       if (!records.length) break;
 
       for (const op of records) {
-
-        // must be a payment
+        // Only plain payments
         if (op.type !== "payment") continue;
 
-        // cutoff date
-        const tx = op.transaction;
-        const createdMs = new Date(tx.created_at).getTime();
-        if (createdMs < cutoffMs) break outer;
+        // Must come FROM the interest payer
+        if (op.from !== INTEREST_PAYER) continue;
 
-        // must be AQUAmb
+        // Must be AQUAmb
         if (op.asset_code !== AQUAmb_CODE || op.asset_issuer !== AQUAmb_ISSUER) continue;
 
-        // must be TO the connected wallet
+        // Must be TO this wallet (defensive, even though forAccount(pk) already narrows it)
         if (op.to !== pk) continue;
 
-        // must have memo prefix
+        // Transaction metadata: prefer joined transaction, fall back if missing
+        const tx        = op.transaction || {};
+        const createdAt = tx.created_at || op.created_at;
+        if (!createdAt) continue;
+
+        const createdMs = new Date(createdAt).getTime();
+        if (!isFinite(createdMs)) continue;
+
+        // Stop once we’re older than the cutoff window
+        if (createdMs < cutoffMs) break outer;
+
         const memo = tx.memo || "";
-        if (!memo.startsWith(INTEREST_MEMO_PREFIX)) continue;
+        if (!memo || !memo.startsWith(INTEREST_MEMO_PREFIX)) continue;
 
         const amountNum = Number(op.amount);
         if (!isFinite(amountNum) || amountNum <= 0) continue;
 
-        const dateObj  = new Date(tx.created_at);
-        const dateStr  = dateObj.toISOString().replace("T"," ").slice(0,16);
-        const memoEsc  = memo.replace(/</g,"&lt;").replace(/>/g,"&gt;");
-        const shortHash = tx.hash.slice(0,10) + "…";
+        const dateObj   = new Date(createdAt);
+        const dateStr   = dateObj.toISOString().replace("T"," ").slice(0,16);
+        const memoEsc   = memo.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        const hash      = tx.hash || op.transaction_hash || "";
+        const shortHash = hash ? (hash.slice(0,10) + "…") : "—";
 
         interestRowsAll.push({
-          hash: tx.hash,
+          hash,
           shortHash,
           memo,
           memoEsc,
@@ -2460,13 +2470,13 @@ async function scanInterestForCurrent(){
       return;
     }
 
+    // newest → oldest
     interestRowsAll.sort((a,b)=> (a.dateStr < b.dateStr ? 1 : -1));
 
     interestStatus.textContent =
       `Loaded ${interestRowsAll.length} AQUAmb APR payment(s).`;
 
     renderInterestPage();
-
   } catch (e) {
     console.error(e);
     interestTableWrap.style.display = "none";
