@@ -2005,16 +2005,17 @@ function startLockerAutoRefresh(){
       console.warn("auto refresh failed", e);
     }
 
-    // 3) Every ~60s also refresh locks + interest
-    lockerRefreshTick++;
-    if (lockerRefreshTick % 4 === 0) {
-      try {
-        await scanLocksForCurrent();
-        await scanInterestForCurrent();
-      } catch (e) {
-        console.warn("auto locks/interest refresh failed", e);
+      // 3) Every ~60s refresh locks only
+      lockerRefreshTick++;
+      if (lockerRefreshTick % 4 === 0) {
+        try {
+          await scanLocksForCurrent();
+          // Interest is heavier – only refresh on connect / manual action
+          // await scanInterestForCurrent();
+        } catch (e) {
+          console.warn("auto locks refresh failed", e);
+        }
       }
-    }
   }, 15000);
 }
 
