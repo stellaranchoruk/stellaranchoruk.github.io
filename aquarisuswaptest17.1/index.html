@@ -2396,8 +2396,7 @@ async function scanInterestForCurrent(){
       .forAccount(pk)
       .order("desc")
       .limit(200)
-      .join("transactions")
-      .call();
+      .call(); // <— no need for .join("transactions") anymore
 
     let pagesSeen = 0;
 
@@ -2420,9 +2419,13 @@ async function scanInterestForCurrent(){
         // Must be TO this wallet (defensive, even though forAccount(pk) already narrows it)
         if (op.to !== pk) continue;
 
-        // Transaction metadata: prefer joined transaction, fall back if missing
-        const tx        = op.transaction || {};
-        const createdAt = tx.created_at || op.created_at;
+        const hash = op.transaction_hash;
+        if (!hash) continue;
+
+        // Fetch memo + tx timestamp from /transactions/{hash}
+        const meta      = await getTxMeta(hash);
+        const memo      = meta.memo || "";
+        const createdAt = meta.created_at || op.created_at;
         if (!createdAt) continue;
 
         const createdMs = new Date(createdAt).getTime();
@@ -2431,7 +2434,7 @@ async function scanInterestForCurrent(){
         // Stop once we’re older than the cutoff window
         if (createdMs < cutoffMs) break outer;
 
-        const memo = tx.memo || "";
+        // Filter by memo prefix e.g. "AQUAmb APR 7.5% W48/25"
         if (!memo || !memo.startsWith(INTEREST_MEMO_PREFIX)) continue;
 
         const amountNum = Number(op.amount);
@@ -2440,12 +2443,10 @@ async function scanInterestForCurrent(){
         const dateObj   = new Date(createdAt);
         const dateStr   = dateObj.toISOString().replace("T"," ").slice(0,16);
         const memoEsc   = memo.replace(/</g,"&lt;").replace(/>/g,"&gt;");
-        const hash      = tx.hash || op.transaction_hash || "";
-        const shortHash = hash ? (hash.slice(0,10) + "…") : "—";
 
         interestRowsAll.push({
           hash,
-          shortHash,
+          shortHash: hash.slice(0,10) + "…",
           memo,
           memoEsc,
           amount: amountNum,
