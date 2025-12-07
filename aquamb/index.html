@@ -465,25 +465,22 @@
         </svg>
       </div>
 
-      <div class="menu">
-        <div class="relative">
-          <nav>
-            <a href="https://mirrasets.com/" target="_self" style="font-weight:bold;">Home</a>
-
-            <div class="dropdown">
-              <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
-              <div class="dropdown-menu">
-                <a href="https://mirrasets.com/gbpc/">GBPC</a>
-                <a href="https://mirrasets.com/eurc/">EURC</a>
-                <a href="https://mirrasets.com/krwc/">KRWC</a>
+        <div class="menu">
+          <div class="relative">
+            <nav>
+              <a href="https://mirrasets.com/" target="_self" style="font-weight:bold;">Home</a>
+              <div class="dropdown">
+                <a href="#" class="dropdown-toggle">Our Mirrored Assets &#9662;</a>
+                <div class="dropdown-menu">
+                  <a href="https://mirrasets.com/gbpc/" target="_self">GBPC</a>
+                  <a href="https://mirrasets.com/eurc/" target="_self">EURC</a>
+                  <a href="https://mirrasets.com/krwc/" target="_self">KRWC</a>
+                </div>
               </div>
-            </div>
-
-            <a href="https://mirrasets.com/reserves/" style="font-weight:bold;">Reserves</a>
-            <a href="https://vote.aqua.network/?base=GBPC:GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC/" target="_blank" style="font-weight:bold;">AQUA Voting</a>
-            <a href="https://aqua.network/rewards/" target="_blank" style="font-weight:bold;">AQUA Rewards</a>
-          </nav>
-        </div>
+              <a href="https://mirrasets.com/reserves/" target="_self" style="font-weight:bold;">Reserves</a>
+              <a href="https://mirrasets.com/aquamb/" target="_self" style="font-weight:bold;">AQUAmb</a>
+            </nav>
+          </div>
 
         <div class="social-links">
           <a href="https://x.com/mirrasets" target="_blank">
@@ -758,8 +755,11 @@
         <div class="section" id="interestSection" style="margin-top:28px;">
           <h3 style="margin:0 0 6px;">Interest Payments</h3>
           <p class="small muted" style="margin-top:0;">
-            Displays AQUAmb payments sent to your wallet with the memo
-            <span class="mono">"AQUAmb APR Payment"</span>.
+            Displays AQUAmb payments sent to your wallet with a memo like
+            <span class="mono">"AQUAmb APR 7.5% W48/25"</span>.
+          </p>
+          <p class="small muted" style="margin-top:4px;">
+            Current week tag (UTC): <span class="mono" id="interestWeekTag">W--/--</span>
           </p>
 
           <div id="interestTableWrap" style="margin-top:10px;max-height:240px;overflow:auto;display:none;">
@@ -773,6 +773,15 @@
               </thead>
               <tbody id="interestBody"></tbody>
             </table>
+          </div>
+          
+          <!-- NEW: pager controls -->
+          <div id="interestPager"
+               class="row small"
+               style="display:none;margin-top:6px;justify-content:space-between;align-items:center;">
+            <button id="interestPrevBtn">Previous</button>
+            <span id="interestPageLabel" class="muted">Page 1 of 1</span>
+            <button id="interestNextBtn">Next</button>
           </div>
 
           <div id="interestStatus" class="status-line small muted"></div>
@@ -959,6 +968,9 @@
     const HORIZON    = "https://horizon.stellar.org";
     const NETWORK    = SDK.Networks.PUBLIC;
 
+    // The account that sends the interest payments
+    const INTEREST_PAYER = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB"; 
+
         // --- Ledger → close-time cache (for "Created" timestamp) ---
     const ledgerTimeCache = new Map();
     async function getLedgerCloseTime(ledgerSeq){
@@ -1071,9 +1083,14 @@ const identCanvas = $("identCanvas");
     const locksStatus    = $("locksStatus");
     const claimAllBtn    = $("claimAllBtn"); 
 
-    const interestTableWrap = $("interestTableWrap");
-    const interestBody      = $("interestBody");
-    const interestStatus    = $("interestStatus");
+    const interestTableWrap  = $("interestTableWrap");
+    const interestBody       = $("interestBody");
+    const interestStatus     = $("interestStatus");
+    const interestWeekTagEl  = $("interestWeekTag");
+    const interestPager      = $("interestPager");
+    const interestPrevBtn    = $("interestPrevBtn");
+    const interestNextBtn    = $("interestNextBtn");
+    const interestPageLabel  = $("interestPageLabel");
 
     // Swap DOM
     const swapFrom=$("swapFrom"), swapAmount=$("swapAmount"),
@@ -1988,16 +2005,17 @@ function startLockerAutoRefresh(){
       console.warn("auto refresh failed", e);
     }
 
-    // 3) Every ~60s also refresh locks + interest
-    lockerRefreshTick++;
-    if (lockerRefreshTick % 4 === 0) {
-      try {
-        await scanLocksForCurrent();
-        await scanInterestForCurrent();
-      } catch (e) {
-        console.warn("auto locks/interest refresh failed", e);
+      // 3) Every ~60s refresh locks only
+      lockerRefreshTick++;
+      if (lockerRefreshTick % 4 === 0) {
+        try {
+          await scanLocksForCurrent();
+          // Interest is heavier – only refresh on connect / manual action
+          // await scanInterestForCurrent();
+        } catch (e) {
+          console.warn("auto locks refresh failed", e);
+        }
       }
-    }
   }, 15000);
 }
 
@@ -2280,9 +2298,43 @@ async function claimAllLocks(){
   }
 }
 
-        // --- Interest payments tracker (by memo) ---
-    const INTEREST_MEMO_TAG = "AQUAmb APR Payment";
-    const txMetaCache = new Map();
+    // --- Interest payments tracker (by memo prefix, all weeks) ---
+    function getIsoWeekTag(date){
+      // Work in UTC for consistency
+      const d = new Date(Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate()
+      ));
+    
+      // ISO week: Monday = 1, Sunday = 7
+      const day = d.getUTCDay() || 7;
+      // Shift to Thursday of this week
+      d.setUTCDate(d.getUTCDate() + 4 - day);
+    
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    
+      const ww = String(week).padStart(2, "0");
+      const yy = String(d.getUTCFullYear()).slice(-2);
+    
+      // e.g. "W48/25"
+      return `W${ww}/${yy}`;
+    }
+
+    // --- Interest payments config ---
+    const MAX_INTEREST_PAYMENTS = 200; // how many APR payments to scan for
+    const INTEREST_YEARS_BACK   = 3;   // how far back in time to scan
+    const MAX_TX_PAGES          = 20;  // max Horizon transaction pages to walk
+        
+    const CURRENT_INTEREST_WEEK_TAG = getIsoWeekTag(new Date());
+    const INTEREST_MEMO_PREFIX = "AQUAmb APR";  // match ALL weeks
+    const INTEREST_PAGE_SIZE   = 10;                     // rows per page
+    
+    // cache tx meta + store all interest payments for pagination
+    const txMetaCache      = new Map();
+    let interestRowsAll    = []; // full list (all weeks)
+    let interestPageIndex  = 0;  // current page (0-based)
 
     async function getTxMeta(hash){
       if(txMetaCache.has(hash)) return txMetaCache.get(hash);
@@ -2297,87 +2349,202 @@ async function claimAllLocks(){
       return meta;
     }
 
-    async function fetchInterestPaymentsFor(pk){
-      const assetStr = `${AQUAmb_CODE}:${AQUAmb_ISSUER}`;
-      let url = `${HORIZON}/payments?order=desc&limit=50&asset=${encodeURIComponent(assetStr)}&to=${pk}`;
-      const out = [];
-      while(url && out.length < 200){
-        const res = await fetch(url);
-        const j   = await res.json();
-        const recs = j?._embedded?.records || [];
-        out.push(...recs);
-        const nextHref = j?._links?.next?.href;
-        if(!nextHref || recs.length===0) break;
-        url = nextHref;
+//    async function fetchInterestPaymentsFor(pk){
+//      const assetStr = `${AQUAmb_CODE}:${AQUAmb_ISSUER}`;
+//      let url = `${HORIZON}/payments?order=desc&limit=50&asset=${encodeURIComponent(assetStr)}&to=${pk}`;
+//      const out = [];
+//      while(url && out.length < 200){
+//      const res = await fetch(url);
+//        const j   = await res.json();
+//        const recs = j?._embedded?.records || [];
+//        out.push(...recs);
+//        const nextHref = j?._links?.next?.href;
+//        if(!nextHref || recs.length===0) break;
+//        url = nextHref;
+//      }
+//      return out;
+//    } 
+
+async function scanInterestForCurrent(){
+  interestStatus.textContent =
+    `Scanning up to last ${MAX_INTEREST_PAYMENTS} AQUAmb APR payments (max ${INTEREST_YEARS_BACK} years back)…`;
+  interestTableWrap.style.display = "none";
+  interestPager.style.display     = "none";
+  interestBody.innerHTML          = "";
+
+  const pk = pubkeyEl.value.trim();
+  if (!pk) {
+    interestStatus.textContent = "Connect a wallet to view APR payments.";
+    return;
+  }
+
+  try {
+    const server   = getServer();
+    const nowMs    = Date.now();
+    const cutoffMs = nowMs - INTEREST_YEARS_BACK * 365 * 24 * 60 * 60 * 1000;
+
+    // reset global rows before we start
+    interestRowsAll   = [];
+    interestPageIndex = 0;
+
+    // IMPORTANT: scan *this wallet’s* payments, not the interest payer’s
+    let page = await server
+      .payments()
+      .forAccount(pk)
+      .order("desc")
+      .limit(200)
+      .call(); // <— no need for .join("transactions") anymore
+
+    let pagesSeen = 0;
+
+    outer: while (page && pagesSeen < MAX_TX_PAGES) {
+      pagesSeen++;
+
+      const records = page.records || [];
+      if (!records.length) break;
+
+      for (const op of records) {
+        // Only plain payments
+        if (op.type !== "payment") continue;
+
+        // Must come FROM the interest payer
+        if (op.from !== INTEREST_PAYER) continue;
+
+        // Must be AQUAmb
+        if (op.asset_code !== AQUAmb_CODE || op.asset_issuer !== AQUAmb_ISSUER) continue;
+
+        // Must be TO this wallet (defensive, even though forAccount(pk) already narrows it)
+        if (op.to !== pk) continue;
+
+        const hash = op.transaction_hash;
+        if (!hash) continue;
+
+        // Fetch memo + tx timestamp from /transactions/{hash}
+        const meta      = await getTxMeta(hash);
+        const memo      = meta.memo || "";
+        const createdAt = meta.created_at || op.created_at;
+        if (!createdAt) continue;
+
+        const createdMs = new Date(createdAt).getTime();
+        if (!isFinite(createdMs)) continue;
+
+        // Stop once we’re older than the cutoff window
+        if (createdMs < cutoffMs) break outer;
+
+        // Filter by memo prefix e.g. "AQUAmb APR 7.5% W48/25"
+        if (!memo || !memo.startsWith(INTEREST_MEMO_PREFIX)) continue;
+
+        const amountNum = Number(op.amount);
+        if (!isFinite(amountNum) || amountNum <= 0) continue;
+
+        const dateObj   = new Date(createdAt);
+        const dateStr   = dateObj.toISOString().replace("T"," ").slice(0,16);
+        const memoEsc   = memo.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+        interestRowsAll.push({
+          hash,
+          shortHash: hash.slice(0,10) + "…",
+          memo,
+          memoEsc,
+          amount: amountNum,
+          amountStr: formatDisp(amountNum),
+          dateStr
+        });
+
+        if (interestRowsAll.length >= MAX_INTEREST_PAYMENTS) {
+          break outer;
+        }
       }
-      return out;
+
+      if (!page.next) break;
+      page = await page.next();
     }
 
-    async function scanInterestForCurrent(){
-      interestStatus.textContent = "";
-      interestBody.innerHTML = "";
+    if (!interestRowsAll.length) {
+      interestStatus.textContent =
+        `No AQUAmb APR payments found with memos starting "${INTEREST_MEMO_PREFIX}".`;
       interestTableWrap.style.display = "none";
+      interestPager.style.display     = "none";
+      return;
+    }
 
-      if(!pubkey){
-        interestStatus.textContent = "Connect a wallet to scan interest payments.";
+    // newest → oldest
+    interestRowsAll.sort((a,b)=> (a.dateStr < b.dateStr ? 1 : -1));
+
+    interestStatus.textContent =
+      `Loaded ${interestRowsAll.length} AQUAmb APR payment(s).`;
+
+    renderInterestPage();
+  } catch (e) {
+    console.error(e);
+    interestTableWrap.style.display = "none";
+    interestPager.style.display     = "none";
+    interestStatus.textContent = e.message || "Failed to scan interest payments.";
+  }
+}
+
+    on(interestPrevBtn, "click", ()=>{
+      if(interestPageIndex > 0){
+        interestPageIndex--;
+        renderInterestPage();
+      }
+    });
+    
+    on(interestNextBtn, "click", ()=>{
+      const totalPages = Math.ceil(interestRowsAll.length / INTEREST_PAGE_SIZE);
+      if(interestPageIndex < totalPages - 1){
+        interestPageIndex++;
+        renderInterestPage();
+      }
+    });
+
+    function renderInterestPage(){
+      const totalRows  = interestRowsAll.length;
+      if(!totalRows){
+        interestTableWrap.style.display = "none";
+        interestPager.style.display     = "none";
+        interestStatus.textContent =
+          "No AQUAmb interest payments found for this wallet yet.";
         return;
       }
-
-      interestStatus.textContent = "Scanning AQUAmb payments for interest memos…";
-
-      try{
-        const pays = await fetchInterestPaymentsFor(pubkey);
-        const rows = [];
-
-        for(const p of pays){
-          if(!p.transaction_hash) continue;
-          const meta = await getTxMeta(p.transaction_hash);
-          const memo = meta.memo || "";
-          if(!memo || !memo.includes(INTEREST_MEMO_TAG)) continue;
-
-          const created = meta.created_at ? new Date(meta.created_at) : null;
-          rows.push({
-            date: created,
-            memo,
-            amount: Number(p.amount || "0")
-          });
-        }
-
-        if(rows.length === 0){
-          interestTableWrap.style.display = "none";
-          interestStatus.textContent = "No AQUAmb interest payments with that memo found for this wallet yet.";
-          interestStatus.className = "status-line small muted";
-          return;
-        }
-
-        rows.sort((a,b)=> (b.date || 0) - (a.date || 0));
-        interestTableWrap.style.display = "block";
-
-        let total = 0;
-        interestBody.innerHTML = "";
-        for(const r of rows){
-          total += r.amount;
-          const tr = document.createElement("tr");
-          const dateStr = r.date ? r.date.toLocaleString() : "—";
-          const memoShort = r.memo.length > 80 ? r.memo.slice(0,77) + "…" : r.memo;
-          tr.innerHTML = `
-            <td>${dateStr}</td>
-            <td class="mono">${memoShort}</td>
-            <td>${formatDisp(r.amount)}</td>
-          `;
-          interestBody.appendChild(tr);
-        }
-
-        interestStatus.textContent =
-          `Found ${rows.length} interest payment(s). Total received: ${formatDisp(total)} AQUAmb.`;
-        interestStatus.className = "status-line small muted";
-      }catch(e){
-        console.error(e);
-        interestStatus.textContent = e.message || "Failed to scan interest payments.";
-        interestStatus.className = "status-line small err";
-        toast("Failed to scan interest payments.", true);
-      }
+    
+      const totalPages = Math.ceil(totalRows / INTEREST_PAGE_SIZE);
+      if(interestPageIndex < 0) interestPageIndex = 0;
+      if(interestPageIndex >= totalPages) interestPageIndex = totalPages - 1;
+    
+      const start = interestPageIndex * INTEREST_PAGE_SIZE;
+      const slice = interestRowsAll.slice(start, start + INTEREST_PAGE_SIZE);
+    
+      interestBody.innerHTML = "";
+      slice.forEach(row => {
+        const tr = document.createElement("tr");
+         tr.innerHTML = `
+          <td>
+            <a href="https://stellar.expert/explorer/public/tx/${row.hash}"
+               target="_blank" rel="noopener noreferrer"
+               class="mono">${row.dateStr}</a>
+          </td>
+          <td>${row.memoEsc}</td>
+          <td class="right">${row.amountStr}</td>
+        `;
+        interestBody.appendChild(tr);
+      });
+    
+      interestTableWrap.style.display = "block";
+      interestPager.style.display     = totalPages > 1 ? "flex" : "none";
+    
+      // update pager UI
+      interestPageLabel.textContent = `Page ${interestPageIndex+1} of ${totalPages}`;
+      interestPrevBtn.disabled = (interestPageIndex === 0);
+      interestNextBtn.disabled = (interestPageIndex >= totalPages - 1);
+    
+      // summary across *all* pages
+      const totalReceived = interestRowsAll.reduce((s,r)=> s + r.amount, 0);
+      interestStatus.textContent =
+        `Found ${totalRows} interest payment(s) in total. ` +
+        `Total received: ${formatDisp(totalReceived)} AQUAmb.`;
     }
+    
 
     // ---------- Domains for labels ----------
     async function fetchDomainsForIssuers(issuers){
@@ -2868,6 +3035,9 @@ availPopover.innerHTML = `
           if (!availPopover.contains(e.target) && !availInfo.contains(e.target)) closePopover();
         }, { passive:true });
         window.addEventListener("scroll", ()=>{
+          if (interestWeekTagEl) {
+            interestWeekTagEl.textContent = CURRENT_INTEREST_WEEK_TAG;
+          }
           if (!stickyOpen) return;
           if (scrollClosePending) return;
           scrollClosePending = setTimeout(()=>{
@@ -3052,8 +3222,7 @@ function bindSwapInputListeners(){
     }
     function closePicker(){
       pickerBackdrop.classList.remove("picker-open");
-      assetPicker.classList.remove("picker-open");
-      bindSwapInputListeners();
+      assetPicker.classList.remove("picker-open");      
     }
     on(openPickerBtn,"click", openPicker);
     on(pickerClose,"click", closePicker);
@@ -3132,18 +3301,24 @@ function bindSwapInputListeners(){
     });
 
     // ---------- First-load ----------
-    window.addEventListener("load", async ()=>{
-      setChipIcon(buyIcon, AQUAmb_CODE, AQUAmb_ISSUER);
-      setChipIcon(lockAquaIcon, AQUAmb_CODE, AQUAmb_ISSUER);
-      sellLabel.textContent = "Select asset";
-      setSlipUi();
-      updatePreviewNow();
-      const pk = pubkeyEl.value.trim();
-      if(isValidG(pk)){ await initForNewAccount(); startLockerAutoRefresh(); }
-      disableLockerButtons();
-      disableSwapButtons();
-      bindSwapInputListeners();
-    });
+window.addEventListener("load", async ()=>{
+  setChipIcon(buyIcon, AQUAmb_CODE, AQUAmb_ISSUER);
+  setChipIcon(lockAquaIcon, AQUAmb_CODE, AQUAmb_ISSUER);
+  sellLabel.textContent = "Select asset";
+  setSlipUi();
+  updatePreviewNow();
+
+  // Show the current ISO week tag in the Interest section
+  if (interestWeekTagEl) {
+    interestWeekTagEl.textContent = CURRENT_INTEREST_WEEK_TAG;
+  }
+
+  const pk = pubkeyEl.value.trim();
+  if(isValidG(pk)){ await initForNewAccount(); startLockerAutoRefresh(); }
+  disableLockerButtons();
+  disableSwapButtons();
+  bindSwapInputListeners();
+});
 
     // ---------- Sign helpers (shared) ----------
     const wcRequest = (method, xdr) => wcClient.request({
