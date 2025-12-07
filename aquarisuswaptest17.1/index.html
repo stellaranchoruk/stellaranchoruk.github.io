@@ -2382,6 +2382,7 @@ async function scanInterestForCurrent(){
   }
 
   try {
+    const server   = getServer();
     const nowMs    = Date.now();
     const cutoffMs = nowMs - INTEREST_YEARS_BACK * 365 * 24 * 60 * 60 * 1000;
 
@@ -2389,38 +2390,39 @@ async function scanInterestForCurrent(){
     interestRowsAll   = [];
     interestPageIndex = 0;
 
-    // DIRECT HORIZON CALL WITH PREFILTER:
-    // only AQUAmb payments *to* this wallet, newest first
-    let url = `${HORIZON}/payments?` +
-      `order=desc&limit=200` +
-      `&asset_code=${encodeURIComponent(AQUAmb_CODE)}` +
-      `&asset_issuer=${encodeURIComponent(AQUAmb_ISSUER)}` +
-      `&to=${encodeURIComponent(pk)}`;
+    // IMPORTANT: scan *this wallet’s* payments, not the interest payer’s
+    let page = await server
+      .payments()
+      .forAccount(pk)
+      .order("desc")
+      .limit(200)
+      .call(); // <— no need for .join("transactions") anymore
 
     let pagesSeen = 0;
 
-    outer: while (url && pagesSeen < MAX_TX_PAGES) {
+    outer: while (page && pagesSeen < MAX_TX_PAGES) {
       pagesSeen++;
 
-      const res = await fetch(url);
-      const j   = await res.json();
-      const records = j?._embedded?.records || [];
+      const records = page.records || [];
       if (!records.length) break;
 
       for (const op of records) {
-        // only plain payments
+        // Only plain payments
         if (op.type !== "payment") continue;
 
-        // must come FROM the interest payer
+        // Must come FROM the interest payer
         if (op.from !== INTEREST_PAYER) continue;
 
-        // defensive: TO this wallet (the `to=` filter should ensure this already)
+        // Must be AQUAmb
+        if (op.asset_code !== AQUAmb_CODE || op.asset_issuer !== AQUAmb_ISSUER) continue;
+
+        // Must be TO this wallet (defensive, even though forAccount(pk) already narrows it)
         if (op.to !== pk) continue;
 
         const hash = op.transaction_hash;
         if (!hash) continue;
 
-        // memo + tx timestamp
+        // Fetch memo + tx timestamp from /transactions/{hash}
         const meta      = await getTxMeta(hash);
         const memo      = meta.memo || "";
         const createdAt = meta.created_at || op.created_at;
@@ -2429,18 +2431,18 @@ async function scanInterestForCurrent(){
         const createdMs = new Date(createdAt).getTime();
         if (!isFinite(createdMs)) continue;
 
-        // stop if we’re older than the cutoff window
+        // Stop once we’re older than the cutoff window
         if (createdMs < cutoffMs) break outer;
 
-        // memo must start with AQUAmb APR…
+        // Filter by memo prefix e.g. "AQUAmb APR 7.5% W48/25"
         if (!memo || !memo.startsWith(INTEREST_MEMO_PREFIX)) continue;
 
         const amountNum = Number(op.amount);
         if (!isFinite(amountNum) || amountNum <= 0) continue;
 
-        const dateObj = new Date(createdAt);
-        const dateStr = dateObj.toISOString().replace("T"," ").slice(0,16);
-        const memoEsc = memo.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        const dateObj   = new Date(createdAt);
+        const dateStr   = dateObj.toISOString().replace("T"," ").slice(0,16);
+        const memoEsc   = memo.replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
         interestRowsAll.push({
           hash,
@@ -2457,7 +2459,8 @@ async function scanInterestForCurrent(){
         }
       }
 
-      url = j?._links?.next?.href || null;
+      if (!page.next) break;
+      page = await page.next();
     }
 
     if (!interestRowsAll.length) {
