@@ -3,418 +3,392 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Origin Vault UI – bUSDC</title>
+  <title>bUSDC Vault UI</title>
   <style>
     :root{
       --bg:#0b0f17; --card:#111a2b; --muted:#8ea0c2; --text:#e8eefc;
-      --accent:#5eead4; --warn:#fbbf24; --bad:#fb7185; --ok:#34d399; --border:rgba(255,255,255,.08);
+      --accent:#5eead4; --warn:#fbbf24; --bad:#fb7185; --ok:#34d399;
+      --border:rgba(255,255,255,.10);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
-    body{ margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background:linear-gradient(180deg,#070a10, #0b0f17 40%, #070a10); color:var(--text); }
-    .wrap{ max-width:1040px; margin:0 auto; padding:24px; }
-    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    .card{ background:rgba(17,26,43,.92); border:1px solid var(--border); border-radius:16px; padding:16px; }
-    .title{ font-size:18px; font-weight:800; margin:0 0 10px; letter-spacing:-.01em; }
+    body{ margin:0; font-family:var(--sans); background:var(--bg); color:var(--text); }
+    .wrap{ max-width:1050px; margin:24px auto; padding:0 16px; }
+    .grid{ display:grid; grid-template-columns: 1.2fr .8fr; gap:16px; }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; }
+    h1{ margin:0 0 6px; font-size:20px; }
     .muted{ color:var(--muted); font-size:13px; }
-    .kpi{ font-size:30px; font-weight:900; letter-spacing:-.02em; }
-    .btn{ cursor:pointer; border:1px solid var(--border); background:#0f1729; color:var(--text);
-      padding:10px 12px; border-radius:12px; font-weight:800; }
-    .btn.primary{ border-color:rgba(94,234,212,.4); background:rgba(94,234,212,.12); }
-    .btn:disabled{ opacity:.5; cursor:not-allowed; }
-    input{
-      width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--border);
-      background:#0b1222; color:var(--text); outline:none;
+    label{ display:block; margin:10px 0 6px; font-size:13px; color:var(--muted); }
+    input, select{
+      width:100%; box-sizing:border-box; padding:10px 12px;
+      background:rgba(255,255,255,.03); border:1px solid var(--border);
+      color:var(--text); border-radius:10px; outline:none;
+      font-family:var(--mono); font-size:13px;
     }
-    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    .grid3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
-    .hr{ height:1px; background:var(--border); margin:14px 0; }
-    .pill{ display:inline-block; padding:6px 10px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:var(--muted); }
-    .log{ white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas;
-      font-size:12px; color:#c8d3ee; background:#070a10; border:1px solid var(--border);
-      padding:12px; border-radius:12px; max-height:260px; overflow:auto;
+    button{
+      cursor:pointer; border:1px solid var(--border); background:rgba(255,255,255,.06);
+      color:var(--text); padding:10px 12px; border-radius:10px; font-weight:600;
     }
-    a{ color:var(--accent); text-decoration:none; }
-    @media (max-width:900px){ .row{ grid-template-columns: 1fr; } .grid3{ grid-template-columns:1fr; } }
+    button.primary{ border-color:rgba(94,234,212,.35); background:rgba(94,234,212,.12); }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    .row{ display:flex; gap:10px; align-items:center; }
+    .row > * { flex:1; }
+    .kvs{ display:grid; grid-template-columns: 180px 1fr; gap:8px 10px; margin-top:10px; }
+    .key{ color:var(--muted); font-size:13px; }
+    .val{ font-family:var(--mono); font-size:13px; overflow-wrap:anywhere; }
+    .log{ white-space:pre-wrap; font-family:var(--mono); font-size:12px; background:rgba(0,0,0,.25);
+      border:1px solid var(--border); padding:10px; border-radius:10px; max-height:260px; overflow:auto; }
+    .pill{ display:inline-block; padding:3px 8px; border:1px solid var(--border); border-radius:999px;
+      font-size:12px; color:var(--muted); }
+    .good{ color:var(--ok); }
+    .bad{ color:var(--bad); }
   </style>
 </head>
 <body>
-<div class="wrap">
-
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
-      <div>
-        <div class="title">Origin Vault UI – bUSDC</div>
-        <div class="muted">Read share price • preview deposits/withdraws • deposit/withdraw via Freighter</div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn" id="btnRefresh">Refresh</button>
-        <button class="btn primary" id="btnConnect">Connect Freighter</button>
-      </div>
-    </div>
-
-    <div class="hr"></div>
-
-    <div class="grid3">
-      <div>
-        <div class="muted">Account</div>
-        <div style="font-weight:900" id="acct">—</div>
-      </div>
-      <div>
-        <div class="muted">Network / RPC</div>
-        <div style="font-weight:900" id="net">—</div>
-      </div>
-      <div>
-        <div class="muted">Contract</div>
-        <div class="pill" id="cid" title=""></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row" style="margin-top:16px">
+  <div class="wrap">
     <div class="card">
-      <div class="title">Vault</div>
-      <div class="muted">These values come straight from the contract.</div>
-      <div class="hr"></div>
-
-      <div class="muted">bUSDC share price</div>
-      <div class="kpi" id="sharePrice">—</div>
-      <div class="muted">Shown as “assets per 1 share” (contract’s `share_price`).</div>
-
-      <div class="hr"></div>
-
-      <div class="grid2">
-        <div>
-          <div class="muted">Total assets</div>
-          <div style="font-weight:900;font-size:16px" id="totalAssets">—</div>
+      <div class="row" style="align-items:flex-start;">
+        <div style="flex:1.6;">
+          <h1>bUSDC Vault UI</h1>
+          <div class="muted">Contract: <span class="pill" id="contractPill"></span></div>
+          <div class="muted">RPC: <span class="pill" id="rpcPill"></span></div>
         </div>
-        <div>
-          <div class="muted">Total supply (shares)</div>
-          <div style="font-weight:900;font-size:16px" id="totalSupply">—</div>
+        <div style="flex:.9; text-align:right;">
+          <div class="muted">Wallet</div>
+          <div class="row" style="justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button id="btnConnect" class="primary">Connect Freighter</button>
+            <button id="btnRefresh">Refresh</button>
+          </div>
+          <div class="muted" style="margin-top:8px;">
+            Address: <span id="addr" class="pill">not connected</span>
+          </div>
         </div>
       </div>
-
-      <div class="hr"></div>
-
-      <div class="grid2">
-        <div>
-          <div class="muted">Underlying asset contract</div>
-          <div style="font-weight:900;font-size:13px;word-break:break-all" id="assetAddr">—</div>
-        </div>
-        <div>
-          <div class="muted">Share token contract</div>
-          <div style="font-weight:900;font-size:13px;word-break:break-all" id="shareAddr">—</div>
-        </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <div class="grid2">
-        <div>
-          <div class="muted">Min deposit</div>
-          <div style="font-weight:900;font-size:16px" id="minDep">—</div>
-        </div>
-        <div>
-          <div class="muted">Min withdraw</div>
-          <div style="font-weight:900;font-size:16px" id="minWdr">—</div>
-        </div>
-      </div>
-
     </div>
 
-    <div class="card">
-      <div class="title">Actions</div>
-      <div class="muted">Use previews first (no signing). Then deposit/withdraw.</div>
-      <div class="hr"></div>
-
-      <div class="muted">Preview deposit (assets → shares)</div>
-      <div style="display:flex; gap:10px; margin-top:6px">
-        <input id="inpPreviewDeposit" placeholder="Assets amount (base units ok, e.g. 100000000)" />
-        <button class="btn" id="btnPreviewDeposit">Preview</button>
-      </div>
-      <div class="muted" style="margin-top:8px">Estimated shares: <span id="outPreviewDeposit" style="font-weight:900">—</span></div>
-
-      <div class="hr"></div>
-
-      <div class="muted">Preview redeem (shares → assets)</div>
-      <div style="display:flex; gap:10px; margin-top:6px">
-        <input id="inpPreviewRedeem" placeholder="Shares amount (base units ok)" />
-        <button class="btn" id="btnPreviewRedeem">Preview</button>
-      </div>
-      <div class="muted" style="margin-top:8px">Estimated assets: <span id="outPreviewRedeem" style="font-weight:900">—</span></div>
-
-      <div class="hr"></div>
-
-      <div class="muted">Deposit (signs a tx)</div>
-      <div style="display:flex; gap:10px; margin-top:6px">
-        <input id="inpDeposit" placeholder="Assets amount (base units, u128)" />
-        <button class="btn primary" id="btnDeposit" disabled>Deposit</button>
-      </div>
-
-      <div style="height:10px"></div>
-
-      <div class="muted">Withdraw / Redeem (signs a tx)</div>
-      <div class="grid2" style="margin-top:6px">
-        <div>
-          <input id="inpWithdrawAssets" placeholder="Withdraw by assets (u128)" />
-          <button class="btn" id="btnWithdraw" disabled style="width:100%;margin-top:8px">Withdraw (assets)</button>
+    <div class="grid" style="margin-top:16px;">
+      <div class="card">
+        <h2 style="margin:0 0 10px; font-size:16px;">Vault state</h2>
+        <div class="kvs">
+          <div class="key">Underlying asset</div><div class="val" id="underlying">—</div>
+          <div class="key">Share token</div><div class="val" id="share">—</div>
+          <div class="key">Share price</div><div class="val" id="sharePrice">—</div>
+          <div class="key">Total assets</div><div class="val" id="totalAssets">—</div>
+          <div class="key">Total supply</div><div class="val" id="totalSupply">—</div>
         </div>
-        <div>
-          <input id="inpRedeemShares" placeholder="Redeem by shares (u128)" />
-          <button class="btn" id="btnRedeem" disabled style="width:100%;margin-top:8px">Redeem (shares)</button>
+
+        <div style="margin-top:14px;" class="muted">
+          Notes: This contract exposes ERC-4626-style methods (deposit/mint/withdraw/redeem, previews, max_*).
+          Values are returned as Soroban ScVals; we display both “raw” and “as 7-decimal” when numeric.
         </div>
       </div>
 
-      <div class="hr"></div>
+      <div class="card">
+        <h2 style="margin:0 0 10px; font-size:16px;">Actions</h2>
 
-      <div class="muted">Your address in contract calls is used as sender/receiver where needed.</div>
+        <label>Amount (decimal)</label>
+        <input id="amount" placeholder="e.g. 100.5" />
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnPreviewDeposit">Preview deposit</button>
+          <button id="btnPreviewWithdraw">Preview withdraw</button>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnDeposit" class="primary" disabled>Deposit</button>
+          <button id="btnWithdraw" class="primary" disabled>Withdraw</button>
+        </div>
+
+        <div class="muted" style="margin-top:10px;">
+          Withdraw/deposit require Freighter signing.
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="muted">Result</div>
+          <div id="result" class="pill">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="row" style="align-items:center;">
+        <h2 style="margin:0; font-size:16px;">Debug log</h2>
+        <div style="text-align:right;">
+          <button id="btnClear">Clear</button>
+        </div>
+      </div>
+      <div id="log" class="log" style="margin-top:10px;"></div>
     </div>
   </div>
 
-  <div class="card" style="margin-top:16px">
-    <div class="title">Log</div>
-    <div class="muted">Simulations, selected call variant, tx hash + status.</div>
-    <div class="hr"></div>
-    <div class="log" id="log"></div>
-  </div>
+  <!-- Stellar SDK browser build -->
+  <script src="https://unpkg.com/@stellar/stellar-sdk@14.4.3/dist/stellar-sdk-minimal.min.js"></script>
+  <!-- Freighter API (UMD) -->
+  <script src="https://unpkg.com/@stellar/freighter-api@1.7.1/dist/index.umd.js"></script>
 
-</div>
+  <script>
+    // ========= CONFIG =========
+    const CONTRACT_ID = "CCR63UWZKPVR2OAZJEBHT4OKBLHX2OAMUYZ63JLO2V72FY3SKAXQTGF6";
+    const RPC_URL = "https://rpc.lightsail.network/";
+    const NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015";
+    // ==========================
 
-<script type="module">
-  import * as StellarSdk from "https://esm.sh/stellar-sdk@12.2.0";
-  const { SorobanRpc, Contract, Address, nativeToScVal, scValToNative } = StellarSdk;
+    const el = (id) => document.getElementById(id);
+    const logEl = el("log");
+    const log = (...args) => {
+      const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
+      logEl.textContent += (logEl.textContent ? "\n" : "") + line;
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(...args);
+    };
 
-  /**
-   * CONFIG
-   * - If you prefer a different RPC, swap rpcUrl.
-   * - If this vault is on testnet, set network to TESTNET.
-   */
-  const CFG = {
-    network: "PUBLIC", // PUBLIC | TESTNET
-    rpcUrl: "https://soroban-rpc.mainnet.stellar.gateway.fm",
-    contractId: "CCR63UWZKPVR2OAZJEBHT4OKBLHX2OAMUYZ63JLO2V72FY3SKAXQTGF6",
-  };
+    el("contractPill").textContent = CONTRACT_ID;
+    el("rpcPill").textContent = RPC_URL.replace(/^https?:\/\//,"");
 
-  const $ = (id) => document.getElementById(id);
-  const logEl = $("log");
-  const log = (...a) => { logEl.textContent += a.join(" ") + "\\n"; logEl.scrollTop = logEl.scrollHeight; };
+    // Resolve the correct RPC Server constructor across builds
+    function makeRpcServer(url){
+      // Most common in the browser dist:
+      if (window.StellarSdk?.rpc?.Server) return new window.StellarSdk.rpc.Server(url);
+      // Some builds:
+      if (window.StellarSdk?.SorobanRpc?.Server) return new window.StellarSdk.SorobanRpc.Server(url);
+      throw new Error("Could not find RPC Server constructor (StellarSdk.rpc.Server / StellarSdk.SorobanRpc.Server). Check SDK build.");
+    }
 
-  let server, accountId = null;
+    const Stellar = window.StellarSdk;
+    const Contract = Stellar.Contract;
+    const scValToNative = Stellar.scValToNative;
+    const nativeToScVal = Stellar.nativeToScVal;
 
-  function passphrase(){
-    return CFG.network === "PUBLIC" ? StellarSdk.Networks.PUBLIC : StellarSdk.Networks.TESTNET;
-  }
+    const server = makeRpcServer(RPC_URL);
+    const contract = new Contract(CONTRACT_ID);
 
-  function u128FromInput(elId){
-    const s = ($(elId).value || "").trim();
-    if (!/^[0-9]+$/.test(s)) return null;
-    try { return BigInt(s); } catch { return null; }
-  }
+    let publicKey = null;
 
-  async function connectFreighter(){
-    if (!window.freighterApi) throw new Error("Freighter not found. Install/enable the extension.");
-    accountId = await window.freighterApi.getPublicKey();
-    const net = await window.freighterApi.getNetwork();
-    $("acct").textContent = accountId;
-    log("Connected:", accountId, "| Freighter network:", net);
+    function setResult(text, ok=true){
+      const r = el("result");
+      r.textContent = text;
+      r.className = "pill " + (ok ? "good" : "bad");
+    }
 
-    $("btnDeposit").disabled = false;
-    $("btnWithdraw").disabled = false;
-    $("btnRedeem").disabled = false;
-  }
+    function parseAmountToI128_7(amountStr){
+      // Stellar-style 7 decimals (like classic assets). Adjust if your vault uses a different scale.
+      const n = Number(amountStr);
+      if (!Number.isFinite(n) || n <= 0) throw new Error("Enter a positive number amount.");
+      const scaled = BigInt(Math.round(n * 1e7));
+      return scaled;
+    }
 
-  async function simulateCall(method, args=[]){
-    const contract = new Contract(CFG.contractId);
-    const source = accountId || StellarSdk.Keypair.random().publicKey();
-    const acc = await server.getAccount(source);
+    function formatMaybeNumeric(native){
+      // If native is bigint, show raw + 7dp interpretation
+      if (typeof native === "bigint"){
+        const raw = native.toString();
+        const sign = raw.startsWith("-") ? "-" : "";
+        const abs = sign ? raw.slice(1) : raw;
+        const pad = abs.padStart(8, "0");
+        const whole = pad.slice(0, -7);
+        const frac = pad.slice(-7);
+        return `${native.toString()}  (≈ ${sign}${whole}.${frac})`;
+      }
+      return (typeof native === "string" ? native : JSON.stringify(native));
+    }
 
-    const tx = new StellarSdk.TransactionBuilder(acc, { fee: "200000", networkPassphrase: passphrase() })
-      .addOperation(contract.call(method, ...args))
+    async function simulateCall(fn, argsScVals=[]){
+      if (!publicKey) publicKey = (await server.getHealth()).healthy ? publicKey : publicKey; // noop; keeps structure
+      const source = await server.getAccount(publicKey || "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"); // placeholder if not connected
+      // NOTE: For read-only calls we can use any source; RPC will simulate without submitting.
+      const tx = new Stellar.TransactionBuilder(source, {
+        fee: Stellar.BASE_FEE,
+        networkPassphrase: NETWORK_PASSPHRASE
+      })
+      .addOperation(contract.call(fn, ...argsScVals))
       .setTimeout(30)
       .build();
 
-    const sim = await server.simulateTransaction(tx);
-    if (SorobanRpc.Api.isSimulationError(sim)) {
-      return { ok:false, sim };
+      const sim = await server.simulateTransaction(tx);
+      if (Stellar.rpc?.isSimulationError?.(sim) || sim.error) {
+        throw new Error("Simulation failed: " + JSON.stringify(sim, null, 2));
+      }
+      const retval = sim.result?.retval;
+      return { sim, retval };
     }
-    const res = sim.result?.results?.[0]?.xdr;
-    return { ok:true, sim, value: res ? scValToNative(res) : null };
-  }
 
-  async function refresh(){
-    try{
-      const sp = await simulateCall("share_price");
-      const ta = await simulateCall("total_assets");
-      const ts = await simulateCall("total_supply");
-      const qa = await simulateCall("query_asset");
-      const qs = await simulateCall("query_share");
-      const md = await simulateCall("min_deposit");
-      const mw = await simulateCall("min_withdraw");
-
-      $("sharePrice").textContent = sp.ok ? String(sp.value) : "—";
-      $("totalAssets").textContent = ta.ok ? String(ta.value) : "—";
-      $("totalSupply").textContent = ts.ok ? String(ts.value) : "—";
-      $("assetAddr").textContent = qa.ok ? String(qa.value) : "—";
-      $("shareAddr").textContent = qs.ok ? String(qs.value) : "—";
-      $("minDep").textContent = md.ok ? String(md.value) : "—";
-      $("minWdr").textContent = mw.ok ? String(mw.value) : "—";
-
-      log("Refreshed.");
-    }catch(e){
-      log("❌ Refresh failed:", e.message);
+    async function readFn(fn, argsScVals=[]){
+      log(`→ simulate ${fn}()`);
+      const { retval } = await simulateCall(fn, argsScVals);
+      const native = scValToNative(retval);
+      log(`← ${fn}() =`, native);
+      return native;
     }
-  }
 
-  async function signAndSend(preparedTx){
-    const signedXdr = await window.freighterApi.signTransaction(preparedTx.toXDR(), {
-      network: CFG.network === "PUBLIC" ? "PUBLIC" : "TESTNET"
-    });
+    async function writeFn(fn, argsScVals=[]){
+      if (!publicKey) throw new Error("Connect Freighter first.");
 
-    const signed = StellarSdk.TransactionBuilder.fromXDR(signedXdr, passphrase());
-    const send = await server.sendTransaction(signed);
-    log("Submitted:", send.hash);
+      log(`→ build ${fn}() tx`);
+      const source = await server.getAccount(publicKey);
+      const tx0 = new Stellar.TransactionBuilder(source, {
+        fee: Stellar.BASE_FEE,
+        networkPassphrase: NETWORK_PASSPHRASE
+      })
+      .addOperation(contract.call(fn, ...argsScVals))
+      .setTimeout(60)
+      .build();
 
-    for (let i=0;i<25;i++){
-      await new Promise(r => setTimeout(r, 1400));
-      const res = await server.getTransaction(send.hash);
-      if (res && res.status && res.status !== "NOT_FOUND") {
-        log("Status:", res.status);
+      log(`→ simulate ${fn}()`);
+      const sim = await server.simulateTransaction(tx0);
+      if (Stellar.rpc?.isSimulationError?.(sim) || sim.error) {
+        throw new Error("Simulation failed: " + JSON.stringify(sim, null, 2));
+      }
+
+      // Assemble the transaction with the footprint/resources from simulation
+      const assembled =
+        (Stellar.rpc?.assembleTransaction)
+          ? Stellar.rpc.assembleTransaction(tx0, sim)
+          : (Stellar.SorobanRpc?.assembleTransaction)
+            ? Stellar.SorobanRpc.assembleTransaction(tx0, sim)
+            : null;
+
+      if (!assembled) throw new Error("assembleTransaction not found in this SDK build.");
+
+      const xdr = assembled.toXDR();
+
+      log("→ request Freighter signature");
+      const signed = await window.freighterApi.signTransaction(xdr, {
+        networkPassphrase: NETWORK_PASSPHRASE
+      });
+
+      const signedTx = Stellar.TransactionBuilder.fromXDR(
+        signed,
+        NETWORK_PASSPHRASE
+      );
+
+      log("→ sendTransaction");
+      const send = await server.sendTransaction(signedTx);
+      log("sendTransaction =", send);
+
+      // Poll until complete
+      let hash = send.hash;
+      for (let i=0;i<20;i++){
+        await new Promise(r => setTimeout(r, 1500));
+        const res = await server.getTransaction(hash);
         if (res.status === "SUCCESS") return res;
-        if (res.status === "FAILED") throw new Error("Transaction failed.");
+        if (res.status === "FAILED") throw new Error("Transaction FAILED: " + JSON.stringify(res, null, 2));
       }
-    }
-    log("Timed out waiting for confirmation (may still land).");
-    return null;
-  }
-
-  async function tryInvoke(method, variants){
-    // variants = [{label, args}]
-    const contract = new Contract(CFG.contractId);
-    const acc = await server.getAccount(accountId);
-
-    for (const v of variants){
-      log("Simulating variant:", v.label);
-      const sim = await simulateCall(method, v.args);
-      if (!sim.ok){
-        log("  ↳ rejected:", (sim.sim?.error || "simulation error"));
-        continue;
-      }
-
-      // build tx
-      const tx = new StellarSdk.TransactionBuilder(acc, { fee: "300000", networkPassphrase: passphrase() })
-        .addOperation(contract.call(method, ...v.args))
-        .setTimeout(60)
-        .build();
-
-      const sim2 = await server.simulateTransaction(tx);
-      if (SorobanRpc.Api.isSimulationError(sim2)) {
-        log("  ↳ prepare failed:", (sim2.error || "simulation error"));
-        continue;
-      }
-
-      const prepared = SorobanRpc.assembleTransaction(tx, sim2).build();
-      log("  ✅ using:", v.label);
-      return await signAndSend(prepared);
+      throw new Error("Timed out waiting for tx completion.");
     }
 
-    throw new Error("No call variant worked. (We may need exact arg order/types.)");
-  }
+    async function refreshState(){
+      setResult("Refreshing…", true);
 
-  async function doPreviewDeposit(){
-    const amt = u128FromInput("inpPreviewDeposit");
-    if (amt === null) return log("Enter a valid integer u128 amount.");
-    const out = await simulateCall("preview_deposit", [ nativeToScVal(amt, { type:"u128" }) ]);
-    $("outPreviewDeposit").textContent = out.ok ? String(out.value) : "—";
-    log(out.ok ? "Preview deposit OK." : "Preview deposit failed.");
-  }
+      try{
+        // These function names come directly from your WASM strings:
+        // query_asset, query_share, share_price, total_assets, total_supply
+        const [asset, share, sp, ta, ts] = await Promise.all([
+          readFn("query_asset"),
+          readFn("query_share"),
+          readFn("share_price"),
+          readFn("total_assets"),
+          readFn("total_supply"),
+        ]);
 
-  async function doPreviewRedeem(){
-    const shares = u128FromInput("inpPreviewRedeem");
-    if (shares === null) return log("Enter a valid integer u128 amount.");
-    const out = await simulateCall("preview_redeem", [ nativeToScVal(shares, { type:"u128" }) ]);
-    $("outPreviewRedeem").textContent = out.ok ? String(out.value) : "—";
-    log(out.ok ? "Preview redeem OK." : "Preview redeem failed.");
-  }
+        el("underlying").textContent = formatMaybeNumeric(asset);
+        el("share").textContent = formatMaybeNumeric(share);
+        el("sharePrice").textContent = formatMaybeNumeric(sp);
+        el("totalAssets").textContent = formatMaybeNumeric(ta);
+        el("totalSupply").textContent = formatMaybeNumeric(ts);
 
-  async function doDeposit(){
-    const amt = u128FromInput("inpDeposit");
-    if (amt === null || amt <= 0n) return log("Enter a valid deposit u128 amount.");
+        setResult("OK", true);
+      }catch(e){
+        console.error(e);
+        setResult(e.message || String(e), false);
+        log("ERROR:", e.message || String(e));
+      }
+    }
 
-    const a = nativeToScVal(amt, { type:"u128" });
-    const me = new Address(accountId).toScVal();
+    async function connectFreighter(){
+      setResult("Connecting…", true);
+      try{
+        if (!window.freighterApi) throw new Error("Freighter API not found. Is Freighter installed/enabled?");
+        const isAllowed = await window.freighterApi.isAllowed();
+        if (!isAllowed){
+          await window.freighterApi.setAllowed();
+        }
+        publicKey = await window.freighterApi.getPublicKey();
+        el("addr").textContent = publicKey;
 
-    // try common signatures:
-    // deposit(assets)
-    // deposit(assets, receiver)
-    // deposit(from, assets, receiver)
-    const variants = [
-      { label:"deposit(assets)", args:[a] },
-      { label:"deposit(assets, receiver)", args:[a, me] },
-      { label:"deposit(from, assets, receiver)", args:[me, a, me] },
-    ];
+        // Enable write buttons
+        el("btnDeposit").disabled = false;
+        el("btnWithdraw").disabled = false;
 
-    await tryInvoke("deposit", variants);
-    await refresh();
-  }
+        setResult("Connected", true);
+        log("Connected:", publicKey);
+      }catch(e){
+        setResult(e.message || String(e), false);
+        log("ERROR:", e.message || String(e));
+      }
+    }
 
-  async function doWithdraw(){
-    const assets = u128FromInput("inpWithdrawAssets");
-    if (assets === null || assets <= 0n) return log("Enter a valid withdraw-assets u128 amount.");
+    async function preview(which){
+      try{
+        const amt = parseAmountToI128_7(el("amount").value);
+        const fn = which === "deposit" ? "preview_deposit" : "preview_withdraw";
+        const { retval } = await simulateCall(fn, [ nativeToScVal(amt, { type: "i128" }) ]);
+        const native = scValToNative(retval);
+        setResult(`${fn}: ${formatMaybeNumeric(native)}`, true);
+      }catch(e){
+        setResult(e.message || String(e), false);
+      }
+    }
 
-    const a = nativeToScVal(assets, { type:"u128" });
-    const me = new Address(accountId).toScVal();
+    async function doDeposit(){
+      try{
+        const amt = parseAmountToI128_7(el("amount").value);
+        // Most 4626 vaults are deposit(assets, receiver). Your contract name suggests deposit exists.
+        // If your contract's signature is deposit(assets) only, remove the receiver arg.
+        const receiver = publicKey;
+        const res = await writeFn("deposit", [
+          nativeToScVal(amt, { type: "i128" }),
+          Stellar.Address.fromString(receiver).toScVal()
+        ]);
+        setResult("Deposit SUCCESS", true);
+        log("Deposit result:", res);
+        await refreshState();
+      }catch(e){
+        setResult(e.message || String(e), false);
+        log("ERROR:", e.message || String(e));
+      }
+    }
 
-    // withdraw(assets)
-    // withdraw(assets, receiver)
-    // withdraw(assets, receiver, owner)
-    const variants = [
-      { label:"withdraw(assets)", args:[a] },
-      { label:"withdraw(assets, receiver)", args:[a, me] },
-      { label:"withdraw(assets, receiver, owner)", args:[a, me, me] },
-    ];
+    async function doWithdraw(){
+      try{
+        const amt = parseAmountToI128_7(el("amount").value);
+        // Typical 4626: withdraw(assets, receiver, owner)
+        const receiver = publicKey;
+        const owner = publicKey;
+        const res = await writeFn("withdraw", [
+          nativeToScVal(amt, { type: "i128" }),
+          Stellar.Address.fromString(receiver).toScVal(),
+          Stellar.Address.fromString(owner).toScVal()
+        ]);
+        setResult("Withdraw SUCCESS", true);
+        log("Withdraw result:", res);
+        await refreshState();
+      }catch(e){
+        setResult(e.message || String(e), false);
+        log("ERROR:", e.message || String(e));
+      }
+    }
 
-    await tryInvoke("withdraw", variants);
-    await refresh();
-  }
+    // Wire buttons
+    el("btnConnect").onclick = connectFreighter;
+    el("btnRefresh").onclick = refreshState;
+    el("btnClear").onclick = () => (logEl.textContent = "");
+    el("btnPreviewDeposit").onclick = () => preview("deposit");
+    el("btnPreviewWithdraw").onclick = () => preview("withdraw");
+    el("btnDeposit").onclick = doDeposit;
+    el("btnWithdraw").onclick = doWithdraw;
 
-  async function doRedeem(){
-    const shares = u128FromInput("inpRedeemShares");
-    if (shares === null || shares <= 0n) return log("Enter a valid redeem-shares u128 amount.");
-
-    const s = nativeToScVal(shares, { type:"u128" });
-    const me = new Address(accountId).toScVal();
-
-    // redeem(shares)
-    // redeem(shares, receiver)
-    // redeem(shares, receiver, owner)
-    const variants = [
-      { label:"redeem(shares)", args:[s] },
-      { label:"redeem(shares, receiver)", args:[s, me] },
-      { label:"redeem(shares, receiver, owner)", args:[s, me, me] },
-    ];
-
-    await tryInvoke("redeem", variants);
-    await refresh();
-  }
-
-  function init(){
-    server = new SorobanRpc.Server(CFG.rpcUrl, { allowHttp: CFG.rpcUrl.startsWith("http://") });
-    $("net").textContent = `${CFG.network} • ${CFG.rpcUrl}`;
-    $("cid").textContent = CFG.contractId;
-    $("cid").title = CFG.contractId;
-  }
-
-  init();
-  refresh();
-
-  $("btnConnect").onclick = async () => { try{ await connectFreighter(); await refresh(); }catch(e){ log("❌", e.message); } };
-  $("btnRefresh").onclick = refresh;
-
-  $("btnPreviewDeposit").onclick = async () => { try{ await doPreviewDeposit(); }catch(e){ log("❌", e.message); } };
-  $("btnPreviewRedeem").onclick = async () => { try{ await doPreviewRedeem(); }catch(e){ log("❌", e.message); } };
-
-  $("btnDeposit").onclick = async () => { try{ await doDeposit(); }catch(e){ log("❌", e.message); } };
-  $("btnWithdraw").onclick = async () => { try{ await doWithdraw(); }catch(e){ log("❌", e.message); } };
-  $("btnRedeem").onclick = async () => { try{ await doRedeem(); }catch(e){ log("❌", e.message); } };
-</script>
+    // Initial load
+    refreshState();
+  </script>
 </body>
 </html>
