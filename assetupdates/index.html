@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mirrasets – Admin Control Panel (Offer IDs + Live-price sequencing + XDR export)</title>
+  <title>Mirrasets – Admin Control Panel (Offer IDs + Live sequencing + Batch XDR)</title>
   <style>
     :root{
       --bg:#0b0f17;
@@ -19,7 +19,7 @@
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
     body{ margin:0; background:linear-gradient(180deg,#070a10, #0b0f17 40%); color:var(--text); font-family:var(--sans); }
-    .wrap{ max-width:1200px; margin:24px auto 80px; padding:0 16px; }
+    .wrap{ max-width:1250px; margin:24px auto 80px; padding:0 16px; }
     .top{
       display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
       padding:14px 14px; border:1px solid var(--border); border-radius:16px; background:rgba(17,26,43,.65);
@@ -60,13 +60,13 @@
     @media (max-width: 980px){ .twoCol{ grid-template-columns: 1fr; } }
     .box{ border:1px solid var(--border); border-radius:14px; padding:12px; background:rgba(255,255,255,.02); }
     label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
-    input, textarea{
+    input, textarea, select{
       width:100%; box-sizing:border-box;
       padding:10px 10px; border-radius:12px; border:1px solid var(--border);
       background:#0a1324; color:var(--text); font-family:var(--mono);
       outline:none;
     }
-    input:focus, textarea:focus{ border-color:rgba(94,234,212,.5); }
+    input:focus, textarea:focus, select:focus{ border-color:rgba(94,234,212,.5); }
     textarea{ min-height: 120px; resize: vertical; }
     table{ width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px; }
     th, td{ border-bottom:1px solid var(--border); padding:8px 6px; text-align:left; vertical-align:top; }
@@ -81,12 +81,13 @@
     .log{
       margin-top:12px; padding:12px; border-radius:14px; border:1px solid var(--border);
       background:#071022; font-family:var(--mono); font-size:12px; color:#cbd5e1;
-      white-space:pre-wrap; max-height:220px; overflow:auto;
+      white-space:pre-wrap; max-height:260px; overflow:auto;
     }
     .tiny{ font-size:11px; color:var(--muted); }
     .kv{ display:flex; gap:10px; flex-wrap:wrap; }
     .copyRow{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
     .divider{ height:1px; background:var(--border); margin:10px 0; }
+    .badge{ display:inline-block; font-family:var(--mono); font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
   </style>
 </head>
 <body>
@@ -95,8 +96,8 @@
     <div class="title">
       <h1>Mirrasets – Mirrored Assets Control Panel</h1>
       <div class="sub">
-        Deterministic Offer-ID updates + <span class="mono">live offer price check</span> to choose op ordering (prevents self-cross on big up/down moves).
-        Builds & signs once in-browser, then export signed XDR for LOBSTR Vault.
+        Offer-ID deterministic edits + <span class="badge">live sequencing</span> via Horizon <span class="mono">/offers/{id}</span>.
+        Includes <span class="badge">Batch single-XDR</span> mode.
         <br><span class="warn">Security note:</span> entering secret keys in a browser is risky — do this only on a trusted machine.
       </div>
     </div>
@@ -121,9 +122,7 @@
       </div>
     </div>
     <div class="log" id="log"></div>
-    <div class="tiny">
-      This panel loads balances via Horizon account endpoint, and live offer prices via <span class="mono">/offers/{id}</span>. No offer-list pagination.
-    </div>
+    <div class="tiny">No offer pagination; only balance loads + direct offer ID fetches.</div>
   </div>
 </div>
 
@@ -131,17 +130,17 @@
 
 <script>
 /**
- * CONFIG — YOUR FINAL DATA
+ * CONFIG
  */
 const HORIZON_URL = "https://horizon.stellar.org";
 const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
 const server = new StellarSdk.Horizon.Server(HORIZON_URL);
 
-// Circle USDC (your corrected issuer)
+// Circle USDC (issuer)
 const CIRCLE_USDC_CODE = "USDC";
 const CIRCLE_USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
 
-// Issuer/sales wallets for each mirrored asset (asset code is the key)
+// Issuer/sales wallets for each mirrored asset
 const ISSUERS = {
   GBPC: "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
   EURC: "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC",
@@ -151,27 +150,10 @@ const ISSUERS = {
 
 // Fixed offer IDs (authoritative)
 const OFFER_IDS = {
-  GBPC: {
-    sell_05: "1679115427",
-    sell_075: "1679115428",
-    sell_10: "1679115429",
-    buy: "1679115430"
-  },
-  EURC: {
-    sell_05: "1679202926",
-    sell_075: "1679202927",
-    sell_10: "1679202928",
-    buy: "1679202929"
-  },
-  KRWC: {
-    sell_05: "1679204936",
-    sell_075: "1679204937",
-    sell_10: "1679204938",
-    buy: "1679204939"
-  },
-  USDC: {
-    buy: "1688920720"
-  }
+  GBPC: { sell_05: "1679115427", sell_075: "1679115428", sell_10: "1679115429", buy: "1679115430" },
+  EURC: { sell_05: "1679202926", sell_075: "1679202927", sell_10: "1679202928", buy: "1679202929" },
+  KRWC: { sell_05: "1679204936", sell_075: "1679204937", sell_10: "1679204938", buy: "1679204939" },
+  USDC: { buy: "1688920720" }
 };
 
 // Tier sizes & spreads
@@ -185,18 +167,9 @@ const RULES = {
 
 const state = {
   balances: { GBPC:{circleUSDC:null}, EURC:{circleUSDC:null}, KRWC:{circleUSDC:null}, USDC:{circleUSDC:null} },
-  live: {
-    // per code: { fetchedAt, oldSellMinCirclePerAsset, oldBuyCirclePerAsset, raw: {sell_05, buy} }
-    GBPC: null,
-    EURC: null,
-    KRWC: null,
-    USDC: null
-  }
+  live: { GBPC:null, EURC:null, KRWC:null, USDC:null }
 };
 
-/**
- * Logging / formatting
- */
 const elLog = document.getElementById("log");
 function log(msg){
   const t = new Date().toISOString().replace("T"," ").replace("Z","");
@@ -216,9 +189,6 @@ function findBalance(balances, code, issuer){
   return b ? Number(b.balance) : 0;
 }
 
-/**
- * Fast balance-only fetch
- */
 async function loadCircleBalance(pubKey){
   const acct = await server.loadAccount(pubKey);
   const balances = acct.balances.map(b => ({
@@ -246,19 +216,17 @@ function offerPriceNumber(offerJson){
 }
 
 /**
- * Live old prices from offer IDs (in Circle USDC per asset terms)
+ * Live old prices from offer IDs
+ * Returns in Circle USDC per asset terms:
+ * - sell_05: already Circle/asset
+ * - buy: Horizon price is asset/Circle => invert => Circle/asset
  */
 async function fetchLiveOldPrices(code){
   if (code === "USDC"){
-    // buy offer: selling Circle USDC, buying mirrored USDC. Horizon price = mirrored per Circle.
     const o = await fetchOfferById(OFFER_IDS.USDC.buy);
-    const p = offerPriceNumber(o);
-    if (!Number.isFinite(p) || p <= 0) throw new Error(`USDC buy offer has invalid price`);
-    return {
-      fetchedAt: Date.now(),
-      oldBuyCirclePerAsset: 1 / p,
-      raw: { buy: o }
-    };
+    const p = offerPriceNumber(o); // mirrored per Circle
+    if (!Number.isFinite(p) || p <= 0) throw new Error("USDC buy offer invalid price");
+    return { fetchedAt: Date.now(), oldBuyCirclePerAsset: 1 / p, raw: { buy: o } };
   }
 
   const ids = OFFER_IDS[code];
@@ -267,8 +235,8 @@ async function fetchLiveOldPrices(code){
     fetchOfferById(ids.buy),
   ]);
 
-  const oldSellMin = offerPriceNumber(sell05); // Circle per asset (selling asset, buying Circle)
-  const oldBuyAssetPerCircle = offerPriceNumber(buy); // asset per Circle (selling Circle, buying asset)
+  const oldSellMin = offerPriceNumber(sell05);
+  const oldBuyAssetPerCircle = offerPriceNumber(buy);
   if (!Number.isFinite(oldSellMin) || oldSellMin <= 0) throw new Error(`${code} sell_05 invalid price`);
   if (!Number.isFinite(oldBuyAssetPerCircle) || oldBuyAssetPerCircle <= 0) throw new Error(`${code} buy invalid price`);
 
@@ -295,8 +263,7 @@ function computeQuotes(code, midCirclePerAsset){
 
   const r = RULES[code];
   const sellTiers = r.sellSpreads.map((s,i)=>({
-    key: i===0 ? "sell_05" : i===1 ? "sell_075" : "sell_10",
-    spread:s,
+    idx:i,
     amount:r.sellAmounts[i],
     priceCirclePerAsset: mid * (1 + s)
   }));
@@ -308,32 +275,171 @@ function computeQuotes(code, midCirclePerAsset){
 }
 
 /**
- * Sequencing decision using live offer prices
- * - If new BUY would cross old SELL_05 => do SELL-first
- * - If new SELL_05 would cross old BUY => do BUY-first
+ * Sequencing decision using live offer prices:
+ * - If new BUY would cross old SELL_05 => SELL-first
+ * - Else if new SELL_05 would cross old BUY => BUY-first
+ * - Else BUY-first
  */
 function decideOrderFromLive(code, newMid, live){
   const newSellMin = newMid * 1.005;
   const newBuy = newMid * 0.99;
 
-  // BUY-first risk on big UP moves
   if (newBuy >= live.oldSellMinCirclePerAsset){
-    return { order:"sell-first", reason:`Up-move: newBuy ${newBuy.toFixed(8)} >= oldSellMin ${live.oldSellMinCirclePerAsset.toFixed(8)}` };
+    return { order:"sell-first", reason:`Up-move: newBuy ${newBuy.toFixed(8)} >= oldSell05 ${live.oldSellMinCirclePerAsset.toFixed(8)}` };
   }
-  // SELL-first risk on big DOWN moves
   if (newSellMin <= live.oldBuyCirclePerAsset){
-    return { order:"buy-first", reason:`Down-move: newSellMin ${newSellMin.toFixed(8)} <= oldBuy ${live.oldBuyCirclePerAsset.toFixed(8)}` };
+    return { order:"buy-first", reason:`Down-move: newSell05 ${newSellMin.toFixed(8)} <= oldBuy ${live.oldBuyCirclePerAsset.toFixed(8)}` };
   }
-  return { order:"buy-first", reason:"No cross risk vs live offers (default buy-first)." };
+  return { order:"buy-first", reason:"No cross risk vs live offers." };
 }
 
 /**
- * UI build
+ * Add ops for a wallet with chosen order.
+ * If opSource is set, operations are sourced from that account (batch mode).
+ */
+function addOpsForWallet(txb, code, quotes, circleBal, order, opSource=null){
+  const pub = ISSUERS[code];
+  const circle = makeAsset(CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
+  const mirrored = makeAsset(code, pub);
+
+  const addOp = (op) => {
+    if (opSource) op.source = opSource;
+    txb.addOperation(op);
+  };
+
+  if (code === "USDC"){
+    addOp(StellarSdk.Operation.manageSellOffer({
+      offerId: OFFER_IDS.USDC.buy,
+      selling: circle,
+      buying: mirrored,
+      amount: fmtStrict(Math.max(circleBal, 0), 7),
+      price: fmtStrict(quotes.buyMirroredPerCircle, 12) // mirrored per Circle
+    }));
+    return;
+  }
+
+  const addBuy = () => addOp(StellarSdk.Operation.manageSellOffer({
+    offerId: OFFER_IDS[code].buy,
+    selling: circle,
+    buying: mirrored,
+    amount: fmtStrict(Math.max(circleBal, 0), 7),
+    price: fmtStrict(quotes.buyAssetPerCircle, 12) // asset per Circle
+  }));
+
+  const addSells = () => {
+    addOp(StellarSdk.Operation.manageSellOffer({
+      offerId: OFFER_IDS[code].sell_05,
+      selling: mirrored,
+      buying: circle,
+      amount: fmtStrict(RULES[code].sellAmounts[0], 7),
+      price: fmtStrict(quotes.sellTiers[0].priceCirclePerAsset, 12)
+    }));
+    addOp(StellarSdk.Operation.manageSellOffer({
+      offerId: OFFER_IDS[code].sell_075,
+      selling: mirrored,
+      buying: circle,
+      amount: fmtStrict(RULES[code].sellAmounts[1], 7),
+      price: fmtStrict(quotes.sellTiers[1].priceCirclePerAsset, 12)
+    }));
+    addOp(StellarSdk.Operation.manageSellOffer({
+      offerId: OFFER_IDS[code].sell_10,
+      selling: mirrored,
+      buying: circle,
+      amount: fmtStrict(RULES[code].sellAmounts[2], 7),
+      price: fmtStrict(quotes.sellTiers[2].priceCirclePerAsset, 12)
+    }));
+  };
+
+  if (order === "sell-first"){ addSells(); addBuy(); }
+  else { addBuy(); addSells(); }
+}
+
+/**
+ * Build UI
  */
 function buildCards(){
   const root = document.getElementById("cards");
   root.innerHTML = "";
 
+  // ---- Batch card (single XDR) ----
+  const batch = document.createElement("div");
+  batch.className = "card";
+  batch.innerHTML = `
+    <div class="cardHead">
+      <div class="assetName">
+        <b>Batch</b>
+        <small>Build ALL wallets into ONE transaction XDR (operation-level sources). Vault can sign all.</small>
+      </div>
+      <div class="kv">
+        <span class="pill" id="pill-batch-fee">Fee payer: GBPC</span>
+        <span class="pill" id="pill-batch-live">Live offers: —</span>
+      </div>
+    </div>
+
+    <div class="twoCol">
+      <div class="box">
+        <label>Fee payer / transaction source (pays fee + provides sequence)</label>
+        <select id="sel-fee-payer">
+          <option value="GBPC">GBPC issuer</option>
+          <option value="EURC">EURC issuer</option>
+          <option value="KRWC">KRWC issuer</option>
+          <option value="USDC">Mirrored USDC issuer</option>
+        </select>
+        <div class="hint">Pick an issuer that has enough XLM for fee. Ops are sourced from each issuer wallet.</div>
+
+        <div class="divider"></div>
+
+        <label>XE mids (Circle USDC per 1 unit)</label>
+        <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px;">
+          <input id="mid-batch-GBPC" placeholder="GBPC mid (e.g. 1.27456)" />
+          <input id="mid-batch-EURC" placeholder="EURC mid (e.g. 1.08765)" />
+          <input id="mid-batch-KRWC" placeholder="KRWC mid (e.g. 0.00076)" />
+        </div>
+        <div class="hint">Mirrored USDC uses fixed buy @ 0.995 (no mid needed).</div>
+
+        <div class="divider"></div>
+
+        <label>Optional local signing (leave blank for Vault-only signing)</label>
+        <div class="hint">If you paste secrets here, we’ll sign the single batch XDR with whichever you provide. Otherwise, export unsigned XDR and let LOBSTR Vault sign everything.</div>
+        <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px;">
+          <input id="sk-batch-GBPC" placeholder="GBPC secret (S…)" autocomplete="off" />
+          <input id="sk-batch-EURC" placeholder="EURC secret (S…)" autocomplete="off" />
+          <input id="sk-batch-KRWC" placeholder="KRWC secret (S…)" autocomplete="off" />
+          <input id="sk-batch-USDC" placeholder="Mirrored USDC secret (S…)" autocomplete="off" />
+        </div>
+
+        <div class="actions" style="margin-top:12px;">
+          <button id="btn-batch-preview">Preview batch</button>
+          <button class="primary" id="btn-batch-build">Build ALL → single XDR</button>
+        </div>
+
+        <div style="margin-top:12px;">
+          <label>Batch XDR (base64)</label>
+          <textarea id="out-xdr-batch" placeholder="Click Build ALL…" readonly></textarea>
+          <div class="copyRow">
+            <button id="btn-batch-copy">Copy batch XDR</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="box">
+        <label>Batch preview</label>
+        <div class="log" id="batch-preview-log" style="max-height:420px;"></div>
+        <div class="tiny">Order per wallet is auto-chosen using live offer prices.</div>
+      </div>
+    </div>
+  `;
+  root.appendChild(batch);
+
+  // Wire batch controls
+  document.getElementById("sel-fee-payer").addEventListener("change", (e)=>{
+    document.getElementById("pill-batch-fee").textContent = `Fee payer: ${e.target.value}`;
+  });
+  document.getElementById("btn-batch-preview").addEventListener("click", ()=>buildBatch({ previewOnly:true }).catch(e=>alert(e.message||e)));
+  document.getElementById("btn-batch-build").addEventListener("click", ()=>buildBatch({ previewOnly:false }).catch(e=>alert(e.message||e)));
+  document.getElementById("btn-batch-copy").addEventListener("click", ()=>copyBatchXDR().catch(e=>alert(e.message||e)));
+
+  // ---- Per-wallet cards ----
   for (const code of ["GBPC","EURC","KRWC","USDC"]){
     const issuer = ISSUERS[code];
     const isUSDC = code === "USDC";
@@ -363,16 +469,16 @@ function buildCards(){
             <div style="flex:1 1 320px;">
               <label>Secret key for this issuing wallet (starts with S…)</label>
               <input id="inp-sk-${code}" placeholder="S.................................................." autocomplete="off" />
-              <div class="hint">Used only to sign the built transaction once. Then you export signed XDR for LOBSTR Vault.</div>
+              <div class="hint">Used only to sign the built transaction once. Then export XDR for Vault.</div>
             </div>
 
             <div style="flex:1 1 240px;">
-              <label>${isUSDC ? "Mirrored USDC buy is fixed at 0.995 (Circle USDC per 1 Mirrored USDC)" : "Paste XE mid (Circle USDC per 1 " + code + ")"}</label>
+              <label>${isUSDC ? "Mirrored USDC buy fixed at 0.995" : "Paste XE mid (Circle USDC per 1 " + code + ")"}</label>
               <input id="inp-mid-${code}" ${isUSDC ? "value='1' disabled" : "placeholder='e.g. 1.27456'"} />
               <div class="hint">
                 ${isUSDC
-                  ? "Only updates BUY offer at 0.995 using full Circle USDC reserve. (Huge 1:1 sell untouched.)"
-                  : "SELL tiers: +0.5%, +0.75%, +1.0%. BUY: −1.0% using full Circle USDC reserve. Op order is chosen automatically using live offer prices."
+                  ? "Only updates BUY at 0.995 using full Circle reserve. (Huge 1:1 sell untouched.)"
+                  : "SELL tiers: +0.5%, +0.75%, +1.0%. BUY: −1.0% using full Circle reserve. Order auto-chosen from live offers."
                 }
               </div>
             </div>
@@ -408,18 +514,16 @@ function buildCards(){
             <div class="copyRow">
               <button id="btn-copy-${code}">Copy XDR</button>
             </div>
-            <div class="tiny">Paste into LOBSTR Vault → Transaction XDR. This XDR already has the first signature.</div>
           </div>
         </div>
 
         <div class="box">
           <label>Snapshot</label>
           <div class="log" id="snap-${code}" style="max-height:330px;"></div>
-          <div class="tiny">Refresh balances to update reserve size. Fetch live prices to update sequencing decision.</div>
+          <div class="tiny">Balances = fast. Live offers = direct IDs (no pagination).</div>
         </div>
       </div>
     `;
-
     root.appendChild(card);
 
     document.getElementById(`btn-preview-${code}`).addEventListener("click", ()=>preview(code));
@@ -429,44 +533,11 @@ function buildCards(){
   }
 }
 
-/**
- * UI helpers
- */
-function setPillsAndSnapshot(code, circleBal){
-  state.balances[code].circleUSDC = circleBal;
-
-  const pill = document.getElementById(`pill-bal-${code}`);
-  pill.textContent = `Circle USDC reserve: ${fmt(circleBal, 2)}`;
-
-  renderLivePill(code);
-
-  const snap = document.getElementById(`snap-${code}`);
-  const live = state.live[code];
-  const liveLine = live
-    ? `Live prices fetched: ${new Date(live.fetchedAt).toLocaleString()}`
-    : `Live prices: not fetched yet (click "Fetch live prices")`;
-
-  snap.textContent =
-`Issuer wallet: ${ISSUERS[code]}
-Circle USDC issuer: ${CIRCLE_USDC_ISSUER}
-Circle USDC reserve balance: ${circleBal}
-
-${liveLine}
-
-Notes:
-- Buy offer sells FULL Circle USDC reserve (amount selling)
-- Sequencing uses live offer prices from offer IDs
-- No offer list scanning / pagination`;
-}
-
 function renderLivePill(code){
   const pill = document.getElementById(`pill-live-${code}`);
   const live = state.live[code];
   if (!pill) return;
-  if (!live){
-    pill.textContent = `Live offers: —`;
-    return;
-  }
+  if (!live){ pill.textContent = `Live offers: —`; return; }
   const ageSec = Math.max(0, Math.floor((Date.now() - live.fetchedAt)/1000));
   if (code === "USDC"){
     pill.textContent = `Live buy≈${fmt(live.oldBuyCirclePerAsset, 6)} (age ${ageSec}s)`;
@@ -475,19 +546,40 @@ function renderLivePill(code){
   }
 }
 
-/**
- * Refresh balances (parallel)
- */
+function setSnapshot(code){
+  const circleBal = state.balances[code].circleUSDC;
+  const pill = document.getElementById(`pill-bal-${code}`);
+  pill.textContent = `Circle USDC reserve: ${circleBal==null ? "—" : fmt(circleBal,2)}`;
+  renderLivePill(code);
+
+  const snap = document.getElementById(`snap-${code}`);
+  const live = state.live[code];
+  const liveLine = live ? `Live prices fetched: ${new Date(live.fetchedAt).toLocaleString()}` : `Live prices: not fetched`;
+  snap.textContent =
+`Issuer wallet: ${ISSUERS[code]}
+Circle USDC issuer: ${CIRCLE_USDC_ISSUER}
+Circle reserve: ${circleBal==null ? "—" : circleBal}
+
+${liveLine}
+
+Notes:
+- Buy offer sells FULL Circle reserve (amount selling)
+- Sequencing based on live offer prices from offer IDs
+- No offer list scanning/pagination`;
+}
+
 async function refreshAllBalances(){
   log("Refreshing Circle USDC balances (parallel)…");
   const codes = ["GBPC","EURC","KRWC","USDC"];
   await Promise.all(codes.map(async (code)=>{
     try{
-      const bal = await loadCircleBalance(ISSUERS[code]);
-      setPillsAndSnapshot(code, bal);
+      state.balances[code].circleUSDC = await loadCircleBalance(ISSUERS[code]);
+      setSnapshot(code);
       preview(code);
-      log(`${code}: reserve ${fmt(bal, 2)}`);
+      log(`${code}: reserve ${fmt(state.balances[code].circleUSDC,2)}`);
     }catch(e){
+      state.balances[code].circleUSDC = null;
+      setSnapshot(code);
       log(`${code}: balance load failed: ${e?.message || e}`);
       document.getElementById(`hint-${code}`).innerHTML = `<span class="bad">Balance load failed: ${e?.message || e}</span>`;
     }
@@ -495,33 +587,29 @@ async function refreshAllBalances(){
   log("Balance refresh complete.");
 }
 
-/**
- * Refresh live offer prices
- */
 async function refreshLiveFor(code){
   try{
     log(`${code}: fetching live offer prices by ID…`);
-    const live = await fetchLiveOldPrices(code);
-    state.live[code] = live;
-    setPillsAndSnapshot(code, state.balances[code].circleUSDC ?? 0);
+    state.live[code] = await fetchLiveOldPrices(code);
+    setSnapshot(code);
     preview(code);
     log(`${code}: live prices fetched.`);
   }catch(e){
     log(`${code}: live price fetch failed: ${e?.message || e}`);
-    document.getElementById(`hint-${code}`).innerHTML = `<span class="bad">Live price fetch failed: ${e?.message || e}</span>`;
+    const hint = document.getElementById(`hint-${code}`);
+    if (hint) hint.innerHTML = `<span class="bad">Live price fetch failed: ${e?.message || e}</span>`;
   }
 }
 
 async function refreshAllLive(){
   log("Refreshing live offer prices (parallel)…");
-  const codes = ["GBPC","EURC","KRWC","USDC"];
-  await Promise.all(codes.map(async (code)=>refreshLiveFor(code)));
+  await Promise.all(["GBPC","EURC","KRWC","USDC"].map(c=>refreshLiveFor(c)));
+  // batch pill
+  const ok = ["GBPC","EURC","KRWC","USDC"].filter(c=>state.live[c]).length;
+  document.getElementById("pill-batch-live").textContent = `Live offers: ${ok}/4`;
   log("Live prices refresh complete.");
 }
 
-/**
- * Preview table
- */
 function preview(code){
   const tbody = document.querySelector(`#tbl-${code} tbody`);
   const hint = document.getElementById(`hint-${code}`);
@@ -529,8 +617,8 @@ function preview(code){
   hint.textContent = "";
 
   const circleBal = state.balances[code].circleUSDC;
-  if (circleBal === null || circleBal === undefined){
-    hint.innerHTML = `<span class="warn">No reserve yet. Click “Refresh balances”.</span>`;
+  if (circleBal == null){
+    hint.innerHTML = `<span class="warn">Click “Refresh balances”.</span>`;
     return;
   }
 
@@ -549,83 +637,50 @@ function preview(code){
 
   const rows = [];
   if (code !== "USDC"){
-    rows.push({ label:`SELL +0.5%`, dir:`${code} → Circle USDC`, id:OFFER_IDS[code].sell_05, amount: RULES[code].sellAmounts[0], price:`${fmt(q.sellTiers[0].priceCirclePerAsset, 10)} Circle/${code}` });
-    rows.push({ label:`SELL +0.75%`, dir:`${code} → Circle USDC`, id:OFFER_IDS[code].sell_075, amount: RULES[code].sellAmounts[1], price:`${fmt(q.sellTiers[1].priceCirclePerAsset, 10)} Circle/${code}` });
-    rows.push({ label:`SELL +1.0%`, dir:`${code} → Circle USDC`, id:OFFER_IDS[code].sell_10, amount: RULES[code].sellAmounts[2], price:`${fmt(q.sellTiers[2].priceCirclePerAsset, 10)} Circle/${code}` });
-    rows.push({ label:`BUY −1.0% (full reserve)`, dir:`Circle USDC → ${code}`, id:OFFER_IDS[code].buy, amount: fmt(circleBal, 2), price:`${fmt(q.buyCirclePerAsset, 10)} Circle/${code}  (offer price = ${fmt(q.buyAssetPerCircle, 14)} ${code}/Circle)` });
+    rows.push({ label:`SELL +0.5%`, dir:`${code} → Circle`, id:OFFER_IDS[code].sell_05, amount:RULES[code].sellAmounts[0], price:`${fmt(q.sellTiers[0].priceCirclePerAsset,10)} Circle/${code}`});
+    rows.push({ label:`SELL +0.75%`, dir:`${code} → Circle`, id:OFFER_IDS[code].sell_075, amount:RULES[code].sellAmounts[1], price:`${fmt(q.sellTiers[1].priceCirclePerAsset,10)} Circle/${code}`});
+    rows.push({ label:`SELL +1.0%`, dir:`${code} → Circle`, id:OFFER_IDS[code].sell_10, amount:RULES[code].sellAmounts[2], price:`${fmt(q.sellTiers[2].priceCirclePerAsset,10)} Circle/${code}`});
+    rows.push({ label:`BUY −1.0% (full reserve)`, dir:`Circle → ${code}`, id:OFFER_IDS[code].buy, amount:fmt(circleBal,2), price:`${fmt(q.buyCirclePerAsset,10)} Circle/${code} (offer=${fmt(q.buyAssetPerCircle,14)} ${code}/Circle)`});
 
-    // sequencing note (only if live present)
     const live = state.live[code];
     if (live){
       const seq = decideOrderFromLive(code, q.mid, live);
-      hint.innerHTML =
-        `<span class="status">Mid: <span class="mono">${fmt(q.mid, 10)}</span> • Recommended op order: <span class="mono">${seq.order}</span> — ${seq.reason}</span>`;
+      hint.innerHTML = `<span class="status">Recommended op order: <span class="mono">${seq.order}</span> — ${seq.reason}</span>`;
     } else {
-      hint.innerHTML =
-        `<span class="status">Mid: <span class="mono">${fmt(q.mid, 10)}</span> • Fetch live prices to get safe sequencing recommendation.</span>`;
+      hint.innerHTML = `<span class="status">Fetch live prices to get safe sequencing recommendation.</span>`;
     }
   } else {
-    rows.push({
-      label:`BUY @ 0.995 (full reserve)`,
-      dir:`Circle USDC → Mirrored USDC`,
-      id:OFFER_IDS.USDC.buy,
-      amount: fmt(circleBal, 2),
-      price:`${fmt(q.buyCirclePerMirrored, 6)} Circle/MirroredUSDC  (offer price = ${fmt(q.buyMirroredPerCircle, 14)} Mirrored/Circle)`
-    });
-    hint.innerHTML = `<span class="status">Mirrored USDC: only BUY updated at 0.995. (Huge 1:1 sell untouched.)</span>`;
+    rows.push({ label:`BUY @ 0.995 (full reserve)`, dir:`Circle → Mirrored USDC`, id:OFFER_IDS.USDC.buy, amount:fmt(circleBal,2),
+      price:`${fmt(q.buyCirclePerMirrored,6)} Circle/USDC (offer=${fmt(q.buyMirroredPerCircle,14)} USDC/Circle)`});
+    hint.innerHTML = `<span class="status">Mirrored USDC: only BUY updated at 0.995.</span>`;
   }
 
   for (const r of rows){
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r.label}</td>
-      <td>${r.dir}</td>
-      <td class="mono">${r.id}</td>
-      <td>${r.amount}</td>
-      <td>${r.price}</td>
-    `;
+    tr.innerHTML = `<td>${r.label}</td><td>${r.dir}</td><td class="mono">${r.id}</td><td>${r.amount}</td><td>${r.price}</td>`;
     tbody.appendChild(tr);
   }
 }
 
-/**
- * Build + sign
- * - GBPC/EURC/KRWC: choose op order using live offer prices (fetch if missing)
- * - USDC: one op only
- */
 async function buildAndSign(code){
   const out = document.getElementById(`out-xdr-${code}`);
   out.value = "";
 
   const pub = ISSUERS[code];
   const circleBal = state.balances[code].circleUSDC;
+  if (circleBal == null){ alert("Click Refresh balances first."); return; }
 
-  if (circleBal === null || circleBal === undefined){
-    alert("No reserve yet. Click Refresh balances first.");
-    return;
-  }
-
-  // secret key
   const skEl = document.getElementById(`inp-sk-${code}`);
   const sk = skEl.value.trim();
-  if (!sk || !sk.startsWith("S")){
-    alert("Paste the secret key for this issuing wallet (starts with S…).");
-    return;
-  }
+  if (!sk || !sk.startsWith("S")){ alert("Paste secret key (S…)."); return; }
 
   let kp;
-  try{
-    kp = StellarSdk.Keypair.fromSecret(sk);
-  }catch(e){
-    alert("Invalid secret key format.");
-    return;
-  }
+  try{ kp = StellarSdk.Keypair.fromSecret(sk); }catch(e){ alert("Invalid secret key."); return; }
   if (kp.publicKey() !== pub){
     alert(`Secret key does not match issuer address for ${code}.\nExpected: ${pub}\nGot: ${kp.publicKey()}`);
     return;
   }
 
-  // quotes
   let q;
   try{
     if (code === "USDC") q = computeQuotes("USDC", 1);
@@ -634,136 +689,193 @@ async function buildAndSign(code){
       if (!mid) throw new Error("Paste XE mid first.");
       q = computeQuotes(code, mid);
     }
-  }catch(e){
-    alert(e.message || e);
-    return;
-  }
+  }catch(e){ alert(e.message || e); return; }
 
-  // ensure live is available (for sequencing) for non-USDC
+  // ensure live prices for safe sequencing
   if (code !== "USDC" && !state.live[code]){
     try{
-      log(`${code}: live prices missing — fetching now for safe sequencing…`);
+      log(`${code}: live prices missing — fetching now…`);
       state.live[code] = await fetchLiveOldPrices(code);
-      renderLivePill(code);
+      setSnapshot(code);
     }catch(e){
-      log(`${code}: live fetch failed; cannot safely sequence: ${e?.message || e}`);
       alert(`Failed to fetch live prices for ${code}. Click "Fetch live prices" and try again.\n\n${e?.message || e}`);
       return;
     }
   }
 
-  log(`${code}: building tx (offerId edits + live sequencing)…`);
-
-  // load fresh account for sequence + base fee
   let acct, baseFee;
   try{
     acct = await server.loadAccount(pub);
     baseFee = await server.fetchBaseFee();
   }catch(e){
-    log(`${code}: failed loading account/base fee: ${e?.message || e}`);
     alert(`Failed to load account/base fee: ${e?.message || e}`);
     return;
   }
-
-  const circle = makeAsset(CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
-  const mirrored = makeAsset(code, pub);
 
   const txb = new StellarSdk.TransactionBuilder(acct, {
     fee: (Number(baseFee) * 2).toString(),
     networkPassphrase: NETWORK_PASSPHRASE
   });
 
-  if (code === "USDC"){
-    // only BUY at 0.995; do not touch big sell
-    txb.addOperation(StellarSdk.Operation.manageSellOffer({
-      offerId: OFFER_IDS.USDC.buy,
-      selling: circle,
-      buying: mirrored,
-      amount: fmtStrict(Math.max(circleBal, 0), 7),
-      price: fmtStrict(q.buyMirroredPerCircle, 12) // mirrored per circle
-    }));
-  } else {
-    // helpers
-    const addBuy = () => txb.addOperation(StellarSdk.Operation.manageSellOffer({
-      offerId: OFFER_IDS[code].buy,
-      selling: circle,
-      buying: mirrored,
-      amount: fmtStrict(Math.max(circleBal, 0), 7),
-      price: fmtStrict(q.buyAssetPerCircle, 12) // asset per circle
-    }));
-
-    const addSells = () => {
-      txb.addOperation(StellarSdk.Operation.manageSellOffer({
-        offerId: OFFER_IDS[code].sell_05,
-        selling: mirrored,
-        buying: circle,
-        amount: fmtStrict(RULES[code].sellAmounts[0], 7),
-        price: fmtStrict(q.sellTiers[0].priceCirclePerAsset, 12)
-      }));
-      txb.addOperation(StellarSdk.Operation.manageSellOffer({
-        offerId: OFFER_IDS[code].sell_075,
-        selling: mirrored,
-        buying: circle,
-        amount: fmtStrict(RULES[code].sellAmounts[1], 7),
-        price: fmtStrict(q.sellTiers[1].priceCirclePerAsset, 12)
-      }));
-      txb.addOperation(StellarSdk.Operation.manageSellOffer({
-        offerId: OFFER_IDS[code].sell_10,
-        selling: mirrored,
-        buying: circle,
-        amount: fmtStrict(RULES[code].sellAmounts[2], 7),
-        price: fmtStrict(q.sellTiers[2].priceCirclePerAsset, 12)
-      }));
-    };
-
-    const live = state.live[code];
-    const seq = decideOrderFromLive(code, q.mid, live);
-    log(`${code}: op order = ${seq.order} (${seq.reason})`);
-
-    if (seq.order === "sell-first"){
-      addSells();
-      addBuy();
-    } else {
-      addBuy();
-      addSells();
-    }
+  let order = "buy-first";
+  if (code !== "USDC"){
+    const seq = decideOrderFromLive(code, q.mid, state.live[code]);
+    order = seq.order;
+    log(`${code}: op order=${order} (${seq.reason})`);
   }
 
-  const tx = txb.setTimeout(120).build();
+  addOpsForWallet(txb, code, q, circleBal, order, null);
 
-  // sign once
+  const tx = txb.setTimeout(180).build();
   tx.sign(kp);
+  out.value = tx.toXDR();
 
-  const signedXDR = tx.toXDR();
-  out.value = signedXDR;
-
-  // wipe input to reduce exposure
   skEl.value = "";
-
-  log(`${code}: ✅ signed XDR generated (${signedXDR.length} chars).`);
+  log(`${code}: ✅ signed XDR generated (${out.value.length} chars).`);
 }
 
-/**
- * Copy XDR
- */
 async function copyXDR(code){
-  const out = document.getElementById(`out-xdr-${code}`);
-  const v = out.value.trim();
-  if (!v){ alert("No XDR yet. Click Build + sign."); return; }
+  const v = document.getElementById(`out-xdr-${code}`).value.trim();
+  if (!v){ alert("No XDR yet."); return; }
   await navigator.clipboard.writeText(v);
-  log(`${code}: XDR copied to clipboard.`);
+  log(`${code}: XDR copied.`);
 }
 
-/**
- * Init
- */
+// ---------- Batch build (single XDR) ----------
+function mustHaveMid(code, v){
+  const x = Number((v||"").trim());
+  if (!Number.isFinite(x) || x <= 0) throw new Error(`${code}: invalid mid`);
+  return x;
+}
+function getKeypairIfProvided(label, sk){
+  const s = (sk||"").trim();
+  if (!s) return null;
+  if (!s.startsWith("S")) throw new Error(`${label}: secret must start with S…`);
+  return StellarSdk.Keypair.fromSecret(s);
+}
+
+async function buildBatch({ previewOnly }){
+  const out = document.getElementById("out-xdr-batch");
+  const prev = document.getElementById("batch-preview-log");
+  out.value = "";
+  prev.textContent = "";
+
+  // balances required
+  for (const c of ["GBPC","EURC","KRWC","USDC"]){
+    if (state.balances[c].circleUSDC == null) throw new Error("Click Refresh balances first.");
+  }
+
+  // mids required
+  const midGBPC = mustHaveMid("GBPC", document.getElementById("mid-batch-GBPC").value);
+  const midEURC = mustHaveMid("EURC", document.getElementById("mid-batch-EURC").value);
+  const midKRWC = mustHaveMid("KRWC", document.getElementById("mid-batch-KRWC").value);
+
+  const qGBPC = computeQuotes("GBPC", midGBPC);
+  const qEURC = computeQuotes("EURC", midEURC);
+  const qKRWC = computeQuotes("KRWC", midKRWC);
+  const qUSDC = computeQuotes("USDC", 1);
+
+  // ensure live prices for sequencing (fetch if missing)
+  const need = ["GBPC","EURC","KRWC"];
+  await Promise.all(need.map(async (c)=>{
+    if (!state.live[c]) state.live[c] = await fetchLiveOldPrices(c);
+  }));
+  // USDC live not needed for sequencing, but we keep it for UI
+  if (!state.live.USDC) {
+    try { state.live.USDC = await fetchLiveOldPrices("USDC"); } catch(_) {}
+  }
+  ["GBPC","EURC","KRWC","USDC"].forEach(setSnapshot);
+  document.getElementById("pill-batch-live").textContent = `Live offers: ${["GBPC","EURC","KRWC","USDC"].filter(c=>state.live[c]).length}/4`;
+
+  const orders = {
+    GBPC: decideOrderFromLive("GBPC", qGBPC.mid, state.live.GBPC),
+    EURC: decideOrderFromLive("EURC", qEURC.mid, state.live.EURC),
+    KRWC: decideOrderFromLive("KRWC", qKRWC.mid, state.live.KRWC),
+    USDC: { order:"buy-first", reason:"single op" }
+  };
+
+  // fee payer / tx source
+  const feeCode = document.getElementById("sel-fee-payer").value;
+  const feeSourcePub = ISSUERS[feeCode];
+  document.getElementById("pill-batch-fee").textContent = `Fee payer: ${feeCode}`;
+
+  const acct = await server.loadAccount(feeSourcePub);
+  const baseFee = await server.fetchBaseFee();
+
+  const txb = new StellarSdk.TransactionBuilder(acct, {
+    fee: (Number(baseFee) * 2).toString(),
+    networkPassphrase: NETWORK_PASSPHRASE
+  });
+
+  // Add ops with operation-level sources
+  addOpsForWallet(txb, "GBPC", qGBPC, state.balances.GBPC.circleUSDC, orders.GBPC.order, ISSUERS.GBPC);
+  addOpsForWallet(txb, "EURC", qEURC, state.balances.EURC.circleUSDC, orders.EURC.order, ISSUERS.EURC);
+  addOpsForWallet(txb, "KRWC", qKRWC, state.balances.KRWC.circleUSDC, orders.KRWC.order, ISSUERS.KRWC);
+  addOpsForWallet(txb, "USDC", qUSDC, state.balances.USDC.circleUSDC, "buy-first", ISSUERS.USDC);
+
+  const tx = txb.setTimeout(180).build();
+
+  if (!previewOnly){
+    // optional signing
+    const kpGBPC = getKeypairIfProvided("GBPC", document.getElementById("sk-batch-GBPC").value);
+    const kpEURC = getKeypairIfProvided("EURC", document.getElementById("sk-batch-EURC").value);
+    const kpKRWC = getKeypairIfProvided("KRWC", document.getElementById("sk-batch-KRWC").value);
+    const kpUSDC = getKeypairIfProvided("USDC", document.getElementById("sk-batch-USDC").value);
+
+    for (const kp of [kpGBPC, kpEURC, kpKRWC, kpUSDC]){
+      if (kp) tx.sign(kp);
+    }
+
+    // wipe batch secrets
+    document.getElementById("sk-batch-GBPC").value = "";
+    document.getElementById("sk-batch-EURC").value = "";
+    document.getElementById("sk-batch-KRWC").value = "";
+    document.getElementById("sk-batch-USDC").value = "";
+  }
+
+  out.value = tx.toXDR();
+
+  prev.textContent =
+`TX SOURCE (fee payer): ${feeCode}  ${feeSourcePub}
+
+Order choices (from live offers):
+GBPC: ${orders.GBPC.order} — ${orders.GBPC.reason}
+EURC: ${orders.EURC.order} — ${orders.EURC.reason}
+KRWC: ${orders.KRWC.order} — ${orders.KRWC.reason}
+USDC: buy-first (single op)
+
+Mids:
+GBPC ${qGBPC.mid}
+EURC ${qEURC.mid}
+KRWC ${qKRWC.mid}
+
+Circle reserves:
+GBPC ${state.balances.GBPC.circleUSDC}
+EURC ${state.balances.EURC.circleUSDC}
+KRWC ${state.balances.KRWC.circleUSDC}
+USDC ${state.balances.USDC.circleUSDC}
+
+Ops count: 13
+(GBPC 4, EURC 4, KRWC 4, USDC 1)
+`;
+  log(`Batch: XDR built (${out.value.length} chars). ${previewOnly ? "Preview-only (unsigned)." : "Signed if secrets provided."}`);
+}
+
+async function copyBatchXDR(){
+  const v = document.getElementById("out-xdr-batch").value.trim();
+  if (!v){ alert("No batch XDR yet."); return; }
+  await navigator.clipboard.writeText(v);
+  log("Batch XDR copied.");
+}
+
+// init
 buildCards();
 
-document.getElementById("btnRefresh").addEventListener("click", refreshAllBalances);
-document.getElementById("btnRefreshLive").addEventListener("click", refreshAllLive);
+document.getElementById("btnRefresh").addEventListener("click", ()=>refreshAllBalances().catch(e=>alert(e.message||e)));
+document.getElementById("btnRefreshLive").addEventListener("click", ()=>refreshAllLive().catch(e=>alert(e.message||e)));
 document.getElementById("btnClearLog").addEventListener("click", ()=>{ elLog.textContent=""; });
 
-log("Ready. Click “Refresh balances”. Then (recommended) click “Refresh live offer prices”.");
+log("Ready. Click “Refresh balances”. Then “Refresh live offer prices”. Use Batch to build one XDR for Vault.");
 </script>
 </body>
 </html>
