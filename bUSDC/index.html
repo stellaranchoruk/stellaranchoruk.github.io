@@ -12,11 +12,12 @@
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
-    body{ margin:0; font-family:var(--sans); background:var(--bg); color:var(--text); }
+    body{ margin:0; font-family:var(--sans); background:linear-gradient(180deg,#070a10,#0b0f17 40%,#070a10); color:var(--text); }
     .wrap{ max-width:1050px; margin:24px auto; padding:0 16px; }
     .grid{ display:grid; grid-template-columns: 1.2fr .8fr; gap:16px; }
-    .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; }
-    h1{ margin:0 0 6px; font-size:20px; }
+    .card{ background:rgba(17,26,43,.92); border:1px solid var(--border); border-radius:14px; padding:16px; }
+    h1{ margin:0 0 6px; font-size:20px; letter-spacing:-.01em; }
+    h2{ margin:0 0 10px; font-size:16px; letter-spacing:-.01em; }
     .muted{ color:var(--muted); font-size:13px; }
     label{ display:block; margin:10px 0 6px; font-size:13px; color:var(--muted); }
     input, select{
@@ -27,7 +28,7 @@
     }
     button{
       cursor:pointer; border:1px solid var(--border); background:rgba(255,255,255,.06);
-      color:var(--text); padding:10px 12px; border-radius:10px; font-weight:600;
+      color:var(--text); padding:10px 12px; border-radius:10px; font-weight:700;
     }
     button.primary{ border-color:rgba(94,234,212,.35); background:rgba(94,234,212,.12); }
     button:disabled{ opacity:.5; cursor:not-allowed; }
@@ -37,11 +38,13 @@
     .key{ color:var(--muted); font-size:13px; }
     .val{ font-family:var(--mono); font-size:13px; overflow-wrap:anywhere; }
     .log{ white-space:pre-wrap; font-family:var(--mono); font-size:12px; background:rgba(0,0,0,.25);
-      border:1px solid var(--border); padding:10px; border-radius:10px; max-height:260px; overflow:auto; }
-    .pill{ display:inline-block; padding:3px 8px; border:1px solid var(--border); border-radius:999px;
-      font-size:12px; color:var(--muted); }
-    .good{ color:var(--ok); }
-    .bad{ color:var(--bad); }
+      border:1px solid var(--border); padding:10px; border-radius:10px; max-height:280px; overflow:auto; }
+    .pill{ display:inline-block; padding:4px 9px; border:1px solid var(--border); border-radius:999px;
+      font-size:12px; color:var(--muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; }
+    .good{ color:var(--ok); border-color:rgba(52,211,153,.35); }
+    .bad{ color:var(--bad); border-color:rgba(251,113,133,.35); }
+    .hr{ height:1px; background:var(--border); margin:14px 0; }
+    @media (max-width:900px){ .grid{ grid-template-columns: 1fr; } .kvs{ grid-template-columns: 140px 1fr; } }
   </style>
 </head>
 <body>
@@ -60,7 +63,7 @@
             <button id="btnRefresh">Refresh</button>
           </div>
           <div class="muted" style="margin-top:8px;">
-            Address: <span id="addr" class="pill">not connected</span>
+            Address: <span id="addr" class="pill" title="not connected">not connected</span>
           </div>
         </div>
       </div>
@@ -68,25 +71,26 @@
 
     <div class="grid" style="margin-top:16px;">
       <div class="card">
-        <h2 style="margin:0 0 10px; font-size:16px;">Vault state</h2>
+        <h2>Vault state</h2>
+        <div class="muted">Human amounts assume 7 decimals (USDC-style). Raw is the exact on-chain integer.</div>
+        <div class="hr"></div>
+
         <div class="kvs">
           <div class="key">Underlying asset</div><div class="val" id="underlying">—</div>
           <div class="key">Share token</div><div class="val" id="share">—</div>
+
           <div class="key">Share price</div><div class="val" id="sharePrice">—</div>
+          <div class="key">1 bUSDC ≈</div><div class="val" id="oneShareWorth">—</div>
+
           <div class="key">Total assets</div><div class="val" id="totalAssets">—</div>
           <div class="key">Total supply</div><div class="val" id="totalSupply">—</div>
-        </div>
-
-        <div style="margin-top:14px;" class="muted">
-          Notes: This contract exposes ERC-4626-style methods (deposit/mint/withdraw/redeem, previews, max_*).
-          Values are returned as Soroban ScVals; we display both “raw” and “as 7-decimal” when numeric.
         </div>
       </div>
 
       <div class="card">
-        <h2 style="margin:0 0 10px; font-size:16px;">Actions</h2>
+        <h2>Actions</h2>
 
-        <label>Amount (decimal)</label>
+        <label>Amount (decimal, e.g. 100.5)</label>
         <input id="amount" placeholder="e.g. 100.5" />
 
         <div class="row" style="margin-top:10px;">
@@ -100,7 +104,7 @@
         </div>
 
         <div class="muted" style="margin-top:10px;">
-          Withdraw/deposit require Freighter signing.
+          Deposit/Withdraw requires Freighter signing. Previews are read-only.
         </div>
 
         <div style="margin-top:12px;">
@@ -112,7 +116,7 @@
 
     <div class="card" style="margin-top:16px;">
       <div class="row" style="align-items:center;">
-        <h2 style="margin:0; font-size:16px;">Debug log</h2>
+        <h2 style="margin:0;">Debug log</h2>
         <div style="text-align:right;">
           <button id="btnClear">Clear</button>
         </div>
@@ -131,27 +135,70 @@
     const CONTRACT_ID = "CCR63UWZKPVR2OAZJEBHT4OKBLHX2OAMUYZ63JLO2V72FY3SKAXQTGF6";
     const RPC_URL = "https://rpc.lightsail.network/";
     const NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015";
+    const DECIMALS = 7; // classic USDC-style scale
     // ==========================
 
     const el = (id) => document.getElementById(id);
     const logEl = el("log");
+
+    // BigInt-safe logger (fixes: "Do not know how to serialize a BigInt")
     const log = (...args) => {
-      const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
+      const line = args.map(a => {
+        if (typeof a === "bigint") return a.toString();
+        if (a && typeof a === "object") {
+          return JSON.stringify(a, (k, v) => (typeof v === "bigint" ? v.toString() : v), 2);
+        }
+        return String(a);
+      }).join(" ");
       logEl.textContent += (logEl.textContent ? "\n" : "") + line;
       logEl.scrollTop = logEl.scrollHeight;
       console.log(...args);
     };
 
     el("contractPill").textContent = CONTRACT_ID;
-    el("rpcPill").textContent = RPC_URL.replace(/^https?:\/\//,"");
+    el("rpcPill").textContent = RPC_URL;
+
+    function setResult(text, ok=true){
+      const r = el("result");
+      r.textContent = text;
+      r.className = "pill " + (ok ? "good" : "bad");
+    }
+
+    // Format BigInt using DECIMALS (7)
+    function fmtDec(x, decimals = DECIMALS){
+      if (typeof x !== "bigint") return String(x);
+      const neg = x < 0n;
+      const v = neg ? -x : x;
+      const s = v.toString().padStart(decimals + 1, "0");
+      const whole = s.slice(0, -decimals);
+      let frac = s.slice(-decimals).replace(/0+$/,"");
+      return (neg ? "-" : "") + whole + (frac ? "." + frac : "");
+    }
+
+    // Shows "raw (≈ human)"
+    function fmtBoth(x){
+      if (typeof x === "bigint") return `${x.toString()}  (≈ ${fmtDec(x)})`;
+      return String(x);
+    }
+
+    // Parse decimal string to i128 scaled by DECIMALS
+    function parseAmountToI128(amountStr, decimals = DECIMALS){
+      const s = (amountStr || "").trim();
+      if (!s) throw new Error("Enter an amount.");
+      if (!/^\d+(\.\d+)?$/.test(s)) throw new Error("Amount must be a positive number (e.g. 12 or 12.34).");
+
+      const [i, f=""] = s.split(".");
+      const frac = (f + "0".repeat(decimals)).slice(0, decimals);
+      const bi = BigInt(i + frac);
+      if (bi <= 0n) throw new Error("Amount must be > 0.");
+      return bi;
+    }
 
     // Resolve the correct RPC Server constructor across builds
     function makeRpcServer(url){
-      // Most common in the browser dist:
       if (window.StellarSdk?.rpc?.Server) return new window.StellarSdk.rpc.Server(url);
-      // Some builds:
       if (window.StellarSdk?.SorobanRpc?.Server) return new window.StellarSdk.SorobanRpc.Server(url);
-      throw new Error("Could not find RPC Server constructor (StellarSdk.rpc.Server / StellarSdk.SorobanRpc.Server). Check SDK build.");
+      throw new Error("Could not find RPC Server constructor (StellarSdk.rpc.Server / StellarSdk.SorobanRpc.Server).");
     }
 
     const Stellar = window.StellarSdk;
@@ -164,38 +211,14 @@
 
     let publicKey = null;
 
-    function setResult(text, ok=true){
-      const r = el("result");
-      r.textContent = text;
-      r.className = "pill " + (ok ? "good" : "bad");
-    }
-
-    function parseAmountToI128_7(amountStr){
-      // Stellar-style 7 decimals (like classic assets). Adjust if your vault uses a different scale.
-      const n = Number(amountStr);
-      if (!Number.isFinite(n) || n <= 0) throw new Error("Enter a positive number amount.");
-      const scaled = BigInt(Math.round(n * 1e7));
-      return scaled;
-    }
-
-    function formatMaybeNumeric(native){
-      // If native is bigint, show raw + 7dp interpretation
-      if (typeof native === "bigint"){
-        const raw = native.toString();
-        const sign = raw.startsWith("-") ? "-" : "";
-        const abs = sign ? raw.slice(1) : raw;
-        const pad = abs.padStart(8, "0");
-        const whole = pad.slice(0, -7);
-        const frac = pad.slice(-7);
-        return `${native.toString()}  (≈ ${sign}${whole}.${frac})`;
-      }
-      return (typeof native === "string" ? native : JSON.stringify(native));
-    }
+    // For read-only simulation, we can use any valid account as source.
+    // This placeholder account works for simulation-only.
+    const READONLY_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
 
     async function simulateCall(fn, argsScVals=[]){
-      if (!publicKey) publicKey = (await server.getHealth()).healthy ? publicKey : publicKey; // noop; keeps structure
-      const source = await server.getAccount(publicKey || "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"); // placeholder if not connected
-      // NOTE: For read-only calls we can use any source; RPC will simulate without submitting.
+      const sourcePk = publicKey || READONLY_SOURCE;
+      const source = await server.getAccount(sourcePk);
+
       const tx = new Stellar.TransactionBuilder(source, {
         fee: Stellar.BASE_FEE,
         networkPassphrase: NETWORK_PASSPHRASE
@@ -205,8 +228,8 @@
       .build();
 
       const sim = await server.simulateTransaction(tx);
-      if (Stellar.rpc?.isSimulationError?.(sim) || sim.error) {
-        throw new Error("Simulation failed: " + JSON.stringify(sim, null, 2));
+      if ((Stellar.rpc?.isSimulationError?.(sim)) || sim.error) {
+        throw new Error("Simulation failed: " + (sim.error ? JSON.stringify(sim.error) : JSON.stringify(sim, null, 2)));
       }
       const retval = sim.result?.retval;
       return { sim, retval };
@@ -218,6 +241,12 @@
       const native = scValToNative(retval);
       log(`← ${fn}() =`, native);
       return native;
+    }
+
+    function assembleTransaction(tx, sim){
+      if (Stellar.rpc?.assembleTransaction) return Stellar.rpc.assembleTransaction(tx, sim);
+      if (Stellar.SorobanRpc?.assembleTransaction) return Stellar.SorobanRpc.assembleTransaction(tx, sim);
+      throw new Error("assembleTransaction not found in this SDK build.");
     }
 
     async function writeFn(fn, argsScVals=[]){
@@ -235,38 +264,26 @@
 
       log(`→ simulate ${fn}()`);
       const sim = await server.simulateTransaction(tx0);
-      if (Stellar.rpc?.isSimulationError?.(sim) || sim.error) {
-        throw new Error("Simulation failed: " + JSON.stringify(sim, null, 2));
+      if ((Stellar.rpc?.isSimulationError?.(sim)) || sim.error) {
+        throw new Error("Simulation failed: " + (sim.error ? JSON.stringify(sim.error) : JSON.stringify(sim, null, 2)));
       }
 
-      // Assemble the transaction with the footprint/resources from simulation
-      const assembled =
-        (Stellar.rpc?.assembleTransaction)
-          ? Stellar.rpc.assembleTransaction(tx0, sim)
-          : (Stellar.SorobanRpc?.assembleTransaction)
-            ? Stellar.SorobanRpc.assembleTransaction(tx0, sim)
-            : null;
-
-      if (!assembled) throw new Error("assembleTransaction not found in this SDK build.");
-
+      const assembled = assembleTransaction(tx0, sim);
       const xdr = assembled.toXDR();
 
       log("→ request Freighter signature");
-      const signed = await window.freighterApi.signTransaction(xdr, {
+      const signedXdr = await window.freighterApi.signTransaction(xdr, {
         networkPassphrase: NETWORK_PASSPHRASE
       });
 
-      const signedTx = Stellar.TransactionBuilder.fromXDR(
-        signed,
-        NETWORK_PASSPHRASE
-      );
+      const signedTx = Stellar.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
 
       log("→ sendTransaction");
       const send = await server.sendTransaction(signedTx);
       log("sendTransaction =", send);
 
       // Poll until complete
-      let hash = send.hash;
+      const hash = send.hash;
       for (let i=0;i<20;i++){
         await new Promise(r => setTimeout(r, 1500));
         const res = await server.getTransaction(hash);
@@ -280,8 +297,7 @@
       setResult("Refreshing…", true);
 
       try{
-        // These function names come directly from your WASM strings:
-        // query_asset, query_share, share_price, total_assets, total_supply
+        // read everything in parallel
         const [asset, share, sp, ta, ts] = await Promise.all([
           readFn("query_asset"),
           readFn("query_share"),
@@ -290,11 +306,20 @@
           readFn("total_supply"),
         ]);
 
-        el("underlying").textContent = formatMaybeNumeric(asset);
-        el("share").textContent = formatMaybeNumeric(share);
-        el("sharePrice").textContent = formatMaybeNumeric(sp);
-        el("totalAssets").textContent = formatMaybeNumeric(ta);
-        el("totalSupply").textContent = formatMaybeNumeric(ts);
+        // Addresses are strings; numbers are often BigInt
+        el("underlying").textContent = String(asset);
+        el("share").textContent = String(share);
+
+        el("sharePrice").textContent = fmtBoth(sp);
+        el("totalAssets").textContent = fmtBoth(ta);
+        el("totalSupply").textContent = fmtBoth(ts);
+
+        // Nice headline: 1 bUSDC ≈ X USDC (assuming share_price is in asset base units per 1 share with 7 dp)
+        if (typeof sp === "bigint") {
+          el("oneShareWorth").textContent = `${fmtDec(sp)} (USDC)`;
+        } else {
+          el("oneShareWorth").textContent = String(sp);
+        }
 
         setResult("OK", true);
       }catch(e){
@@ -309,11 +334,11 @@
       try{
         if (!window.freighterApi) throw new Error("Freighter API not found. Is Freighter installed/enabled?");
         const isAllowed = await window.freighterApi.isAllowed();
-        if (!isAllowed){
-          await window.freighterApi.setAllowed();
-        }
+        if (!isAllowed) await window.freighterApi.setAllowed();
+
         publicKey = await window.freighterApi.getPublicKey();
         el("addr").textContent = publicKey;
+        el("addr").title = publicKey;
 
         // Enable write buttons
         el("btnDeposit").disabled = false;
@@ -321,6 +346,7 @@
 
         setResult("Connected", true);
         log("Connected:", publicKey);
+        await refreshState();
       }catch(e){
         setResult(e.message || String(e), false);
         log("ERROR:", e.message || String(e));
@@ -329,11 +355,11 @@
 
     async function preview(which){
       try{
-        const amt = parseAmountToI128_7(el("amount").value);
+        const amt = parseAmountToI128(el("amount").value);
         const fn = which === "deposit" ? "preview_deposit" : "preview_withdraw";
         const { retval } = await simulateCall(fn, [ nativeToScVal(amt, { type: "i128" }) ]);
         const native = scValToNative(retval);
-        setResult(`${fn}: ${formatMaybeNumeric(native)}`, true);
+        setResult(`${fn}: ${fmtBoth(native)}`, true);
       }catch(e){
         setResult(e.message || String(e), false);
       }
@@ -341,14 +367,16 @@
 
     async function doDeposit(){
       try{
-        const amt = parseAmountToI128_7(el("amount").value);
-        // Most 4626 vaults are deposit(assets, receiver). Your contract name suggests deposit exists.
-        // If your contract's signature is deposit(assets) only, remove the receiver arg.
-        const receiver = publicKey;
+        const amt = parseAmountToI128(el("amount").value);
+
+        // If your vault is deposit(assets) only, remove the receiver arg below.
+        const receiver = Stellar.Address.fromString(publicKey).toScVal();
+
         const res = await writeFn("deposit", [
           nativeToScVal(amt, { type: "i128" }),
-          Stellar.Address.fromString(receiver).toScVal()
+          receiver
         ]);
+
         setResult("Deposit SUCCESS", true);
         log("Deposit result:", res);
         await refreshState();
@@ -360,15 +388,19 @@
 
     async function doWithdraw(){
       try{
-        const amt = parseAmountToI128_7(el("amount").value);
+        const amt = parseAmountToI128(el("amount").value);
+
         // Typical 4626: withdraw(assets, receiver, owner)
-        const receiver = publicKey;
-        const owner = publicKey;
+        // If your vault is withdraw(assets) or withdraw(assets, receiver), adjust accordingly.
+        const receiver = Stellar.Address.fromString(publicKey).toScVal();
+        const owner = Stellar.Address.fromString(publicKey).toScVal();
+
         const res = await writeFn("withdraw", [
           nativeToScVal(amt, { type: "i128" }),
-          Stellar.Address.fromString(receiver).toScVal(),
-          Stellar.Address.fromString(owner).toScVal()
+          receiver,
+          owner
         ]);
+
         setResult("Withdraw SUCCESS", true);
         log("Withdraw result:", res);
         await refreshState();
