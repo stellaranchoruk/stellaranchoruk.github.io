@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mirrasets – Admin Control Panel (XDR export)</title>
+  <style>
+    :root{
+      --bg:#0b0f17;
+      --card:#111a2b;
+      --muted:#8ea0c2;
+      --text:#e8eefc;
+      --accent:#5eead4;
+      --warn:#fbbf24;
+      --bad:#fb7185;
+      --ok:#34d399;
+      --border:rgba(255,255,255,.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    body{ margin:0; background:linear-gradient(180deg,#070a10, #0b0f17 40%); color:var(--text); font-family:var(--sans); }
+    .wrap{ max-width:1200px; margin:24px auto 80px; padding:0 16px; }
+    .top{
+      display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+      padding:14px 14px; border:1px solid var(--border); border-radius:16px; background:rgba(17,26,43,.65);
+      backdrop-filter: blur(6px);
+    }
+    .title{ display:flex; flex-direction:column; gap:2px; }
+    h1{ margin:0; font-size:18px; letter-spacing:.2px; }
+    .sub{ color:var(--muted); font-size:13px; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+    button{
+      cursor:pointer; border:1px solid var(--border); background:#0f1b30; color:var(--text);
+      padding:10px 12px; border-radius:12px; font-weight:600; font-size:13px;
+    }
+    button:hover{ border-color:rgba(94,234,212,.45); }
+    button.primary{ background:rgba(94,234,212,.12); border-color:rgba(94,234,212,.35); }
+    button.danger{ background:rgba(251,113,133,.10); border-color:rgba(251,113,133,.35); }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    .pill{
+      font-family:var(--mono); font-size:12px; color:var(--muted);
+      border:1px solid var(--border); background:rgba(255,255,255,.03);
+      padding:6px 10px; border-radius:999px;
+      max-width: 100%;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .grid{ display:grid; grid-template-columns: 1fr; gap:14px; margin-top:14px; }
+    .card{
+      border:1px solid var(--border); border-radius:16px; background:rgba(17,26,43,.65);
+      padding:14px; overflow:hidden;
+    }
+    .cardHead{
+      display:flex; gap:10px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+    .assetName{ display:flex; flex-direction:column; gap:4px; }
+    .assetName b{ font-size:16px; }
+    .assetName small{ color:var(--muted); font-family:var(--mono); }
+    .twoCol{ display:grid; grid-template-columns: 1.2fr .8fr; gap:12px; }
+    @media (max-width: 980px){ .twoCol{ grid-template-columns: 1fr; } }
+    .box{ border:1px solid var(--border); border-radius:14px; padding:12px; background:rgba(255,255,255,.02); }
+    label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input, textarea{
+      width:100%; box-sizing:border-box;
+      padding:10px 10px; border-radius:12px; border:1px solid var(--border);
+      background:#0a1324; color:var(--text); font-family:var(--mono);
+      outline:none;
+    }
+    input:focus, textarea:focus{ border-color:rgba(94,234,212,.5); }
+    textarea{ min-height: 120px; resize: vertical; }
+    table{ width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px; }
+    th, td{ border-bottom:1px solid var(--border); padding:8px 6px; text-align:left; vertical-align:top; }
+    th{ color:var(--muted); font-weight:700; }
+    .hint{ color:var(--muted); font-size:12px; margin-top:6px; line-height:1.35; }
+    .status{ font-size:12px; color:var(--muted); }
+    .good{ color:var(--ok); }
+    .warn{ color:var(--warn); }
+    .bad{ color:var(--bad); }
+    .mono{ font-family:var(--mono); }
+    .actions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .log{
+      margin-top:12px; padding:12px; border-radius:14px; border:1px solid var(--border);
+      background:#071022; font-family:var(--mono); font-size:12px; color:#cbd5e1;
+      white-space:pre-wrap; max-height:220px; overflow:auto;
+    }
+    .tiny{ font-size:11px; color:var(--muted); }
+    .kv{ display:flex; gap:10px; flex-wrap:wrap; }
+    .copyRow{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="title">
+      <h1>Mirrasets – Mirrored Assets Control Panel</h1>
+      <div class="sub">Build + sign once in-browser, then export signed XDR for LOBSTR Vault. Public Network.</div>
+    </div>
+    <div class="row">
+      <span class="pill">Horizon: https://horizon.stellar.org</span>
+      <span class="pill">Network: Public</span>
+      <button class="primary" id="btnRefresh">Refresh offers & balances</button>
+    </div>
+  </div>
+
+  <div class="grid" id="cards"></div>
+
+  <div class="card">
+    <div class="cardHead">
+      <div class="assetName">
+        <b>Activity</b>
+        <small>Logs</small>
+      </div>
+      <div class="actions">
+        <button class="danger" id="btnClearLog">Clear log</button>
+      </div>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="tiny">
+      Keys are only used in-memory to sign XDR. Still: do this only on a trusted machine.
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/stellar-sdk@12.2.0/dist/stellar-sdk.min.js"></script>
+
+<script>
+/**
+ * CONFIG (your corrected details)
+ */
+const HORIZON_URL = "https://horizon.stellar.org";
+const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
+const server = new StellarSdk.Horizon.Server(HORIZON_URL);
+
+// Circle USDC (corrected by you)
+const CIRCLE_USDC_CODE = "USDC";
+const CIRCLE_USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+
+// Your issuing/sales wallets (issuer for each mirrored asset)
+const ISSUERS = {
+  GBPC: "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
+  EURC: "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC",
+  KRWC: "GA4JBPWVFUT2FETDSMSGBYDGH4FROYB5SYKLVQO7WGNZHCSB63OIKRWC",
+  USDC: "GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC"
+};
+
+// Offer rules
+const RULES = {
+  GBPC: { sellAmounts:[40000, 80000, 120000], sellSpreads:[0.005, 0.0075, 0.01], buySpread:0.01 },
+  EURC: { sellAmounts:[50000, 100000, 150000], sellSpreads:[0.005, 0.0075, 0.01], buySpread:0.01 },
+  KRWC: { sellAmounts:[72000000, 144000000, 216000000], sellSpreads:[0.005, 0.0075, 0.01], buySpread:0.01 },
+
+  // Mirrored USDC:
+  // - Leave huge SELL at 1.000 alone
+  // - Update BUY at 0.995 (Circle USDC per Mirrored USDC), amount = full Circle USDC balance
+  USDC: { buyFixedCirclePerMirrored: 0.995 }
+};
+
+const state = { data:{} };
+
+const elLog = document.getElementById("log");
+function log(msg){
+  const t = new Date().toISOString().replace("T"," ").replace("Z","");
+  elLog.textContent += `[${t}] ${msg}\n`;
+  elLog.scrollTop = elLog.scrollHeight;
+}
+function fmt(n, dp=7){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:dp}); }
+function fmtStrict(n, dp=7){
+  const x = Number(n);
+  if (!Number.isFinite(x)) throw new Error("Bad number");
+  return x.toFixed(dp).replace(/\.?0+$/,"");
+}
+function makeAsset(code, issuer){ return new StellarSdk.Asset(code, issuer); }
+function isNative(a){ return a && a.asset_type === "native"; }
+function assetEq(a, code, issuer){
+  return a && !isNative(a) && a.asset_code === code && a.asset_issuer === issuer;
+}
+function offerPriceToNumber(o){
+  if (o.raw && typeof o.raw.price === "string") return Number(o.raw.price);
+  if (typeof o.price === "string") return Number(o.price);
+  if (o.price_r && o.price_r.d) return Number(o.price_r.n)/Number(o.price_r.d);
+  return NaN;
+}
+function findBalance(balances, code, issuer){
+  const b = balances.find(x => x.asset_type !== "native" && x.asset_code === code && x.asset_issuer === issuer);
+  return b ? Number(b.balance) : 0;
+}
+function pickOfferByAmount(offers, predicate, targetAmount){
+  const c = offers.filter(predicate);
+  if (!c.length) return null;
+  let best=null, bestDiff=Infinity;
+  for (const o of c){
+    const diff = Math.abs(Number(o.amount) - Number(targetAmount));
+    if (diff < bestDiff){ bestDiff = diff; best=o; }
+  }
+  return best;
+}
+
+async function fetchAccountData(pubKey){
+  const acct = await server.loadAccount(pubKey);
+  const balances = acct.balances.map(b => ({
+    asset_type: b.asset_type,
+    asset_code: b.asset_code || "XLM",
+    asset_issuer: b.asset_issuer || "",
+    balance: b.balance
+  }));
+
+  const offers = [];
+  let page = await server.offers("accounts", pubKey).limit(200).call();
+  while(true){
+    for (const rec of page.records){
+      offers.push({
+        id: rec.id,
+        selling: rec.selling,
+        buying: rec.buying,
+        amount: rec.amount,
+        price_r: rec.price_r,
+        raw: rec
+      });
+    }
+    if (!page.next || page.records.length < 200) break;
+    page = await page.next();
+  }
+  return { balances, offers };
+}
+
+function computeQuotes(code, midCirclePerAsset){
+  // midCirclePerAsset = (Circle USDC) per 1 mirrored unit
+  if (code === "USDC"){
+    const buyCirclePerMirrored = RULES.USDC.buyFixedCirclePerMirrored; // 0.995
+    const buyMirroredPerCircle = 1 / buyCirclePerMirrored;
+    return { buyCirclePerMirrored, buyMirroredPerCircle };
+  }
+
+  const mid = Number(midCirclePerAsset);
+  if (!Number.isFinite(mid) || mid <= 0) throw new Error("Bad XE mid price");
+
+  const r = RULES[code];
+  const sellTiers = r.sellSpreads.map((s,i)=>({
+    idx:i,
+    spread:s,
+    amount:r.sellAmounts[i],
+    priceCirclePerAsset: mid * (1 + s)
+  }));
+
+  const buyCirclePerAsset = mid * (1 - r.buySpread);
+  const buyAssetPerCircle = 1 / buyCirclePerAsset;
+
+  return { mid, sellTiers, buyCirclePerAsset, buyAssetPerCircle };
+}
+
+function buildCards(){
+  const root = document.getElementById("cards");
+  root.innerHTML = "";
+
+  for (const code of ["GBPC","EURC","KRWC","USDC"]){
+    const issuer = ISSUERS[code];
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="cardHead">
+        <div class="assetName">
+          <b>${code}</b>
+          <small>${issuer}</small>
+        </div>
+        <div class="kv">
+          <span class="pill" id="pill-bal-${code}">Circle USDC: —</span>
+          <span class="pill" id="pill-off-${code}">Offers: —</span>
+        </div>
+      </div>
+
+      <div class="twoCol">
+        <div class="box">
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div style="flex:1 1 320px;">
+              <label>Secret key for this issuing wallet (starts with S…)</label>
+              <input id="inp-sk-${code}" placeholder="S.................................................." autocomplete="off" />
+              <div class="hint">
+                Used only to sign the built transaction and export signed XDR. Not stored.
+              </div>
+            </div>
+
+            <div style="flex:1 1 240px;">
+              <label>
+                ${code==="USDC"
+                  ? "Mirrored USDC: buy price fixed at 0.995 (Circle USDC per 1 Mirrored USDC)"
+                  : "Paste XE mid (Circle USDC per 1 " + code + ")"
+                }
+              </label>
+              <input id="inp-mid-${code}" ${code==="USDC" ? "value='1' disabled" : "placeholder='e.g. 1.27456'"} />
+              <div class="hint">
+                ${code==="USDC"
+                  ? "This wallet issues Mirrored USDC (asset code USDC, issuer is this wallet). Only updates BUY offer at 0.995. Leaves the huge SELL at 1.000 untouched."
+                  : "You paste the mid. Panel sets SELL tiers at +0.5/+0.75/+1.0 and BUY at −1.0 (reserve-backed)."
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="actions" style="margin-top:10px;">
+            <button id="btn-preview-${code}">Preview math + match offers</button>
+            <button class="primary" id="btn-build-${code}">Build + sign (export XDR)</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <table id="tbl-${code}">
+              <thead>
+                <tr>
+                  <th>Offer</th>
+                  <th>Direction</th>
+                  <th>Amount (selling)</th>
+                  <th>Price</th>
+                  <th>Matched offer id</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="hint" id="hint-${code}"></div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <label>Signed XDR (base64)</label>
+            <textarea id="out-xdr-${code}" placeholder="Click Build + sign to generate…" readonly></textarea>
+            <div class="copyRow">
+              <button id="btn-copy-${code}">Copy XDR</button>
+            </div>
+            <div class="tiny">
+              Paste into LOBSTR Vault as “Transaction XDR” (already signed once). Then finish signing/submitting on phone.
+            </div>
+          </div>
+        </div>
+
+        <div class="box">
+          <label>Current offers (raw)</label>
+          <div class="log" id="raw-${code}" style="max-height:330px;"></div>
+          <div class="tiny">
+            Matching strategy: pair + direction + closest amount. If no match, offerId=0 (creates new offer).
+          </div>
+        </div>
+      </div>
+    `;
+    root.appendChild(card);
+
+    document.getElementById(`btn-preview-${code}`).addEventListener("click", ()=>preview(code));
+    document.getElementById(`btn-build-${code}`).addEventListener("click", ()=>buildAndSign(code));
+    document.getElementById(`btn-copy-${code}`).addEventListener("click", ()=>copyXDR(code));
+  }
+}
+
+function renderRawOffers(code){
+  const out = document.getElementById(`raw-${code}`);
+  const data = state.data[code];
+  if (!data){ out.textContent = "No data yet. Click Refresh offers & balances."; return; }
+
+  const lines = data.offers.map(o=>{
+    const sell = isNative(o.selling) ? "XLM" : `${o.selling.asset_code}:${o.selling.asset_issuer.slice(0,6)}…`;
+    const buy  = isNative(o.buying)  ? "XLM" : `${o.buying.asset_code}:${o.buying.asset_issuer.slice(0,6)}…`;
+    const p = offerPriceToNumber(o);
+    return `id=${o.id}  sell=${sell}  buy=${buy}  amount=${o.amount}  price=${p}`;
+  });
+  out.textContent = lines.length ? lines.join("\n") : "No offers.";
+}
+
+function updatePills(code){
+  const data = state.data[code];
+  const pillBal = document.getElementById(`pill-bal-${code}`);
+  const pillOff = document.getElementById(`pill-off-${code}`);
+  if (!data){
+    pillBal.textContent = "Circle USDC: —";
+    pillOff.textContent = "Offers: —";
+    return;
+  }
+  const usdcBal = findBalance(data.balances, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
+  pillBal.textContent = `Circle USDC: ${fmt(usdcBal, 2)}`;
+  pillOff.textContent = `Offers: ${data.offers.length}`;
+}
+
+async function refreshAll(){
+  log("Refreshing offers & balances for all issuing wallets…");
+  for (const code of ["GBPC","EURC","KRWC","USDC"]){
+    const pub = ISSUERS[code];
+    try{
+      const data = await fetchAccountData(pub);
+      state.data[code] = data;
+      updatePills(code);
+      renderRawOffers(code);
+      preview(code);
+      log(`${code}: loaded balances + ${data.offers.length} offers`);
+    }catch(e){
+      log(`${code}: failed to load: ${e?.message || e}`);
+      document.getElementById(`hint-${code}`).innerHTML = `<span style="color:var(--bad)">Failed: ${e?.message || e}</span>`;
+    }
+  }
+  log("Refresh complete.");
+}
+
+function preview(code){
+  const data = state.data[code];
+  const tbody = document.querySelector(`#tbl-${code} tbody`);
+  const hint = document.getElementById(`hint-${code}`);
+  tbody.innerHTML = "";
+  hint.textContent = "";
+
+  if (!data){
+    hint.innerHTML = `<span style="color:var(--warn)">No data yet. Click “Refresh offers & balances”.</span>`;
+    return;
+  }
+
+  // build quotes
+  let q;
+  try{
+    if (code === "USDC"){
+      q = computeQuotes("USDC", 1);
+    } else {
+      const mid = document.getElementById(`inp-mid-${code}`).value.trim();
+      if (!mid) throw new Error("Paste XE mid first.");
+      q = computeQuotes(code, mid);
+    }
+  }catch(e){
+    hint.innerHTML = `<span style="color:var(--bad)">${e.message || e}</span>`;
+    return;
+  }
+
+  const offers = data.offers;
+  const circle = makeAsset(CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
+  const mirrored = makeAsset(code, ISSUERS[code]);
+
+  const rows = [];
+
+  if (code !== "USDC"){
+    // SELL tiers: selling mirrored, buying circle
+    for (const t of q.sellTiers){
+      const matched = pickOfferByAmount(
+        offers,
+        (o)=>assetEq(o.selling, code, ISSUERS[code]) && assetEq(o.buying, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER),
+        t.amount
+      );
+      rows.push({
+        label:`Sell tier ${t.idx+1} (+${t.spread*100}%)`,
+        dir:`${code} → Circle USDC`,
+        amount:t.amount,
+        price:`${fmt(t.priceCirclePerAsset, 10)} Circle/${code}`,
+        id: matched ? matched.id : "—"
+      });
+    }
+
+    // BUY: selling circle, buying mirrored; amount = full circle balance
+    const usdcBal = findBalance(data.balances, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
+    const matchedBuy = pickOfferByAmount(
+      offers,
+      (o)=>assetEq(o.selling, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER) && assetEq(o.buying, code, ISSUERS[code]),
+      usdcBal || 0
+    );
+    rows.push({
+      label:`Buy (−1.0%) uses full reserve`,
+      dir:`Circle USDC → ${code}`,
+      amount: usdcBal ? fmt(usdcBal, 2) : "0",
+      price:`${fmt(q.buyCirclePerAsset, 10)} Circle/${code}  (offer price = ${fmt(q.buyAssetPerCircle, 14)} ${code}/Circle)`,
+      id: matchedBuy ? matchedBuy.id : "—"
+    });
+
+    hint.innerHTML = `<span class="status">Mid: <span class="mono">${fmt(q.mid, 10)}</span> • Buy: <span class="mono">${fmt(q.buyCirclePerAsset, 10)}</span> Circle/${code}</span>`;
+  } else {
+    const usdcBal = findBalance(data.balances, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
+    const matchedBuy = pickOfferByAmount(
+      offers,
+      (o)=>assetEq(o.selling, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER) && assetEq(o.buying, "USDC", ISSUERS["USDC"]),
+      usdcBal || 0
+    );
+    rows.push({
+      label:`Buy @ 0.995 uses full reserve`,
+      dir:`Circle USDC → Mirrored USDC`,
+      amount: usdcBal ? fmt(usdcBal, 2) : "0",
+      price:`${fmt(q.buyCirclePerMirrored, 6)} Circle/MirroredUSDC  (offer price = ${fmt(q.buyMirroredPerCircle, 14)} Mirrored/Circle)`,
+      id: matchedBuy ? matchedBuy.id : "—"
+    });
+
+    hint.innerHTML = `<span class="status">Mirrored USDC wallet: only BUY updated at 0.995. Huge SELL at 1.000 is untouched.</span>`;
+  }
+
+  for (const r of rows){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.label}</td>
+      <td>${r.dir}</td>
+      <td>${r.amount}</td>
+      <td>${r.price}</td>
+      <td class="mono">${r.id}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+async function buildAndSign(code){
+  const pub = ISSUERS[code];
+  const data = state.data[code];
+  const out = document.getElementById(`out-xdr-${code}`);
+  out.value = "";
+
+  if (!data){
+    alert("No data yet. Click Refresh first.");
+    return;
+  }
+
+  const sk = document.getElementById(`inp-sk-${code}`).value.trim();
+  if (!sk || !sk.startsWith("S")){
+    alert("Paste the secret key for this issuing wallet (starts with S…).");
+    return;
+  }
+
+  // ensure secret matches public
+  let kp;
+  try{
+    kp = StellarSdk.Keypair.fromSecret(sk);
+  }catch(e){
+    alert("Invalid secret key format.");
+    return;
+  }
+  if (kp.publicKey() !== pub){
+    alert(`Secret key does not match the issuer address for ${code}.\nExpected ${pub}\nGot ${kp.publicKey()}`);
+    return;
+  }
+
+  // quotes
+  let q;
+  try{
+    if (code === "USDC") q = computeQuotes("USDC", 1);
+    else {
+      const mid = document.getElementById(`inp-mid-${code}`).value.trim();
+      if (!mid) throw new Error("Paste XE mid first.");
+      q = computeQuotes(code, mid);
+    }
+  }catch(e){
+    alert(e.message || e);
+    return;
+  }
+
+  log(`${code}: building tx…`);
+
+  // load fresh account + base fee
+  const acct = await server.loadAccount(pub);
+  const baseFee = await server.fetchBaseFee();
+
+  const circle = makeAsset(CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
+  const mirrored = makeAsset(code, pub);
+  const offers = data.offers;
+  const circleBal = findBalance(data.balances, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
+
+  const txb = new StellarSdk.TransactionBuilder(acct, {
+    fee: (Number(baseFee) * 2).toString(),
+    networkPassphrase: NETWORK_PASSPHRASE
+  });
+
+  const warnings = [];
+
+  if (code !== "USDC"){
+    // 3 SELL tiers
+    for (const t of q.sellTiers){
+      const matched = pickOfferByAmount(
+        offers,
+        (o)=>assetEq(o.selling, code, pub) && assetEq(o.buying, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER),
+        t.amount
+      );
+      if (!matched) warnings.push(`No SELL match for amount=${t.amount} → will create new offer.`);
+      txb.addOperation(StellarSdk.Operation.manageSellOffer({
+        selling: mirrored,
+        buying: circle,
+        amount: fmtStrict(t.amount, 7),
+        price: fmtStrict(t.priceCirclePerAsset, 12),
+        offerId: matched ? matched.id : "0"
+      }));
+    }
+
+    // BUY offer: sell Circle USDC for mirrored
+    const matchedBuy = pickOfferByAmount(
+      offers,
+      (o)=>assetEq(o.selling, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER) && assetEq(o.buying, code, pub),
+      circleBal || 0
+    );
+    if (!matchedBuy) warnings.push(`No BUY match → will create new buy offer.`);
+    if (circleBal <= 0.0000001) warnings.push(`Circle USDC balance ~0 → buy amount will be 0 (removes/empties buy).`);
+
+    txb.addOperation(StellarSdk.Operation.manageSellOffer({
+      selling: circle,
+      buying: mirrored,
+      amount: fmtStrict(Math.max(circleBal, 0), 7),
+      price: fmtStrict(q.buyAssetPerCircle, 12), // mirrored per circle
+      offerId: matchedBuy ? matchedBuy.id : "0"
+    }));
+  } else {
+    // Mirrored USDC wallet: only BUY at 0.995
+    const matchedBuy = pickOfferByAmount(
+      offers,
+      (o)=>assetEq(o.selling, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER) && assetEq(o.buying, "USDC", pub),
+      circleBal || 0
+    );
+    if (!matchedBuy) warnings.push(`No BUY match → will create new buy offer.`);
+    if (circleBal <= 0.0000001) warnings.push(`Circle USDC balance ~0 → buy amount will be 0 (removes/empties buy).`);
+
+    txb.addOperation(StellarSdk.Operation.manageSellOffer({
+      selling: circle,
+      buying: mirrored,
+      amount: fmtStrict(Math.max(circleBal, 0), 7),
+      price: fmtStrict(q.buyMirroredPerCircle, 12), // mirrored per circle
+      offerId: matchedBuy ? matchedBuy.id : "0"
+    }));
+  }
+
+  const tx = txb.setTimeout(120).build();
+
+  // sign once (first sig)
+  tx.sign(kp);
+
+  const signedXDR = tx.toXDR();
+
+  if (warnings.length){
+    log(`${code}: warnings:\n- ${warnings.join("\n- ")}`);
+  }
+  log(`${code}: ✅ signed XDR generated (${signedXDR.length} chars).`);
+
+  out.value = signedXDR;
+
+  // wipe key input field to reduce accidental exposure
+  document.getElementById(`inp-sk-${code}`).value = "";
+}
+
+async function copyXDR(code){
+  const out = document.getElementById(`out-xdr-${code}`);
+  const v = out.value.trim();
+  if (!v){ alert("No XDR yet. Click Build + sign."); return; }
+  await navigator.clipboard.writeText(v);
+  log(`${code}: XDR copied to clipboard.`);
+}
+
+buildCards();
+
+document.getElementById("btnRefresh").addEventListener("click", refreshAll);
+document.getElementById("btnClearLog").addEventListener("click", ()=>{ elLog.textContent=""; });
+
+log("Ready. Click “Refresh offers & balances”.");
+</script>
+</body>
+</html>
