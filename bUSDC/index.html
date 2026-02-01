@@ -438,8 +438,7 @@
     </div>
   </div>
 
-  <!-- WalletConnect + QR deps -->
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/umd/index.min.js"></script>
+  <!-- QR dep (keep) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
   <script type="module">
@@ -459,11 +458,7 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
-    // If you use Vault detection on your AQUAmb page, put the same Vault signer key here.
-    // If you don't need Vault-detection/co-sign UI right now, leave it blank and the modal won't show.
-    const VAULT_SIGNER_KEY = ""; // e.g. "G...."
-
-    // decimals: contract uses i128 values; we'll format as 7dp by default.
+    const VAULT_SIGNER_KEY = ""; // optional
     const DECIMALS = 7;
 
     // -----------------------
@@ -471,6 +466,14 @@
     // -----------------------
     import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?bundle";
     const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
+
+    // -----------------------
+    // WalletConnect ESM loader (FIX)
+    // -----------------------
+    async function getSignClient(){
+      const mod = await import("https://esm.sh/@walletconnect/sign-client@2.17.1?bundle");
+      return mod.default ?? mod.SignClient ?? mod;
+    }
 
     // -----------------------
     // DOM helpers
@@ -535,7 +538,6 @@
       if (StellarSdk.rpc?.Server) return new StellarSdk.rpc.Server(url, { allowHttp: url.startsWith("http://") });
       throw new Error("No Soroban RPC Server constructor found in stellar-sdk build.");
     }
-    const soroban = makeSorobanServer(SOROBAN_RPC);
 
     // Simulation source: use pubnet master for read sims (exists)
     const SIM_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
@@ -550,7 +552,6 @@
     let pubkey = null;
     let secret = null;
 
-    const SignClient = window.SignClient?.default || window.SignClient;
     let wcClient = null;
     let wcSession = null;
     let latestWcUri = null;
@@ -636,7 +637,6 @@
     const wcBtn = $("wcBtn");
     const freighterExtBtn = $("freighterExtBtn");
     const qrArea = $("qrArea");
-    const qrCanvas = $("qrCanvas");
     const btnLobstr = $("btnLobstr");
     const btnFreighter = $("btnFreighter");
     const rawWcLink = $("rawWcLink");
@@ -668,7 +668,7 @@
     }
 
     // -----------------------
-    // WalletConnect utilities (same pattern)
+    // WalletConnect utilities
     // -----------------------
     const isIOS = ()=> /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -682,6 +682,9 @@
 
     async function ensureWcClient({ retry=false } = {}){
       if(wcClient) return wcClient;
+
+      const SignClient = await getSignClient(); // FIX: ESM import
+
       try{
         wcClient = await SignClient.init({
           projectId: PROJECT_ID,
@@ -764,7 +767,7 @@
     // Modals
     // -----------------------
     function openModal(){ backdrop.classList.add("open"); loginModal.classList.add("open"); }
-    function closeModalFn(){ backdrop.classList.remove("open"); loginModal.classList.remove("open"); qrArea.style.display="none"; }
+    function closeModalFn(){ backdrop.classList.remove("open"); loginModal.classList.remove("open"); $("qrArea").style.display="none"; }
     connectBtn.onclick = openModal;
     closeModal.onclick = closeModalFn;
     backdrop.addEventListener("click", closeModalFn);
@@ -804,14 +807,14 @@
 
         await QRCode.toCanvas($("qrCanvas"), uri, { width:256, margin:1 });
         $("qrArea").style.display = "flex";
-        $("rawWcLink").href = uri;
+        rawWcLink.href = uri;
 
-        $("linkStatus").textContent = "Loading Freighter deep link…";
+        linkStatus.textContent = "Loading Freighter deep link…";
         const freighterLinks = await getFreighterLinks();
-        $("linkStatus").textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
 
-        $("btnLobstr").onclick = ()=> openLobstrApp(latestWcUri);
-        $("btnFreighter").onclick = async ()=>{
+        btnLobstr.onclick = ()=> openLobstrApp(latestWcUri);
+        btnFreighter.onclick = async ()=>{
           const links = await getFreighterLinks();
           openFreighterSmart(links, latestWcUri);
         };
@@ -900,17 +903,13 @@
     refreshBalBtn.onclick = refreshBalance;
 
     // -----------------------
-    // Soroban read helpers (decode ScVals properly)
+    // Soroban read helpers
     // -----------------------
     function scvToNativeFromSim(sim){
-      // prefer per-op results list (most reliable)
       const r0 = sim?.result?.results?.[0]?.xdr;
       if(r0) return StellarSdk.scValToNative(r0);
-
-      // fallback: retval
       const rv = sim?.result?.retval;
       if(rv) return StellarSdk.scValToNative(rv);
-
       return null;
     }
 
@@ -950,9 +949,9 @@
         const assetId = scvToNativeFromSim(assetSim);
         const shareId = scvToNativeFromSim(shareSim);
 
-        const sharePrice = scvToNativeFromSim(spSim);  // bigint expected
-        const totalAssets = scvToNativeFromSim(taSim);  // bigint expected
-        const totalSupply = scvToNativeFromSim(tsSim);  // bigint expected
+        const sharePrice = scvToNativeFromSim(spSim);
+        const totalAssets = scvToNativeFromSim(taSim);
+        const totalSupply = scvToNativeFromSim(tsSim);
 
         assetOut.textContent = String(assetId ?? "—");
         shareOut.textContent = String(shareId ?? "—");
@@ -983,7 +982,7 @@
     refreshBtn.onclick = refreshState;
 
     // -----------------------
-    // Previews (return (i128, i128) => array of bigint)
+    // Previews
     // -----------------------
     async function doPreview(method, amountStr, outEl){
       try{
@@ -992,11 +991,8 @@
         const simRes = await simulate(method, [ StellarSdk.nativeToScVal(amt, { type:"i128" }) ]);
         const native = scvToNativeFromSim(simRes);
 
-        // expect [a,b]
         if (Array.isArray(native) && native.length >= 2){
-          const a = native[0];
-          const b = native[1];
-          outEl.textContent = `(${fmtScaledBigint(BigInt(a))}, ${fmtScaledBigint(BigInt(b))})`;
+          outEl.textContent = `(${fmtScaledBigint(BigInt(native[0]))}, ${fmtScaledBigint(BigInt(native[1]))})`;
         } else {
           outEl.textContent = String(native ?? "—");
         }
@@ -1004,10 +1000,10 @@
         outEl.textContent = `Error: ${e.message || e}`;
       }
     }
-    prevDepositBtn.onclick = ()=> doPreview("preview_deposit", prevDepositAmt.value, prevDepositOut);
-    prevWithdrawBtn.onclick = ()=> doPreview("preview_withdraw", prevWithdrawAmt.value, prevWithdrawOut);
-    prevMintBtn.onclick = ()=> doPreview("preview_mint", prevMintAmt.value, prevMintOut);
-    prevRedeemBtn.onclick = ()=> doPreview("preview_redeem", prevRedeemAmt.value, prevRedeemOut);
+    $("prevDepositBtn").onclick = ()=> doPreview("preview_deposit", prevDepositAmt.value, prevDepositOut);
+    $("prevWithdrawBtn").onclick = ()=> doPreview("preview_withdraw", prevWithdrawAmt.value, prevWithdrawOut);
+    $("prevMintBtn").onclick = ()=> doPreview("preview_mint", prevMintAmt.value, prevMintOut);
+    $("prevRedeemBtn").onclick = ()=> doPreview("preview_redeem", prevRedeemAmt.value, prevRedeemOut);
 
     // -----------------------
     // Signing for Soroban tx
@@ -1045,7 +1041,6 @@
       if(send.status !== "PENDING" && send.status !== "SUCCESS"){
         throw new Error(`sendTransaction: ${send.status}`);
       }
-      // poll
       let res = await server.getTransaction(send.hash);
       for(let i=0; i<18 && res.status==="NOT_FOUND"; i++){
         await new Promise(r=>setTimeout(r, 900));
@@ -1055,7 +1050,6 @@
       return res;
     }
 
-    // Optional: vault detection (if you set VAULT_SIGNER_KEY)
     async function hasVault(account){
       if(!VAULT_SIGNER_KEY) return false;
       try{
@@ -1068,9 +1062,6 @@
       }
     }
 
-    // -----------------------
-    // Build & prepare Soroban tx (exact signature: i128, Address, Address, Address)
-    // -----------------------
     async function buildPreparedXdr(method, amountBig){
       if(!pubkey) throw new Error("Connect a wallet first.");
       const server = makeSorobanServer(SOROBAN_RPC);
@@ -1087,7 +1078,6 @@
         .setTimeout(180)
         .build();
 
-      // prepare to attach footprint/resources
       const sim = await server.simulateTransaction(tx0);
       if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
         throw new Error("Simulation error: " + jsonBig(sim));
@@ -1100,6 +1090,12 @@
       statusEl.textContent = "";
       try{
         if(!pubkey){ openModal(); return; }
+
+        // IMPORTANT: block read-only modes early (prevents confusing simulation errors)
+        if(mode==="pubkey" || mode==="none"){
+          throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
+        }
+
         const amt = parseDecimalToBigint(inputEl.value);
         if(!(amt > 0n)) throw new Error("Enter an amount.");
 
@@ -1108,7 +1104,6 @@
 
         const signed = await signXdr(xdr);
 
-        // if Vault-protected: show signed xdr and stop
         if(await hasVault(pubkey)){
           statusEl.textContent = "Signed. Vault co-sign required. (Use the XDR shown above.)";
           toast({type:"info", title:"Vault", message:"Signed. Complete co-signing in LOBSTR Vault."});
@@ -1128,15 +1123,15 @@
     }
 
     // wire actions + XDR toggles
-    depositXdrToggle.onclick = ()=> toggleTextarea(depositXdr, depositXdrToggle);
-    withdrawXdrToggle.onclick = ()=> toggleTextarea(withdrawXdr, withdrawXdrToggle);
-    mintXdrToggle.onclick = ()=> toggleTextarea(mintXdr, mintXdrToggle);
-    redeemXdrToggle.onclick = ()=> toggleTextarea(redeemXdr, redeemXdrToggle);
+    $("depositXdrToggle").onclick = ()=> toggleTextarea($("depositXdr"), $("depositXdrToggle"));
+    $("withdrawXdrToggle").onclick = ()=> toggleTextarea($("withdrawXdr"), $("withdrawXdrToggle"));
+    $("mintXdrToggle").onclick = ()=> toggleTextarea($("mintXdr"), $("mintXdrToggle"));
+    $("redeemXdrToggle").onclick = ()=> toggleTextarea($("redeemXdr"), $("redeemXdrToggle"));
 
-    depositBtn.onclick = ()=> doAction("deposit", depositAmt, depositXdr, depositStatus);
-    withdrawBtn.onclick = ()=> doAction("withdraw", withdrawAmt, withdrawXdr, withdrawStatus);
-    mintBtn.onclick    = ()=> doAction("mint", mintAmt, mintXdr, mintStatus);
-    redeemBtn.onclick  = ()=> doAction("redeem", redeemAmt, redeemXdr, redeemStatus);
+    $("depositBtn").onclick = ()=> doAction("deposit", $("depositAmt"), $("depositXdr"), $("depositStatus"));
+    $("withdrawBtn").onclick = ()=> doAction("withdraw", $("withdrawAmt"), $("withdrawXdr"), $("withdrawStatus"));
+    $("mintBtn").onclick    = ()=> doAction("mint", $("mintAmt"), $("mintXdr"), $("mintStatus"));
+    $("redeemBtn").onclick  = ()=> doAction("redeem", $("redeemAmt"), $("redeemXdr"), $("redeemStatus"));
 
     // logs toggle
     toggleLogsBtn.onclick = ()=>{
