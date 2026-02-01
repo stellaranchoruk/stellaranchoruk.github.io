@@ -801,4 +801,418 @@
 
     freighterExtBtn.onclick = async ()=>{
       try{
-        const freighter = await ensureFreighter
+        const freighter = await ensureFreighterApi();
+        if(!freighter){ alert("Freighter extension not detected."); return; }
+
+        let address = "";
+        try { address = await freighter.getPublicKey(); } catch {}
+        if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
+        if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
+        if(!address){ alert("Freighter connect denied or failed."); return; }
+
+        secretKey = null;
+        closeModalFn();
+        setConnected(address, "freighter");
+        toast("Freighter connected.");
+      }catch(e){
+        console.error(e);
+        alert("Freighter connect failed.");
+      }
+    };
+
+    // -----------------------
+    // WalletConnect connect
+    // -----------------------
+    wcBtn.onclick = async ()=>{
+      try{
+        const sc = await ensureClient();
+        toast("Starting WalletConnect…");
+
+        const { uri, approval } = await sc.connect({
+          optionalNamespaces: {
+            stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+          }
+        });
+
+        if(!uri) throw new Error("No WalletConnect URI");
+        latestWcUri = uri;
+
+        try { await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 }); } catch {}
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
+
+        linkStatus.textContent = "Loading Freighter deep link…";
+        const freighterLinks = await getFreighterLinks();
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+
+        btnLobstr.onclick = ()=> openLobstrApp(latestWcUri);
+        btnFreighter.onclick = async ()=>{
+          const links = await getFreighterLinks();
+          openFreighterSmart(links, latestWcUri);
+        };
+
+        session = await approval();
+
+        // Extract address
+        const accounts = session.namespaces?.stellar?.accounts || [];
+        const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+        const address = first.split(":")[2] || "";
+        if(!isValidG(address)) throw new Error("WC returned invalid address.");
+
+        secretKey = null;
+        wcClient = sc;
+        qrArea.style.display="none";
+        closeModalFn();
+        setConnected(address, "wc");
+        toast("WalletConnect connected.");
+      }catch(e){
+        console.error(e);
+        toast("Connection canceled or failed.", true);
+      }
+    };
+
+    // Sign buttons inside sign modal
+    signLobstr.onclick = ()=> { if(latestWcUri) openLobstrApp(latestWcUri); };
+    signFreighter.onclick = async ()=> {
+      if(!latestWcUri) return;
+      const links = await getFreighterLinks();
+      openFreighterSmart(links, latestWcUri);
+    };
+
+    // Disconnect
+    disconnectBtn.onclick = async ()=>{
+      try{
+        if(connectionMode==="wc" && wcClient && session){
+          await wcClient.disconnect({ topic: session.topic, reason:{ code:6000, message:"User disconnected" }});
+        }
+      }catch(e){ console.warn(e); }
+      session = null;
+      wcClient = null;
+      secretKey = null;
+      setConnected("", "none");
+      toast("Disconnected.");
+    };
+
+    // Manual pubkey / secret key modes
+    usePubkeyBtn.onclick = ()=>{
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)) { toast("Invalid public key.", true); return; }
+      secretKey = null;
+      setConnected(pk, "pubkey");
+      toast("Pubkey set (read-only).");
+    };
+    useSecretBtn.onclick = ()=>{
+      const sk = seckeyEl.value.trim();
+      if(!isValidS(sk)) { toast("Invalid secret key.", true); return; }
+      const kp = SDK.Keypair.fromSecret(sk);
+      secretKey = sk;
+      setConnected(kp.publicKey(), "secret");
+      toast("Secret key set (local signing).");
+    };
+    openExplorerBtn.onclick = ()=>{
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)) return;
+      window.open(`https://stellar.expert/explorer/public/account/${pk}`, "_blank", "noopener,noreferrer");
+    };
+
+    // -----------------------
+    // Signing (shared pattern)
+    // -----------------------
+    const wcRequest = (method, xdr) => wcClient.request({
+      topic: session.topic, chainId: "stellar:pubnet",
+      request: { jsonrpc:"2.0", method, params:{ xdr } }
+    });
+
+    async function signCurrent(xdr){
+      if(connectionMode==="wc"){
+        const r = await wcRequest("stellar_signXDR", xdr);
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      if(connectionMode==="freighter"){
+        const api = await ensureFreighterApi();
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK, accountToSign: pubkey });
+        if(res?.error) throw new Error(res.error.message||"Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      if(connectionMode==="secret"){
+        if(!secretKey) throw new Error("No secret key loaded.");
+        const tx = SDK.TransactionBuilder.fromXDR(xdr, NETWORK);
+        tx.sign(SDK.Keypair.fromSecret(secretKey));
+        return tx.toXDR();
+      }
+      throw new Error("Not connected (or read-only pubkey mode).");
+    }
+
+    async function handleSignedSorobanXdr(signedXdr, statusEl){
+      const pk = pubkeyEl.value.trim();
+      const hasVault = await detectVault(pk);
+      if(hasVault){
+        try{ await navigator.clipboard.writeText(signedXdr); }catch{}
+        openVaultModal(signedXdr);
+        if(statusEl) statusEl.textContent = "Signed. Vault co-sign required (XDR copied / shown).";
+        return null;
+      }
+      const final = await submitToSoroban(signedXdr);
+      return final;
+    }
+
+    async function submitToSoroban(signedXdr){
+      const tx = SDK.TransactionBuilder.fromXDR(signedXdr, NETWORK);
+      const send = await rpc().sendTransaction(tx);
+      if (send.status !== "PENDING" && send.status !== "SUCCESS"){
+        throw new Error(`Soroban send failed: ${send.status}`);
+      }
+      let final = await rpc().getTransaction(send.hash);
+      let tries = 0;
+      while(final.status === "NOT_FOUND" && tries < 12){
+        await new Promise(r=>setTimeout(r, 800));
+        final = await rpc().getTransaction(send.hash);
+        tries++;
+      }
+      if(final.status !== "SUCCESS") throw new Error(`Tx failed: ${final.status}`);
+      return final;
+    }
+
+    // -----------------------
+    // Contract read helpers
+    // -----------------------
+    async function simulateRead(method, args = []){
+      const source = await rpc().getAccount(SIM_SOURCE);
+      const tx = new SDK.TransactionBuilder(source, {
+        fee: "10000",
+        networkPassphrase: NETWORK
+      })
+        .addOperation(contract.call(method, ...args))
+        .setTimeout(180)
+        .build();
+
+      logLine(`→ simulate ${method}()`);
+      const sim = await rpc().simulateTransaction(tx);
+      if(sim.error) throw new Error(sim.error);
+      if(!sim.result) throw new Error("No simulate result.");
+      logLine(`← ${method}() ok`);
+      return sim;
+    }
+
+    function unwrapU128(sim){
+      // Depending on SDK version, the shape varies slightly.
+      // Try common shapes:
+      const rv = sim?.result?.retval ?? sim?.result?.returnValue ?? sim?.result?.results?.[0]?.xdr;
+      // If already a number-like:
+      if(typeof rv === "bigint") return rv;
+      if(typeof rv === "number") return BigInt(Math.trunc(rv));
+      // If it’s an object with u128:
+      if(rv && typeof rv === "object" && "u128" in rv) return BigInt(rv.u128);
+      // If it’s a string of digits:
+      if(typeof rv === "string" && /^\d+$/.test(rv)) return BigInt(rv);
+
+      // If it’s an XDR base64, we can’t reliably decode here without ABI;
+      // return 0 and log for debugging.
+      logLine("WARN: could not unwrap u128, rv=", rv);
+      return 0n;
+    }
+
+    function unwrapAddress(sim){
+      const rv = sim?.result?.retval ?? sim?.result?.returnValue;
+      if(typeof rv === "string") return rv;
+      if(rv?.address) return rv.address;
+      if(rv?.value) return rv.value;
+      return String(rv ?? "—");
+    }
+
+    // -----------------------
+    // Contract write builders
+    // -----------------------
+    async function buildWriteXDR(method, args = []){
+      if(!pubkey || !isValidG(pubkey)) throw new Error("Connect a wallet first.");
+      const source = await rpc().getAccount(pubkey);
+
+      // base tx
+      let tx = new SDK.TransactionBuilder(source, { fee:"10000", networkPassphrase: NETWORK })
+        .addOperation(contract.call(method, ...args))
+        .setTimeout(180)
+        .build();
+
+      // prepare (Soroban footprint, etc.)
+      tx = await rpc().prepareTransaction(tx);
+      return tx.toXDR();
+    }
+
+    // -----------------------
+    // UI: state refresh
+    // -----------------------
+    async function refreshState(){
+      stateStatus.textContent = "Refreshing…";
+      try{
+        // These are the view methods you already tested:
+        // query_asset, query_share, share_price, total_assets, total_supply
+        const [assetSim, shareSim, spSim, taSim, tsSim] = await Promise.all([
+          simulateRead("query_asset"),
+          simulateRead("query_share"),
+          simulateRead("share_price"),
+          simulateRead("total_assets"),
+          simulateRead("total_supply"),
+        ]);
+
+        const assetId = unwrapAddress(assetSim);
+        const shareId = unwrapAddress(shareSim);
+
+        const sharePriceRaw = unwrapU128(spSim);     // scaled? (we show 7dp)
+        const totalAssetsRaw = unwrapU128(taSim);
+        const totalSupplyRaw = unwrapU128(tsSim);
+
+        // Heuristic: display as 7dp token amounts
+        const sp = Number(sharePriceRaw) / 1e7;
+        const ta = Number(totalAssetsRaw) / 1e7;
+        const ts = Number(totalSupplyRaw) / 1e7;
+
+        shareOut.textContent = shareId;
+        assetOut.textContent = assetId;
+
+        sharePriceOut.textContent = fmt7(sp);
+        impliedOut.textContent = `1 bUSDC ≈ ${fmt7(sp)} USDC`;
+
+        totalAssetsOut.textContent = `${fmt7(ta)} (units)`;
+        totalSupplyOut.textContent = `${fmt7(ts)} (shares)`;
+
+        stateStatus.textContent = "Updated.";
+      }catch(e){
+        console.error(e);
+        stateStatus.textContent = `Error: ${e.message || e}`;
+        toast(e.message || "Refresh failed.", true);
+      }
+    }
+
+    // -----------------------
+    // Balance refresh (Horizon classic)
+    // -----------------------
+    async function refreshBalance(){
+      const pk = pubkeyEl.value.trim();
+      if(!isValidG(pk)){
+        busdcBalOut.textContent = "—";
+        busdcLiaOut.textContent = "—";
+        return;
+      }
+      balStatus.textContent = "Loading Horizon balances…";
+      try{
+        const r = await fetch(`${HORIZON}/accounts/${pk}`);
+        const j = await r.json();
+        const bal = (j.balances || []).find(b => b.asset_code===BUSDC_CODE && b.asset_issuer===BUSDC_ISSUER);
+        busdcBalOut.textContent = bal ? fmt7(Number(bal.balance)) : "0";
+        busdcLiaOut.textContent = bal ? fmt7(Number(bal.selling_liabilities || "0")) : "0";
+        balStatus.textContent = "";
+      }catch(e){
+        console.error(e);
+        balStatus.textContent = "Could not load balance.";
+      }
+    }
+
+    // -----------------------
+    // Deposit / Withdraw actions
+    // -----------------------
+    depositXdrToggle.onclick = ()=> toggleEl(depositXdr, depositXdrToggle);
+    withdrawXdrToggle.onclick = ()=> toggleEl(withdrawXdr, withdrawXdrToggle);
+
+    depositBtn.onclick = async ()=>{
+      depositStatus.textContent = "";
+      try{
+        if(!pubkey) { openModal(); return; }
+        if(connectionMode==="pubkey") throw new Error("Read-only pubkey mode cannot sign. Use WC/Freighter/Secret.");
+
+        const amt = parseAmtToI128_7dp(depositAmt.value);
+        if(!(amt > 0n)) throw new Error("Enter a deposit amount.");
+
+        // TODO: if your method name differs, change "deposit" here.
+        const xdr = await buildWriteXDR("deposit", [amt]);
+        depositXdr.value = xdr;
+
+        if(connectionMode==="wc") openSignModal();
+        toast("Check your wallet to sign…");
+
+        const signed = await signCurrent(xdr);
+        const final = await handleSignedSorobanXdr(signed, depositStatus);
+
+        if(final){
+          depositStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${final.hash}</span> · <a href="https://stellar.expert/explorer/public/tx/${final.hash}" target="_blank" rel="noreferrer">view</a>`;
+          toast("Deposit submitted.");
+          refreshBalance().catch(()=>{});
+          refreshState().catch(()=>{});
+        }else{
+          toast("Deposit signed. Complete in LOBSTR Vault.");
+        }
+        closeSignModal();
+      }catch(e){
+        console.error(e);
+        closeSignModal();
+        depositStatus.textContent = `Error: ${e.message || e}`;
+        toast(e.message || "Deposit failed.", true);
+      }
+    };
+
+    withdrawBtn.onclick = async ()=>{
+      withdrawStatus.textContent = "";
+      try{
+        if(!pubkey) { openModal(); return; }
+        if(connectionMode==="pubkey") throw new Error("Read-only pubkey mode cannot sign. Use WC/Freighter/Secret.");
+
+        const amt = parseAmtToI128_7dp(withdrawAmt.value);
+        if(!(amt > 0n)) throw new Error("Enter a withdraw amount.");
+
+        // TODO: if your method name differs, change "withdraw" here.
+        const xdr = await buildWriteXDR("withdraw", [amt]);
+        withdrawXdr.value = xdr;
+
+        if(connectionMode==="wc") openSignModal();
+        toast("Check your wallet to sign…");
+
+        const signed = await signCurrent(xdr);
+        const final = await handleSignedSorobanXdr(signed, withdrawStatus);
+
+        if(final){
+          withdrawStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${final.hash}</span> · <a href="https://stellar.expert/explorer/public/tx/${final.hash}" target="_blank" rel="noreferrer">view</a>`;
+          toast("Withdraw submitted.");
+          refreshBalance().catch(()=>{});
+          refreshState().catch(()=>{});
+        }else{
+          toast("Withdraw signed. Complete in LOBSTR Vault.");
+        }
+        closeSignModal();
+      }catch(e){
+        console.error(e);
+        closeSignModal();
+        withdrawStatus.textContent = `Error: ${e.message || e}`;
+        toast(e.message || "Withdraw failed.", true);
+      }
+    };
+
+    // -----------------------
+    // Init
+    // -----------------------
+    contractIdOut.textContent = CONTRACT_ID;
+    rpcOut.textContent = SOROBAN_RPC;
+    issuerOut.textContent = BUSDC_ISSUER;
+
+    refreshBtn.onclick = refreshState;
+    refreshBalBtn.onclick = refreshBalance;
+
+    toggleLogsBtn.onclick = ()=>{
+      toggleEl(logsEl, toggleLogsBtn);
+      if(logsEl.style.display === "block") toggleLogsBtn.textContent = "Hide logs";
+      else toggleLogsBtn.textContent = "Show logs";
+    };
+
+    // first load
+    refreshState().catch(()=>{});
+  </script>
+
+  <!-- Freighter UMD fallback -->
+  <script>
+    if(!window.freighterApi){
+      const s = document.createElement("script");
+      s.src = "https://cdn.freighter.app/freighter-api-v1.js";
+      document.head.appendChild(s);
+    }
+  </script>
+</body>
+</html>
