@@ -73,7 +73,6 @@
     th{ color:var(--muted); font-weight:700; }
     .hint{ color:var(--muted); font-size:12px; margin-top:6px; line-height:1.35; }
     .status{ font-size:12px; color:var(--muted); }
-    .good{ color:var(--ok); }
     .warn{ color:var(--warn); }
     .bad{ color:var(--bad); }
     .mono{ font-family:var(--mono); }
@@ -97,7 +96,7 @@
       <h1>Mirrasets – Mirrored Assets Control Panel</h1>
       <div class="sub">
         Offer-ID deterministic edits + <span class="badge">live sequencing</span> via Horizon <span class="mono">/offers/{id}</span>.
-        Includes <span class="badge">Batch single-XDR</span> mode.
+        Includes <span class="badge">Batch single-XDR</span> mode with correct op source accounts.
         <br><span class="warn">Security note:</span> entering secret keys in a browser is risky — do this only on a trusted machine.
       </div>
     </div>
@@ -217,9 +216,8 @@ function offerPriceNumber(offerJson){
 
 /**
  * Live old prices from offer IDs
- * Returns in Circle USDC per asset terms:
- * - sell_05: already Circle/asset
- * - buy: Horizon price is asset/Circle => invert => Circle/asset
+ * - sell_05 is Circle/asset
+ * - buy is asset/Circle, invert => Circle/asset
  */
 async function fetchLiveOldPrices(code){
   if (code === "USDC"){
@@ -275,10 +273,7 @@ function computeQuotes(code, midCirclePerAsset){
 }
 
 /**
- * Sequencing decision using live offer prices:
- * - If new BUY would cross old SELL_05 => SELL-first
- * - Else if new SELL_05 would cross old BUY => BUY-first
- * - Else BUY-first
+ * Sequencing decision using live offer prices
  */
 function decideOrderFromLive(code, newMid, live){
   const newSellMin = newMid * 1.005;
@@ -294,21 +289,19 @@ function decideOrderFromLive(code, newMid, live){
 }
 
 /**
- * Add ops for a wallet with chosen order.
- * If opSource is set, operations are sourced from that account (batch mode).
+ * Add ops for a wallet, with an OPTIONAL opSource.
+ * IMPORTANT: if opSource is null/undefined, we DO NOT set source on ops (inherit tx source).
  */
-function addOpsForWallet(txb, code, quotes, circleBal, order, opSource=null){
+function addOpsForWallet(txb, code, quotes, circleBal, order, opSource /* string | null */){
   const pub = ISSUERS[code];
   const circle = makeAsset(CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
   const mirrored = makeAsset(code, pub);
 
-  const addOp = (op) => {
-    if (opSource) op.source = opSource;
-    txb.addOperation(op);
-  };
+  const src = opSource ? { source: opSource } : {};
 
   if (code === "USDC"){
-    addOp(StellarSdk.Operation.manageSellOffer({
+    txb.addOperation(StellarSdk.Operation.manageSellOffer({
+      ...src,
       offerId: OFFER_IDS.USDC.buy,
       selling: circle,
       buying: mirrored,
@@ -318,7 +311,8 @@ function addOpsForWallet(txb, code, quotes, circleBal, order, opSource=null){
     return;
   }
 
-  const addBuy = () => addOp(StellarSdk.Operation.manageSellOffer({
+  const addBuy = () => txb.addOperation(StellarSdk.Operation.manageSellOffer({
+    ...src,
     offerId: OFFER_IDS[code].buy,
     selling: circle,
     buying: mirrored,
@@ -327,21 +321,24 @@ function addOpsForWallet(txb, code, quotes, circleBal, order, opSource=null){
   }));
 
   const addSells = () => {
-    addOp(StellarSdk.Operation.manageSellOffer({
+    txb.addOperation(StellarSdk.Operation.manageSellOffer({
+      ...src,
       offerId: OFFER_IDS[code].sell_05,
       selling: mirrored,
       buying: circle,
       amount: fmtStrict(RULES[code].sellAmounts[0], 7),
       price: fmtStrict(quotes.sellTiers[0].priceCirclePerAsset, 12)
     }));
-    addOp(StellarSdk.Operation.manageSellOffer({
+    txb.addOperation(StellarSdk.Operation.manageSellOffer({
+      ...src,
       offerId: OFFER_IDS[code].sell_075,
       selling: mirrored,
       buying: circle,
       amount: fmtStrict(RULES[code].sellAmounts[1], 7),
       price: fmtStrict(quotes.sellTiers[1].priceCirclePerAsset, 12)
     }));
-    addOp(StellarSdk.Operation.manageSellOffer({
+    txb.addOperation(StellarSdk.Operation.manageSellOffer({
+      ...src,
       offerId: OFFER_IDS[code].sell_10,
       selling: mirrored,
       buying: circle,
@@ -355,20 +352,20 @@ function addOpsForWallet(txb, code, quotes, circleBal, order, opSource=null){
 }
 
 /**
- * Build UI
+ * UI build
  */
 function buildCards(){
   const root = document.getElementById("cards");
   root.innerHTML = "";
 
-  // ---- Batch card (single XDR) ----
+  // ---- Batch card ----
   const batch = document.createElement("div");
   batch.className = "card";
   batch.innerHTML = `
     <div class="cardHead">
       <div class="assetName">
         <b>Batch</b>
-        <small>Build ALL wallets into ONE transaction XDR (operation-level sources). Vault can sign all.</small>
+        <small>Build ALL wallets into ONE transaction XDR. Op sources set so Vault only signs relevant accounts.</small>
       </div>
       <div class="kv">
         <span class="pill" id="pill-batch-fee">Fee payer: GBPC</span>
@@ -385,7 +382,10 @@ function buildCards(){
           <option value="KRWC">KRWC issuer</option>
           <option value="USDC">Mirrored USDC issuer</option>
         </select>
-        <div class="hint">Pick an issuer that has enough XLM for fee. Ops are sourced from each issuer wallet.</div>
+        <div class="hint">
+          <b>Fix applied:</b> the fee payer’s own operations are built with <span class="mono">no source</span> (inherit tx source).
+          All other wallets’ operations have explicit <span class="mono">source</span> set.
+        </div>
 
         <div class="divider"></div>
 
@@ -395,12 +395,14 @@ function buildCards(){
           <input id="mid-batch-EURC" placeholder="EURC mid (e.g. 1.08765)" />
           <input id="mid-batch-KRWC" placeholder="KRWC mid (e.g. 0.00076)" />
         </div>
-        <div class="hint">Mirrored USDC uses fixed buy @ 0.995 (no mid needed).</div>
+        <div class="hint">Mirrored USDC uses fixed buy @ 0.995.</div>
 
         <div class="divider"></div>
 
         <label>Optional local signing (leave blank for Vault-only signing)</label>
-        <div class="hint">If you paste secrets here, we’ll sign the single batch XDR with whichever you provide. Otherwise, export unsigned XDR and let LOBSTR Vault sign everything.</div>
+        <div class="hint">
+          If you paste secrets here, the batch XDR will be signed before exporting (and Vault can add more signatures).
+        </div>
         <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px;">
           <input id="sk-batch-GBPC" placeholder="GBPC secret (S…)" autocomplete="off" />
           <input id="sk-batch-EURC" placeholder="EURC secret (S…)" autocomplete="off" />
@@ -431,7 +433,6 @@ function buildCards(){
   `;
   root.appendChild(batch);
 
-  // Wire batch controls
   document.getElementById("sel-fee-payer").addEventListener("change", (e)=>{
     document.getElementById("pill-batch-fee").textContent = `Fee payer: ${e.target.value}`;
   });
@@ -469,7 +470,7 @@ function buildCards(){
             <div style="flex:1 1 320px;">
               <label>Secret key for this issuing wallet (starts with S…)</label>
               <input id="inp-sk-${code}" placeholder="S.................................................." autocomplete="off" />
-              <div class="hint">Used only to sign the built transaction once. Then export XDR for Vault.</div>
+              <div class="hint">Used only to sign this wallet’s transaction once. Then export XDR for Vault.</div>
             </div>
 
             <div style="flex:1 1 240px;">
@@ -477,7 +478,7 @@ function buildCards(){
               <input id="inp-mid-${code}" ${isUSDC ? "value='1' disabled" : "placeholder='e.g. 1.27456'"} />
               <div class="hint">
                 ${isUSDC
-                  ? "Only updates BUY at 0.995 using full Circle reserve. (Huge 1:1 sell untouched.)"
+                  ? "Only updates BUY at 0.995 using full Circle reserve."
                   : "SELL tiers: +0.5%, +0.75%, +1.0%. BUY: −1.0% using full Circle reserve. Order auto-chosen from live offers."
                 }
               </div>
@@ -520,7 +521,7 @@ function buildCards(){
         <div class="box">
           <label>Snapshot</label>
           <div class="log" id="snap-${code}" style="max-height:330px;"></div>
-          <div class="tiny">Balances = fast. Live offers = direct IDs (no pagination).</div>
+          <div class="tiny">Balances fast. Live offers fetched by offer IDs only.</div>
         </div>
       </div>
     `;
@@ -604,7 +605,6 @@ async function refreshLiveFor(code){
 async function refreshAllLive(){
   log("Refreshing live offer prices (parallel)…");
   await Promise.all(["GBPC","EURC","KRWC","USDC"].map(c=>refreshLiveFor(c)));
-  // batch pill
   const ok = ["GBPC","EURC","KRWC","USDC"].filter(c=>state.live[c]).length;
   document.getElementById("pill-batch-live").textContent = `Live offers: ${ok}/4`;
   log("Live prices refresh complete.");
@@ -724,6 +724,7 @@ async function buildAndSign(code){
     log(`${code}: op order=${order} (${seq.reason})`);
   }
 
+  // Per-wallet: we want ops to inherit tx source (this wallet)
   addOpsForWallet(txb, code, q, circleBal, order, null);
 
   const tx = txb.setTimeout(180).build();
@@ -776,16 +777,10 @@ async function buildBatch({ previewOnly }){
   const qUSDC = computeQuotes("USDC", 1);
 
   // ensure live prices for sequencing (fetch if missing)
-  const need = ["GBPC","EURC","KRWC"];
-  await Promise.all(need.map(async (c)=>{
+  await Promise.all(["GBPC","EURC","KRWC"].map(async (c)=>{
     if (!state.live[c]) state.live[c] = await fetchLiveOldPrices(c);
   }));
-  // USDC live not needed for sequencing, but we keep it for UI
-  if (!state.live.USDC) {
-    try { state.live.USDC = await fetchLiveOldPrices("USDC"); } catch(_) {}
-  }
-  ["GBPC","EURC","KRWC","USDC"].forEach(setSnapshot);
-  document.getElementById("pill-batch-live").textContent = `Live offers: ${["GBPC","EURC","KRWC","USDC"].filter(c=>state.live[c]).length}/4`;
+  if (!state.live.USDC) { try{ state.live.USDC = await fetchLiveOldPrices("USDC"); }catch(_){} }
 
   const orders = {
     GBPC: decideOrderFromLive("GBPC", qGBPC.mid, state.live.GBPC),
@@ -807,16 +802,17 @@ async function buildBatch({ previewOnly }){
     networkPassphrase: NETWORK_PASSPHRASE
   });
 
-  // Add ops with operation-level sources
-  addOpsForWallet(txb, "GBPC", qGBPC, state.balances.GBPC.circleUSDC, orders.GBPC.order, ISSUERS.GBPC);
-  addOpsForWallet(txb, "EURC", qEURC, state.balances.EURC.circleUSDC, orders.EURC.order, ISSUERS.EURC);
-  addOpsForWallet(txb, "KRWC", qKRWC, state.balances.KRWC.circleUSDC, orders.KRWC.order, ISSUERS.KRWC);
-  addOpsForWallet(txb, "USDC", qUSDC, state.balances.USDC.circleUSDC, "buy-first", ISSUERS.USDC);
+  // FIX APPLIED:
+  // - fee payer’s ops inherit tx source => opSource=null
+  // - other wallets explicitly set opSource = issuer address
+  addOpsForWallet(txb, "GBPC", qGBPC, state.balances.GBPC.circleUSDC, orders.GBPC.order, feeCode === "GBPC" ? null : ISSUERS.GBPC);
+  addOpsForWallet(txb, "EURC", qEURC, state.balances.EURC.circleUSDC, orders.EURC.order, feeCode === "EURC" ? null : ISSUERS.EURC);
+  addOpsForWallet(txb, "KRWC", qKRWC, state.balances.KRWC.circleUSDC, orders.KRWC.order, feeCode === "KRWC" ? null : ISSUERS.KRWC);
+  addOpsForWallet(txb, "USDC", qUSDC, state.balances.USDC.circleUSDC, "buy-first", feeCode === "USDC" ? null : ISSUERS.USDC);
 
   const tx = txb.setTimeout(180).build();
 
   if (!previewOnly){
-    // optional signing
     const kpGBPC = getKeypairIfProvided("GBPC", document.getElementById("sk-batch-GBPC").value);
     const kpEURC = getKeypairIfProvided("EURC", document.getElementById("sk-batch-EURC").value);
     const kpKRWC = getKeypairIfProvided("KRWC", document.getElementById("sk-batch-KRWC").value);
@@ -826,7 +822,6 @@ async function buildBatch({ previewOnly }){
       if (kp) tx.sign(kp);
     }
 
-    // wipe batch secrets
     document.getElementById("sk-batch-GBPC").value = "";
     document.getElementById("sk-batch-EURC").value = "";
     document.getElementById("sk-batch-KRWC").value = "";
@@ -838,25 +833,17 @@ async function buildBatch({ previewOnly }){
   prev.textContent =
 `TX SOURCE (fee payer): ${feeCode}  ${feeSourcePub}
 
+Op source fix:
+- Fee payer ops: NO op source set (inherit tx source)
+- Other ops: op source explicitly set to issuer wallet
+
 Order choices (from live offers):
 GBPC: ${orders.GBPC.order} — ${orders.GBPC.reason}
 EURC: ${orders.EURC.order} — ${orders.EURC.reason}
 KRWC: ${orders.KRWC.order} — ${orders.KRWC.reason}
 USDC: buy-first (single op)
 
-Mids:
-GBPC ${qGBPC.mid}
-EURC ${qEURC.mid}
-KRWC ${qKRWC.mid}
-
-Circle reserves:
-GBPC ${state.balances.GBPC.circleUSDC}
-EURC ${state.balances.EURC.circleUSDC}
-KRWC ${state.balances.KRWC.circleUSDC}
-USDC ${state.balances.USDC.circleUSDC}
-
-Ops count: 13
-(GBPC 4, EURC 4, KRWC 4, USDC 1)
+Ops count: 13 (GBPC 4, EURC 4, KRWC 4, USDC 1)
 `;
   log(`Batch: XDR built (${out.value.length} chars). ${previewOnly ? "Preview-only (unsigned)." : "Signed if secrets provided."}`);
 }
@@ -875,7 +862,7 @@ document.getElementById("btnRefresh").addEventListener("click", ()=>refreshAllBa
 document.getElementById("btnRefreshLive").addEventListener("click", ()=>refreshAllLive().catch(e=>alert(e.message||e)));
 document.getElementById("btnClearLog").addEventListener("click", ()=>{ elLog.textContent=""; });
 
-log("Ready. Click “Refresh balances”. Then “Refresh live offer prices”. Use Batch to build one XDR for Vault.");
+log("Ready. Click “Refresh balances”, then “Refresh live offer prices”. Batch now uses correct op source accounts.");
 </script>
 </body>
 </html>
