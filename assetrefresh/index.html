@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mirrasets – Admin Control Panel (Batch + Individual)</title>
+  <title>Mirrasets – Admin Control Panel</title>
   <style>
     :root{
       --bg:#0b0f17;
@@ -25,10 +25,12 @@
       padding:14px 14px; border:1px solid var(--border); border-radius:16px; background:rgba(17,26,43,.65);
       backdrop-filter: blur(6px);
     }
-    .title{ display:flex; flex-direction:column; gap:2px; }
+    .title{ display:flex; flex-direction:column; gap:2px; min-width: 240px; }
     h1{ margin:0; font-size:18px; letter-spacing:.2px; }
     .sub{ color:var(--muted); font-size:13px; line-height:1.35; }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; width:100%; }
+    @media (min-width: 900px){ .row{ width:auto; } }
 
     button{
       cursor:pointer; border:1px solid var(--border); background:#0f1b30; color:var(--text);
@@ -44,13 +46,15 @@
       border:1px solid var(--border); background:rgba(255,255,255,.03);
       padding:6px 10px; border-radius:999px;
       max-width: 100%;
-      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
     }
 
     .grid{ display:grid; grid-template-columns: 1fr; gap:14px; margin-top:14px; }
     .card{
       border:1px solid var(--border); border-radius:16px; background:rgba(17,26,43,.65);
-      padding:14px; overflow:hidden;
+      padding:14px; overflow:hidden; /* prevent page overflow */
     }
     .cardHead{
       display:flex; gap:10px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
@@ -61,14 +65,19 @@
     .assetName small{
       color:var(--muted);
       font-family:var(--mono);
-      overflow-wrap:anywhere;  /* mobile fix */
-      word-break:break-word;   /* mobile fix */
+      overflow-wrap:anywhere;
+      word-break:break-word;
     }
 
     .twoCol{ display:grid; grid-template-columns: 1.2fr .8fr; gap:12px; }
-    @media (max-width: 980px){ .twoCol{ grid-template-columns: 1fr; } }
+    /* make it collapse earlier (fixes “still two columns on mobile-ish widths”) */
+    @media (max-width: 1100px){ .twoCol{ grid-template-columns: 1fr; } }
 
-    .box{ border:1px solid var(--border); border-radius:14px; padding:12px; background:rgba(255,255,255,.02); }
+    .box{
+      border:1px solid var(--border); border-radius:14px; padding:12px; background:rgba(255,255,255,.02);
+      min-width:0; /* allow contents to shrink */
+    }
+
     label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
     input, textarea, select{
       width:100%; box-sizing:border-box;
@@ -79,7 +88,27 @@
     input:focus, textarea:focus, select:focus{ border-color:rgba(94,234,212,.5); }
     textarea{ min-height: 120px; resize: vertical; }
 
-    /* Table horizontal scroll wrapper (mobile fix) */
+    /* Forms row: ensure it wraps correctly and never clips */
+    .formRow{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .formRow > .formCol{
+      flex:1 1 320px;
+      min-width:0;
+    }
+    .formRow > .formCol.narrow{
+      flex:1 1 260px;
+      min-width:0;
+    }
+    @media (max-width: 720px){
+      .formRow > .formCol,
+      .formRow > .formCol.narrow{
+        flex:1 1 100%;
+      }
+    }
+
     .tableWrap{
       width:100%;
       overflow-x:auto;
@@ -96,24 +125,35 @@
     .status{ font-size:12px; color:var(--muted); }
     .warn{ color:var(--warn); }
     .bad{ color:var(--bad); }
+    .ok{ color:var(--ok); }
     .mono{ font-family:var(--mono); }
+
     .actions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+
     .log{
       margin-top:12px; padding:12px; border-radius:14px; border:1px solid var(--border);
       background:#071022; font-family:var(--mono); font-size:12px; color:#cbd5e1;
-      white-space:pre-wrap; max-height:260px; overflow:auto;
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;  /* IMPORTANT: wrap long Stellar strings */
+      word-break:break-word;
+      max-height:260px; overflow:auto;
     }
     .tiny{ font-size:11px; color:var(--muted); }
-    .kv{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
+    .kv{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; min-width:0; }
+
     .copyRow{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
     .divider{ height:1px; background:var(--border); margin:10px 0; }
     .badge{ display:inline-block; font-family:var(--mono); font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
 
-    /* Mobile: allow pills wrap instead of pushing off-screen */
+    /* Mobile: let pills wrap instead of forcing overflow */
     @media (max-width: 520px){
       .assetName{ min-width: 0; width:100%; }
       .kv{ width:100%; }
-      .pill{ white-space:normal; overflow-wrap:anywhere; text-overflow:clip; }
+      .pill{
+        white-space:normal;
+        overflow-wrap:anywhere;
+        text-overflow:clip;
+      }
       .row{ justify-content:flex-start; }
     }
 
@@ -129,6 +169,17 @@
       padding:8px 10px;
       border-radius:12px;
     }
+    .feeState{
+      font-family:var(--mono);
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+    }
+    .feeState.ok{ border-color:rgba(52,211,153,.35); color:var(--ok); }
+    .feeState.bad{ border-color:rgba(251,113,133,.35); color:var(--bad); }
   </style>
 </head>
 <body>
@@ -137,8 +188,7 @@
     <div class="title">
       <h1>Mirrasets – Mirrored Assets Control Panel</h1>
       <div class="sub">
-        Offer-ID deterministic edits + <span class="badge">live sequencing</span> (offer ID fetch).
-        Includes <span class="badge">Batch single-XDR</span>.
+        Offer-ID deterministic edits + <span class="badge">live sequencing</span>. Includes <span class="badge">Batch single-XDR</span>.
       </div>
     </div>
     <div class="row">
@@ -148,8 +198,8 @@
       <div class="feeBox">
         <label class="mono" for="inp-fee">Fee / op</label>
         <input id="inp-fee" type="number" inputmode="numeric" min="100" step="100" value="10000" />
-        <span class="pill">stroops</span>
         <button id="btnUseBaseFee">Use network base</button>
+        <span id="feeApplied" class="feeState ok">Applied: 10000</span>
       </div>
 
       <button class="primary" id="btnRefresh">Refresh balances</button>
@@ -177,18 +227,15 @@
 <script src="https://cdn.jsdelivr.net/npm/stellar-sdk@12.2.0/dist/stellar-sdk.min.js"></script>
 
 <script>
-/**
- * CONFIG
- */
 const HORIZON_URL = "https://horizon.stellar.org";
 const NETWORK_PASSPHRASE = StellarSdk.Networks.PUBLIC;
 const server = new StellarSdk.Horizon.Server(HORIZON_URL);
 
-// Circle USDC (issuer)
+// Circle USDC
 const CIRCLE_USDC_CODE = "USDC";
 const CIRCLE_USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
 
-// Issuer/sales wallets for each mirrored asset
+// Issuers
 const ISSUERS = {
   GBPC: "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
   EURC: "GAP2JFYUBSSY65FIFUN3NTUKP6MQQ52QETQEBDM25PFMQE2EEN2EEURC",
@@ -196,7 +243,6 @@ const ISSUERS = {
   USDC: "GCBYVQH3RZ4JDVFMNWETE3J6U3AW6NNGTIWNVJHNQIIEGQR4K7PLUSDC"
 };
 
-// Offer IDs (authoritative)
 const OFFER_IDS = {
   GBPC: { sell_05: "1679115427", sell_075: "1679115428", sell_10: "1679115429", buy: "1679115430" },
   EURC: { sell_05: "1679202926", sell_075: "1679202927", sell_10: "1679202928", buy: "1679202929" },
@@ -204,15 +250,15 @@ const OFFER_IDS = {
   USDC: { buy: "1688920720" }
 };
 
-// Tier sizes & spreads
 const RULES = {
   GBPC: { sellAmounts:[40000, 80000, 120000], sellSpreads:[0.005, 0.0075, 0.01], buySpread:0.01 },
   EURC: { sellAmounts:[50000, 100000, 150000], sellSpreads:[0.005, 0.0075, 0.01], buySpread:0.01 },
   KRWC: { sellAmounts:[72000000, 144000000, 216000000], sellSpreads:[0.005, 0.0075, 0.01], buySpread:0.01 },
-  USDC: { buyFixedCirclePerMirrored: 0.995 } // mirrored USDC buy vs Circle
+  USDC: { buyFixedCirclePerMirrored: 0.995 }
 };
 
 const state = {
+  feePerOp: 10000,
   balances: { GBPC:{circleUSDC:null}, EURC:{circleUSDC:null}, KRWC:{circleUSDC:null}, USDC:{circleUSDC:null} },
   live: { GBPC:null, EURC:null, KRWC:null, USDC:null }
 };
@@ -231,18 +277,29 @@ function fmtStrict(n, dp=7){
 }
 function makeAsset(code, issuer){ return new StellarSdk.Asset(code, issuer); }
 
-function getPerOpFee(){
-  const raw = document.getElementById("inp-fee").value.trim();
+function applyFeeFromInput(){
+  const el = document.getElementById("inp-fee");
+  const badge = document.getElementById("feeApplied");
+  const raw = (el.value ?? "").toString().trim();
   const fee = Number(raw);
-  if (!Number.isFinite(fee) || fee <= 0) throw new Error("Fee must be positive (stroops per operation).");
-  return Math.floor(fee);
+
+  if (Number.isFinite(fee) && fee > 0){
+    state.feePerOp = Math.floor(fee);
+    badge.textContent = `Applied: ${state.feePerOp}`;
+    badge.classList.remove("bad");
+    badge.classList.add("ok");
+  } else {
+    badge.textContent = `Applied: ${state.feePerOp} (invalid input ignored)`;
+    badge.classList.remove("ok");
+    badge.classList.add("bad");
+  }
 }
+function getPerOpFee(){ return state.feePerOp; }
 
 function findBalance(balances, code, issuer){
   const b = balances.find(x => x.asset_type !== "native" && x.asset_code === code && x.asset_issuer === issuer);
   return b ? Number(b.balance) : 0;
 }
-
 async function loadCircleBalance(pubKey){
   const acct = await server.loadAccount(pubKey);
   const balances = acct.balances.map(b => ({
@@ -254,9 +311,7 @@ async function loadCircleBalance(pubKey){
   return findBalance(balances, CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
 }
 
-/**
- * Live offer fetch by offer ID
- */
+// offer by id
 async function fetchOfferById(offerId){
   const url = `${HORIZON_URL}/offers/${offerId}`;
   const res = await fetch(url, { cache: "no-store" });
@@ -268,28 +323,19 @@ function offerPriceNumber(offerJson){
   if (offerJson.price_r && offerJson.price_r.d) return Number(offerJson.price_r.n) / Number(offerJson.price_r.d);
   return NaN;
 }
-
-/**
- * Live old prices:
- * - sell_05 is Circle/asset
- * - buy is asset/Circle, invert => Circle/asset
- */
 async function fetchLiveOldPrices(code){
   if (code === "USDC"){
     const o = await fetchOfferById(OFFER_IDS.USDC.buy);
-    const p = offerPriceNumber(o); // mirrored per Circle
+    const p = offerPriceNumber(o);
     if (!Number.isFinite(p) || p <= 0) throw new Error("USDC buy offer invalid price");
     return { fetchedAt: Date.now(), oldBuyCirclePerAsset: 1 / p };
   }
-
   const ids = OFFER_IDS[code];
   const [sell05, buy] = await Promise.all([fetchOfferById(ids.sell_05), fetchOfferById(ids.buy)]);
   const oldSellMin = offerPriceNumber(sell05);
   const oldBuyAssetPerCircle = offerPriceNumber(buy);
-
   if (!Number.isFinite(oldSellMin) || oldSellMin <= 0) throw new Error(`${code} sell_05 invalid price`);
   if (!Number.isFinite(oldBuyAssetPerCircle) || oldBuyAssetPerCircle <= 0) throw new Error(`${code} buy invalid price`);
-
   return {
     fetchedAt: Date.now(),
     oldSellMinCirclePerAsset: oldSellMin,
@@ -297,52 +343,29 @@ async function fetchLiveOldPrices(code){
   };
 }
 
-/**
- * Price math
- */
 function computeQuotes(code, midCirclePerAsset){
   if (code === "USDC"){
-    const buyCirclePerMirrored = RULES.USDC.buyFixedCirclePerMirrored; // 0.995
+    const buyCirclePerMirrored = RULES.USDC.buyFixedCirclePerMirrored;
     const buyMirroredPerCircle = 1 / buyCirclePerMirrored;
     return { buyCirclePerMirrored, buyMirroredPerCircle };
   }
-
   const mid = Number(midCirclePerAsset);
   if (!Number.isFinite(mid) || mid <= 0) throw new Error("Bad XE mid price");
-
   const r = RULES[code];
-  const sellTiers = r.sellSpreads.map((s,i)=>({
-    idx:i,
-    amount:r.sellAmounts[i],
-    priceCirclePerAsset: mid * (1 + s)
-  }));
-
+  const sellTiers = r.sellSpreads.map((s,i)=>({ idx:i, amount:r.sellAmounts[i], priceCirclePerAsset: mid * (1 + s) }));
   const buyCirclePerAsset = mid * (1 - r.buySpread);
   const buyAssetPerCircle = 1 / buyCirclePerAsset;
-
   return { mid, sellTiers, buyCirclePerAsset, buyAssetPerCircle };
 }
 
-/**
- * Sequencing decision using live offers
- */
 function decideOrderFromLive(code, newMid, live){
   const newSellMin = newMid * 1.005;
   const newBuy = newMid * 0.99;
-
-  if (newBuy >= live.oldSellMinCirclePerAsset){
-    return { order:"sell-first", reason:`Up-move: newBuy >= oldSell05` };
-  }
-  if (newSellMin <= live.oldBuyCirclePerAsset){
-    return { order:"buy-first", reason:`Down-move: newSell05 <= oldBuy` };
-  }
+  if (newBuy >= live.oldSellMinCirclePerAsset) return { order:"sell-first", reason:`Up-move: newBuy >= oldSell05` };
+  if (newSellMin <= live.oldBuyCirclePerAsset) return { order:"buy-first", reason:`Down-move: newSell05 <= oldBuy` };
   return { order:"buy-first", reason:"No cross risk." };
 }
 
-/**
- * Add ops for wallet.
- * If opSource is null => ops inherit tx source.
- */
 function addOpsForWallet(txb, code, quotes, circleBal, order, opSource){
   const pub = ISSUERS[code];
   const circle = makeAsset(CIRCLE_USDC_CODE, CIRCLE_USDC_ISSUER);
@@ -401,21 +424,19 @@ function addOpsForWallet(txb, code, quotes, circleBal, order, opSource){
   else { addBuy(); addSells(); }
 }
 
-/**
- * UI
- */
+/* ---------- UI ---------- */
 function buildCards(){
   const root = document.getElementById("cards");
   root.innerHTML = "";
 
-  // Batch card
+  // Batch
   const batch = document.createElement("div");
   batch.className = "card";
   batch.innerHTML = `
     <div class="cardHead">
       <div class="assetName">
         <b>Batch</b>
-        <small>Build ALL wallets into ONE transaction XDR.</small>
+        <small>Build ALL wallets into ONE transaction XDR (uses Applied fee/op).</small>
       </div>
       <div class="kv">
         <span class="pill" id="pill-batch-fee">Fee payer: GBPC</span>
@@ -442,12 +463,10 @@ function buildCards(){
           <input id="mid-batch-EURC" placeholder="EURC mid (e.g. 1.08765)" />
           <input id="mid-batch-KRWC" placeholder="KRWC mid (e.g. 0.00076)" />
         </div>
-        <div class="hint">Mirrored USDC uses fixed buy @ 0.995.</div>
 
         <div class="divider"></div>
 
         <label>Optional local signing (leave blank for Vault-only signing)</label>
-        <div class="hint">If you paste secrets here, batch XDR is signed before exporting.</div>
         <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px;">
           <input id="sk-batch-GBPC" placeholder="GBPC secret (S…)" autocomplete="off" />
           <input id="sk-batch-EURC" placeholder="EURC secret (S…)" autocomplete="off" />
@@ -485,10 +504,11 @@ function buildCards(){
   document.getElementById("btn-batch-build").addEventListener("click", ()=>buildBatch({ previewOnly:false }).catch(e=>alert(e.message||e)));
   document.getElementById("btn-batch-copy").addEventListener("click", ()=>copyBatchXDR().catch(e=>alert(e.message||e)));
 
-  // Individual cards
   for (const code of ["GBPC","EURC","KRWC","USDC"]){
     const issuer = ISSUERS[code];
     const isUSDC = code === "USDC";
+
+    // NOTE: spaces after commas helps wrapping when pills go multi-line
     const idsText = isUSDC
       ? `buy=${OFFER_IDS.USDC.buy}`
       : `sell05=${OFFER_IDS[code].sell_05}, sell075=${OFFER_IDS[code].sell_075}, sell10=${OFFER_IDS[code].sell_10}, buy=${OFFER_IDS[code].buy}`;
@@ -510,14 +530,14 @@ function buildCards(){
 
       <div class="twoCol">
         <div class="box">
-          <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <div style="flex:1 1 320px;">
+          <div class="formRow">
+            <div class="formCol">
               <label>Secret key for this issuing wallet (starts with S…)</label>
               <input id="inp-sk-${code}" placeholder="S.................................................." autocomplete="off" />
               <div class="hint">Used only to sign this wallet’s transaction once. Then export XDR for Vault.</div>
             </div>
 
-            <div style="flex:1 1 240px;">
+            <div class="formCol narrow">
               <label>${isUSDC ? "Mirrored USDC buy fixed at 0.995" : "Paste XE mid (Circle USDC per 1 " + code + ")"}</label>
               <input id="inp-mid-${code}" ${isUSDC ? "value='1' disabled" : "placeholder='e.g. 1.27456'"} />
               <div class="hint">
@@ -687,14 +707,14 @@ function preview(code){
     const live = state.live[code];
     if (live){
       const seq = decideOrderFromLive(code, q.mid, live);
-      hint.innerHTML = `<span class="status">Recommended op order: <span class="mono">${seq.order}</span> — ${seq.reason}</span>`;
+      hint.innerHTML = `<span class="status">Recommended op order: <span class="mono">${seq.order}</span> — ${seq.reason} • fee/op=${getPerOpFee()}</span>`;
     } else {
-      hint.innerHTML = `<span class="status">Fetch live prices to get safe sequencing recommendation.</span>`;
+      hint.innerHTML = `<span class="status">Fetch live prices to get sequencing recommendation. • fee/op=${getPerOpFee()}</span>`;
     }
   } else {
     rows.push({ label:`BUY @ 0.995 (full reserve)`, dir:`Circle → Mirrored USDC`, id:OFFER_IDS.USDC.buy, amount:fmt(circleBal,2),
       price:`${fmt(q.buyCirclePerMirrored,6)} Circle/USDC (offer=${fmt(q.buyMirroredPerCircle,14)} USDC/Circle)`});
-    hint.innerHTML = `<span class="status">Mirrored USDC: only BUY updated at 0.995.</span>`;
+    hint.innerHTML = `<span class="status">Mirrored USDC: only BUY updated at 0.995. • fee/op=${getPerOpFee()}</span>`;
   }
 
   for (const r of rows){
@@ -748,12 +768,9 @@ async function buildAndSign(code){
   try{ acct = await server.loadAccount(pub); }
   catch(e){ alert(`Failed to load account: ${e?.message || e}`); return; }
 
-  let fee;
-  try{ fee = getPerOpFee(); }
-  catch(e){ alert(e.message || e); return; }
-
+  const fee = getPerOpFee();
   const txb = new StellarSdk.TransactionBuilder(acct, {
-    fee: String(fee), // per-op
+    fee: String(fee),
     networkPassphrase: NETWORK_PASSPHRASE
   });
 
@@ -761,10 +778,9 @@ async function buildAndSign(code){
   if (code !== "USDC"){
     const seq = decideOrderFromLive(code, q.mid, state.live[code]);
     order = seq.order;
-    log(`${code}: op order=${order} (${seq.reason})`);
+    log(`${code}: op order=${order} (${seq.reason}) fee/op=${fee}`);
   }
 
-  // Per-wallet: ops inherit tx source
   addOpsForWallet(txb, code, q, circleBal, order, null);
 
   const tx = txb.setTimeout(180).build();
@@ -781,7 +797,7 @@ async function copyXDR(code){
   log(`${code}: XDR copied.`);
 }
 
-// ---------- Batch ----------
+// Batch helpers
 function mustHaveMid(label, v){
   const x = Number((v||"").trim());
   if (!Number.isFinite(x) || x <= 0) throw new Error(`${label}: invalid mid`);
@@ -816,7 +832,6 @@ async function buildBatch({ previewOnly }){
   await Promise.all(["GBPC","EURC","KRWC"].map(async (c)=>{
     if (!state.live[c]) state.live[c] = await fetchLiveOldPrices(c);
   }));
-  if (!state.live.USDC) { try{ state.live.USDC = await fetchLiveOldPrices("USDC"); }catch(_){} }
 
   const orders = {
     GBPC: decideOrderFromLive("GBPC", qGBPC.mid, state.live.GBPC),
@@ -829,18 +844,14 @@ async function buildBatch({ previewOnly }){
   const feeSourcePub = ISSUERS[feeCode];
   document.getElementById("pill-batch-fee").textContent = `Fee payer: ${feeCode}`;
 
-  let acct;
-  try{ acct = await server.loadAccount(feeSourcePub); }
-  catch(e){ throw new Error(`Failed to load fee payer account: ${e?.message || e}`); }
-
+  const acct = await server.loadAccount(feeSourcePub);
   const fee = getPerOpFee();
 
   const txb = new StellarSdk.TransactionBuilder(acct, {
-    fee: String(fee), // per-op
+    fee: String(fee),
     networkPassphrase: NETWORK_PASSPHRASE
   });
 
-  // Fee payer ops inherit tx source; others explicit source
   addOpsForWallet(txb, "GBPC", qGBPC, state.balances.GBPC.circleUSDC, orders.GBPC.order, feeCode === "GBPC" ? null : ISSUERS.GBPC);
   addOpsForWallet(txb, "EURC", qEURC, state.balances.EURC.circleUSDC, orders.EURC.order, feeCode === "EURC" ? null : ISSUERS.EURC);
   addOpsForWallet(txb, "KRWC", qKRWC, state.balances.KRWC.circleUSDC, orders.KRWC.order, feeCode === "KRWC" ? null : ISSUERS.KRWC);
@@ -865,7 +876,8 @@ async function buildBatch({ previewOnly }){
   out.value = tx.toXDR();
 
   prev.textContent =
-`Fee / op: ${fee} stroops
+`Fee/op APPLIED: ${fee} stroops
+
 TX SOURCE (fee payer): ${feeCode}  ${feeSourcePub}
 
 Order:
@@ -888,21 +900,27 @@ async function copyBatchXDR(){
 // init
 buildCards();
 
-document.getElementById("btnRefresh").addEventListener("click", ()=>refreshAllBalances().catch(e=>alert(e.message||e)));
-document.getElementById("btnRefreshLive").addEventListener("click", ()=>refreshAllLive().catch(e=>alert(e.message||e)));
-document.getElementById("btnClearLog").addEventListener("click", ()=>{ elLog.textContent=""; });
+// fee input handlers (THIS is the iOS fix)
+const feeInput = document.getElementById("inp-fee");
+["input","change","blur"].forEach(evt => feeInput.addEventListener(evt, applyFeeFromInput));
+applyFeeFromInput();
 
 document.getElementById("btnUseBaseFee").addEventListener("click", async ()=>{
   try{
     const base = await server.fetchBaseFee();
-    document.getElementById("inp-fee").value = String(base);
+    feeInput.value = String(base);
+    applyFeeFromInput();
     log(`Fee set to network base fee: ${base} stroops/op`);
   }catch(e){
     alert(`Failed to fetch base fee: ${e?.message || e}`);
   }
 });
 
-log("Ready. Fee/op defaults to 10000. Refresh balances + live, then build.");
+document.getElementById("btnRefresh").addEventListener("click", ()=>refreshAllBalances().catch(e=>alert(e.message||e)));
+document.getElementById("btnRefreshLive").addEventListener("click", ()=>refreshAllLive().catch(e=>alert(e.message||e)));
+document.getElementById("btnClearLog").addEventListener("click", ()=>{ elLog.textContent=""; });
+
+log("Ready. Edit Fee/op — the “Applied:” badge shows the actual value being used.");
 </script>
 </body>
 </html>
