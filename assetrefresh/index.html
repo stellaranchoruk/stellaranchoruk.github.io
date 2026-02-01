@@ -54,7 +54,7 @@
     .grid{ display:grid; grid-template-columns: 1fr; gap:14px; margin-top:14px; }
     .card{
       border:1px solid var(--border); border-radius:16px; background:rgba(17,26,43,.65);
-      padding:14px; overflow:hidden; /* prevent page overflow */
+      padding:14px; overflow:hidden;
     }
     .cardHead{
       display:flex; gap:10px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
@@ -70,12 +70,11 @@
     }
 
     .twoCol{ display:grid; grid-template-columns: 1.2fr .8fr; gap:12px; }
-    /* make it collapse earlier (fixes “still two columns on mobile-ish widths”) */
     @media (max-width: 1100px){ .twoCol{ grid-template-columns: 1fr; } }
 
     .box{
       border:1px solid var(--border); border-radius:14px; padding:12px; background:rgba(255,255,255,.02);
-      min-width:0; /* allow contents to shrink */
+      min-width:0;
     }
 
     label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
@@ -88,25 +87,12 @@
     input:focus, textarea:focus, select:focus{ border-color:rgba(94,234,212,.5); }
     textarea{ min-height: 120px; resize: vertical; }
 
-    /* Forms row: ensure it wraps correctly and never clips */
-    .formRow{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-    .formRow > .formCol{
-      flex:1 1 320px;
-      min-width:0;
-    }
-    .formRow > .formCol.narrow{
-      flex:1 1 260px;
-      min-width:0;
-    }
+    .formRow{ display:flex; gap:12px; flex-wrap:wrap; }
+    .formRow > .formCol{ flex:1 1 320px; min-width:0; }
+    .formRow > .formCol.narrow{ flex:1 1 260px; min-width:0; }
     @media (max-width: 720px){
       .formRow > .formCol,
-      .formRow > .formCol.narrow{
-        flex:1 1 100%;
-      }
+      .formRow > .formCol.narrow{ flex:1 1 100%; }
     }
 
     .tableWrap{
@@ -134,7 +120,7 @@
       margin-top:12px; padding:12px; border-radius:14px; border:1px solid var(--border);
       background:#071022; font-family:var(--mono); font-size:12px; color:#cbd5e1;
       white-space:pre-wrap;
-      overflow-wrap:anywhere;  /* IMPORTANT: wrap long Stellar strings */
+      overflow-wrap:anywhere;
       word-break:break-word;
       max-height:260px; overflow:auto;
     }
@@ -145,7 +131,6 @@
     .divider{ height:1px; background:var(--border); margin:10px 0; }
     .badge{ display:inline-block; font-family:var(--mono); font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
 
-    /* Mobile: let pills wrap instead of forcing overflow */
     @media (max-width: 520px){
       .assetName{ min-width: 0; width:100%; }
       .kv{ width:100%; }
@@ -169,17 +154,6 @@
       padding:8px 10px;
       border-radius:12px;
     }
-    .feeState{
-      font-family:var(--mono);
-      font-size:12px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-    }
-    .feeState.ok{ border-color:rgba(52,211,153,.35); color:var(--ok); }
-    .feeState.bad{ border-color:rgba(251,113,133,.35); color:var(--bad); }
   </style>
 </head>
 <body>
@@ -198,8 +172,7 @@
       <div class="feeBox">
         <label class="mono" for="inp-fee">Fee / op</label>
         <input id="inp-fee" type="number" inputmode="numeric" min="100" step="100" value="10000" />
-        <button id="btnUseBaseFee">Use network base</button>
-        <span id="feeApplied" class="feeState ok">Applied: 10000</span>
+        <button id="btnSetFee">Set fee</button>
       </div>
 
       <button class="primary" id="btnRefresh">Refresh balances</button>
@@ -277,24 +250,20 @@ function fmtStrict(n, dp=7){
 }
 function makeAsset(code, issuer){ return new StellarSdk.Asset(code, issuer); }
 
-function applyFeeFromInput(){
-  const el = document.getElementById("inp-fee");
-  const badge = document.getElementById("feeApplied");
-  const raw = (el.value ?? "").toString().trim();
+/* Fee logic: only changes when you press "Set fee" (or hit Enter) */
+function parseFeeFromInput(){
+  const raw = (document.getElementById("inp-fee").value ?? "").toString().trim();
   const fee = Number(raw);
-
-  if (Number.isFinite(fee) && fee > 0){
-    state.feePerOp = Math.floor(fee);
-    badge.textContent = `Applied: ${state.feePerOp}`;
-    badge.classList.remove("bad");
-    badge.classList.add("ok");
-  } else {
-    badge.textContent = `Applied: ${state.feePerOp} (invalid input ignored)`;
-    badge.classList.remove("ok");
-    badge.classList.add("bad");
-  }
+  if (!Number.isFinite(fee) || fee <= 0) throw new Error("Fee must be a positive number (stroops per op).");
+  return Math.floor(fee);
 }
 function getPerOpFee(){ return state.feePerOp; }
+function setFeeFromUI(){
+  const next = parseFeeFromInput();
+  const prev = state.feePerOp;
+  state.feePerOp = next;
+  log(`Fee/op updated: ${prev} → ${next} stroops/op`);
+}
 
 function findBalance(balances, code, issuer){
   const b = balances.find(x => x.asset_type !== "native" && x.asset_code === code && x.asset_issuer === issuer);
@@ -436,7 +405,7 @@ function buildCards(){
     <div class="cardHead">
       <div class="assetName">
         <b>Batch</b>
-        <small>Build ALL wallets into ONE transaction XDR (uses Applied fee/op).</small>
+        <small>Build ALL wallets into ONE transaction XDR (uses fee/op you set).</small>
       </div>
       <div class="kv">
         <span class="pill" id="pill-batch-fee">Fee payer: GBPC</span>
@@ -507,8 +476,6 @@ function buildCards(){
   for (const code of ["GBPC","EURC","KRWC","USDC"]){
     const issuer = ISSUERS[code];
     const isUSDC = code === "USDC";
-
-    // NOTE: spaces after commas helps wrapping when pills go multi-line
     const idsText = isUSDC
       ? `buy=${OFFER_IDS.USDC.buy}`
       : `sell05=${OFFER_IDS[code].sell_05}, sell075=${OFFER_IDS[code].sell_075}, sell10=${OFFER_IDS[code].sell_10}, buy=${OFFER_IDS[code].buy}`;
@@ -769,6 +736,8 @@ async function buildAndSign(code){
   catch(e){ alert(`Failed to load account: ${e?.message || e}`); return; }
 
   const fee = getPerOpFee();
+  log(`${code}: building tx using fee/op=${fee}`);
+
   const txb = new StellarSdk.TransactionBuilder(acct, {
     fee: String(fee),
     networkPassphrase: NETWORK_PASSPHRASE
@@ -778,7 +747,7 @@ async function buildAndSign(code){
   if (code !== "USDC"){
     const seq = decideOrderFromLive(code, q.mid, state.live[code]);
     order = seq.order;
-    log(`${code}: op order=${order} (${seq.reason}) fee/op=${fee}`);
+    log(`${code}: op order=${order} (${seq.reason})`);
   }
 
   addOpsForWallet(txb, code, q, circleBal, order, null);
@@ -787,7 +756,7 @@ async function buildAndSign(code){
   tx.sign(kp);
   out.value = tx.toXDR();
   skEl.value = "";
-  log(`${code}: ✅ signed XDR generated (fee/op=${fee}).`);
+  log(`${code}: ✅ signed XDR generated.`);
 }
 
 async function copyXDR(code){
@@ -846,6 +815,7 @@ async function buildBatch({ previewOnly }){
 
   const acct = await server.loadAccount(feeSourcePub);
   const fee = getPerOpFee();
+  log(`Batch: building tx using fee/op=${fee}`);
 
   const txb = new StellarSdk.TransactionBuilder(acct, {
     fee: String(fee),
@@ -876,7 +846,7 @@ async function buildBatch({ previewOnly }){
   out.value = tx.toXDR();
 
   prev.textContent =
-`Fee/op APPLIED: ${fee} stroops
+`Fee/op: ${fee} stroops
 
 TX SOURCE (fee payer): ${feeCode}  ${feeSourcePub}
 
@@ -887,7 +857,7 @@ KRWC: ${orders.KRWC.order}
 USDC: buy-first
 
 Ops: 13 (GBPC 4, EURC 4, KRWC 4, USDC 1)`;
-  log(`Batch: XDR built. fee/op=${fee}. ${previewOnly ? "Unsigned." : "Signed if secrets provided."}`);
+  log(`Batch: XDR built. ${previewOnly ? "Unsigned." : "Signed if secrets provided."}`);
 }
 
 async function copyBatchXDR(){
@@ -900,19 +870,14 @@ async function copyBatchXDR(){
 // init
 buildCards();
 
-// fee input handlers (THIS is the iOS fix)
-const feeInput = document.getElementById("inp-fee");
-["input","change","blur"].forEach(evt => feeInput.addEventListener(evt, applyFeeFromInput));
-applyFeeFromInput();
-
-document.getElementById("btnUseBaseFee").addEventListener("click", async ()=>{
-  try{
-    const base = await server.fetchBaseFee();
-    feeInput.value = String(base);
-    applyFeeFromInput();
-    log(`Fee set to network base fee: ${base} stroops/op`);
-  }catch(e){
-    alert(`Failed to fetch base fee: ${e?.message || e}`);
+document.getElementById("btnSetFee").addEventListener("click", ()=>{
+  try{ setFeeFromUI(); }
+  catch(e){ alert(e.message || e); }
+});
+document.getElementById("inp-fee").addEventListener("keydown", (e)=>{
+  if (e.key === "Enter"){
+    e.preventDefault();
+    try{ setFeeFromUI(); } catch(err){ alert(err.message || err); }
   }
 });
 
@@ -920,7 +885,7 @@ document.getElementById("btnRefresh").addEventListener("click", ()=>refreshAllBa
 document.getElementById("btnRefreshLive").addEventListener("click", ()=>refreshAllLive().catch(e=>alert(e.message||e)));
 document.getElementById("btnClearLog").addEventListener("click", ()=>{ elLog.textContent=""; });
 
-log("Ready. Edit Fee/op — the “Applied:” badge shows the actual value being used.");
+log("Ready. Fee/op defaults to 10000. Change it and click “Set fee” to apply (logged).");
 </script>
 </body>
 </html>
