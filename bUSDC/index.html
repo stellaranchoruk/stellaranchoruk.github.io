@@ -3,424 +3,802 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>bUSDC Vault UI</title>
+  <title>bUSDC Vault – Simple UI</title>
   <style>
     :root{
-      --bg:#0b0f17; --card:#111a2b; --muted:#8ea0c2; --text:#e8eefc;
-      --accent:#5eead4; --warn:#fbbf24; --bad:#fb7185; --ok:#34d399;
-      --border:rgba(255,255,255,.10);
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      --bg:#0b0f17;
+      --card:#111a2b;
+      --muted:#8ea0c2;
+      --text:#e8eefc;
+      --accent:#5eead4;
+      --warn:#fbbf24;
+      --bad:#fb7185;
+      --ok:#34d399;
+      --border:rgba(255,255,255,.08);
     }
-    body{ margin:0; font-family:var(--sans); background:linear-gradient(180deg,#070a10,#0b0f17 40%,#070a10); color:var(--text); }
-    .wrap{ max-width:1050px; margin:24px auto; padding:0 16px; }
-    .grid{ display:grid; grid-template-columns: 1.2fr .8fr; gap:16px; }
-    .card{ background:rgba(17,26,43,.92); border:1px solid var(--border); border-radius:14px; padding:16px; }
-    h1{ margin:0 0 6px; font-size:20px; letter-spacing:-.01em; }
-    h2{ margin:0 0 10px; font-size:16px; letter-spacing:-.01em; }
-    .muted{ color:var(--muted); font-size:13px; }
-    label{ display:block; margin:10px 0 6px; font-size:13px; color:var(--muted); }
-    input, select{
-      width:100%; box-sizing:border-box; padding:10px 12px;
-      background:rgba(255,255,255,.03); border:1px solid var(--border);
-      color:var(--text); border-radius:10px; outline:none;
-      font-family:var(--mono); font-size:13px;
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:radial-gradient(1000px 700px at 20% 0%, rgba(94,234,212,.12), transparent 55%),
+                 radial-gradient(900px 600px at 95% 15%, rgba(251,113,133,.10), transparent 55%),
+                 var(--bg);
+      color:var(--text);
+      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
     }
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:1080px; margin:0 auto; padding:22px 16px 60px;}
+    .top{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+    .brand h1{margin:0; font-size:20px; letter-spacing:.2px}
+    .brand .sub{color:var(--muted); margin-top:4px; font-size:12px}
+    .row{display:grid; grid-template-columns: 1.05fr .95fr; gap:14px;}
+    @media (max-width: 940px){ .row{grid-template-columns:1fr;} }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.22);
+    }
+    .card h2{margin:0 0 10px; font-size:15px}
+    .grid2{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    @media (max-width: 520px){ .grid2{grid-template-columns:1fr;} }
+    .kv{
+      padding:10px 10px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:rgba(0,0,0,.18);
+      min-height:54px;
+    }
+    .kv .k{color:var(--muted); font-size:11px; letter-spacing:.2px; text-transform:uppercase}
+    .kv .v{margin-top:4px; font-size:14px; word-break:break-all}
+    .kv .v.big{font-size:18px}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:7px 10px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:rgba(0,0,0,.18);
+      color:var(--muted);
+      font-size:12px;
+    }
+    .pill .dot{width:8px;height:8px;border-radius:50%; background:var(--muted)}
+    .pill.ok .dot{background:var(--ok)}
+    .pill.warn .dot{background:var(--warn)}
+    .pill.bad .dot{background:var(--bad)}
+    .actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
     button{
-      cursor:pointer; border:1px solid var(--border); background:rgba(255,255,255,.06);
-      color:var(--text); padding:10px 12px; border-radius:10px; font-weight:700;
+      appearance:none;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
     }
-    button.primary{ border-color:rgba(94,234,212,.35); background:rgba(94,234,212,.12); }
-    button:disabled{ opacity:.5; cursor:not-allowed; }
-    .row{ display:flex; gap:10px; align-items:center; }
-    .row > * { flex:1; }
-    .kvs{ display:grid; grid-template-columns: 180px 1fr; gap:8px 10px; margin-top:10px; }
-    .key{ color:var(--muted); font-size:13px; }
-    .val{ font-family:var(--mono); font-size:13px; overflow-wrap:anywhere; }
-    .log{ white-space:pre-wrap; font-family:var(--mono); font-size:12px; background:rgba(0,0,0,.25);
-      border:1px solid var(--border); padding:10px; border-radius:10px; max-height:280px; overflow:auto; }
-    .pill{ display:inline-block; padding:4px 9px; border:1px solid var(--border); border-radius:999px;
-      font-size:12px; color:var(--muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; }
-    .good{ color:var(--ok); border-color:rgba(52,211,153,.35); }
-    .bad{ color:var(--bad); border-color:rgba(251,113,133,.35); }
-    .hr{ height:1px; background:var(--border); margin:14px 0; }
-    @media (max-width:900px){ .grid{ grid-template-columns: 1fr; } .kvs{ grid-template-columns: 140px 1fr; } }
+    button:hover{border-color: rgba(94,234,212,.35)}
+    button:disabled{opacity:.5; cursor:not-allowed}
+    button.primary{
+      background:linear-gradient(180deg, rgba(94,234,212,.22), rgba(94,234,212,.10));
+      border-color: rgba(94,234,212,.28);
+    }
+    button.ghost{
+      background:transparent;
+    }
+    .input{
+      display:flex; flex-direction:column; gap:6px; margin-top:10px;
+    }
+    input, textarea, select{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 11px;
+      background:rgba(0,0,0,.18);
+      color:var(--text);
+      outline:none;
+      font:inherit;
+    }
+    textarea{min-height:120px; resize:vertical; display:none;}
+    .small{color:var(--muted); font-size:12px}
+    .muted{color:var(--muted)}
+    .status-line{margin-top:10px; color:var(--muted)}
+    .hr{height:1px; background:var(--border); margin:12px 0}
+    .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
+    .toast-v4-wrap{
+      position:fixed; top:12px; right:12px; z-index:50;
+      display:flex; flex-direction:column; gap:10px;
+      pointer-events:none;
+    }
+    .toast-v4{
+      pointer-events:auto;
+      width:min(380px, calc(100vw - 24px));
+      border-radius:14px;
+      padding:10px 10px;
+      border:1px solid var(--border);
+      background:rgba(10,14,22,.86);
+      backdrop-filter: blur(8px);
+      display:flex; gap:10px; align-items:flex-start;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      animation: tv4in .16s ease-out forwards;
+    }
+    .toast-v4 .ico{
+      width:26px; height:26px; border-radius:10px;
+      display:flex; align-items:center; justify-content:center;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      font-weight:800;
+    }
+    .toast-v4.ok .ico{color:var(--ok)}
+    .toast-v4.err .ico{color:var(--bad)}
+    .toast-v4.info .ico{color:var(--accent)}
+    .toast-v4 .body{flex:1}
+    .toast-v4 .title{font-weight:800; font-size:12px; letter-spacing:.2px}
+    .toast-v4 .msg{font-size:12px; color:var(--muted); margin-top:2px; white-space:pre-wrap}
+    .toast-v4 .x{
+      border:none; background:transparent; color:var(--muted); cursor:pointer;
+      font-size:18px; padding:0 6px;
+    }
+    @keyframes tv4in{from{transform:translateY(-6px); opacity:0} to{transform:none; opacity:1}}
+    @keyframes tv4out{from{transform:none; opacity:1} to{transform:translateY(-6px); opacity:0}}
+    .backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      display:none; z-index:40;
+    }
+    .backdrop.open{display:block}
+    .modal{
+      position:fixed; inset:0;
+      display:none; z-index:41;
+      place-items:center;
+      padding:18px;
+    }
+    .modal.open{display:grid}
+    .modal-inner{
+      width:min(540px, 100%);
+      background:rgba(16,22,35,.92);
+      border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow: 0 16px 50px rgba(0,0,0,.5);
+      padding:14px;
+      backdrop-filter: blur(8px);
+    }
+    .modal-header{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px}
+    .modal-header h3{margin:0; font-size:16px}
+    .modal-header .x{border:none; background:transparent; color:var(--muted); font-size:20px; cursor:pointer}
+    .qr-wrap{margin-top:12px; display:none; gap:12px; align-items:center; flex-direction:column}
+    .wallet-choices{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+    .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    @media (max-width:560px){ .two-col{grid-template-columns:1fr} }
   </style>
 </head>
+
 <body>
+  <div class="toast-v4-wrap" id="toastV4Wrap" aria-live="polite"></div>
+
   <div class="wrap">
-    <div class="card">
-      <div class="row" style="align-items:flex-start;">
-        <div style="flex:1.6;">
-          <h1>bUSDC Vault UI</h1>
-          <div class="muted">Contract: <span class="pill" id="contractPill"></span></div>
-          <div class="muted">RPC: <span class="pill" id="rpcPill"></span></div>
-        </div>
-        <div style="flex:.9; text-align:right;">
-          <div class="muted">Wallet</div>
-          <div class="row" style="justify-content:flex-end; gap:8px; margin-top:8px;">
-            <button id="btnConnect" class="primary">Connect Freighter</button>
-            <button id="btnRefresh">Refresh</button>
-          </div>
-          <div class="muted" style="margin-top:8px;">
-            Address: <span id="addr" class="pill" title="not connected">not connected</span>
-          </div>
-        </div>
+    <div class="top">
+      <div class="brand">
+        <h1>bUSDC Vault UI</h1>
+        <div class="sub">Simple interface for the Origin-style vault contract on Soroban + Stellar classic assets.</div>
       </div>
+      <div class="pill" id="netPill"><span class="dot"></span><span id="netLabel">Pubnet</span></div>
     </div>
 
-    <div class="grid" style="margin-top:16px;">
+    <div class="row">
+      <!-- LEFT -->
       <div class="card">
         <h2>Vault state</h2>
-        <div class="muted">Human amounts assume 7 decimals (USDC-style). Raw is the exact on-chain integer.</div>
+
+        <div class="grid2">
+          <div class="kv">
+            <div class="k">Contract</div>
+            <div class="v mono" id="contractIdOut"></div>
+          </div>
+          <div class="kv">
+            <div class="k">RPC</div>
+            <div class="v mono" id="rpcOut"></div>
+          </div>
+
+          <div class="kv">
+            <div class="k">Asset code</div>
+            <div class="v big" id="assetCodeOut">bUSDC</div>
+          </div>
+          <div class="kv">
+            <div class="k">Issuer</div>
+            <div class="v mono" id="issuerOut"></div>
+          </div>
+
+          <div class="kv">
+            <div class="k">Share token (Soroban ID)</div>
+            <div class="v mono" id="shareOut">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Underlying asset (Soroban ID)</div>
+            <div class="v mono" id="assetOut">—</div>
+          </div>
+
+          <div class="kv">
+            <div class="k">Share price (assets per share)</div>
+            <div class="v big" id="sharePriceOut">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Implied bUSDC value</div>
+            <div class="v big" id="impliedOut">—</div>
+          </div>
+
+          <div class="kv">
+            <div class="k">Total assets</div>
+            <div class="v" id="totalAssetsOut">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Total supply</div>
+            <div class="v" id="totalSupplyOut">—</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="refreshBtn">Refresh state</button>
+          <button class="ghost" id="toggleLogsBtn">Show logs</button>
+        </div>
+
+        <textarea id="logs" class="mono" spellcheck="false"></textarea>
+
+        <div class="status-line small" id="stateStatus"></div>
+
         <div class="hr"></div>
 
-        <div class="kvs">
-          <div class="key">Underlying asset</div><div class="val" id="underlying">—</div>
-          <div class="key">Share token</div><div class="val" id="share">—</div>
-
-          <div class="key">Share price</div><div class="val" id="sharePrice">—</div>
-          <div class="key">1 bUSDC ≈</div><div class="val" id="oneShareWorth">—</div>
-
-          <div class="key">Total assets</div><div class="val" id="totalAssets">—</div>
-          <div class="key">Total supply</div><div class="val" id="totalSupply">—</div>
+        <h2>Deposit / Withdraw</h2>
+        <div class="small muted">
+          These actions build a Soroban transaction, prepare it via RPC, then sign via WalletConnect / Freighter / Secret Key.
+          Vault accounts trigger the “copy signed XDR and co-sign in LOBSTR Vault” flow. 
         </div>
+
+        <div class="two-col" style="margin-top:10px">
+          <div>
+            <div class="input">
+              <label class="small">Deposit amount (USDC units)</label>
+              <input id="depositAmt" inputmode="decimal" placeholder="e.g. 100.00" />
+            </div>
+            <div class="actions">
+              <button id="depositBtn" class="primary">Deposit</button>
+              <button id="depositXdrToggle">Reveal XDR</button>
+            </div>
+            <textarea id="depositXdr" class="mono" spellcheck="false"></textarea>
+            <div class="status-line small" id="depositStatus"></div>
+          </div>
+
+          <div>
+            <div class="input">
+              <label class="small">Withdraw amount (bUSDC shares)</label>
+              <input id="withdrawAmt" inputmode="decimal" placeholder="e.g. 100.00" />
+            </div>
+            <div class="actions">
+              <button id="withdrawBtn" class="primary">Withdraw</button>
+              <button id="withdrawXdrToggle">Reveal XDR</button>
+            </div>
+            <textarea id="withdrawXdr" class="mono" spellcheck="false"></textarea>
+            <div class="status-line small" id="withdrawStatus"></div>
+          </div>
+        </div>
+
       </div>
 
+      <!-- RIGHT -->
       <div class="card">
-        <h2>Actions</h2>
+        <h2>Wallet</h2>
 
-        <label>Amount (decimal, e.g. 100.5)</label>
-        <input id="amount" placeholder="e.g. 100.5" />
-
-        <div class="row" style="margin-top:10px;">
-          <button id="btnPreviewDeposit">Preview deposit</button>
-          <button id="btnPreviewWithdraw">Preview withdraw</button>
+        <div class="kv">
+          <div class="k">Connection</div>
+          <div class="v" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div>
+              <div id="connStatus" class="pill bad" style="display:inline-flex"><span class="dot"></span><span>Not connected</span></div>
+              <div class="small muted" id="connModeLine" style="margin-top:6px">—</div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
+              <button id="connectBtn" class="primary">Connect</button>
+              <button id="disconnectBtn" disabled>Disconnect</button>
+            </div>
+          </div>
         </div>
 
-        <div class="row" style="margin-top:10px;">
-          <button id="btnDeposit" class="primary" disabled>Deposit</button>
-          <button id="btnWithdraw" class="primary" disabled>Withdraw</button>
+        <div class="input">
+          <label class="small">Public key (G...)</label>
+          <input id="pubkeyEl" class="mono" placeholder="G..." />
+          <div class="actions">
+            <button id="usePubkeyBtn">Use pubkey (read-only)</button>
+            <button id="openExplorerBtn">Open in StellarExpert</button>
+          </div>
         </div>
 
-        <div class="muted" style="margin-top:10px;">
-          Deposit/Withdraw requires Freighter signing. Previews are read-only.
+        <div class="input">
+          <label class="small">Secret key (S...) (optional)</label>
+          <input id="seckeyEl" class="mono" placeholder="S... (not stored)" />
+          <div class="small muted">
+            If you use secret-key mode, signing happens locally in this browser tab (no storage).
+          </div>
+          <div class="actions">
+            <button id="useSecretBtn">Use secret (local signing)</button>
+          </div>
         </div>
 
-        <div style="margin-top:12px;">
-          <div class="muted">Result</div>
-          <div id="result" class="pill">—</div>
+        <div class="hr"></div>
+
+        <h2>Balances</h2>
+        <div class="grid2">
+          <div class="kv">
+            <div class="k">bUSDC balance</div>
+            <div class="v big" id="busdcBalOut">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Selling liabilities</div>
+            <div class="v" id="busdcLiaOut">—</div>
+          </div>
         </div>
+        <div class="actions">
+          <button id="refreshBalBtn" class="primary">Refresh balance</button>
+        </div>
+        <div class="status-line small" id="balStatus"></div>
+
+        <div class="hr"></div>
+
+        <h2>Links</h2>
+        <div class="small muted">
+          Vault: <span class="mono">CCR63UWZKPVR2OAZJEBHT4OKBLHX2OAMUYZ63JLO2V72FY3SKAXQTGF6</span><br/>
+          bUSDC issuer: <span class="mono">GA57KXF2UAGURRYK4LKTO4BO2JASL2PQCO2C53XUNK5G4CXX6QAL6QNR</span>
+        </div>
+
       </div>
-    </div>
-
-    <div class="card" style="margin-top:16px;">
-      <div class="row" style="align-items:center;">
-        <h2 style="margin:0;">Debug log</h2>
-        <div style="text-align:right;">
-          <button id="btnClear">Clear</button>
-        </div>
-      </div>
-      <div id="log" class="log" style="margin-top:10px;"></div>
     </div>
   </div>
 
-  <!-- Stellar SDK browser build -->
-  <script src="https://unpkg.com/@stellar/stellar-sdk@14.4.3/dist/stellar-sdk-minimal.min.js"></script>
-  <!-- Freighter API (UMD) -->
-  <script src="https://unpkg.com/@stellar/freighter-api@1.7.1/dist/index.umd.js"></script>
+  <!-- Connect Modal -->
+  <div id="backdrop" class="backdrop"></div>
+  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h3 id="loginTitle">Connect Wallet</h3>
+        <button class="x" id="closeModal" aria-label="Close">×</button>
+      </div>
+      <div class="small">Pick a login method:</div>
+      <div class="actions" style="margin-top:10px">
+        <button id="wcBtn">🔗 WalletConnect (mobile)</button>
+        <button id="freighterExtBtn">🧩 Freighter (extension)</button>
+      </div>
 
-  <script>
-    // ========= CONFIG =========
+      <div id="qrArea" class="qr-wrap">
+        <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
+        <div class="wallet-choices">
+          <button id="btnLobstr">Open in LOBSTR</button>
+          <button id="btnFreighter">Open in Freighter</button>
+        </div>
+        <div class="small">
+          Scan with your wallet app, or tap above on mobile. ·
+          <a id="rawWcLink" class="link" href="#" target="_blank" rel="noreferrer">raw wc link</a>
+        </div>
+        <div id="linkStatus" class="small muted"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign Prompt Modal -->
+  <div id="signBackdrop" class="backdrop"></div>
+  <div id="signModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="signTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h3 id="signTitle">Sign Transaction</h3>
+        <button class="x" id="closeSign" aria-label="Close">×</button>
+      </div>
+      <p class="small">
+        Your transaction is ready to sign.
+        <br><br>
+        <b>Desktop:</b> approve in the wallet connected via WalletConnect.
+        <br><br>
+        <b>Mobile:</b> open your wallet:
+      </p>
+      <div class="wallet-choices">
+        <button id="signLobstr">Open in LOBSTR</button>
+        <button id="signFreighter">Open in Freighter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vault Modal -->
+  <div id="vaultBackdrop" class="backdrop"></div>
+  <div id="vaultModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h3 id="vaultTitle">LOBSTR Vault co-sign required</h3>
+        <button class="x" id="closeVault" aria-label="Close">×</button>
+      </div>
+      <div class="small muted">
+        This account appears to be protected by LOBSTR Vault. We won’t submit the tx.
+        Copy the signed XDR below and complete co-signing inside LOBSTR Vault.
+      </div>
+      <div class="actions">
+        <button id="copySignedXdr" class="primary">Copy signed XDR</button>
+        <button id="toggleVaultXdr">Reveal XDR</button>
+      </div>
+      <textarea id="signedXdrOut" class="mono" spellcheck="false" style="display:none"></textarea>
+    </div>
+  </div>
+
+  <!-- WalletConnect deps -->
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/umd/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+  <script type="module">
+    // -----------------------
+    // Config (EDIT ME)
+    // -----------------------
     const CONTRACT_ID = "CCR63UWZKPVR2OAZJEBHT4OKBLHX2OAMUYZ63JLO2V72FY3SKAXQTGF6";
-    const RPC_URL = "https://rpc.lightsail.network/";
-    const NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015";
-    const DECIMALS = 7; // classic USDC-style scale
-    // ==========================
 
-    const el = (id) => document.getElementById(id);
-    const logEl = el("log");
+    // bUSDC classic asset (for balance lookup / display)
+    const BUSDC_CODE   = "bUSDC";
+    const BUSDC_ISSUER = "GA57KXF2UAGURRYK4LKTO4BO2JASL2PQCO2C53XUNK5G4CXX6QAL6QNR";
 
-    // BigInt-safe logger (fixes: "Do not know how to serialize a BigInt")
-    const log = (...args) => {
-      const line = args.map(a => {
-        if (typeof a === "bigint") return a.toString();
-        if (a && typeof a === "object") {
-          return JSON.stringify(a, (k, v) => (typeof v === "bigint" ? v.toString() : v), 2);
-        }
-        return String(a);
+    // Pubnet
+    const NETWORK = "Public Global Stellar Network ; September 2015";
+    const HORIZON = "https://horizon.stellar.org";
+
+    // Soroban RPC (your suggestion)
+    const SOROBAN_RPC = "https://rpc.lightsail.network/";
+    // const SOROBAN_RPC = "https://mainnet.sorobanrpc.com"; // fallback if needed
+
+    // LOBSTR Vault signer key (same pattern as your AQUAmb page)
+    const VAULT_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
+
+    // WalletConnect (same pattern as your AQUAmb page)
+    const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
+    const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
+
+    // -----------------------
+    // Imports
+    // -----------------------
+    import * as SDK from "https://esm.sh/stellar-sdk@12.1.0";
+
+    // -----------------------
+    // DOM
+    // -----------------------
+    const $ = (id)=>document.getElementById(id);
+    const contractIdOut = $("contractIdOut");
+    const rpcOut = $("rpcOut");
+    const issuerOut = $("issuerOut");
+
+    const shareOut = $("shareOut");
+    const assetOut = $("assetOut");
+    const sharePriceOut = $("sharePriceOut");
+    const impliedOut = $("impliedOut");
+    const totalAssetsOut = $("totalAssetsOut");
+    const totalSupplyOut = $("totalSupplyOut");
+    const stateStatus = $("stateStatus");
+    const refreshBtn = $("refreshBtn");
+    const toggleLogsBtn = $("toggleLogsBtn");
+    const logsEl = $("logs");
+
+    const pubkeyEl = $("pubkeyEl");
+    const seckeyEl = $("seckeyEl");
+    const connectBtn = $("connectBtn");
+    const disconnectBtn = $("disconnectBtn");
+    const usePubkeyBtn = $("usePubkeyBtn");
+    const useSecretBtn = $("useSecretBtn");
+    const openExplorerBtn = $("openExplorerBtn");
+
+    const connStatus = $("connStatus");
+    const connModeLine = $("connModeLine");
+
+    const busdcBalOut = $("busdcBalOut");
+    const busdcLiaOut = $("busdcLiaOut");
+    const refreshBalBtn = $("refreshBalBtn");
+    const balStatus = $("balStatus");
+
+    const depositAmt = $("depositAmt");
+    const withdrawAmt = $("withdrawAmt");
+    const depositBtn = $("depositBtn");
+    const withdrawBtn = $("withdrawBtn");
+    const depositXdr = $("depositXdr");
+    const withdrawXdr = $("withdrawXdr");
+    const depositXdrToggle = $("depositXdrToggle");
+    const withdrawXdrToggle = $("withdrawXdrToggle");
+    const depositStatus = $("depositStatus");
+    const withdrawStatus = $("withdrawStatus");
+
+    // Modals
+    const backdrop = $("backdrop");
+    const loginModal = $("loginModal");
+    const closeModal = $("closeModal");
+    const wcBtn = $("wcBtn");
+    const freighterExtBtn = $("freighterExtBtn");
+    const qrArea = $("qrArea");
+    const qrCanvas = $("qrCanvas");
+    const btnLobstr = $("btnLobstr");
+    const btnFreighter = $("btnFreighter");
+    const rawWcLink = $("rawWcLink");
+    const linkStatus = $("linkStatus");
+
+    const signBackdrop = $("signBackdrop");
+    const signModal = $("signModal");
+    const closeSign = $("closeSign");
+    const signLobstr = $("signLobstr");
+    const signFreighter = $("signFreighter");
+
+    const vaultBackdrop = $("vaultBackdrop");
+    const vaultModal = $("vaultModal");
+    const closeVault = $("closeVault");
+    const copySignedXdr = $("copySignedXdr");
+    const toggleVaultXdr = $("toggleVaultXdr");
+    const signedXdrOut = $("signedXdrOut");
+
+    // -----------------------
+    // Helpers
+    // -----------------------
+    const toastV4Wrap = $("toastV4Wrap");
+    function toastV4({ type="info", title="", message="", timeout=2600 } = {}){
+      const el = document.createElement("div");
+      el.className = `toast-v4 ${type}`;
+      const icon = type==="ok" ? "✓" : type==="err" ? "!" : "ℹ︎";
+      el.innerHTML = `
+        <div class="ico">${icon}</div>
+        <div class="body">${title?`<div class="title">${title}</div>`:""}<div class="msg">${message||""}</div></div>
+        <button class="x" aria-label="Close">×</button>`;
+      toastV4Wrap.appendChild(el);
+      const close = ()=>{ el.style.animation="tv4out .16s ease-in forwards"; setTimeout(()=>el.remove(), 180); };
+      el.querySelector(".x").onclick = close;
+      if(timeout) setTimeout(close, timeout);
+      return { close };
+    }
+    const toast = (msg, err=false)=> toastV4({ type: err ? "err" : "ok", title: err ? "Error" : "Done", message: msg });
+
+    const isValidG = (k)=>{ try{return SDK.StrKey.isValidEd25519PublicKey(k);}catch{return false;} };
+    const isValidS = (k)=>{ try{return SDK.StrKey.isValidEd25519SecretSeed(k);}catch{return false;} };
+
+    function fmt7(x){
+      const n = Number(x);
+      if(!isFinite(n)) return String(x ?? "—");
+      return n.toFixed(7).replace(/\.?0+$/,'');
+    }
+    function parseAmtToI128_7dp(amountStr){
+      // Convert decimal string into integer scaled by 1e7 (as BigInt)
+      const s = String(amountStr||"").trim().replace(/,/g,"");
+      if(!s) return 0n;
+      const neg = s.startsWith("-");
+      const t = neg ? s.slice(1) : s;
+      const [i, dRaw=""] = t.split(".");
+      const d = (dRaw + "0000000").slice(0,7);
+      const bi = BigInt(i || "0");
+      const bd = BigInt(d || "0");
+      const v = bi * 10000000n + bd;
+      return neg ? -v : v;
+    }
+
+    // JSON BigInt safe
+    const jsonBig = (obj)=>JSON.stringify(obj, (_k,v)=> typeof v==="bigint" ? v.toString() : v, 2);
+
+    function logLine(...args){
+      const line = args.map(a=>{
+        if(typeof a === "string") return a;
+        try{ return jsonBig(a); }catch{ return String(a); }
       }).join(" ");
-      logEl.textContent += (logEl.textContent ? "\n" : "") + line;
-      logEl.scrollTop = logEl.scrollHeight;
-      console.log(...args);
+      logsEl.value += line + "\n";
+      logsEl.scrollTop = logsEl.scrollHeight;
+    }
+
+    function toggleEl(el, btn){
+      const hidden = el.style.display === "none" || !el.style.display;
+      el.style.display = hidden ? "block" : "none";
+      btn.textContent = hidden ? "Hide XDR" : "Reveal XDR";
+    }
+
+    // -----------------------
+    // RPC / SDK setup
+    // -----------------------
+    const ServerCtor = SDK.Horizon?.Server ?? SDK.Server; // avoids the undefined Server issue
+    const rpc = ()=> new (SDK.SorobanRpc?.Server ?? SDK.SorobanRpcServer)(SOROBAN_RPC, { allowHttp: SOROBAN_RPC.startsWith("http://") });
+
+    const contract = new SDK.Contract(CONTRACT_ID);
+
+    // Use the pubnet master account for simulation (always exists)
+    const SIM_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+
+    // -----------------------
+    // Wallet state
+    // -----------------------
+    let connectionMode = "none"; // none | wc | freighter | pubkey | secret
+    let pubkey = null;
+    let secretKey = null;
+
+    // WC session
+    const SignClient = window.SignClient?.default || window.SignClient;
+    let wcClient = null;
+    let session = null;
+    let latestWcUri = null;
+
+    // -----------------------
+    // Vault modal
+    // -----------------------
+    function openVaultModal(xdr){
+      signedXdrOut.value = xdr || "";
+      vaultBackdrop.classList.add("open");
+      vaultModal.classList.add("open");
+    }
+    function closeVaultModal(){
+      vaultBackdrop.classList.remove("open");
+      vaultModal.classList.remove("open");
+    }
+    closeVault.onclick = closeVaultModal;
+    vaultBackdrop.addEventListener("click", (e)=>{ if(e.target===vaultBackdrop) closeVaultModal(); });
+    copySignedXdr.onclick = async ()=>{
+      try{ await navigator.clipboard.writeText(signedXdrOut.value||""); toast("Signed XDR copied."); }
+      catch{ toast("Clipboard failed.", true); }
     };
+    toggleVaultXdr.onclick = ()=> toggleEl(signedXdrOut, toggleVaultXdr);
 
-    el("contractPill").textContent = CONTRACT_ID;
-    el("rpcPill").textContent = RPC_URL;
-
-    function setResult(text, ok=true){
-      const r = el("result");
-      r.textContent = text;
-      r.className = "pill " + (ok ? "good" : "bad");
+    // -----------------------
+    // Connection UI
+    // -----------------------
+    function setConnPill(kind, label){
+      connStatus.classList.remove("ok","warn","bad");
+      connStatus.classList.add(kind);
+      connStatus.querySelector("span:last-child").textContent = label;
     }
-
-    // Format BigInt using DECIMALS (7)
-    function fmtDec(x, decimals = DECIMALS){
-      if (typeof x !== "bigint") return String(x);
-      const neg = x < 0n;
-      const v = neg ? -x : x;
-      const s = v.toString().padStart(decimals + 1, "0");
-      const whole = s.slice(0, -decimals);
-      let frac = s.slice(-decimals).replace(/0+$/,"");
-      return (neg ? "-" : "") + whole + (frac ? "." + frac : "");
-    }
-
-    // Shows "raw (≈ human)"
-    function fmtBoth(x){
-      if (typeof x === "bigint") return `${x.toString()}  (≈ ${fmtDec(x)})`;
-      return String(x);
-    }
-
-    // Parse decimal string to i128 scaled by DECIMALS
-    function parseAmountToI128(amountStr, decimals = DECIMALS){
-      const s = (amountStr || "").trim();
-      if (!s) throw new Error("Enter an amount.");
-      if (!/^\d+(\.\d+)?$/.test(s)) throw new Error("Amount must be a positive number (e.g. 12 or 12.34).");
-
-      const [i, f=""] = s.split(".");
-      const frac = (f + "0".repeat(decimals)).slice(0, decimals);
-      const bi = BigInt(i + frac);
-      if (bi <= 0n) throw new Error("Amount must be > 0.");
-      return bi;
-    }
-
-    // Resolve the correct RPC Server constructor across builds
-    function makeRpcServer(url){
-      if (window.StellarSdk?.rpc?.Server) return new window.StellarSdk.rpc.Server(url);
-      if (window.StellarSdk?.SorobanRpc?.Server) return new window.StellarSdk.SorobanRpc.Server(url);
-      throw new Error("Could not find RPC Server constructor (StellarSdk.rpc.Server / StellarSdk.SorobanRpc.Server).");
-    }
-
-    const Stellar = window.StellarSdk;
-    const Contract = Stellar.Contract;
-    const scValToNative = Stellar.scValToNative;
-    const nativeToScVal = Stellar.nativeToScVal;
-
-    const server = makeRpcServer(RPC_URL);
-    const contract = new Contract(CONTRACT_ID);
-
-    let publicKey = null;
-
-    // For read-only simulation, we can use any valid account as source.
-    // This placeholder account works for simulation-only.
-    const READONLY_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
-
-    async function simulateCall(fn, argsScVals=[]){
-      const sourcePk = publicKey || READONLY_SOURCE;
-      const source = await server.getAccount(sourcePk);
-
-      const tx = new Stellar.TransactionBuilder(source, {
-        fee: Stellar.BASE_FEE,
-        networkPassphrase: NETWORK_PASSPHRASE
-      })
-      .addOperation(contract.call(fn, ...argsScVals))
-      .setTimeout(30)
-      .build();
-
-      const sim = await server.simulateTransaction(tx);
-      if ((Stellar.rpc?.isSimulationError?.(sim)) || sim.error) {
-        throw new Error("Simulation failed: " + (sim.error ? JSON.stringify(sim.error) : JSON.stringify(sim, null, 2)));
+    async function detectVault(account){
+      if(!account) return false;
+      try{
+        const r = await fetch(`${HORIZON}/accounts/${account}`);
+        const j = await r.json();
+        const ks = (j.signers || []).map(s => s.key);
+        return ks.includes(VAULT_KEY);
+      }catch{
+        return false;
       }
-      const retval = sim.result?.retval;
-      return { sim, retval };
     }
 
-    async function readFn(fn, argsScVals=[]){
-      log(`→ simulate ${fn}()`);
-      const { retval } = await simulateCall(fn, argsScVals);
-      const native = scValToNative(retval);
-      log(`← ${fn}() =`, native);
-      return native;
-    }
+    function setConnected(address, mode){
+      pubkey = address || null;
+      connectionMode = mode || "none";
 
-    function assembleTransaction(tx, sim){
-      if (Stellar.rpc?.assembleTransaction) return Stellar.rpc.assembleTransaction(tx, sim);
-      if (Stellar.SorobanRpc?.assembleTransaction) return Stellar.SorobanRpc.assembleTransaction(tx, sim);
-      throw new Error("assembleTransaction not found in this SDK build.");
-    }
+      disconnectBtn.disabled = !pubkey;
+      if(pubkey) pubkeyEl.value = pubkey;
 
-    async function writeFn(fn, argsScVals=[]){
-      if (!publicKey) throw new Error("Connect Freighter first.");
-
-      log(`→ build ${fn}() tx`);
-      const source = await server.getAccount(publicKey);
-      const tx0 = new Stellar.TransactionBuilder(source, {
-        fee: Stellar.BASE_FEE,
-        networkPassphrase: NETWORK_PASSPHRASE
-      })
-      .addOperation(contract.call(fn, ...argsScVals))
-      .setTimeout(60)
-      .build();
-
-      log(`→ simulate ${fn}()`);
-      const sim = await server.simulateTransaction(tx0);
-      if ((Stellar.rpc?.isSimulationError?.(sim)) || sim.error) {
-        throw new Error("Simulation failed: " + (sim.error ? JSON.stringify(sim.error) : JSON.stringify(sim, null, 2)));
+      if(!pubkey){
+        setConnPill("bad","Not connected");
+        connModeLine.textContent = "—";
+        return;
       }
 
-      const assembled = assembleTransaction(tx0, sim);
-      const xdr = assembled.toXDR();
-
-      log("→ request Freighter signature");
-      const signedXdr = await window.freighterApi.signTransaction(xdr, {
-        networkPassphrase: NETWORK_PASSPHRASE
+      // Vault-aware label
+      detectVault(pubkey).then((hasVault)=>{
+        if(hasVault){
+          setConnPill("warn","LOBSTR Vault");
+          connModeLine.textContent = `Mode: ${connectionMode} · Vault protected`;
+        }else{
+          setConnPill("ok","Connected");
+          connModeLine.textContent = `Mode: ${connectionMode}`;
+        }
       });
 
-      const signedTx = Stellar.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
-
-      log("→ sendTransaction");
-      const send = await server.sendTransaction(signedTx);
-      log("sendTransaction =", send);
-
-      // Poll until complete
-      const hash = send.hash;
-      for (let i=0;i<20;i++){
-        await new Promise(r => setTimeout(r, 1500));
-        const res = await server.getTransaction(hash);
-        if (res.status === "SUCCESS") return res;
-        if (res.status === "FAILED") throw new Error("Transaction FAILED: " + JSON.stringify(res, null, 2));
-      }
-      throw new Error("Timed out waiting for tx completion.");
+      // refresh balance right away
+      refreshBalance().catch(()=>{});
     }
 
-    async function refreshState(){
-      setResult("Refreshing…", true);
+    // -----------------------
+    // Modals
+    // -----------------------
+    function openModal(){ backdrop.classList.add("open"); loginModal.classList.add("open"); }
+    function closeModalFn(){ backdrop.classList.remove("open"); loginModal.classList.remove("open"); qrArea.style.display="none"; }
+    connectBtn.onclick = openModal;
+    closeModal.onclick = closeModalFn;
+    backdrop.addEventListener("click", closeModalFn);
 
+    function openSignModal(){ signBackdrop.classList.add("open"); signModal.classList.add("open"); }
+    function closeSignModal(){ signBackdrop.classList.remove("open"); signModal.classList.remove("open"); }
+    closeSign.onclick = closeSignModal;
+    signBackdrop.addEventListener("click", closeSignModal);
+
+    // -----------------------
+    // WalletConnect helpers (same approach as AQUAmb)
+    // -----------------------
+    const isIOS = ()=> /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    async function purgeWcStorage(){
       try{
-        // read everything in parallel
-        const [asset, share, sp, ta, ts] = await Promise.all([
-          readFn("query_asset"),
-          readFn("query_share"),
-          readFn("share_price"),
-          readFn("total_assets"),
-          readFn("total_supply"),
-        ]);
+        Object.keys(localStorage).forEach(k=>{
+          if(k.startsWith("wc@2")) localStorage.removeItem(k);
+        });
+      }catch{}
+    }
 
-        // Addresses are strings; numbers are often BigInt
-        el("underlying").textContent = String(asset);
-        el("share").textContent = String(share);
-
-        el("sharePrice").textContent = fmtBoth(sp);
-        el("totalAssets").textContent = fmtBoth(ta);
-        el("totalSupply").textContent = fmtBoth(ts);
-
-        // Nice headline: 1 bUSDC ≈ X USDC (assuming share_price is in asset base units per 1 share with 7 dp)
-        if (typeof sp === "bigint") {
-          el("oneShareWorth").textContent = `${fmtDec(sp)} (USDC)`;
-        } else {
-          el("oneShareWorth").textContent = String(sp);
+    async function ensureClient({ retry=false } = {}){
+      if(wcClient) return wcClient;
+      try{
+        wcClient = await SignClient.init({
+          projectId: PROJECT_ID,
+          relayUrl: "wss://relay.walletconnect.com",
+          metadata: {
+            name: "bUSDC Vault UI",
+            description: "Vault-aware Soroban vault UI",
+            url: location.origin,
+            icons: ["https://walletconnect.com/walletconnect-logo.png"]
+          }
+        });
+        // cleanup expired pairings
+        try{
+          const pairings = wcClient.core.pairing.getPairings?.() || [];
+          for(const p of pairings){
+            if(p.expiry && p.expiry*1000 < Date.now()){
+              wcClient.core.pairing.disconnect({ topic:p.topic });
+            }
+          }
+        }catch{}
+        return wcClient;
+      }catch(e){
+        if(!retry && /No matching key/i.test(String(e?.message||e))){
+          await purgeWcStorage();
+          wcClient = null;
+          return ensureClient({ retry:true });
         }
-
-        setResult("OK", true);
-      }catch(e){
-        console.error(e);
-        setResult(e.message || String(e), false);
-        log("ERROR:", e.message || String(e));
+        throw e;
       }
     }
 
-    async function connectFreighter(){
-      setResult("Connecting…", true);
+    async function getFreighterLinks(){
       try{
-        if (!window.freighterApi) throw new Error("Freighter API not found. Is Freighter installed/enabled?");
-        const isAllowed = await window.freighterApi.isAllowed();
-        if (!isAllowed) await window.freighterApi.setAllowed();
-
-        publicKey = await window.freighterApi.getPublicKey();
-        el("addr").textContent = publicKey;
-        el("addr").title = publicKey;
-
-        // Enable write buttons
-        el("btnDeposit").disabled = false;
-        el("btnWithdraw").disabled = false;
-
-        setResult("Connected", true);
-        log("Connected:", publicKey);
-        await refreshState();
-      }catch(e){
-        setResult(e.message || String(e), false);
-        log("ERROR:", e.message || String(e));
+        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const raw = data?.listings ?? data?.data ?? [];
+        const arr = Array.isArray(raw) ? raw : Object.values(raw);
+        const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
+        const mobile = w?.mobile || w?.app?.mobile || {};
+        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
+      }catch{
+        return { native:null, universal:null, found:false };
       }
     }
+    function buildCandidates(base, wcUri){
+      if(!base) return [];
+      const enc = encodeURIComponent(wcUri);
+      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      const j = base.includes("?") ? "&" : "?";
+      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
+    }
+    function openFreighterSmart(links, wcUri){
+      const store = isIOS()
+        ? "https://apps.apple.com/app/freighter/id6743947720"
+        : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
+      const natives = buildCandidates(links.native, wcUri);
+      const universals = buildCandidates(links.universal, wcUri);
+      let attempted=false;
+      for(const href of natives){ attempted=true; window.location.href = href; setTimeout(()=>{},350); }
+      if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+      if(!attempted){ window.open(store, "_blank", "noopener"); }
+    }
+    function openLobstrApp(uri){
+      const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
+      const store  = isIOS()
+        ? "https://apps.apple.com/app/id1404357892"
+        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const t0 = Date.now();
+      window.location.href = scheme;
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
 
-    async function preview(which){
+    // -----------------------
+    // Freighter connect
+    // -----------------------
+    async function ensureFreighterApi(){
+      if (window.freighterApi) return window.freighterApi;
       try{
-        const amt = parseAmountToI128(el("amount").value);
-        const fn = which === "deposit" ? "preview_deposit" : "preview_withdraw";
-        const { retval } = await simulateCall(fn, [ nativeToScVal(amt, { type: "i128" }) ]);
-        const native = scValToNative(retval);
-        setResult(`${fn}: ${fmtBoth(native)}`, true);
-      }catch(e){
-        setResult(e.message || String(e), false);
+        const mod = await import("https://esm.sh/@stellar/freighter-api@5.0.0");
+        window.freighterApi = mod?.default ?? mod;
+        return window.freighterApi;
+      }catch{
+        return null;
       }
     }
 
-    async function doDeposit(){
+    freighterExtBtn.onclick = async ()=>{
       try{
-        const amt = parseAmountToI128(el("amount").value);
-
-        // If your vault is deposit(assets) only, remove the receiver arg below.
-        const receiver = Stellar.Address.fromString(publicKey).toScVal();
-
-        const res = await writeFn("deposit", [
-          nativeToScVal(amt, { type: "i128" }),
-          receiver
-        ]);
-
-        setResult("Deposit SUCCESS", true);
-        log("Deposit result:", res);
-        await refreshState();
-      }catch(e){
-        setResult(e.message || String(e), false);
-        log("ERROR:", e.message || String(e));
-      }
-    }
-
-    async function doWithdraw(){
-      try{
-        const amt = parseAmountToI128(el("amount").value);
-
-        // Typical 4626: withdraw(assets, receiver, owner)
-        // If your vault is withdraw(assets) or withdraw(assets, receiver), adjust accordingly.
-        const receiver = Stellar.Address.fromString(publicKey).toScVal();
-        const owner = Stellar.Address.fromString(publicKey).toScVal();
-
-        const res = await writeFn("withdraw", [
-          nativeToScVal(amt, { type: "i128" }),
-          receiver,
-          owner
-        ]);
-
-        setResult("Withdraw SUCCESS", true);
-        log("Withdraw result:", res);
-        await refreshState();
-      }catch(e){
-        setResult(e.message || String(e), false);
-        log("ERROR:", e.message || String(e));
-      }
-    }
-
-    // Wire buttons
-    el("btnConnect").onclick = connectFreighter;
-    el("btnRefresh").onclick = refreshState;
-    el("btnClear").onclick = () => (logEl.textContent = "");
-    el("btnPreviewDeposit").onclick = () => preview("deposit");
-    el("btnPreviewWithdraw").onclick = () => preview("withdraw");
-    el("btnDeposit").onclick = doDeposit;
-    el("btnWithdraw").onclick = doWithdraw;
-
-    // Initial load
-    refreshState();
-  </script>
-</body>
-</html>
+        const freighter = await ensureFreighter
