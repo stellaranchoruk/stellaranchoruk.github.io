@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Origin Vault UI – bUSDC</title>
+  <style>
+    :root{
+      --bg:#0b0f17; --card:#111a2b; --muted:#8ea0c2; --text:#e8eefc;
+      --accent:#5eead4; --warn:#fbbf24; --bad:#fb7185; --ok:#34d399; --border:rgba(255,255,255,.08);
+    }
+    body{ margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background:linear-gradient(180deg,#070a10, #0b0f17 40%, #070a10); color:var(--text); }
+    .wrap{ max-width:1040px; margin:0 auto; padding:24px; }
+    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    .card{ background:rgba(17,26,43,.92); border:1px solid var(--border); border-radius:16px; padding:16px; }
+    .title{ font-size:18px; font-weight:800; margin:0 0 10px; letter-spacing:-.01em; }
+    .muted{ color:var(--muted); font-size:13px; }
+    .kpi{ font-size:30px; font-weight:900; letter-spacing:-.02em; }
+    .btn{ cursor:pointer; border:1px solid var(--border); background:#0f1729; color:var(--text);
+      padding:10px 12px; border-radius:12px; font-weight:800; }
+    .btn.primary{ border-color:rgba(94,234,212,.4); background:rgba(94,234,212,.12); }
+    .btn:disabled{ opacity:.5; cursor:not-allowed; }
+    input{
+      width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--border);
+      background:#0b1222; color:var(--text); outline:none;
+    }
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .grid3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
+    .hr{ height:1px; background:var(--border); margin:14px 0; }
+    .pill{ display:inline-block; padding:6px 10px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:var(--muted); }
+    .log{ white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas;
+      font-size:12px; color:#c8d3ee; background:#070a10; border:1px solid var(--border);
+      padding:12px; border-radius:12px; max-height:260px; overflow:auto;
+    }
+    a{ color:var(--accent); text-decoration:none; }
+    @media (max-width:900px){ .row{ grid-template-columns: 1fr; } .grid3{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+      <div>
+        <div class="title">Origin Vault UI – bUSDC</div>
+        <div class="muted">Read share price • preview deposits/withdraws • deposit/withdraw via Freighter</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="btnRefresh">Refresh</button>
+        <button class="btn primary" id="btnConnect">Connect Freighter</button>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="grid3">
+      <div>
+        <div class="muted">Account</div>
+        <div style="font-weight:900" id="acct">—</div>
+      </div>
+      <div>
+        <div class="muted">Network / RPC</div>
+        <div style="font-weight:900" id="net">—</div>
+      </div>
+      <div>
+        <div class="muted">Contract</div>
+        <div class="pill" id="cid" title=""></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:16px">
+    <div class="card">
+      <div class="title">Vault</div>
+      <div class="muted">These values come straight from the contract.</div>
+      <div class="hr"></div>
+
+      <div class="muted">bUSDC share price</div>
+      <div class="kpi" id="sharePrice">—</div>
+      <div class="muted">Shown as “assets per 1 share” (contract’s `share_price`).</div>
+
+      <div class="hr"></div>
+
+      <div class="grid2">
+        <div>
+          <div class="muted">Total assets</div>
+          <div style="font-weight:900;font-size:16px" id="totalAssets">—</div>
+        </div>
+        <div>
+          <div class="muted">Total supply (shares)</div>
+          <div style="font-weight:900;font-size:16px" id="totalSupply">—</div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid2">
+        <div>
+          <div class="muted">Underlying asset contract</div>
+          <div style="font-weight:900;font-size:13px;word-break:break-all" id="assetAddr">—</div>
+        </div>
+        <div>
+          <div class="muted">Share token contract</div>
+          <div style="font-weight:900;font-size:13px;word-break:break-all" id="shareAddr">—</div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid2">
+        <div>
+          <div class="muted">Min deposit</div>
+          <div style="font-weight:900;font-size:16px" id="minDep">—</div>
+        </div>
+        <div>
+          <div class="muted">Min withdraw</div>
+          <div style="font-weight:900;font-size:16px" id="minWdr">—</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="card">
+      <div class="title">Actions</div>
+      <div class="muted">Use previews first (no signing). Then deposit/withdraw.</div>
+      <div class="hr"></div>
+
+      <div class="muted">Preview deposit (assets → shares)</div>
+      <div style="display:flex; gap:10px; margin-top:6px">
+        <input id="inpPreviewDeposit" placeholder="Assets amount (base units ok, e.g. 100000000)" />
+        <button class="btn" id="btnPreviewDeposit">Preview</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Estimated shares: <span id="outPreviewDeposit" style="font-weight:900">—</span></div>
+
+      <div class="hr"></div>
+
+      <div class="muted">Preview redeem (shares → assets)</div>
+      <div style="display:flex; gap:10px; margin-top:6px">
+        <input id="inpPreviewRedeem" placeholder="Shares amount (base units ok)" />
+        <button class="btn" id="btnPreviewRedeem">Preview</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Estimated assets: <span id="outPreviewRedeem" style="font-weight:900">—</span></div>
+
+      <div class="hr"></div>
+
+      <div class="muted">Deposit (signs a tx)</div>
+      <div style="display:flex; gap:10px; margin-top:6px">
+        <input id="inpDeposit" placeholder="Assets amount (base units, u128)" />
+        <button class="btn primary" id="btnDeposit" disabled>Deposit</button>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div class="muted">Withdraw / Redeem (signs a tx)</div>
+      <div class="grid2" style="margin-top:6px">
+        <div>
+          <input id="inpWithdrawAssets" placeholder="Withdraw by assets (u128)" />
+          <button class="btn" id="btnWithdraw" disabled style="width:100%;margin-top:8px">Withdraw (assets)</button>
+        </div>
+        <div>
+          <input id="inpRedeemShares" placeholder="Redeem by shares (u128)" />
+          <button class="btn" id="btnRedeem" disabled style="width:100%;margin-top:8px">Redeem (shares)</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="muted">Your address in contract calls is used as sender/receiver where needed.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="title">Log</div>
+    <div class="muted">Simulations, selected call variant, tx hash + status.</div>
+    <div class="hr"></div>
+    <div class="log" id="log"></div>
+  </div>
+
+</div>
+
+<script type="module">
+  import * as StellarSdk from "https://esm.sh/stellar-sdk@12.2.0";
+  const { SorobanRpc, Contract, Address, nativeToScVal, scValToNative } = StellarSdk;
+
+  /**
+   * CONFIG
+   * - If you prefer a different RPC, swap rpcUrl.
+   * - If this vault is on testnet, set network to TESTNET.
+   */
+  const CFG = {
+    network: "PUBLIC", // PUBLIC | TESTNET
+    rpcUrl: "https://soroban-rpc.mainnet.stellar.gateway.fm",
+    contractId: "CCR63UWZKPVR2OAZJEBHT4OKBLHX2OAMUYZ63JLO2V72FY3SKAXQTGF6",
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const logEl = $("log");
+  const log = (...a) => { logEl.textContent += a.join(" ") + "\\n"; logEl.scrollTop = logEl.scrollHeight; };
+
+  let server, accountId = null;
+
+  function passphrase(){
+    return CFG.network === "PUBLIC" ? StellarSdk.Networks.PUBLIC : StellarSdk.Networks.TESTNET;
+  }
+
+  function u128FromInput(elId){
+    const s = ($(elId).value || "").trim();
+    if (!/^[0-9]+$/.test(s)) return null;
+    try { return BigInt(s); } catch { return null; }
+  }
+
+  async function connectFreighter(){
+    if (!window.freighterApi) throw new Error("Freighter not found. Install/enable the extension.");
+    accountId = await window.freighterApi.getPublicKey();
+    const net = await window.freighterApi.getNetwork();
+    $("acct").textContent = accountId;
+    log("Connected:", accountId, "| Freighter network:", net);
+
+    $("btnDeposit").disabled = false;
+    $("btnWithdraw").disabled = false;
+    $("btnRedeem").disabled = false;
+  }
+
+  async function simulateCall(method, args=[]){
+    const contract = new Contract(CFG.contractId);
+    const source = accountId || StellarSdk.Keypair.random().publicKey();
+    const acc = await server.getAccount(source);
+
+    const tx = new StellarSdk.TransactionBuilder(acc, { fee: "200000", networkPassphrase: passphrase() })
+      .addOperation(contract.call(method, ...args))
+      .setTimeout(30)
+      .build();
+
+    const sim = await server.simulateTransaction(tx);
+    if (SorobanRpc.Api.isSimulationError(sim)) {
+      return { ok:false, sim };
+    }
+    const res = sim.result?.results?.[0]?.xdr;
+    return { ok:true, sim, value: res ? scValToNative(res) : null };
+  }
+
+  async function refresh(){
+    try{
+      const sp = await simulateCall("share_price");
+      const ta = await simulateCall("total_assets");
+      const ts = await simulateCall("total_supply");
+      const qa = await simulateCall("query_asset");
+      const qs = await simulateCall("query_share");
+      const md = await simulateCall("min_deposit");
+      const mw = await simulateCall("min_withdraw");
+
+      $("sharePrice").textContent = sp.ok ? String(sp.value) : "—";
+      $("totalAssets").textContent = ta.ok ? String(ta.value) : "—";
+      $("totalSupply").textContent = ts.ok ? String(ts.value) : "—";
+      $("assetAddr").textContent = qa.ok ? String(qa.value) : "—";
+      $("shareAddr").textContent = qs.ok ? String(qs.value) : "—";
+      $("minDep").textContent = md.ok ? String(md.value) : "—";
+      $("minWdr").textContent = mw.ok ? String(mw.value) : "—";
+
+      log("Refreshed.");
+    }catch(e){
+      log("❌ Refresh failed:", e.message);
+    }
+  }
+
+  async function signAndSend(preparedTx){
+    const signedXdr = await window.freighterApi.signTransaction(preparedTx.toXDR(), {
+      network: CFG.network === "PUBLIC" ? "PUBLIC" : "TESTNET"
+    });
+
+    const signed = StellarSdk.TransactionBuilder.fromXDR(signedXdr, passphrase());
+    const send = await server.sendTransaction(signed);
+    log("Submitted:", send.hash);
+
+    for (let i=0;i<25;i++){
+      await new Promise(r => setTimeout(r, 1400));
+      const res = await server.getTransaction(send.hash);
+      if (res && res.status && res.status !== "NOT_FOUND") {
+        log("Status:", res.status);
+        if (res.status === "SUCCESS") return res;
+        if (res.status === "FAILED") throw new Error("Transaction failed.");
+      }
+    }
+    log("Timed out waiting for confirmation (may still land).");
+    return null;
+  }
+
+  async function tryInvoke(method, variants){
+    // variants = [{label, args}]
+    const contract = new Contract(CFG.contractId);
+    const acc = await server.getAccount(accountId);
+
+    for (const v of variants){
+      log("Simulating variant:", v.label);
+      const sim = await simulateCall(method, v.args);
+      if (!sim.ok){
+        log("  ↳ rejected:", (sim.sim?.error || "simulation error"));
+        continue;
+      }
+
+      // build tx
+      const tx = new StellarSdk.TransactionBuilder(acc, { fee: "300000", networkPassphrase: passphrase() })
+        .addOperation(contract.call(method, ...v.args))
+        .setTimeout(60)
+        .build();
+
+      const sim2 = await server.simulateTransaction(tx);
+      if (SorobanRpc.Api.isSimulationError(sim2)) {
+        log("  ↳ prepare failed:", (sim2.error || "simulation error"));
+        continue;
+      }
+
+      const prepared = SorobanRpc.assembleTransaction(tx, sim2).build();
+      log("  ✅ using:", v.label);
+      return await signAndSend(prepared);
+    }
+
+    throw new Error("No call variant worked. (We may need exact arg order/types.)");
+  }
+
+  async function doPreviewDeposit(){
+    const amt = u128FromInput("inpPreviewDeposit");
+    if (amt === null) return log("Enter a valid integer u128 amount.");
+    const out = await simulateCall("preview_deposit", [ nativeToScVal(amt, { type:"u128" }) ]);
+    $("outPreviewDeposit").textContent = out.ok ? String(out.value) : "—";
+    log(out.ok ? "Preview deposit OK." : "Preview deposit failed.");
+  }
+
+  async function doPreviewRedeem(){
+    const shares = u128FromInput("inpPreviewRedeem");
+    if (shares === null) return log("Enter a valid integer u128 amount.");
+    const out = await simulateCall("preview_redeem", [ nativeToScVal(shares, { type:"u128" }) ]);
+    $("outPreviewRedeem").textContent = out.ok ? String(out.value) : "—";
+    log(out.ok ? "Preview redeem OK." : "Preview redeem failed.");
+  }
+
+  async function doDeposit(){
+    const amt = u128FromInput("inpDeposit");
+    if (amt === null || amt <= 0n) return log("Enter a valid deposit u128 amount.");
+
+    const a = nativeToScVal(amt, { type:"u128" });
+    const me = new Address(accountId).toScVal();
+
+    // try common signatures:
+    // deposit(assets)
+    // deposit(assets, receiver)
+    // deposit(from, assets, receiver)
+    const variants = [
+      { label:"deposit(assets)", args:[a] },
+      { label:"deposit(assets, receiver)", args:[a, me] },
+      { label:"deposit(from, assets, receiver)", args:[me, a, me] },
+    ];
+
+    await tryInvoke("deposit", variants);
+    await refresh();
+  }
+
+  async function doWithdraw(){
+    const assets = u128FromInput("inpWithdrawAssets");
+    if (assets === null || assets <= 0n) return log("Enter a valid withdraw-assets u128 amount.");
+
+    const a = nativeToScVal(assets, { type:"u128" });
+    const me = new Address(accountId).toScVal();
+
+    // withdraw(assets)
+    // withdraw(assets, receiver)
+    // withdraw(assets, receiver, owner)
+    const variants = [
+      { label:"withdraw(assets)", args:[a] },
+      { label:"withdraw(assets, receiver)", args:[a, me] },
+      { label:"withdraw(assets, receiver, owner)", args:[a, me, me] },
+    ];
+
+    await tryInvoke("withdraw", variants);
+    await refresh();
+  }
+
+  async function doRedeem(){
+    const shares = u128FromInput("inpRedeemShares");
+    if (shares === null || shares <= 0n) return log("Enter a valid redeem-shares u128 amount.");
+
+    const s = nativeToScVal(shares, { type:"u128" });
+    const me = new Address(accountId).toScVal();
+
+    // redeem(shares)
+    // redeem(shares, receiver)
+    // redeem(shares, receiver, owner)
+    const variants = [
+      { label:"redeem(shares)", args:[s] },
+      { label:"redeem(shares, receiver)", args:[s, me] },
+      { label:"redeem(shares, receiver, owner)", args:[s, me, me] },
+    ];
+
+    await tryInvoke("redeem", variants);
+    await refresh();
+  }
+
+  function init(){
+    server = new SorobanRpc.Server(CFG.rpcUrl, { allowHttp: CFG.rpcUrl.startsWith("http://") });
+    $("net").textContent = `${CFG.network} • ${CFG.rpcUrl}`;
+    $("cid").textContent = CFG.contractId;
+    $("cid").title = CFG.contractId;
+  }
+
+  init();
+  refresh();
+
+  $("btnConnect").onclick = async () => { try{ await connectFreighter(); await refresh(); }catch(e){ log("❌", e.message); } };
+  $("btnRefresh").onclick = refresh;
+
+  $("btnPreviewDeposit").onclick = async () => { try{ await doPreviewDeposit(); }catch(e){ log("❌", e.message); } };
+  $("btnPreviewRedeem").onclick = async () => { try{ await doPreviewRedeem(); }catch(e){ log("❌", e.message); } };
+
+  $("btnDeposit").onclick = async () => { try{ await doDeposit(); }catch(e){ log("❌", e.message); } };
+  $("btnWithdraw").onclick = async () => { try{ await doWithdraw(); }catch(e){ log("❌", e.message); } };
+  $("btnRedeem").onclick = async () => { try{ await doRedeem(); }catch(e){ log("❌", e.message); } };
+</script>
+</body>
+</html>
