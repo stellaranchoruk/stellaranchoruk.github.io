@@ -371,9 +371,7 @@
         <div class="input">
           <div class="small">Secret key (S...) (optional)</div>
           <input id="seckeyEl" class="mono" placeholder="S... (not stored)" />
-          <div class="small">
-            Secret-key mode signs locally in this tab (nothing saved).
-          </div>
+          <div class="small">Secret-key mode signs locally in this tab (nothing saved).</div>
           <div class="actions">
             <button id="useSecretBtn">Use secret (local signing)</button>
           </div>
@@ -404,7 +402,6 @@
           <div><b>asset_code:</b> <span class="mono">bUSDC</span></div>
           <div><b>issuer:</b> <span class="mono">GA57KXF2UAGURRYK4LKTO4BO2JASL2PQCO2C53XUNK5G4CXX6QAL6QNR</span></div>
         </div>
-
       </div>
     </div>
   </div>
@@ -438,7 +435,7 @@
     </div>
   </div>
 
-  <!-- QR dep (keep) -->
+  <!-- QR dep -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
   <script type="module">
@@ -454,7 +451,6 @@
     const HORIZON = "https://horizon.stellar.org";
     const SOROBAN_RPC = "https://rpc.lightsail.network/";
 
-    // WalletConnect (from your AQUAmb setup)
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
@@ -462,17 +458,48 @@
     const DECIMALS = 7;
 
     // -----------------------
-    // Stellar SDK import (robust)
+    // Stellar SDK import
     // -----------------------
     import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?bundle";
     const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
 
     // -----------------------
-    // WalletConnect ESM loader (FIX)
+    // WalletConnect loader (ROBUST: jsDelivr ESM -> unpkg ESM -> UMD fallback)
     // -----------------------
-    async function getSignClient(){
-      const mod = await import("https://esm.sh/@walletconnect/sign-client@2.17.1?bundle");
-      return mod.default ?? mod.SignClient ?? mod;
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.async = true;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("Failed to load: " + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function getSignClient() {
+      if (window.SignClient) return window.SignClient.default ?? window.SignClient;
+
+      // 1) jsDelivr ESM
+      try {
+        const mod = await import("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/esm/index.js");
+        return mod.default ?? mod.SignClient ?? mod;
+      } catch (e) {
+        console.warn("WC ESM jsDelivr failed, trying unpkg…", e);
+      }
+
+      // 2) unpkg ESM
+      try {
+        const mod = await import("https://unpkg.com/@walletconnect/sign-client@2.17.1/dist/esm/index.js");
+        return mod.default ?? mod.SignClient ?? mod;
+      } catch (e) {
+        console.warn("WC ESM unpkg failed, falling back to UMD…", e);
+      }
+
+      // 3) UMD fallback
+      await loadScript("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/umd/index.min.js");
+      if (!window.SignClient) throw new Error("WalletConnect UMD loaded but window.SignClient is missing.");
+      return window.SignClient.default ?? window.SignClient;
     }
 
     // -----------------------
@@ -539,10 +566,7 @@
       throw new Error("No Soroban RPC Server constructor found in stellar-sdk build.");
     }
 
-    // Simulation source: use pubnet master for read sims (exists)
     const SIM_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
-
-    // Contract handle
     const contract = new StellarSdk.Contract(CONTRACT_ID);
 
     // -----------------------
@@ -590,7 +614,6 @@
     const refreshBalBtn = $("refreshBalBtn");
     const balStatus = $("balStatus");
 
-    // previews
     const prevDepositAmt = $("prevDepositAmt");
     const prevWithdrawAmt = $("prevWithdrawAmt");
     const prevMintAmt = $("prevMintAmt");
@@ -604,7 +627,6 @@
     const prevMintOut = $("prevMintOut");
     const prevRedeemOut = $("prevRedeemOut");
 
-    // actions
     const depositAmt = $("depositAmt");
     const withdrawAmt = $("withdrawAmt");
     const mintAmt = $("mintAmt");
@@ -630,21 +652,18 @@
     const mintStatus = $("mintStatus");
     const redeemStatus = $("redeemStatus");
 
-    // connect modal
     const backdrop = $("backdrop");
     const loginModal = $("loginModal");
     const closeModal = $("closeModal");
     const wcBtn = $("wcBtn");
     const freighterExtBtn = $("freighterExtBtn");
     const qrArea = $("qrArea");
+    const qrCanvas = $("qrCanvas");
     const btnLobstr = $("btnLobstr");
     const btnFreighter = $("btnFreighter");
     const rawWcLink = $("rawWcLink");
     const linkStatus = $("linkStatus");
 
-    // -----------------------
-    // Connection helpers
-    // -----------------------
     function setConnPill(kind, label){
       connStatus.classList.remove("ok","warn","bad");
       connStatus.classList.add(kind);
@@ -683,7 +702,7 @@
     async function ensureWcClient({ retry=false } = {}){
       if(wcClient) return wcClient;
 
-      const SignClient = await getSignClient(); // FIX: ESM import
+      const SignClient = await getSignClient();
 
       try{
         wcClient = await SignClient.init({
@@ -767,7 +786,7 @@
     // Modals
     // -----------------------
     function openModal(){ backdrop.classList.add("open"); loginModal.classList.add("open"); }
-    function closeModalFn(){ backdrop.classList.remove("open"); loginModal.classList.remove("open"); $("qrArea").style.display="none"; }
+    function closeModalFn(){ backdrop.classList.remove("open"); loginModal.classList.remove("open"); qrArea.style.display="none"; }
     connectBtn.onclick = openModal;
     closeModal.onclick = closeModalFn;
     backdrop.addEventListener("click", closeModalFn);
@@ -805,8 +824,8 @@
         if(!uri) throw new Error("No WalletConnect URI");
         latestWcUri = uri;
 
-        await QRCode.toCanvas($("qrCanvas"), uri, { width:256, margin:1 });
-        $("qrArea").style.display = "flex";
+        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        qrArea.style.display = "flex";
         rawWcLink.href = uri;
 
         linkStatus.textContent = "Loading Freighter deep link…";
@@ -828,17 +847,17 @@
 
         wcClient = sc;
         secret = null;
-        $("qrArea").style.display="none";
+        qrArea.style.display="none";
         closeModalFn();
         setConnected(address, "wc");
         toast({type:"ok", title:"Connected", message:"WalletConnect connected."});
       }catch(e){
         console.error(e);
-        toast({type:"err", title:"Error", message:"WalletConnect canceled/failed."});
+        toast({type:"err", title:"Error", message:String(e?.message || "WalletConnect canceled/failed.")});
       }
     };
 
-    $("disconnectBtn").onclick = async ()=>{
+    disconnectBtn.onclick = async ()=>{
       try{
         if(mode==="wc" && wcClient && wcSession){
           await wcClient.disconnect({ topic: wcSession.topic, reason:{ code:6000, message:"User disconnected" }});
@@ -851,7 +870,7 @@
       toast({type:"ok", title:"Done", message:"Disconnected."});
     };
 
-    $("usePubkeyBtn").onclick = ()=>{
+    usePubkeyBtn.onclick = ()=>{
       const pk = pubkeyEl.value.trim();
       if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)){
         toast({type:"err", title:"Error", message:"Invalid public key."}); return;
@@ -861,7 +880,7 @@
       toast({type:"ok", title:"Done", message:"Pubkey set (read-only)."});
     };
 
-    $("useSecretBtn").onclick = ()=>{
+    useSecretBtn.onclick = ()=>{
       const sk = seckeyEl.value.trim();
       if(!StellarSdk.StrKey.isValidEd25519SecretSeed(sk)){
         toast({type:"err", title:"Error", message:"Invalid secret key."}); return;
@@ -872,7 +891,7 @@
       toast({type:"ok", title:"Done", message:"Secret key set (local signing)."});
     };
 
-    $("openExplorerBtn").onclick = ()=>{
+    openExplorerBtn.onclick = ()=>{
       const pk = pubkeyEl.value.trim();
       if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)) return;
       window.open(`https://stellar.expert/explorer/public/account/${pk}`, "_blank", "noopener,noreferrer");
@@ -1000,10 +1019,10 @@
         outEl.textContent = `Error: ${e.message || e}`;
       }
     }
-    $("prevDepositBtn").onclick = ()=> doPreview("preview_deposit", prevDepositAmt.value, prevDepositOut);
-    $("prevWithdrawBtn").onclick = ()=> doPreview("preview_withdraw", prevWithdrawAmt.value, prevWithdrawOut);
-    $("prevMintBtn").onclick = ()=> doPreview("preview_mint", prevMintAmt.value, prevMintOut);
-    $("prevRedeemBtn").onclick = ()=> doPreview("preview_redeem", prevRedeemAmt.value, prevRedeemOut);
+    prevDepositBtn.onclick = ()=> doPreview("preview_deposit", prevDepositAmt.value, prevDepositOut);
+    prevWithdrawBtn.onclick = ()=> doPreview("preview_withdraw", prevWithdrawAmt.value, prevWithdrawOut);
+    prevMintBtn.onclick = ()=> doPreview("preview_mint", prevMintAmt.value, prevMintOut);
+    prevRedeemBtn.onclick = ()=> doPreview("preview_redeem", prevRedeemAmt.value, prevRedeemOut);
 
     // -----------------------
     // Signing for Soroban tx
@@ -1090,8 +1109,6 @@
       statusEl.textContent = "";
       try{
         if(!pubkey){ openModal(); return; }
-
-        // IMPORTANT: block read-only modes early (prevents confusing simulation errors)
         if(mode==="pubkey" || mode==="none"){
           throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
         }
@@ -1122,18 +1139,16 @@
       }
     }
 
-    // wire actions + XDR toggles
-    $("depositXdrToggle").onclick = ()=> toggleTextarea($("depositXdr"), $("depositXdrToggle"));
-    $("withdrawXdrToggle").onclick = ()=> toggleTextarea($("withdrawXdr"), $("withdrawXdrToggle"));
-    $("mintXdrToggle").onclick = ()=> toggleTextarea($("mintXdr"), $("mintXdrToggle"));
-    $("redeemXdrToggle").onclick = ()=> toggleTextarea($("redeemXdr"), $("redeemXdrToggle"));
+    depositXdrToggle.onclick = ()=> toggleTextarea(depositXdr, depositXdrToggle);
+    withdrawXdrToggle.onclick = ()=> toggleTextarea(withdrawXdr, withdrawXdrToggle);
+    mintXdrToggle.onclick = ()=> toggleTextarea(mintXdr, mintXdrToggle);
+    redeemXdrToggle.onclick = ()=> toggleTextarea(redeemXdr, redeemXdrToggle);
 
-    $("depositBtn").onclick = ()=> doAction("deposit", $("depositAmt"), $("depositXdr"), $("depositStatus"));
-    $("withdrawBtn").onclick = ()=> doAction("withdraw", $("withdrawAmt"), $("withdrawXdr"), $("withdrawStatus"));
-    $("mintBtn").onclick    = ()=> doAction("mint", $("mintAmt"), $("mintXdr"), $("mintStatus"));
-    $("redeemBtn").onclick  = ()=> doAction("redeem", $("redeemAmt"), $("redeemXdr"), $("redeemStatus"));
+    depositBtn.onclick = ()=> doAction("deposit", depositAmt, depositXdr, depositStatus);
+    withdrawBtn.onclick = ()=> doAction("withdraw", withdrawAmt, withdrawXdr, withdrawStatus);
+    mintBtn.onclick    = ()=> doAction("mint", mintAmt, mintXdr, mintStatus);
+    redeemBtn.onclick  = ()=> doAction("redeem", redeemAmt, redeemXdr, redeemStatus);
 
-    // logs toggle
     toggleLogsBtn.onclick = ()=>{
       const hidden = logsEl.style.display === "none" || !logsEl.style.display;
       logsEl.style.display = hidden ? "block" : "none";
