@@ -546,10 +546,16 @@
         console.warn("WC ESM unpkg failed, falling back to UMD…", e);
       }
 
-      // 3) UMD fallback
-      await loadScript("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/umd/index.min.js");
-      if (!window.SignClient) throw new Error("WalletConnect UMD loaded but window.SignClient is missing.");
-      return window.SignClient.default ?? window.SignClient;
+      // 3) UMD fallback (FIXED PATH + extra CDN fallback)
+try {
+  await loadScript("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/index.umd.js");
+} catch (e) {
+  // jsDelivr occasionally fails / blocked → try unpkg
+  await loadScript("https://unpkg.com/@walletconnect/sign-client@2.17.1/dist/index.umd.js");
+}
+
+if (!window.SignClient) throw new Error("WalletConnect UMD loaded but window.SignClient is missing.");
+return window.SignClient.default ?? window.SignClient;
     }
 
     // -----------------------
