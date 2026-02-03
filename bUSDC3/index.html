@@ -210,6 +210,16 @@
             <div class="k">Total supply</div>
             <div class="v" id="totalSupplyOut">—</div>
           </div>
+
+          <!-- NEW: mins -->
+          <div class="kv">
+            <div class="k">Min deposit</div>
+            <div class="v" id="minDepositOut">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Min withdraw</div>
+            <div class="v" id="minWithdrawOut">—</div>
+          </div>
         </div>
 
         <div class="actions">
@@ -280,7 +290,7 @@
         <h2>Deposit / Withdraw / Mint / Redeem</h2>
         <div class="small">
           Uses the exact contract signature: <span class="mono">(i128, Address, Address, Address)</span>.
-          We pass your address for all three Address params by default.
+          We pass your address for receiver/from/operator by default.
         </div>
 
         <div class="two-col" style="margin-top:10px">
@@ -435,11 +445,8 @@
     </div>
   </div>
 
-  <!-- ✅ QRCode global loader (kept), now defer to avoid race -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
-
-  <!-- ✅ WalletConnect / deps sometimes expect process/env -->
-  <script>window.process = window.process || { env: {} };</script>
+  <!-- QR dep -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
   <script type="module">
     // -----------------------
@@ -467,34 +474,58 @@
     const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
 
     // -----------------------
-    // WalletConnect SignClient (esm.sh)
+    // QRCode robustness (if CDN race ever happens)
     // -----------------------
-    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
-
-    // -----------------------
-    // ✅ QRCode loader (robust: global -> ESM fallback)
-    // -----------------------
-    let _qrLib = null;
-    async function ensureQrLib(){
-      if (_qrLib) return _qrLib;
-
-      // Global (from the deferred script tag)
-      if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
-        _qrLib = window.QRCode;
-        return _qrLib;
-      }
-
-      // ESM fallback (in case CDN is blocked or global doesn't attach)
+    async function ensureQRCode(){
+      if (window.QRCode?.toCanvas) return window.QRCode;
       try{
+        // fallback dynamic import (esm)
         const mod = await import("https://esm.sh/qrcode@1.5.3");
-        _qrLib = mod.default ?? mod;
-        if (typeof _qrLib.toCanvas !== "function") {
-          throw new Error("QRCode ESM loaded but toCanvas missing");
-        }
-        return _qrLib;
-      }catch(_e){
-        throw new Error("QRCode library failed to load (CDN blocked/offline).");
+        const QR = mod?.default ?? mod;
+        window.QRCode = QR;
+        return QR;
+      }catch{
+        throw new Error("QRCode library not available. Check CDN/network.");
       }
+    }
+
+    // -----------------------
+    // WalletConnect loader (ROBUST: jsDelivr ESM -> unpkg ESM -> UMD fallback)
+    // -----------------------
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.async = true;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("Failed to load: " + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function getSignClient() {
+      if (window.SignClient) return window.SignClient.default ?? window.SignClient;
+
+      // 1) jsDelivr ESM
+      try {
+        const mod = await import("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/esm/index.js");
+        return mod.default ?? mod.SignClient ?? mod;
+      } catch (e) {
+        console.warn("WC ESM jsDelivr failed, trying unpkg…", e);
+      }
+
+      // 2) unpkg ESM
+      try {
+        const mod = await import("https://unpkg.com/@walletconnect/sign-client@2.17.1/dist/esm/index.js");
+        return mod.default ?? mod.SignClient ?? mod;
+      } catch (e) {
+        console.warn("WC ESM unpkg failed, falling back to UMD…", e);
+      }
+
+      // 3) UMD fallback
+      await loadScript("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/umd/index.min.js");
+      if (!window.SignClient) throw new Error("WalletConnect UMD loaded but window.SignClient is missing.");
+      return window.SignClient.default ?? window.SignClient;
     }
 
     // -----------------------
@@ -524,7 +555,7 @@
         if(typeof a==="string") return a;
         try{ return jsonBig(a); }catch{ return String(a); }
       }).join(" ");
-      logsEl.value += line + "\n";
+      logsEl.value += line + "\\n";
       logsEl.scrollTop = logsEl.scrollHeight;
     }
 
@@ -546,7 +577,7 @@
     function parseDecimalToBigint(amountStr, decimals=DECIMALS){
       const s = String(amountStr||"").trim().replace(/,/g,"");
       if(!s) return 0n;
-      if(!/^\d+(\.\d+)?$/.test(s)) throw new Error("Enter a positive number (e.g. 100 or 100.25)");
+      if(!/^\\d+(\\.\\d+)?$/.test(s)) throw new Error("Enter a positive number (e.g. 100 or 100.25)");
       const [i, dRaw=""] = s.split(".");
       const d = (dRaw + "0".repeat(decimals)).slice(0, decimals);
       return BigInt(i) * (10n ** BigInt(decimals)) + BigInt(d || "0");
@@ -576,6 +607,12 @@
     let latestWcUri = null;
 
     // -----------------------
+    // Vault mins cached (instance storage)
+    // -----------------------
+    let minDepositRaw = null;  // bigint (scaled)
+    let minWithdrawRaw = null; // bigint (scaled)
+
+    // -----------------------
     // UI refs
     // -----------------------
     const contractIdOut = $("contractIdOut");
@@ -588,6 +625,8 @@
     const impliedOut = $("impliedOut");
     const totalAssetsOut = $("totalAssetsOut");
     const totalSupplyOut = $("totalSupplyOut");
+    const minDepositOut = $("minDepositOut");
+    const minWithdrawOut = $("minWithdrawOut");
     const stateStatus = $("stateStatus");
 
     const refreshBtn = $("refreshBtn");
@@ -697,6 +736,8 @@
     async function ensureWcClient({ retry=false } = {}){
       if(wcClient) return wcClient;
 
+      const SignClient = await getSignClient();
+
       try{
         wcClient = await SignClient.init({
           projectId: PROJECT_ID,
@@ -704,7 +745,7 @@
           metadata: {
             name: "bUSDC Vault UI",
             description: "Vault UI for bUSDC contract",
-            url: "https://mirrasets.com",
+            url: location.origin,
             icons: ["https://walletconnect.com/walletconnect-logo.png"]
           }
         });
@@ -817,8 +858,7 @@
         if(!uri) throw new Error("No WalletConnect URI");
         latestWcUri = uri;
 
-        // ✅ FIX: ensure QRCode lib exists (global OR ESM fallback)
-        const QR = await ensureQrLib();
+        const QR = await ensureQRCode();
         await QR.toCanvas(qrCanvas, uri, { width:256, margin:1 });
 
         qrArea.style.display = "flex";
@@ -948,6 +988,69 @@
     }
 
     // -----------------------
+    // NEW: read instance storage (MinDeposit / MinWithdraw)
+    // -----------------------
+    async function getContractInstanceValue(symbolName){
+      const server = makeSorobanServer(SOROBAN_RPC);
+
+      // Build ledger key for CONTRACT_DATA (instance, persistent)
+      const keyScv = StellarSdk.nativeToScVal(symbolName, { type: "symbol" });
+      const contractHash = StellarSdk.StrKey.decodeContract(CONTRACT_ID);
+
+      // durability enum differs across sdk builds; try both
+      const dur =
+        StellarSdk.xdr?.ContractDataDurability?.persistent?.() ??
+        StellarSdk.xdr?.ContractDataDurability?.contractDataDurabilityPersistent?.() ??
+        null;
+
+      if (!dur) throw new Error("Could not construct ContractDataDurability (sdk mismatch).");
+
+      const lk = new StellarSdk.xdr.LedgerKey.contractData(
+        new StellarSdk.xdr.LedgerKeyContractData({
+          contract: contractHash,
+          key: keyScv,
+          durability: dur
+        })
+      );
+
+      const xdrKey = lk.toXDR("base64");
+      const res = await server.getLedgerEntries([xdrKey]);
+      const entryXdr = res?.entries?.[0]?.xdr;
+      if (!entryXdr) return null;
+
+      const le = StellarSdk.xdr.LedgerEntryData.fromXDR(entryXdr, "base64");
+      const cd = le?.contractData?.();
+      const val = cd?.val?.();
+      if (!val) return null;
+
+      // This returns a native number/bigint/string depending on stored type
+      return StellarSdk.scValToNative(val);
+    }
+
+    async function refreshMins(){
+      try{
+        const [md, mw] = await Promise.all([
+          getContractInstanceValue("MinDeposit"),
+          getContractInstanceValue("MinWithdraw")
+        ]);
+
+        // These are typically i128, so should come back bigint.
+        minDepositRaw = (typeof md === "bigint") ? md : (md==null ? null : BigInt(md));
+        minWithdrawRaw = (typeof mw === "bigint") ? mw : (mw==null ? null : BigInt(mw));
+
+        minDepositOut.textContent = (minDepositRaw==null) ? "—" : fmtScaledBigint(minDepositRaw);
+        minWithdrawOut.textContent = (minWithdrawRaw==null) ? "—" : fmtScaledBigint(minWithdrawRaw);
+      }catch(e){
+        // don't hard-fail the UI; just show unknown
+        console.warn("Could not read mins", e);
+        minDepositRaw = null;
+        minWithdrawRaw = null;
+        minDepositOut.textContent = "—";
+        minWithdrawOut.textContent = "—";
+      }
+    }
+
+    // -----------------------
     // Soroban state refresh
     // -----------------------
     async function refreshState(){
@@ -987,6 +1090,9 @@
           ? fmtScaledBigint(totalSupply)
           : String(totalSupply ?? "—");
 
+        // NEW: refresh mins alongside state
+        await refreshMins();
+
         stateStatus.textContent = "Updated.";
       }catch(e){
         console.error(e);
@@ -1003,6 +1109,15 @@
       try{
         const amt = parseDecimalToBigint(amountStr);
         if(!(amt > 0n)) throw new Error("Enter an amount.");
+
+        // Helpful min hint for deposit/withdraw previews
+        if(method==="preview_deposit" && minDepositRaw!=null && amt < minDepositRaw){
+          throw new Error(`Below min deposit (${fmtScaledBigint(minDepositRaw)}).`);
+        }
+        if(method==="preview_withdraw" && minWithdrawRaw!=null && amt < minWithdrawRaw){
+          throw new Error(`Below min withdraw (${fmtScaledBigint(minWithdrawRaw)}).`);
+        }
+
         const simRes = await simulate(method, [ StellarSdk.nativeToScVal(amt, { type:"i128" }) ]);
         const native = scvToNativeFromSim(simRes);
 
@@ -1089,6 +1204,7 @@
         fee: "200000",
         networkPassphrase: NETWORK_PASSPHRASE
       })
+        // contract expects (amount, receiver, from/owner, operator)
         .addOperation(contract.call(method, amtScv, addrScv, addrScv, addrScv))
         .setTimeout(180)
         .build();
@@ -1101,6 +1217,15 @@
       return prepared.toXDR();
     }
 
+    function enforceMinsOrThrow(method, amt){
+      if(method==="deposit" && minDepositRaw!=null && amt < minDepositRaw){
+        throw new Error(`Deposit is below min deposit (${fmtScaledBigint(minDepositRaw)}).`);
+      }
+      if(method==="withdraw" && minWithdrawRaw!=null && amt < minWithdrawRaw){
+        throw new Error(`Withdraw is below min withdraw (${fmtScaledBigint(minWithdrawRaw)}).`);
+      }
+    }
+
     async function doAction(method, inputEl, xdrEl, statusEl){
       statusEl.textContent = "";
       try{
@@ -1111,6 +1236,9 @@
 
         const amt = parseDecimalToBigint(inputEl.value);
         if(!(amt > 0n)) throw new Error("Enter an amount.");
+
+        // NEW: enforce mins in UI (prevents ContractError #411 / #412)
+        enforceMinsOrThrow(method, amt);
 
         const xdr = await buildPreparedXdr(method, amt);
         xdrEl.value = xdr;
