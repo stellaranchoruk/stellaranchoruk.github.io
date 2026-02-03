@@ -229,7 +229,7 @@
 
         <h2>Previews</h2>
         <div class="small">
-          `preview_deposit / preview_withdraw / preview_mint / preview_redeem` return <span class="mono">(i128, i128)</span>.
+          <span class="mono">preview_deposit / preview_withdraw / preview_mint / preview_redeem</span> return <span class="mono">(i128, i128)</span>.
           <br/>
           Minimums: <span class="mono">deposit/withdraw ≥ 10</span> (assets), <span class="mono">mint/redeem ≥ 10</span> (shares).
         </div>
@@ -399,6 +399,7 @@
         </div>
         <div class="actions">
           <button id="refreshBalBtn" class="primary">Refresh balance</button>
+          <button id="addTrustBtn">Add bUSDC trustline</button>
         </div>
         <div class="status-line" id="balStatus"></div>
 
@@ -480,8 +481,10 @@
     </div>
   </div>
 
-  <!-- QR dep -->
+  <!-- QR lib (global QRCode) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- ✅ Important shim (matches your last-working file) -->
+  <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
     // -----------------------
@@ -499,8 +502,9 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
-    // ✅ Set this if the user's account uses Vault co-sign (signer key present on the account)
-    const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT"; // e.g. "G...."  (leave blank to disable vault detection)
+    // ✅ Vault signer key (LOBSTR Vault)
+    const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
+
     const DECIMALS = 7;
 
     // ✅ Minimums (human units)
@@ -513,50 +517,8 @@
     import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?bundle";
     const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
 
-    // -----------------------
-    // WalletConnect loader (ROBUST: jsDelivr ESM -> unpkg ESM -> UMD fallback)
-    // -----------------------
-    function loadScript(src) {
-      return new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.src = src;
-        s.async = true;
-        s.onload = resolve;
-        s.onerror = () => reject(new Error("Failed to load: " + src));
-        document.head.appendChild(s);
-      });
-    }
-
-    async function getSignClient() {
-      if (window.SignClient) return window.SignClient.default ?? window.SignClient;
-
-      // 1) jsDelivr ESM
-      try {
-        const mod = await import("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/esm/index.js");
-        return mod.default ?? mod.SignClient ?? mod;
-      } catch (e) {
-        console.warn("WC ESM jsDelivr failed, trying unpkg…", e);
-      }
-
-      // 2) unpkg ESM
-      try {
-        const mod = await import("https://unpkg.com/@walletconnect/sign-client@2.17.1/dist/esm/index.js");
-        return mod.default ?? mod.SignClient ?? mod;
-      } catch (e) {
-        console.warn("WC ESM unpkg failed, falling back to UMD…", e);
-      }
-
-      // 3) UMD fallback (FIXED PATH + extra CDN fallback)
-try {
-  await loadScript("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/index.umd.js");
-} catch (e) {
-  // jsDelivr occasionally fails / blocked → try unpkg
-  await loadScript("https://unpkg.com/@walletconnect/sign-client@2.17.1/dist/index.umd.js");
-}
-
-if (!window.SignClient) throw new Error("WalletConnect UMD loaded but window.SignClient is missing.");
-return window.SignClient.default ?? window.SignClient;
-    }
+    // ✅ WalletConnect restored to the known-good approach (DON’T TOUCH)
+    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
 
     // -----------------------
     // DOM helpers
@@ -604,6 +566,7 @@ return window.SignClient.default ?? window.SignClient;
       const frac = s.slice(-decimals).replace(/0+$/,"");
       return (neg ? "-" : "") + whole + (frac ? "." + frac : "");
     }
+
     function parseDecimalToBigint(amountStr, decimals=DECIMALS){
       const s = String(amountStr||"").trim().replace(/,/g,"");
       if(!s) return 0n;
@@ -617,16 +580,22 @@ return window.SignClient.default ?? window.SignClient;
     }
 
     // -----------------------
-    // RPC server ctor (robust)
+    // RPC / Horizon constructors (robust)
     // -----------------------
     function makeSorobanServer(url){
       if (StellarSdk.SorobanRpc?.Server) return new StellarSdk.SorobanRpc.Server(url, { allowHttp: url.startsWith("http://") });
       if (StellarSdk.rpc?.Server) return new StellarSdk.rpc.Server(url, { allowHttp: url.startsWith("http://") });
       throw new Error("No Soroban RPC Server constructor found in stellar-sdk build.");
     }
+    function makeHorizonServer(url){
+      if (StellarSdk.Horizon?.Server) return new StellarSdk.Horizon.Server(url);
+      if (StellarSdk.Server) return new StellarSdk.Server(url);
+      throw new Error("No Horizon Server constructor found in stellar-sdk build.");
+    }
 
     const SIM_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
     const contract = new StellarSdk.Contract(CONTRACT_ID);
+    const BUSDC_ASSET = new StellarSdk.Asset(BUSDC_CODE, BUSDC_ISSUER);
 
     // -----------------------
     // Wallet state
@@ -639,7 +608,7 @@ return window.SignClient.default ?? window.SignClient;
     let wcSession = null;
     let latestWcUri = null;
 
-    // track last action status element so vault modal can update it after submission
+    // for vault modal
     let pendingActionStatusEl = null;
     let pendingActionMethod = null;
 
@@ -675,6 +644,7 @@ return window.SignClient.default ?? window.SignClient;
     const busdcBalOut = $("busdcBalOut");
     const busdcLiaOut = $("busdcLiaOut");
     const refreshBalBtn = $("refreshBalBtn");
+    const addTrustBtn = $("addTrustBtn");
     const balStatus = $("balStatus");
 
     const prevDepositAmt = $("prevDepositAmt");
@@ -727,7 +697,6 @@ return window.SignClient.default ?? window.SignClient;
     const rawWcLink = $("rawWcLink");
     const linkStatus = $("linkStatus");
 
-    // Vault modal refs
     const vaultModal = $("vaultModal");
     const closeVaultModal = $("closeVaultModal");
     const vaultXdrToVault = $("vaultXdrToVault");
@@ -782,7 +751,6 @@ return window.SignClient.default ?? window.SignClient;
     function closeConnectModal(){
       loginModal.classList.remove("open");
       qrArea.style.display="none";
-      // only close backdrop if vault modal isn't open
       if(!vaultModal.classList.contains("open")) backdrop.classList.remove("open");
     }
     function openVaultModal(xdrToPaste){
@@ -816,28 +784,8 @@ return window.SignClient.default ?? window.SignClient;
     };
 
     // -----------------------
-    // Connect flows
+    // WalletConnect utilities (kept as last-working behavior)
     // -----------------------
-    freighterExtBtn.onclick = async ()=>{
-      try{
-        const freighter = await ensureFreighterApi();
-        if(!freighter){ toast({type:"err", title:"Error", message:"Freighter extension not detected."}); return; }
-        let address = "";
-        try { address = await freighter.getPublicKey(); } catch {}
-        if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
-        if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
-        if(!address){ toast({type:"err", title:"Error", message:"Freighter connect denied/failed."}); return; }
-        secret = null;
-        closeConnectModal();
-        setConnected(address, "freighter");
-        toast({type:"ok", title:"Connected", message:"Freighter connected."});
-      }catch(e){
-        console.error(e);
-        toast({type:"err", title:"Error", message:"Freighter connect failed."});
-      }
-    };
-
-    // WalletConnect: unchanged logic
     const isIOS = ()=> /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     async function purgeWcStorage(){
@@ -850,8 +798,6 @@ return window.SignClient.default ?? window.SignClient;
 
     async function ensureWcClient({ retry=false } = {}){
       if(wcClient) return wcClient;
-
-      const SignClient = await getSignClient();
 
       try{
         wcClient = await SignClient.init({
@@ -917,6 +863,28 @@ return window.SignClient.default ?? window.SignClient;
       setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
     }
 
+    // -----------------------
+    // Connect flows
+    // -----------------------
+    freighterExtBtn.onclick = async ()=>{
+      try{
+        const freighter = await ensureFreighterApi();
+        if(!freighter){ toast({type:"err", title:"Error", message:"Freighter extension not detected."}); return; }
+        let address = "";
+        try { address = await freighter.getPublicKey(); } catch {}
+        if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
+        if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
+        if(!address){ toast({type:"err", title:"Error", message:"Freighter connect denied/failed."}); return; }
+        secret = null;
+        closeConnectModal();
+        setConnected(address, "freighter");
+        toast({type:"ok", title:"Connected", message:"Freighter connected."});
+      }catch(e){
+        console.error(e);
+        toast({type:"err", title:"Error", message:"Freighter connect failed."});
+      }
+    };
+
     wcBtn.onclick = async ()=>{
       try{
         const sc = await ensureWcClient();
@@ -928,8 +896,11 @@ return window.SignClient.default ?? window.SignClient;
         if(!uri) throw new Error("No WalletConnect URI");
         latestWcUri = uri;
 
-        // QRCode global exists because script is before module and is not defer
-        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
+          throw new Error("QRCode library not loaded (window.QRCode missing).");
+        }
+        await window.QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+
         qrArea.style.display = "flex";
         rawWcLink.href = uri;
 
@@ -1003,6 +974,21 @@ return window.SignClient.default ?? window.SignClient;
     };
 
     // -----------------------
+    // Horizon helpers
+    // -----------------------
+    async function getAccountJson(pk){
+      const r = await fetch(`${HORIZON}/accounts/${pk}`);
+      if(!r.ok) throw new Error(`Horizon account fetch failed (${r.status})`);
+      return await r.json();
+    }
+
+    async function hasBUSDCTrustline(pk){
+      const j = await getAccountJson(pk);
+      const bal = (j.balances || []).find(b => b.asset_code===BUSDC_CODE && b.asset_issuer===BUSDC_ISSUER);
+      return !!bal;
+    }
+
+    // -----------------------
     // Classic bUSDC balance (Horizon)
     // -----------------------
     async function refreshBalance(){
@@ -1014,17 +1000,110 @@ return window.SignClient.default ?? window.SignClient;
       }
       balStatus.textContent = "Loading Horizon balances…";
       try{
-        const r = await fetch(`${HORIZON}/accounts/${pk}`);
-        const j = await r.json();
+        const j = await getAccountJson(pk);
         const bal = (j.balances || []).find(b => b.asset_code===BUSDC_CODE && b.asset_issuer===BUSDC_ISSUER);
-        busdcBalOut.textContent = bal ? String(bal.balance) : "0";
-        busdcLiaOut.textContent = bal ? String(bal.selling_liabilities || "0") : "0";
-        balStatus.textContent = "";
+
+        if(!bal){
+          busdcBalOut.textContent = "NO TRUSTLINE";
+          busdcLiaOut.textContent = "—";
+          balStatus.textContent = "No bUSDC trustline yet.";
+        } else {
+          busdcBalOut.textContent = String(bal.balance);
+          busdcLiaOut.textContent = String(bal.selling_liabilities || "0");
+          balStatus.textContent = "";
+        }
       }catch{
         balStatus.textContent = "Could not load balance.";
       }
     }
     refreshBalBtn.onclick = refreshBalance;
+
+    // -----------------------
+    // Signing
+    // -----------------------
+    async function signXdr(xdr){
+      if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
+      if(mode==="secret"){
+        const tx = StellarSdk.TransactionBuilder.fromXDR(xdr, NETWORK_PASSPHRASE);
+        tx.sign(StellarSdk.Keypair.fromSecret(secret));
+        return tx.toXDR();
+      }
+      if(mode==="freighter"){
+        const api = await ensureFreighterApi();
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK_PASSPHRASE, accountToSign: pubkey });
+        if(res?.error) throw new Error(res.error.message || "Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      if(mode==="wc"){
+        if(!wcClient || !wcSession) throw new Error("WalletConnect not ready.");
+        const r = await wcClient.request({
+          topic: wcSession.topic,
+          chainId: "stellar:pubnet",
+          request: { jsonrpc:"2.0", method:"stellar_signXDR", params:{ xdr } }
+        });
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      throw new Error("Unsupported signing mode.");
+    }
+
+    async function submitClassicTxXdrToHorizon(signedXdr){
+      const srv = makeHorizonServer(HORIZON);
+      const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+      return await srv.submitTransaction(tx);
+    }
+
+    async function buildChangeTrustXdr(limit=null){
+      if(!pubkey) throw new Error("Connect a wallet first.");
+      const srv = makeHorizonServer(HORIZON);
+      const acc = await srv.loadAccount(pubkey);
+
+      const op = StellarSdk.Operation.changeTrust({
+        asset: BUSDC_ASSET,
+        limit: limit ?? undefined
+      });
+
+      const tx = new StellarSdk.TransactionBuilder(acc, {
+        fee: (await srv.fetchBaseFee()).toString(),
+        networkPassphrase: NETWORK_PASSPHRASE
+      })
+        .addOperation(op)
+        .setTimeout(120)
+        .build();
+
+      return tx.toXDR();
+    }
+
+    async function ensureBUSDCTrustline({ interactive=true } = {}){
+      if(!pubkey) throw new Error("Connect a wallet first.");
+      const ok = await hasBUSDCTrustline(pubkey);
+      if(ok) return true;
+
+      if(!interactive) return false;
+
+      toast({type:"info", title:"Trustline needed", message:"You need a bUSDC trustline before deposit/mint. Creating it now…", timeout:3500});
+      balStatus.textContent = "Creating bUSDC trustline…";
+
+      const xdr = await buildChangeTrustXdr(null);
+      const signed = await signXdr(xdr);
+      const res = await submitClassicTxXdrToHorizon(signed);
+
+      balStatus.textContent = `Trustline added ✓ tx: ${res.hash}`;
+      toast({type:"ok", title:"Trustline added", message:"bUSDC trustline created. Now retry deposit/mint.", timeout:4200});
+      await refreshBalance();
+      return true;
+    }
+
+    addTrustBtn.onclick = async ()=>{
+      try{
+        if(!pubkey){ openConnectModal(); return; }
+        if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect a wallet or use secret key.");
+        await ensureBUSDCTrustline({ interactive:true });
+      }catch(e){
+        console.error(e);
+        toast({type:"err", title:"Error", message:e.message || String(e)});
+      }
+    };
 
     // -----------------------
     // Soroban read helpers
@@ -1116,7 +1195,6 @@ return window.SignClient.default ?? window.SignClient;
       if(method==="mint" || method==="redeem") return { min: MIN_SHARES_BI, label: `${MIN_SHARES} shares` };
       return { min: 0n, label: "0" };
     }
-
     function enforceMinimum(method, amountBig){
       const { min, label } = minForMethod(method);
       if(min > 0n && amountBig < min){
@@ -1125,14 +1203,13 @@ return window.SignClient.default ?? window.SignClient;
     }
 
     // -----------------------
-    // Previews (with minimum guidance)
+    // Previews (with minimum checks)
     // -----------------------
     async function doPreview(method, amountStr, outEl){
       try{
         const amt = parseDecimalToBigint(amountStr);
         if(!(amt > 0n)) throw new Error("Enter an amount.");
 
-        // preview_* names map to actions for mins
         const map = {
           preview_deposit: "deposit",
           preview_withdraw: "withdraw",
@@ -1159,34 +1236,8 @@ return window.SignClient.default ?? window.SignClient;
     prevRedeemBtn.onclick = ()=> doPreview("preview_redeem", prevRedeemAmt.value, prevRedeemOut);
 
     // -----------------------
-    // Signing for Soroban tx
+    // Submit Soroban signed XDR
     // -----------------------
-    async function signXdr(xdr){
-      if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
-      if(mode==="secret"){
-        const tx = StellarSdk.TransactionBuilder.fromXDR(xdr, NETWORK_PASSPHRASE);
-        tx.sign(StellarSdk.Keypair.fromSecret(secret));
-        return tx.toXDR();
-      }
-      if(mode==="freighter"){
-        const api = await ensureFreighterApi();
-        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK_PASSPHRASE, accountToSign: pubkey });
-        if(res?.error) throw new Error(res.error.message || "Freighter: sign failed");
-        return res.signedTxXdr || res.signedXDR || res;
-      }
-      if(mode==="wc"){
-        if(!wcClient || !wcSession) throw new Error("WalletConnect not ready.");
-        const r = await wcClient.request({
-          topic: wcSession.topic,
-          chainId: "stellar:pubnet",
-          request: { jsonrpc:"2.0", method:"stellar_signXDR", params:{ xdr } }
-        });
-        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
-        return r.signedXDR;
-      }
-      throw new Error("Unsupported signing mode.");
-    }
-
     async function submitSorobanSignedXdr(signedXdr){
       const server = makeSorobanServer(SOROBAN_RPC);
       const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
@@ -1206,8 +1257,7 @@ return window.SignClient.default ?? window.SignClient;
     async function hasVault(account){
       if(!VAULT_SIGNER_KEY) return false;
       try{
-        const r = await fetch(`${HORIZON}/accounts/${account}`);
-        const j = await r.json();
+        const j = await getAccountJson(account);
         const ks = (j.signers || []).map(s=>s.key);
         return ks.includes(VAULT_SIGNER_KEY);
       }catch{
@@ -1266,7 +1316,7 @@ return window.SignClient.default ?? window.SignClient;
     };
 
     // -----------------------
-    // Actions (with minimum checks + vault loop)
+    // Actions (minimum checks + trustline + vault loop)
     // -----------------------
     async function doAction(method, inputEl, xdrEl, statusEl){
       statusEl.textContent = "";
@@ -1274,6 +1324,15 @@ return window.SignClient.default ?? window.SignClient;
         if(!pubkey){ openConnectModal(); return; }
         if(mode==="pubkey" || mode==="none"){
           throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
+        }
+
+        // Ensure trustline before receiving bUSDC on deposit/mint
+        if(method === "deposit" || method === "mint"){
+          const ok = await ensureBUSDCTrustline({ interactive:true });
+          if(!ok){
+            statusEl.textContent = "Missing bUSDC trustline. Create it first.";
+            return;
+          }
         }
 
         const amt = parseDecimalToBigint(inputEl.value);
@@ -1285,13 +1344,13 @@ return window.SignClient.default ?? window.SignClient;
 
         const signed = await signXdr(xdr);
 
-        // ✅ Vault co-sign loop
+        // Vault co-sign loop
         if(await hasVault(pubkey)){
           statusEl.textContent = "Signed. Vault co-sign required — opening Vault modal…";
           pendingActionStatusEl = statusEl;
           pendingActionMethod = method;
-          openVaultModal(signed); // send the already-signed XDR to Vault for co-sign
-          toast({type:"info", title:"Vault required", message:"Copy the XDR into LOBSTR Vault, co-sign, paste back, then submit." , timeout:4200});
+          openVaultModal(signed);
+          toast({type:"info", title:"Vault required", message:"Copy the XDR into LOBSTR Vault, co-sign, paste back, then submit.", timeout:4200});
           return;
         }
 
