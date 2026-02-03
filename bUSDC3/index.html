@@ -435,8 +435,8 @@
     </div>
   </div>
 
-  <!-- QR dep -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- ✅ QRCode global loader (kept), now defer to avoid race -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
 
   <!-- ✅ WalletConnect / deps sometimes expect process/env -->
   <script>window.process = window.process || { env: {} };</script>
@@ -467,9 +467,35 @@
     const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
 
     // -----------------------
-    // ✅ WalletConnect SignClient (esm.sh, newer version)
+    // WalletConnect SignClient (esm.sh)
     // -----------------------
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+
+    // -----------------------
+    // ✅ QRCode loader (robust: global -> ESM fallback)
+    // -----------------------
+    let _qrLib = null;
+    async function ensureQrLib(){
+      if (_qrLib) return _qrLib;
+
+      // Global (from the deferred script tag)
+      if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
+        _qrLib = window.QRCode;
+        return _qrLib;
+      }
+
+      // ESM fallback (in case CDN is blocked or global doesn't attach)
+      try{
+        const mod = await import("https://esm.sh/qrcode@1.5.3");
+        _qrLib = mod.default ?? mod;
+        if (typeof _qrLib.toCanvas !== "function") {
+          throw new Error("QRCode ESM loaded but toCanvas missing");
+        }
+        return _qrLib;
+      }catch(_e){
+        throw new Error("QRCode library failed to load (CDN blocked/offline).");
+      }
+    }
 
     // -----------------------
     // DOM helpers
@@ -791,7 +817,10 @@
         if(!uri) throw new Error("No WalletConnect URI");
         latestWcUri = uri;
 
-        await QRCode.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+        // ✅ FIX: ensure QRCode lib exists (global OR ESM fallback)
+        const QR = await ensureQrLib();
+        await QR.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+
         qrArea.style.display = "flex";
         rawWcLink.href = uri;
 
@@ -1105,6 +1134,7 @@
         toast({type:"err", title:"Error", message:e.message || "Action failed"});
       }
     }
+
     depositXdrToggle.onclick = ()=> toggleTextarea(depositXdr, depositXdrToggle);
     withdrawXdrToggle.onclick = ()=> toggleTextarea(withdrawXdr, withdrawXdrToggle);
     mintXdrToggle.onclick = ()=> toggleTextarea(mintXdr, mintXdrToggle);
@@ -1120,6 +1150,7 @@
       logsEl.style.display = hidden ? "block" : "none";
       toggleLogsBtn.textContent = hidden ? "Hide logs" : "Show logs";
     };
+
     // init constants in UI
     contractIdOut.textContent = CONTRACT_ID;
     rpcOut.textContent = SOROBAN_RPC;
