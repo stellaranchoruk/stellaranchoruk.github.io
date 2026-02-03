@@ -35,6 +35,8 @@
     .card h2{margin:0 0 10px; font-size:15px}
     .grid2{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
     @media (max-width: 560px){ .grid2{grid-template-columns:1fr;} }
+    .grid3{display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;}
+    @media (max-width: 740px){ .grid3{grid-template-columns:1fr;} }
     .kv{
       padding:10px 10px;
       border:1px solid var(--border);
@@ -148,7 +150,6 @@
     .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px}
     @media (max-width:560px){ .two-col{grid-template-columns:1fr} }
 
-    /* Vault modal uses always-visible textareas */
     .vault-ta{display:block; min-height:120px;}
     .muted{color:var(--muted);}
   </style>
@@ -160,13 +161,12 @@
     <div class="top">
       <div>
         <h1>bUSDC Vault UI</h1>
-        <div class="sub">WalletConnect + Freighter + manual pub/secret. Deposit USDC / Withdraw bUSDC. LOBSTR Vault co-sign supported.</div>
       </div>
       <div class="pill ok" id="netPill"><span class="dot"></span><span>Pubnet</span></div>
     </div>
 
     <div class="row">
-      <!-- ✅ LEFT: WALLET (so it loads first on mobile) -->
+      <!-- LEFT: WALLET -->
       <div class="card">
         <h2>Wallet</h2>
 
@@ -205,14 +205,18 @@
         <div class="hr"></div>
 
         <h2>Balances</h2>
-        <div class="grid2">
+        <div class="grid3">
           <div class="kv">
             <div class="k">bUSDC balance</div>
             <div class="v big" id="busdcBalOut">—</div>
           </div>
           <div class="kv">
-            <div class="k">Selling liabilities</div>
-            <div class="v" id="busdcLiaOut">—</div>
+            <div class="k">bUSDC in offers</div>
+            <div class="v big" id="busdcOfferOut">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Available bUSDC</div>
+            <div class="v big" id="busdcAvailOut">—</div>
           </div>
         </div>
         <div class="actions">
@@ -230,29 +234,11 @@
         </div>
       </div>
 
-      <!-- RIGHT: VAULT UI -->
+      <!-- RIGHT: VAULT -->
       <div class="card">
         <h2>Vault state</h2>
 
         <div class="grid2">
-          <div class="kv">
-            <div class="k">Contract</div>
-            <div class="v mono" id="contractIdOut"></div>
-          </div>
-          <div class="kv">
-            <div class="k">Soroban RPC</div>
-            <div class="v mono" id="rpcOut"></div>
-          </div>
-
-          <div class="kv">
-            <div class="k">Share token (Soroban ID)</div>
-            <div class="v mono" id="shareOut">—</div>
-          </div>
-          <div class="kv">
-            <div class="k">Underlying asset (Soroban ID)</div>
-            <div class="v mono" id="assetOut">—</div>
-          </div>
-
           <div class="kv">
             <div class="k">Share price</div>
             <div class="v big" id="sharePriceOut">—</div>
@@ -263,21 +249,12 @@
           </div>
 
           <div class="kv">
-            <div class="k">Total assets</div>
-            <div class="v" id="totalAssetsOut">—</div>
+            <div class="k">USDC in Blend</div>
+            <div class="v big" id="totalAssetsOut">—</div>
           </div>
           <div class="kv">
-            <div class="k">Total supply</div>
-            <div class="v" id="totalSupplyOut">—</div>
-          </div>
-
-          <div class="kv">
-            <div class="k">Issuer</div>
-            <div class="v mono" id="issuerOut"></div>
-          </div>
-          <div class="kv">
-            <div class="k">Min amounts</div>
-            <div class="v mono">deposit ≥ 10 (assets) · redeem ≥ 10 (shares)</div>
+            <div class="k">Total bUSDC supply</div>
+            <div class="v big" id="totalSupplyOut">—</div>
           </div>
         </div>
 
@@ -292,10 +269,6 @@
         <div class="hr"></div>
 
         <h2>Actions</h2>
-        <div class="small">
-          Deposit uses contract signature <span class="mono">(i128, Address, Address, Address)</span> and requires a bUSDC trustline.
-          Withdraw uses redeem (shares) and returns USDC. Buttons are user-friendly labels.
-        </div>
 
         <div class="two-col" style="margin-top:10px">
           <div>
@@ -360,7 +333,7 @@
     </div>
   </div>
 
-  <!-- ✅ Vault modal (round-trip co-sign) -->
+  <!-- Vault modal -->
   <div id="vaultModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
     <div class="modal-inner">
       <div class="modal-header">
@@ -369,7 +342,6 @@
       </div>
 
       <div class="small">
-        Your account requires an extra signature (Vault). Steps:
         <ol class="muted" style="margin:8px 0 0 18px">
           <li>Copy the XDR below into LOBSTR Vault and co-sign it.</li>
           <li>Vault will output a fully-signed XDR.</li>
@@ -396,10 +368,9 @@
     </div>
   </div>
 
-  <!-- QRCode CDN (optional). If blocked, we fall back to ESM in ensureQrLib(). -->
+  <!-- QRCode CDN (optional). Fallback to ESM in ensureQrLib() -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
   <script>
-    // If jsDelivr is blocked, try unpkg as a backup for the global QRCode (still optional).
     window.addEventListener("load", function(){
       if (!window.QRCode) {
         var s=document.createElement("script");
@@ -409,7 +380,6 @@
     });
   </script>
 
-  <!-- Helps some WC deps that expect process.env -->
   <script>window.process = window.process || { env: {} };</script>
 
   <script type="module">
@@ -428,12 +398,10 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
-    // ✅ Vault signer (LOBSTR Vault)
     const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
 
     const DECIMALS = 7;
 
-    // ✅ Minimums (human units)
     const MIN_ASSETS = 10; // USDC
     const MIN_SHARES = 10; // bUSDC
 
@@ -443,23 +411,14 @@
     import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?bundle";
     const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
 
-    // -----------------------
-    // WalletConnect (ESM)
-    // -----------------------
+    // WalletConnect
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
 
-    // -----------------------
-    // QRCode loader (robust: global -> ESM fallback)
-    // -----------------------
+    // QRCode loader (global -> ESM fallback)
     let _qrLib = null;
     async function ensureQrLib(){
       if (_qrLib) return _qrLib;
-
-      if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
-        _qrLib = window.QRCode;
-        return _qrLib;
-      }
-
+      if (window.QRCode && typeof window.QRCode.toCanvas === "function") { _qrLib = window.QRCode; return _qrLib; }
       const mod = await import("https://esm.sh/qrcode@1.5.3");
       _qrLib = mod.default ?? mod;
       if (typeof _qrLib.toCanvas !== "function") throw new Error("QRCode toCanvas missing");
@@ -521,13 +480,12 @@
       const d = (dRaw + "0".repeat(decimals)).slice(0, decimals);
       return BigInt(i) * (10n ** BigInt(decimals)) + BigInt(d || "0");
     }
+    const humanToScaledBigint = (nHuman)=> parseDecimalToBigint(String(nHuman), DECIMALS);
 
-    function humanToScaledBigint(nHuman){
-      return parseDecimalToBigint(String(nHuman), DECIMALS);
-    }
+    function clamp0(bi){ return bi < 0n ? 0n : bi; }
 
     // -----------------------
-    // RPC server ctor (robust)
+    // RPC server ctor
     // -----------------------
     function makeSorobanServer(url){
       if (StellarSdk.SorobanRpc?.Server) return new StellarSdk.SorobanRpc.Server(url, { allowHttp: url.startsWith("http://") });
@@ -540,7 +498,6 @@
       throw new Error("No Horizon Server constructor found in stellar-sdk build.");
     }
 
-    const SIM_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
     const contract = new StellarSdk.Contract(CONTRACT_ID);
     const BUSDC_ASSET = new StellarSdk.Asset(BUSDC_CODE, BUSDC_ISSUER);
 
@@ -555,19 +512,12 @@
     let wcSession = null;
     let latestWcUri = null;
 
-    // track last action status element so vault modal can update it after submission
     let pendingActionStatusEl = null;
     let pendingActionMethod = null;
 
     // -----------------------
     // UI refs
     // -----------------------
-    const contractIdOut = $("contractIdOut");
-    const rpcOut = $("rpcOut");
-    const issuerOut = $("issuerOut");
-
-    const shareOut = $("shareOut");
-    const assetOut = $("assetOut");
     const sharePriceOut = $("sharePriceOut");
     const impliedOut = $("impliedOut");
     const totalAssetsOut = $("totalAssetsOut");
@@ -589,23 +539,20 @@
     const openExplorerBtn = $("openExplorerBtn");
 
     const busdcBalOut = $("busdcBalOut");
-    const busdcLiaOut = $("busdcLiaOut");
+    const busdcOfferOut = $("busdcOfferOut");
+    const busdcAvailOut = $("busdcAvailOut");
     const refreshBalBtn = $("refreshBalBtn");
     const addTrustBtn = $("addTrustBtn");
     const balStatus = $("balStatus");
 
     const depositAmt = $("depositAmt");
     const redeemAmt = $("redeemAmt");
-
     const depositBtn = $("depositBtn");
     const redeemBtn = $("redeemBtn");
-
     const depositXdr = $("depositXdr");
     const redeemXdr = $("redeemXdr");
-
     const depositXdrToggle = $("depositXdrToggle");
     const redeemXdrToggle = $("redeemXdrToggle");
-
     const depositStatus = $("depositStatus");
     const redeemStatus = $("redeemStatus");
 
@@ -621,7 +568,6 @@
     const rawWcLink = $("rawWcLink");
     const linkStatus = $("linkStatus");
 
-    // Vault modal refs
     const vaultModal = $("vaultModal");
     const closeVaultModal = $("closeVaultModal");
     const vaultXdrToVault = $("vaultXdrToVault");
@@ -730,7 +676,6 @@
       }
     };
 
-    // WalletConnect utilities
     const isIOS = ()=> /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     async function purgeWcStorage(){
@@ -749,7 +694,7 @@
           relayUrl: "wss://relay.walletconnect.com",
           metadata: {
             name: "bUSDC Vault UI",
-            description: "Vault UI for bUSDC contract",
+            description: "bUSDC Vault UI",
             url: (location?.origin || "https://mirrasets.com"),
             icons: ["https://walletconnect.com/walletconnect-logo.png"]
           }
@@ -894,7 +839,7 @@
     };
 
     // -----------------------
-    // Classic bUSDC trustline helpers
+    // Classic trustline helpers
     // -----------------------
     async function getAccountJson(pk){
       const r = await fetch(`${HORIZON}/accounts/${pk}`);
@@ -941,7 +886,7 @@
       if(ok) return true;
       if(!interactive) return false;
 
-      toast({type:"info", title:"Trustline needed", message:"You need a bUSDC trustline before deposit. Creating it now…", timeout:3500});
+      toast({type:"info", title:"Trustline needed", message:"Creating bUSDC trustline…", timeout:3000});
       balStatus.textContent = "Creating bUSDC trustline…";
 
       const xdr = await buildChangeTrustXdr(null);
@@ -949,7 +894,7 @@
       const res = await submitClassicTxXdrToHorizon(signed);
 
       balStatus.textContent = `Trustline added ✓ tx: ${res.hash}`;
-      toast({type:"ok", title:"Trustline added", message:"bUSDC trustline created. Now retry deposit.", timeout:4200});
+      toast({type:"ok", title:"Trustline added", message:"Now retry deposit.", timeout:3500});
       await refreshBalance();
       return true;
     }
@@ -966,29 +911,38 @@
     };
 
     // -----------------------
-    // Classic bUSDC balance (Horizon)
+    // Balances (Horizon)
     // -----------------------
     async function refreshBalance(){
       const pk = pubkeyEl.value.trim();
       if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)){
         busdcBalOut.textContent = "—";
-        busdcLiaOut.textContent = "—";
+        busdcOfferOut.textContent = "—";
+        busdcAvailOut.textContent = "—";
         return;
       }
-      balStatus.textContent = "Loading Horizon balances…";
+      balStatus.textContent = "Loading balances…";
       try{
         const j = await getAccountJson(pk);
         const bal = (j.balances || []).find(b => b.asset_code===BUSDC_CODE && b.asset_issuer===BUSDC_ISSUER);
 
         if(!bal){
           busdcBalOut.textContent = "NO TRUSTLINE";
-          busdcLiaOut.textContent = "—";
+          busdcOfferOut.textContent = "—";
+          busdcAvailOut.textContent = "—";
           balStatus.textContent = "No bUSDC trustline yet.";
-        } else {
-          busdcBalOut.textContent = String(bal.balance);
-          busdcLiaOut.textContent = String(bal.selling_liabilities || "0");
-          balStatus.textContent = "";
+          return;
         }
+
+        const balBi = parseDecimalToBigint(bal.balance);
+        const offBi = parseDecimalToBigint(bal.selling_liabilities || "0");
+        const availBi = clamp0(balBi - offBi);
+
+        busdcBalOut.textContent = fmtScaledBigint(balBi);
+        busdcOfferOut.textContent = fmtScaledBigint(offBi);
+        busdcAvailOut.textContent = fmtScaledBigint(availBi);
+
+        balStatus.textContent = "";
       }catch{
         balStatus.textContent = "Could not load balance.";
       }
@@ -1025,29 +979,18 @@
       return sim;
     }
 
-    // -----------------------
-    // Soroban state refresh
-    // -----------------------
     async function refreshState(){
       stateStatus.textContent = "Refreshing…";
       try{
-        const [assetSim, shareSim, spSim, taSim, tsSim] = await Promise.all([
-          simulate("query_asset"),
-          simulate("query_share"),
+        const [spSim, taSim, tsSim] = await Promise.all([
           simulate("share_price"),
           simulate("total_assets"),
           simulate("total_supply"),
         ]);
 
-        const assetId = scvToNativeFromSim(assetSim);
-        const shareId = scvToNativeFromSim(shareSim);
-
         const sharePrice = scvToNativeFromSim(spSim);
         const totalAssets = scvToNativeFromSim(taSim);
         const totalSupply = scvToNativeFromSim(tsSim);
-
-        assetOut.textContent = String(assetId ?? "—");
-        shareOut.textContent = String(shareId ?? "—");
 
         if (typeof sharePrice === "bigint"){
           sharePriceOut.textContent = fmtScaledBigint(sharePrice);
@@ -1057,13 +1000,8 @@
           impliedOut.textContent = "—";
         }
 
-        totalAssetsOut.textContent = (typeof totalAssets==="bigint")
-          ? fmtScaledBigint(totalAssets)
-          : String(totalAssets ?? "—");
-
-        totalSupplyOut.textContent = (typeof totalSupply==="bigint")
-          ? fmtScaledBigint(totalSupply)
-          : String(totalSupply ?? "—");
+        totalAssetsOut.textContent = (typeof totalAssets==="bigint") ? fmtScaledBigint(totalAssets) : String(totalAssets ?? "—");
+        totalSupplyOut.textContent = (typeof totalSupply==="bigint") ? fmtScaledBigint(totalSupply) : String(totalSupply ?? "—");
 
         stateStatus.textContent = "Updated.";
       }catch(e){
@@ -1072,6 +1010,7 @@
         toast({type:"err", title:"Error", message:e.message || "Refresh failed"});
       }
     }
+    refreshBtn.onclick = refreshState;
 
     // -----------------------
     // Minimum checks
@@ -1080,16 +1019,12 @@
     const MIN_SHARES_BI = humanToScaledBigint(MIN_SHARES);
 
     function enforceMinimum(method, amountBig){
-      if(method==="deposit" && amountBig < MIN_ASSETS_BI){
-        throw new Error(`Minimum deposit is ${MIN_ASSETS} (assets).`);
-      }
-      if(method==="redeem" && amountBig < MIN_SHARES_BI){
-        throw new Error(`Minimum withdraw is ${MIN_SHARES} (shares).`);
-      }
+      if(method==="deposit" && amountBig < MIN_ASSETS_BI) throw new Error(`Minimum deposit is ${MIN_ASSETS}.`);
+      if(method==="redeem"  && amountBig < MIN_SHARES_BI) throw new Error(`Minimum withdraw is ${MIN_SHARES}.`);
     }
 
     // -----------------------
-    // Signing for Soroban + Classic
+    // Signing
     // -----------------------
     async function signXdr(xdr){
       if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
@@ -1118,7 +1053,7 @@
     }
 
     // -----------------------
-    // Submit Soroban signed XDR
+    // Soroban submit
     // -----------------------
     async function submitSorobanSignedXdr(signedXdr){
       const server = makeSorobanServer(SOROBAN_RPC);
@@ -1171,9 +1106,7 @@
       return prepared.toXDR();
     }
 
-    // -----------------------
     // Vault modal submit handler
-    // -----------------------
     submitVaultXdrBtn.onclick = async ()=>{
       try{
         const xdr = (vaultXdrFromVault.value || "").trim();
@@ -1198,7 +1131,7 @@
     };
 
     // -----------------------
-    // Actions (deposit / redeem only)
+    // Actions
     // -----------------------
     async function doAction(method, inputEl, xdrEl, statusEl){
       statusEl.textContent = "";
@@ -1212,7 +1145,6 @@
         if(!(amt > 0n)) throw new Error("Enter an amount.");
         enforceMinimum(method, amt);
 
-        // Trustline required for receiving bUSDC on deposit
         if(method === "deposit"){
           await ensureBUSDCTrustline({ interactive:true });
         }
@@ -1222,13 +1154,12 @@
 
         const signed = await signXdr(xdr);
 
-        // Vault co-sign loop
         if(await hasVault(pubkey)){
           statusEl.textContent = "Signed. Vault co-sign required — opening Vault modal…";
           pendingActionStatusEl = statusEl;
           pendingActionMethod = method;
           openVaultModal(signed);
-          toast({type:"info", title:"Vault required", message:"Copy the XDR into LOBSTR Vault, co-sign, paste back, then submit.", timeout:4200});
+          toast({type:"info", title:"Vault required", message:"Copy → co-sign in Vault → paste back → Submit.", timeout:4200});
           return;
         }
 
@@ -1258,11 +1189,6 @@
       logsEl.style.display = hidden ? "block" : "none";
       toggleLogsBtn.textContent = hidden ? "Hide logs" : "Show logs";
     };
-
-    // init constants in UI
-    contractIdOut.textContent = CONTRACT_ID;
-    rpcOut.textContent = SOROBAN_RPC;
-    issuerOut.textContent = BUSDC_ISSUER;
 
     // first load
     refreshState().catch(()=>{});
