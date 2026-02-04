@@ -1351,34 +1351,33 @@
     // -----------------------
     // Vault modal submit handler (classic vs soroban)
     // -----------------------
-    submitVaultXdrBtn.onclick = async ()=>{
-      try{
-        const xdr = (vaultXdrFromVault.value || "").trim();
-        if(!xdr) throw new Error("Paste the fully signed XDR from Vault first.");
-        vaultStatus.textContent = "Submitting…";
+submitVaultXdrBtn.onclick = async ()=>{
+  try{
+    const vaultSignedXdr = vaultXdrFromVault.value.trim();
+    if(!vaultSignedXdr) throw new Error("Paste the Vault-signed XDR first.");
 
-        if(pendingVaultSubmitKind === "classic"){
-          const res = await submitClassicTxXdrToHorizon(xdr);
-          vaultStatus.innerHTML = `Submitted ✓ tx: <span class="mono">${res.hash}</span>`;
-          toast({type:"ok", title:"Fee paid", message:"Fee transaction submitted."});
-        }else{
-          const res = await submitSorobanSignedXdr(xdr);
-          vaultStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
-          toast({type:"ok", title:"Submitted", message:"Soroban transaction submitted."});
-        }
+    vaultStatus.textContent = "Adding your signature…";
 
-        const cb = pendingAfterVault;
-        closeVaultModalFn();
-        if(typeof cb === "function") cb();
+    // ✅ SECOND signature happens HERE
+    const fullySignedXdr = await signXdr(vaultSignedXdr);
 
-        refreshState().catch(()=>{});
-        refreshBalance().catch(()=>{});
-      }catch(e){
-        console.error(e);
-        vaultStatus.textContent = `Error: ${e.message || e}`;
-        toast({type:"err", title:"Error", message:e.message || "Submit failed"});
-      }
-    };
+    vaultStatus.textContent = "Submitting transaction…";
+
+    const res = await submitClassicTxXdrToHorizon(fullySignedXdr);
+
+    vaultStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
+    toast({ type:"ok", title:"Fee paid", message:"Transaction confirmed on-chain." });
+
+    // mark fee as paid / unlock next step
+    onVaultTxSuccess?.(res.hash);
+
+    closeVaultModalFn();
+  }catch(e){
+    console.error(e);
+    vaultStatus.textContent = `Error: ${e.message || e}`;
+    toast({ type:"err", title:"Error", message:e.message || "Submit failed" });
+  }
+};
 
     // -----------------------
     // Preflight logic (does NOT charge fee)
