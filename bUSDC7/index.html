@@ -510,20 +510,6 @@
       return BigInt(i) * (10n ** BigInt(decimals)) + BigInt(d || "0");
     }
 
-    function makeSourceAccountShim(accountId, sequence) {
-  let seq = String(sequence);
-
-  return {
-    // what many stellar-base builds expect
-    accountId: () => accountId,
-    sequenceNumber: () => seq,
-    incrementSequenceNumber: () => { seq = (BigInt(seq) + 1n).toString(); },
-
-    // ✅ what YOUR build is complaining about
-    sourceAccount: () => accountId,
-  };
-}
-
     // fee within amount:
     // fee = ceil(gross * bps)
     // net = gross - fee
@@ -1218,12 +1204,9 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   const rpc = makeSorobanServer(SOROBAN_RPC);
   const h   = makeHorizonServer(HORIZON);
 
-  // Load sequence from Horizon
+  // Load sequence from Horizon (classic)
   const accResp = await h.loadAccount(pubkey);
-
-  // ✅ Use shim objects that definitely satisfy TransactionBuilder
-  const acc1 = makeSourceAccountShim(pubkey, accResp.sequence);
-  const acc2 = makeSourceAccountShim(pubkey, accResp.sequence);
+  const seq = accResp.sequence;
 
   // ---- fee math (inside amount)
   const feeBig = feeFromGross(grossScaled);
@@ -1233,8 +1216,12 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   const addrScv = new StellarSdk.Address(pubkey).toScVal();
   const netScv  = StellarSdk.nativeToScVal(netBig, { type: "i128" });
 
-  // 1) simulate soroban-only tx
-  const invokeOnlyTx = new StellarSdk.TransactionBuilder(acc1, {
+  // -------------------------------------------------
+  // 1) SIMULATE + ASSEMBLE SOROBAN-ONLY TX
+  // -------------------------------------------------
+  const accForInvoke = new StellarSdk.Account(pubkey, seq);
+
+  const invokeOnlyTx = new StellarSdk.TransactionBuilder(accForInvoke, {
     fee: "10000",
     networkPassphrase: NETWORK_PASSPHRASE,
   })
@@ -1247,35 +1234,50 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
     throw new Error("Simulation error: " + JSON.stringify(sim, null, 2));
   }
 
-  // 2) assemble (inject footprint/resources)
-  const assembledTx =
-    StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim).build();
+  const assembledMaybe = StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim);
+  const assembledTx = (typeof assembledMaybe.build === "function") ? assembledMaybe.build() : assembledMaybe;
 
-  // 3) extract invoke op
-  const parsed = StellarSdk.TransactionBuilder.fromXDR(
-    assembledTx.toXDR(),
-    NETWORK_PASSPHRASE
-  );
-  const invokeOp = parsed.operations.find(op => op.type === "invokeHostFunction");
-  if (!invokeOp) throw new Error("Assembled invoke operation missing");
+  // Extract raw XDR invoke op + Soroban ext (footprint/resources live here)
+  const assembledOps = assembledTx.tx.operations();
+  if (!assembledOps || !assembledOps.length) throw new Error("Assembled tx has no operations");
+  const invokeOpXdr = assembledOps[0];
 
-  // 4) classic fee payment op
+  const sorobanExtXdr = assembledTx.tx.ext(); // contains SorobanData + resources
+
+  // -------------------------------------------------
+  // 2) BUILD FINAL TX (classic fee op + placeholder invoke)
+  // -------------------------------------------------
   const feeAsset = (method === "deposit") ? USDC_ASSET : BUSDC_ASSET;
+
   const feeOp = StellarSdk.Operation.payment({
     destination: COLLECTION_WALLET,
     asset: feeAsset,
     amount: fmtScaledBigint(feeBig),
   });
 
-  // 5) final tx (classic + soroban)
-  const finalTx = new StellarSdk.TransactionBuilder(acc2, {
-    fee: "300000",
+  // Build with a placeholder invoke op (we’ll replace it with the assembled XDR op)
+  const accForFinal = new StellarSdk.Account(pubkey, seq);
+
+  const finalTx = new StellarSdk.TransactionBuilder(accForFinal, {
+    fee: "300000", // keep as you had
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(feeOp)
-    .addOperation(invokeOp)
+    .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv)) // placeholder
     .setTimeout(180)
     .build();
+
+  // -------------------------------------------------
+  // 3) PATCH FINAL TX WITH RAW XDR (invoke op + ext)
+  // -------------------------------------------------
+  const finalOps = finalTx.tx.operations();
+  const feeOpXdr = finalOps[0];
+
+  // Set ops = [feeOpXdr, invokeOpXdr]
+  finalTx.tx.operations([feeOpXdr, invokeOpXdr]);
+
+  // Set ext to the assembled Soroban ext (resources/footprint)
+  finalTx.tx.ext(sorobanExtXdr);
 
   return { xdr: finalTx.toXDR(), feeBig, netBig };
 }
