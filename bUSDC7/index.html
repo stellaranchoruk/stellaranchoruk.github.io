@@ -1353,25 +1353,40 @@
     // -----------------------
 submitVaultXdrBtn.onclick = async ()=>{
   try{
-    const vaultSignedXdr = vaultXdrFromVault.value.trim();
+    const vaultSignedXdr = (vaultXdrFromVault.value || "").trim();
     if(!vaultSignedXdr) throw new Error("Paste the Vault-signed XDR first.");
 
     vaultStatus.textContent = "Adding your signature…";
 
-    // ✅ SECOND signature happens HERE
+    // Second signature (WalletConnect / Freighter / Secret)
     const fullySignedXdr = await signXdr(vaultSignedXdr);
 
     vaultStatus.textContent = "Submitting transaction…";
 
-    const res = await submitClassicTxXdrToHorizon(fullySignedXdr);
+    // IMPORTANT: submit based on what we opened the vault modal for
+    let res;
+    if(pendingVaultSubmitKind === "classic"){
+      res = await submitClassicTxXdrToHorizon(fullySignedXdr);
+      vaultStatus.innerHTML = `Submitted ✓ tx: <span class="mono">${res.hash}</span>`;
+      toast({ type:"ok", title:"Fee paid", message:"Fee transaction confirmed on-chain." });
+    } else if(pendingVaultSubmitKind === "soroban"){
+      res = await submitSorobanSignedXdr(fullySignedXdr);
+      vaultStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
+      toast({ type:"ok", title:"Submitted", message:"Soroban transaction submitted." });
+    } else {
+      // fallback: assume classic
+      res = await submitClassicTxXdrToHorizon(fullySignedXdr);
+      vaultStatus.innerHTML = `Submitted ✓ tx: <span class="mono">${res.hash}</span>`;
+      toast({ type:"ok", title:"Submitted", message:"Transaction submitted." });
+    }
 
-    vaultStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
-    toast({ type:"ok", title:"Fee paid", message:"Transaction confirmed on-chain." });
-
-    // mark fee as paid / unlock next step
-    onVaultTxSuccess?.(res.hash);
-
+    // ✅ THIS is the correct "unlock next step" hook
+    const cb = pendingAfterVault;
     closeVaultModalFn();
+    if(typeof cb === "function") cb();
+
+    refreshState().catch(()=>{});
+    refreshBalance().catch(()=>{});
   }catch(e){
     console.error(e);
     vaultStatus.textContent = `Error: ${e.message || e}`;
