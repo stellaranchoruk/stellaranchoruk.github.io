@@ -1,0 +1,1703 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>bUSDC Vault UI</title>
+  <style>
+    :root{
+      --bg:#0b0f17; --card:#111a2b; --muted:#8ea0c2; --text:#e8eefc;
+      --accent:#5eead4; --warn:#fbbf24; --bad:#fb7185; --ok:#34d399;
+      --border:rgba(255,255,255,.10);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:var(--sans); color:var(--text);
+      background:
+        radial-gradient(1000px 700px at 20% 0%, rgba(94,234,212,.12), transparent 55%),
+        radial-gradient(900px 600px at 95% 15%, rgba(251,113,133,.10), transparent 55%),
+        var(--bg);
+      min-height:100vh;
+    }
+    .wrap{max-width:1100px; margin:22px auto; padding:0 16px 60px;}
+    .top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+    h1{margin:0; font-size:20px; letter-spacing:-.01em}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:14px;}
+    @media (max-width: 940px){ .row{grid-template-columns:1fr;} }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.22);
+      overflow:hidden;
+    }
+    .card h2{margin:0 0 10px; font-size:15px}
+    .grid2{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    @media (max-width: 560px){ .grid2{grid-template-columns:1fr;} }
+    .kv{
+      padding:10px 10px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:rgba(0,0,0,.18);
+      min-height:56px;
+    }
+    .k{color:var(--muted); font-size:11px; letter-spacing:.2px; text-transform:uppercase}
+    .v{margin-top:4px; font-size:14px; word-break:break-word}
+    .v.big{font-size:18px; font-weight:800}
+    .mono{font-family:var(--mono)}
+    .actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
+    button{
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    button:hover{border-color: rgba(94,234,212,.35)}
+    button:disabled{opacity:.5; cursor:not-allowed}
+    button.primary{
+      background:linear-gradient(180deg, rgba(94,234,212,.22), rgba(94,234,212,.10));
+      border-color: rgba(94,234,212,.28);
+    }
+    button.warn{
+      background:linear-gradient(180deg, rgba(251,191,36,.18), rgba(251,191,36,.08));
+      border-color: rgba(251,191,36,.30);
+    }
+    button.ghost{background:transparent}
+    .input{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+    input, textarea{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 11px;
+      background:rgba(0,0,0,.18);
+      color:var(--text);
+      outline:none;
+      font:14px/1.4 var(--mono);
+    }
+    textarea{min-height:120px; resize:vertical; display:none;}
+    .small{color:var(--muted); font-size:12px}
+    .hr{height:1px; background:var(--border); margin:12px 0}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:7px 10px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:rgba(0,0,0,.18);
+      color:var(--muted);
+      font-size:12px;
+      align-self:flex-start;
+    }
+    .pill .dot{width:8px;height:8px;border-radius:50%; background:var(--muted)}
+    .pill.ok .dot{background:var(--ok)}
+    .pill.warn .dot{background:var(--warn)}
+    .pill.bad .dot{background:var(--bad)}
+    .status-line{margin-top:8px; color:var(--muted); font-size:12px; word-break:break-word}
+
+    .toast-wrap{
+      position:fixed; top:12px; right:12px; z-index:50;
+      display:flex; flex-direction:column; gap:10px;
+      pointer-events:none;
+    }
+    .toast{
+      pointer-events:auto;
+      width:min(380px, calc(100vw - 24px));
+      border-radius:14px;
+      padding:10px 10px;
+      border:1px solid var(--border);
+      background:rgba(10,14,22,.86);
+      backdrop-filter: blur(8px);
+      display:flex; gap:10px; align-items:flex-start;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      animation: tin .16s ease-out forwards;
+    }
+    .toast .ico{
+      width:26px; height:26px; border-radius:10px;
+      display:flex; align-items:center; justify-content:center;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      font-weight:900;
+    }
+    .toast.ok .ico{color:var(--ok)}
+    .toast.err .ico{color:var(--bad)}
+    .toast.info .ico{color:var(--accent)}
+    .toast .body{flex:1}
+    .toast .title{font-weight:900; font-size:12px; letter-spacing:.2px}
+    .toast .msg{font-size:12px; color:var(--muted); margin-top:2px; white-space:pre-wrap}
+    .toast .x{border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:18px; padding:0 6px;}
+    @keyframes tin{from{transform:translateY(-6px); opacity:0} to{transform:none; opacity:1}}
+    @keyframes tout{from{transform:none; opacity:1} to{transform:translateY(-6px); opacity:0}}
+
+    .backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; z-index:40;}
+    .backdrop.open{display:block}
+    .modal{position:fixed; inset:0; display:none; z-index:41; place-items:center; padding:18px;}
+    .modal.open{display:grid}
+    .modal-inner{
+      width:min(720px, 100%);
+      background:rgba(16,22,35,.92);
+      border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow: 0 16px 50px rgba(0,0,0,.5);
+      padding:14px;
+      backdrop-filter: blur(8px);
+    }
+    /* ✅ slimmer login modal */
+    .modal-inner.slim{
+      width:min(520px, 100%);
+      padding:16px 16px 18px;
+    }
+    .modal-header{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px}
+    .modal-header h3{margin:0; font-size:16px}
+    .modal-header .x{border:none; background:transparent; color:var(--muted); font-size:20px; cursor:pointer}
+    .qr-wrap{margin-top:12px; display:none; gap:12px; align-items:center; flex-direction:column}
+    .wallet-choices{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+    .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    @media (max-width:560px){ .two-col{grid-template-columns:1fr} }
+
+    .vault-ta{display:block; min-height:120px;}
+    .muted{color:var(--muted);}
+
+    .fee-box{
+      margin-top:8px;
+      padding:10px;
+      border:1px dashed rgba(255,255,255,.16);
+      border-radius:12px;
+      background:rgba(0,0,0,.14);
+    }
+    .fee-row{display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--muted)}
+    .fee-row b{color:var(--text)}
+
+    .clickable{
+      cursor:pointer;
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.14);
+      user-select:none;
+    }
+    .clickable:hover{border-color: rgba(94,234,212,.35)}
+    .hintline{display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px}
+
+    .warnbox{
+      margin-top:10px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(251,191,36,.28);
+      background:rgba(251,191,36,.08);
+      color:var(--text);
+    }
+    .warnbox .small{color:rgba(232,238,252,.78)}
+    .ackrow{
+      display:flex; gap:10px; align-items:flex-start; margin-top:8px;
+      padding:8px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.12);
+    }
+    .ackrow input{width:auto; margin-top:2px}
+    .stepPill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.14);
+      color:var(--muted);
+      font-size:12px;
+    }
+    .stepPill.ok{color:var(--ok); border-color: rgba(52,211,153,.25)}
+    .stepPill.warn{color:var(--warn); border-color: rgba(251,191,36,.25)}
+
+    /* ✅ centered login buttons */
+    .modal-actions-center{
+      display:flex;
+      justify-content:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    .modal-actions-center button{ min-width: 220px; }
+  </style>
+</head>
+<body>
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+  <div class="wrap">
+    <div class="top">
+      <div><h1>bUSDC Vault UI</h1></div>
+      <div class="pill ok" id="netPill"><span class="dot"></span><span>Pubnet</span></div>
+    </div>
+
+    <div class="row">
+      <!-- LEFT: WALLET FIRST -->
+      <div class="card">
+        <h2>Wallet</h2>
+
+        <div class="kv">
+          <div class="k">Connection</div>
+          <div class="v" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div>
+              <div id="connStatus" class="pill bad" style="display:inline-flex"><span class="dot"></span><span>Not connected</span></div>
+              <div class="small" id="connModeLine" style="margin-top:6px">—</div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
+              <button id="connectBtn" class="primary">Connect</button>
+              <button id="disconnectBtn" disabled>Disconnect</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="input">
+          <div class="small">Public key (G...)</div>
+          <input id="pubkeyEl" class="mono" placeholder="G..." />
+          <div class="actions">
+            <button id="usePubkeyBtn">Use pubkey (read-only)</button>
+            <button id="openExplorerBtn">Open in StellarExpert</button>
+          </div>
+        </div>
+
+        <div class="input">
+          <div class="small">Secret key (S...) (optional)</div>
+          <input id="seckeyEl" class="mono" placeholder="S... (not stored)" />
+          <div class="small">Secret-key mode signs locally in this tab (nothing saved).</div>
+          <div class="actions">
+            <button id="useSecretBtn">Use secret (local signing)</button>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <h2>Balances</h2>
+        <div class="grid2">
+          <div class="kv">
+            <div class="k">Available USDC</div>
+            <div class="v big"><span id="usdcAvailOut">—</span></div>
+          </div>
+          <div class="kv">
+            <div class="k">Available bUSDC</div>
+            <div class="v big"><span id="busdcAvailOut">—</span></div>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="refreshBalBtn" class="primary">Refresh balances</button>
+          <button id="addTrustBtn">Add bUSDC trustline</button>
+        </div>
+        <div class="status-line" id="balStatus"></div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="card">
+        <h2>Vault Info</h2>
+
+        <div class="grid2">
+          <div class="kv">
+            <div class="k">Share price</div>
+            <div class="v big" id="sharePriceOut">—</div>
+          </div>
+
+          <div class="kv">
+            <div class="k">USDC in Blend</div>
+            <div class="v" id="totalAssetsOut">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Total bUSDC supply</div>
+            <div class="v" id="totalSupplyOut">—</div>
+          </div>
+        </div>
+
+        <!-- ✅ keep implied wording as a subtle line -->
+        <div class="small muted" id="impliedLine" style="margin-top:8px">—</div>
+
+        <div class="actions">
+          <button class="primary" id="refreshBtn">Refresh</button>
+          <button class="ghost" id="toggleLogsBtn">Show logs</button>
+        </div>
+
+        <textarea id="logs" spellcheck="false"></textarea>
+        <div class="status-line" id="stateStatus"></div>
+
+        <div class="hr"></div>
+
+        <h2>Actions</h2>
+
+        <div class="warnbox">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <b>Non-refundable fee</b>
+            <span class="stepPill warn">Fee is paid before execution</span>
+          </div>
+          <div class="small" style="margin-top:6px">
+            You must run <b>Preflight</b> first. If you choose to pay the fee, it is <b>not refundable</b> even if your deposit/withdraw fails later due to account state changes, network conditions, or signature requirements.
+          </div>
+          <label class="ackrow">
+            <input type="checkbox" id="feeAck" />
+            <div class="small">
+              I understand the <b>0.15%</b> fee is <b>non-refundable</b>. I confirm I have checked my balances, trustlines, and will only proceed after a successful Preflight.
+            </div>
+          </label>
+        </div>
+
+        <div class="two-col" style="margin-top:10px">
+          <!-- Deposit -->
+          <div>
+            <div class="input">
+              <div class="small">Deposit USDC</div>
+              <input id="depositAmt" inputmode="decimal" placeholder="e.g. 1000.00" />
+              <div class="hintline small">
+                <span>Available: <span id="usdcAvailInline" class="clickable">—</span></span>
+              </div>
+              <div class="fee-box">
+                <div class="fee-row"><span>Fee (0.15%)</span><b id="depFeeOut">—</b></div>
+                <div class="fee-row" style="margin-top:6px"><span>Net deposited</span><b id="depNetOut">—</b></div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="depPreflightBtn" class="primary">1) Preflight</button>
+              <button id="depPayFeeBtn" class="warn" disabled>2) Pay fee</button>
+              <button id="depExecuteBtn" class="primary" disabled>3) Execute deposit</button>
+            </div>
+
+            <div class="actions">
+              <button id="depositXdrToggle">Reveal XDR</button>
+            </div>
+            <textarea id="depositXdr" spellcheck="false"></textarea>
+
+            <div class="status-line" id="depositStatus"></div>
+          </div>
+
+          <!-- Withdraw -->
+          <div>
+            <div class="input">
+              <div class="small">Withdraw bUSDC</div>
+              <input id="redeemAmt" inputmode="decimal" placeholder="e.g. 1000.00" />
+              <div class="hintline small">
+                <span>Available: <span id="busdcAvailInline" class="clickable">—</span></span>
+              </div>
+              <div class="fee-box">
+                <div class="fee-row"><span>Fee (0.15%)</span><b id="wdFeeOut">—</b></div>
+                <div class="fee-row" style="margin-top:6px"><span>Net withdrawn</span><b id="wdNetOut">—</b></div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="wdPreflightBtn" class="primary">1) Preflight</button>
+              <button id="wdPayFeeBtn" class="warn" disabled>2) Pay fee</button>
+              <button id="wdExecuteBtn" class="primary" disabled>3) Execute withdraw</button>
+            </div>
+
+            <div class="actions">
+              <button id="redeemXdrToggle">Reveal XDR</button>
+            </div>
+            <textarea id="redeemXdr" spellcheck="false"></textarea>
+
+            <div class="status-line" id="redeemStatus"></div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="small muted">
+          Fee: <b style="color:var(--text)">0.15%</b>. The fee contributes towards the development of this bUSDC UI.<br/>
+          Minimums: <span class="mono">Deposit ≥ 10.015 USDC</span> · <span class="mono">Withdraw ≥ 10.015 bUSDC</span><br/>
+          Fee is taken within the amount you enter (e.g. enter 1000 → fee 1.5 → net 998.5).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backdrop shared by modals -->
+  <div id="backdrop" class="backdrop"></div>
+
+  <!-- Connect modal -->
+  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="modal-inner slim">
+      <div class="modal-header">
+        <h3 id="loginTitle">Connect Wallet</h3>
+        <button class="x" id="closeModal" aria-label="Close">×</button>
+      </div>
+      <div class="small">Pick a login method:</div>
+
+      <!-- ✅ centered buttons -->
+      <div class="modal-actions-center">
+        <button id="wcBtn">🔗 WalletConnect (mobile)</button>
+        <button id="freighterExtBtn">🧩 Freighter (extension)</button>
+      </div>
+
+      <div id="qrArea" class="qr-wrap">
+        <canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas>
+        <div class="wallet-choices">
+          <button id="btnLobstr">Open in LOBSTR</button>
+          <button id="btnFreighter">Open in Freighter</button>
+        </div>
+        <div class="small">
+          Scan with your wallet app, or tap above on mobile ·
+          <a id="rawWcLink" href="#" target="_blank" rel="noreferrer">raw wc link</a>
+        </div>
+        <div id="linkStatus" class="small muted"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vault modal (round-trip co-sign) -->
+  <div id="vaultModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h3 id="vaultTitle">LOBSTR Vault co-sign</h3>
+        <button class="x" id="closeVaultModal" aria-label="Close">×</button>
+      </div>
+
+      <div class="small">
+        Your account requires an extra signature (Vault). Steps:
+        <ol class="muted" style="margin:8px 0 0 18px">
+          <li>Copy the XDR below into LOBSTR Vault and co-sign it.</li>
+          <li>Vault will output a fully-signed XDR.</li>
+          <li>Paste that fully-signed XDR back here and press Submit.</li>
+        </ol>
+      </div>
+
+      <div class="input" style="margin-top:10px">
+        <div class="small">XDR to paste into Vault</div>
+        <textarea id="vaultXdrToVault" class="vault-ta" spellcheck="false"></textarea>
+        <div class="actions">
+          <button id="copyVaultXdrBtn">Copy XDR</button>
+        </div>
+      </div>
+
+      <!-- ✅ WalletConnect prompt to open LOBSTR for signature approval -->
+      <div id="vaultWcPrompt" class="warnbox" style="display:none; margin-top:10px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <b>Action required in LOBSTR</b>
+          <span class="stepPill warn">WalletConnect signing</span>
+        </div>
+        <div class="small" style="margin-top:6px">
+          Please open LOBSTR to approve the signature request.
+        </div>
+        <div class="actions" style="margin-top:10px; justify-content:center">
+          <button id="vaultOpenLobstrBtn" class="primary">Sign in LOBSTR</button>
+        </div>
+        <div id="vaultWcPromptHint" class="small muted" style="margin-top:6px; text-align:center"></div>
+      </div>
+
+      <div class="input">
+        <div class="small">Fully signed XDR from Vault</div>
+        <textarea id="vaultXdrFromVault" class="vault-ta" spellcheck="false" placeholder="Paste the Vault output XDR here…"></textarea>
+        <div class="actions">
+          <button id="submitVaultXdrBtn" class="primary">Submit signed XDR</button>
+        </div>
+        <div class="status-line" id="vaultStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // -----------------------
+    // CONFIG
+    // -----------------------
+    const CONTRACT_ID = "CCR63UWZKPVR2OAZJEBHT4OKBLHX2OAMUYZ63JLO2V72FY3SKAXQTGF6";
+
+    const NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015";
+    const HORIZON = "https://horizon.stellar.org";
+    const SOROBAN_RPC = "https://rpc.lightsail.network/";
+
+    const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
+    const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
+
+    // If you don't know it, set to "" to disable detection.
+    const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
+
+    // Fee: 0.15%
+    const FEE_BPS_NUM = 15n;
+    const FEE_BPS_DEN = 10000n;
+
+    const COLLECTION_WALLET = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
+
+    const USDC_CODE   = "USDC";
+    const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+
+    const BUSDC_CODE   = "bUSDC";
+    const BUSDC_ISSUER = "GA57KXF2UAGURRYK4LKTO4BO2JASL2PQCO2C53XUNK5G4CXX6QAL6QNR";
+
+    const DECIMALS = 7;
+
+    const MIN_NET = 10;
+    const MIN_GROSS_DISPLAY = "10.015";
+
+    // -----------------------
+    // Imports (CSP-safe: target=es2022 to avoid eval)
+    // -----------------------
+    import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?target=es2022";
+    const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
+
+    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8?target=es2022";
+
+    // QRCode helper (lazy)
+    let _qrLib = null;
+    async function ensureQrLib(){
+      if (_qrLib) return _qrLib;
+      if (window.QRCode && typeof window.QRCode.toCanvas === "function") { _qrLib = window.QRCode; return _qrLib; }
+      const mod = await import("https://esm.sh/qrcode@1.5.3?target=es2022");
+      _qrLib = mod.default ?? mod;
+      if (typeof _qrLib.toCanvas !== "function") throw new Error("QRCode toCanvas missing");
+      return _qrLib;
+    }
+
+    // -----------------------
+    // DOM helpers
+    // -----------------------
+    const $ = (id)=>document.getElementById(id);
+    const toastWrap = $("toastWrap");
+    const logsEl = $("logs");
+
+    function toast({ type="info", title="", message="", timeout=2600 } = {}){
+      const el = document.createElement("div");
+      el.className = `toast ${type}`;
+      const icon = type==="ok" ? "✓" : type==="err" ? "!" : "ℹ︎";
+      el.innerHTML = `
+        <div class="ico">${icon}</div>
+        <div class="body">${title?`<div class="title">${title}</div>`:""}<div class="msg">${message||""}</div></div>
+        <button class="x" aria-label="Close">×</button>`;
+      toastWrap.appendChild(el);
+      const close = ()=>{ el.style.animation="tout .16s ease-in forwards"; setTimeout(()=>el.remove(), 180); };
+      el.querySelector(".x").onclick = close;
+      if(timeout) setTimeout(close, timeout);
+    }
+
+    const jsonBig = (obj)=>JSON.stringify(obj, (_k,v)=> typeof v==="bigint" ? v.toString() : v, 2);
+    function logLine(...args){
+      const line = args.map(a=>{
+        if(typeof a==="string") return a;
+        try{ return jsonBig(a); }catch{ return String(a); }
+      }).join(" ");
+      logsEl.value += line + "\n";
+      logsEl.scrollTop = logsEl.scrollHeight;
+    }
+
+    function toggleTextarea(el, btn){
+      const hidden = el.style.display === "none" || !el.style.display;
+      el.style.display = hidden ? "block" : "none";
+      btn.textContent = hidden ? "Hide XDR" : "Reveal XDR";
+    }
+
+    function fmtScaledBigint(x, decimals=DECIMALS){
+      if(typeof x !== "bigint") return String(x);
+      const neg = x < 0n;
+      const v = neg ? -x : x;
+      const s = v.toString().padStart(decimals + 1, "0");
+      const whole = s.slice(0, -decimals);
+      const frac = s.slice(-decimals).replace(/0+$/,"");
+      return (neg ? "-" : "") + whole + (frac ? "." + frac : "");
+    }
+    function parseDecimalToBigint(amountStr, decimals=DECIMALS){
+      const s = String(amountStr||"").trim().replace(/,/g,"");
+      if(!s) return 0n;
+      if(!/^\d+(\.\d+)?$/.test(s)) throw new Error("Enter a positive number (e.g. 10 or 10.25)");
+      const [i, dRaw=""] = s.split(".");
+      const d = (dRaw + "0".repeat(decimals)).slice(0, decimals);
+      return BigInt(i) * (10n ** BigInt(decimals)) + BigInt(d || "0");
+    }
+
+    // fee inside amount: fee = ceil(gross * bps), net = gross - fee
+    function feeFromGross(grossScaled){
+      const num = grossScaled * FEE_BPS_NUM;
+      return (num + (FEE_BPS_DEN - 1n)) / FEE_BPS_DEN;
+    }
+
+    // Servers
+    function makeSorobanServer(url){
+      if (StellarSdk.SorobanRpc?.Server) return new StellarSdk.SorobanRpc.Server(url, { allowHttp: url.startsWith("http://") });
+      if (StellarSdk.rpc?.Server) return new StellarSdk.rpc.Server(url, { allowHttp: url.startsWith("http://") });
+      throw new Error("No Soroban RPC Server constructor found in stellar-sdk build.");
+    }
+    function makeHorizonServer(url){
+      if (StellarSdk.Horizon?.Server) return new StellarSdk.Horizon.Server(url);
+      if (StellarSdk.Server) return new StellarSdk.Server(url);
+      throw new Error("No Horizon Server constructor found in stellar-sdk build.");
+    }
+
+    const contract = new StellarSdk.Contract(CONTRACT_ID);
+    const USDC_ASSET = new StellarSdk.Asset(USDC_CODE, USDC_ISSUER);
+    const BUSDC_ASSET = new StellarSdk.Asset(BUSDC_CODE, BUSDC_ISSUER);
+
+    // -----------------------
+    // Wallet state
+    // -----------------------
+    let mode = "none"; // none | wc | freighter | pubkey | secret
+    let pubkey = null;
+    let secret = null;
+
+    let wcClient = null;
+    let wcSession = null;
+    let latestWcUri = null;
+
+    // Vault modal routing
+    let pendingVaultSubmitKind = null; // "classic" | "soroban"
+    let pendingAfterVault = null;      // callback
+
+    // Per-action cached state
+    const actionState = {
+      deposit: { preflightOk:false, feePaid:false, invokeXdr:null, feeXdr:null, feeBig:0n, netBig:0n },
+      redeem:  { preflightOk:false, feePaid:false, invokeXdr:null, feeXdr:null, feeBig:0n, netBig:0n },
+    };
+
+    // -----------------------
+    // UI refs
+    // -----------------------
+    const refreshBtn = $("refreshBtn");
+    const toggleLogsBtn = $("toggleLogsBtn");
+    const stateStatus = $("stateStatus");
+
+    const sharePriceOut = $("sharePriceOut");
+    const impliedLine = $("impliedLine");
+    const totalAssetsOut = $("totalAssetsOut");
+    const totalSupplyOut = $("totalSupplyOut");
+
+    const connStatus = $("connStatus");
+    const connModeLine = $("connModeLine");
+    const connectBtn = $("connectBtn");
+    const disconnectBtn = $("disconnectBtn");
+
+    const pubkeyEl = $("pubkeyEl");
+    const seckeyEl = $("seckeyEl");
+    const usePubkeyBtn = $("usePubkeyBtn");
+    const useSecretBtn = $("useSecretBtn");
+    const openExplorerBtn = $("openExplorerBtn");
+
+    const usdcAvailOut = $("usdcAvailOut");
+    const busdcAvailOut = $("busdcAvailOut");
+    const usdcAvailInline = $("usdcAvailInline");
+    const busdcAvailInline = $("busdcAvailInline");
+
+    const refreshBalBtn = $("refreshBalBtn");
+    const addTrustBtn = $("addTrustBtn");
+    const balStatus = $("balStatus");
+
+    const depositAmt = $("depositAmt");
+    const redeemAmt = $("redeemAmt");
+
+    const depFeeOut = $("depFeeOut");
+    const depNetOut = $("depNetOut");
+    const wdFeeOut = $("wdFeeOut");
+    const wdNetOut = $("wdNetOut");
+
+    const depPreflightBtn = $("depPreflightBtn");
+    const depPayFeeBtn = $("depPayFeeBtn");
+    const depExecuteBtn = $("depExecuteBtn");
+
+    const wdPreflightBtn = $("wdPreflightBtn");
+    const wdPayFeeBtn = $("wdPayFeeBtn");
+    const wdExecuteBtn = $("wdExecuteBtn");
+
+    const depositXdr = $("depositXdr");
+    const redeemXdr = $("redeemXdr");
+    const depositXdrToggle = $("depositXdrToggle");
+    const redeemXdrToggle = $("redeemXdrToggle");
+
+    const depositStatus = $("depositStatus");
+    const redeemStatus = $("redeemStatus");
+
+    const feeAck = $("feeAck");
+
+    const backdrop = $("backdrop");
+    const loginModal = $("loginModal");
+    const closeModal = $("closeModal");
+    const wcBtn = $("wcBtn");
+    const freighterExtBtn = $("freighterExtBtn");
+    const qrArea = $("qrArea");
+    const qrCanvas = $("qrCanvas");
+    const btnLobstr = $("btnLobstr");
+    const btnFreighter = $("btnFreighter");
+    const rawWcLink = $("rawWcLink");
+    const linkStatus = $("linkStatus");
+
+    const vaultModal = $("vaultModal");
+    const closeVaultModal = $("closeVaultModal");
+    const vaultXdrToVault = $("vaultXdrToVault");
+    const vaultXdrFromVault = $("vaultXdrFromVault");
+    const copyVaultXdrBtn = $("copyVaultXdrBtn");
+    const submitVaultXdrBtn = $("submitVaultXdrBtn");
+    const vaultStatus = $("vaultStatus");
+
+    // ✅ WalletConnect prompt inside Vault modal
+    const vaultWcPrompt = $("vaultWcPrompt");
+    const vaultOpenLobstrBtn = $("vaultOpenLobstrBtn");
+    const vaultWcPromptHint = $("vaultWcPromptHint");
+
+    function showVaultWcPrompt(show, hint=""){
+      if(!vaultWcPrompt) return;
+      vaultWcPrompt.style.display = show ? "block" : "none";
+      if(vaultWcPromptHint) vaultWcPromptHint.textContent = hint || "";
+    }
+
+    let availableUSDCScaled = null;  // BigInt
+    let availableBUSDCScaled = null; // BigInt
+
+    function setConnPill(kind, label){
+      connStatus.classList.remove("ok","warn","bad");
+      connStatus.classList.add(kind);
+      connStatus.querySelector("span:last-child").textContent = label;
+    }
+    function setConnected(address, newMode){
+      pubkey = address || null;
+      mode = newMode || "none";
+      disconnectBtn.disabled = !pubkey;
+      if(pubkey) pubkeyEl.value = pubkey;
+
+      actionState.deposit = { preflightOk:false, feePaid:false, invokeXdr:null, feeXdr:null, feeBig:0n, netBig:0n };
+      actionState.redeem  = { preflightOk:false, feePaid:false, invokeXdr:null, feeXdr:null, feeBig:0n, netBig:0n };
+      syncActionButtons();
+
+      if(!pubkey){
+        setConnPill("bad","Not connected");
+        connModeLine.textContent = "—";
+        return;
+      }
+
+      setConnPill("ok","Connected");
+      connModeLine.textContent = `Mode: ${mode}`;
+      refreshBalance().catch(()=>{});
+    }
+
+    function syncActionButtons(){
+      depPayFeeBtn.disabled   = !(feeAck.checked && actionState.deposit.preflightOk && !actionState.deposit.feePaid);
+      depExecuteBtn.disabled  = !(actionState.deposit.feePaid && !!actionState.deposit.netBig && actionState.deposit.netBig > 0n);
+
+      wdPayFeeBtn.disabled    = !(feeAck.checked && actionState.redeem.preflightOk && !actionState.redeem.feePaid);
+      wdExecuteBtn.disabled   = !(actionState.redeem.feePaid && !!actionState.redeem.netBig && actionState.redeem.netBig > 0n);
+    }
+    feeAck.addEventListener("change", syncActionButtons);
+
+    // ✅ Clear UI after a Soroban submit so it doesn't look re-submittable
+    function clearActionUI(which){
+      if(which === "deposit"){
+        depositAmt.value = "";
+        depositXdr.value = "";
+        depFeeOut.textContent = "—";
+        depNetOut.textContent = "—";
+        depositXdr.style.display = "none";
+        depositXdrToggle.textContent = "Reveal XDR";
+      }else{
+        redeemAmt.value = "";
+        redeemXdr.value = "";
+        wdFeeOut.textContent = "—";
+        wdNetOut.textContent = "—";
+        redeemXdr.style.display = "none";
+        redeemXdrToggle.textContent = "Reveal XDR";
+      }
+    }
+
+    // -----------------------
+    // Freighter API
+    // -----------------------
+    async function ensureFreighterApi(){
+      if (window.freighterApi) return window.freighterApi;
+      try{
+        const mod = await import("https://esm.sh/@stellar/freighter-api@5.0.0?target=es2022");
+        window.freighterApi = mod?.default ?? mod;
+        return window.freighterApi;
+      }catch{
+        return null;
+      }
+    }
+
+    // -----------------------
+    // Modals
+    // -----------------------
+    function openConnectModal(){
+      backdrop.classList.add("open");
+      loginModal.classList.add("open");
+    }
+    function closeConnectModal(){
+      loginModal.classList.remove("open");
+      qrArea.style.display="none";
+      if(!vaultModal.classList.contains("open")) backdrop.classList.remove("open");
+    }
+    function openVaultModal(xdrToPaste, kind, afterCb){
+      pendingVaultSubmitKind = kind; // "classic" | "soroban"
+      pendingAfterVault = afterCb || null;
+
+      vaultStatus.textContent = "";
+      vaultXdrToVault.value = xdrToPaste || "";
+      vaultXdrFromVault.value = "";
+      showVaultWcPrompt(false);
+
+      backdrop.classList.add("open");
+      vaultModal.classList.add("open");
+    }
+    function closeVaultModalFn(){
+      vaultModal.classList.remove("open");
+      if(!loginModal.classList.contains("open")) backdrop.classList.remove("open");
+      pendingVaultSubmitKind = null;
+      pendingAfterVault = null;
+      showVaultWcPrompt(false);
+    }
+
+    connectBtn.onclick = openConnectModal;
+    closeModal.onclick = closeConnectModal;
+    closeVaultModal.onclick = closeVaultModalFn;
+
+    backdrop.addEventListener("click", ()=>{
+      if(loginModal.classList.contains("open")) closeConnectModal();
+      if(vaultModal.classList.contains("open")) closeVaultModalFn();
+    });
+
+    copyVaultXdrBtn.onclick = async ()=>{
+      try{
+        await navigator.clipboard.writeText(vaultXdrToVault.value || "");
+        toast({type:"ok", title:"Copied", message:"XDR copied to clipboard."});
+      }catch{
+        toast({type:"err", title:"Error", message:"Could not copy (clipboard blocked)."});
+      }
+    };
+
+    // -----------------------
+    // Connect flows
+    // -----------------------
+    freighterExtBtn.onclick = async ()=>{
+      try{
+        const freighter = await ensureFreighterApi();
+        if(!freighter){ toast({type:"err", title:"Error", message:"Freighter extension not detected."}); return; }
+        let address = "";
+        try { address = await freighter.getPublicKey(); } catch {}
+        if(!address && freighter.getAddress){ const r=await freighter.getAddress(); address=r?.address||""; }
+        if(!address && freighter.requestAccess){ const r=await freighter.requestAccess(); address=r?.address||""; }
+        if(!address){ toast({type:"err", title:"Error", message:"Freighter connect denied/failed."}); return; }
+        secret = null;
+        closeConnectModal();
+        setConnected(address, "freighter");
+        toast({type:"ok", title:"Connected", message:"Freighter connected."});
+      }catch(e){
+        console.error(e);
+        toast({type:"err", title:"Error", message:"Freighter connect failed."});
+      }
+    };
+
+    const isIOS = ()=> /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    async function purgeWcStorage(){
+      try{
+        Object.keys(localStorage).forEach(k=>{
+          if(k.startsWith("wc@2")) localStorage.removeItem(k);
+        });
+      }catch{}
+    }
+
+    async function ensureWcClient({ retry=false } = {}){
+      if(wcClient) return wcClient;
+      try{
+        wcClient = await SignClient.init({
+          projectId: PROJECT_ID,
+          relayUrl: "wss://relay.walletconnect.com",
+          metadata: {
+            name: "bUSDC Vault UI",
+            description: "Vault UI for bUSDC contract",
+            url: location.origin,
+            icons: ["https://walletconnect.com/walletconnect-logo.png"]
+          }
+        });
+        return wcClient;
+      }catch(e){
+        if(!retry && /No matching key/i.test(String(e?.message||e))){
+          await purgeWcStorage();
+          wcClient = null;
+          return ensureWcClient({ retry:true });
+        }
+        throw e;
+      }
+    }
+
+    async function getFreighterLinks(){
+      try{
+        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const list = data?.listings ?? data?.data ?? [];
+        const arr = Array.isArray(list) ? list : Object.values(list);
+        const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
+        const mobile = w?.mobile || w?.app?.mobile || {};
+        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
+      }catch{
+        return { native:null, universal:null, found:false };
+      }
+    }
+    function buildCandidates(base, wcUri){
+      if(!base) return [];
+      const enc = encodeURIComponent(wcUri);
+      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      const j = base.includes("?") ? "&" : "?";
+      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
+    }
+    function openFreighterSmart(links, wcUri){
+      const store = isIOS()
+        ? "https://apps.apple.com/app/freighter/id6743947720"
+        : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
+      const natives = buildCandidates(links.native, wcUri);
+      const universals = buildCandidates(links.universal, wcUri);
+      let attempted=false;
+      if(natives.length){ attempted=true; window.location.href = natives[0]; }
+      else if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+      if(!attempted){ window.open(store, "_blank", "noopener"); }
+    }
+    function openLobstrApp(uri){
+      const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
+      const store  = isIOS()
+        ? "https://apps.apple.com/app/id1404357892"
+        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const t0 = Date.now();
+      window.location.href = scheme;
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
+
+    // ✅ used by the Vault modal "Sign in LOBSTR" button
+    function openLobstrForSigning(){
+      if(latestWcUri){
+        openLobstrApp(latestWcUri);
+        return;
+      }
+      const store  = isIOS()
+        ? "https://apps.apple.com/app/id1404357892"
+        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const t0 = Date.now();
+      window.location.href = "lobstr://";
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
+    if(vaultOpenLobstrBtn) vaultOpenLobstrBtn.onclick = openLobstrForSigning;
+
+    wcBtn.onclick = async ()=>{
+      try{
+        const sc = await ensureWcClient();
+        const { uri, approval } = await sc.connect({
+          optionalNamespaces: {
+            stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
+          }
+        });
+        if(!uri) throw new Error("No WalletConnect URI");
+        latestWcUri = uri;
+
+        const QR = await ensureQrLib();
+        await QR.toCanvas(qrCanvas, uri, { width:256, margin:1 });
+
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
+
+        linkStatus.textContent = "Loading Freighter deep link…";
+        const freighterLinks = await getFreighterLinks();
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+
+        btnLobstr.onclick = ()=> openLobstrApp(latestWcUri);
+        btnFreighter.onclick = async ()=>{
+          const links = await getFreighterLinks();
+          openFreighterSmart(links, latestWcUri);
+        };
+
+        wcSession = await approval();
+
+        const accounts = wcSession.namespaces?.stellar?.accounts || [];
+        const first = accounts.find(a=>a.startsWith("stellar:pubnet")) || accounts[0] || "";
+        const address = first.split(":")[2] || "";
+        if(!StellarSdk.StrKey.isValidEd25519PublicKey(address)) throw new Error("WC returned invalid address.");
+
+        wcClient = sc;
+        secret = null;
+        qrArea.style.display="none";
+        closeConnectModal();
+        setConnected(address, "wc");
+        toast({type:"ok", title:"Connected", message:"WalletConnect connected."});
+      }catch(e){
+        console.error(e);
+        toast({type:"err", title:"Error", message:String(e?.message || "WalletConnect canceled/failed.")});
+      }
+    };
+
+    disconnectBtn.onclick = async ()=>{
+      try{
+        if(mode==="wc" && wcClient && wcSession){
+          await wcClient.disconnect({ topic: wcSession.topic, reason:{ code:6000, message:"User disconnected" }});
+        }
+      }catch{}
+      wcSession = null;
+      wcClient = null;
+      secret = null;
+      setConnected("", "none");
+      toast({type:"ok", title:"Done", message:"Disconnected."});
+    };
+
+    usePubkeyBtn.onclick = ()=>{
+      const pk = pubkeyEl.value.trim();
+      if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)){
+        toast({type:"err", title:"Error", message:"Invalid public key."}); return;
+      }
+      secret = null;
+      setConnected(pk, "pubkey");
+      toast({type:"ok", title:"Done", message:"Pubkey set (read-only)."});
+    };
+
+    useSecretBtn.onclick = ()=>{
+      const sk = seckeyEl.value.trim();
+      if(!StellarSdk.StrKey.isValidEd25519SecretSeed(sk)){
+        toast({type:"err", title:"Error", message:"Invalid secret key."}); return;
+      }
+      const kp = StellarSdk.Keypair.fromSecret(sk);
+      secret = sk;
+      setConnected(kp.publicKey(), "secret");
+      toast({type:"ok", title:"Done", message:"Secret key set (local signing)."});
+    };
+
+    openExplorerBtn.onclick = ()=>{
+      const pk = pubkeyEl.value.trim();
+      if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)) return;
+      window.open(`https://stellar.expert/explorer/public/account/${pk}`, "_blank", "noopener,noreferrer");
+    };
+
+    // -----------------------
+    // Account + trustline helpers
+    // -----------------------
+    async function getAccountJson(pk){
+      const r = await fetch(`${HORIZON}/accounts/${pk}`);
+      if(!r.ok) throw new Error(`Horizon account fetch failed (${r.status})`);
+      return await r.json();
+    }
+
+    async function hasBUSDCTrustline(pk){
+      const j = await getAccountJson(pk);
+      const bal = (j.balances || []).find(b => b.asset_code===BUSDC_CODE && b.asset_issuer===BUSDC_ISSUER);
+      return !!bal;
+    }
+
+    async function ensureFreighterApiSafe(){
+      const api = await ensureFreighterApi();
+      if(!api) throw new Error("Freighter extension not detected.");
+      return api;
+    }
+
+    async function signXdr(xdr){
+      if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
+      if(mode==="secret"){
+        const tx = StellarSdk.TransactionBuilder.fromXDR(xdr, NETWORK_PASSPHRASE);
+        tx.sign(StellarSdk.Keypair.fromSecret(secret));
+        return tx.toXDR();
+      }
+      if(mode==="freighter"){
+        const api = await ensureFreighterApiSafe();
+        const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK_PASSPHRASE, accountToSign: pubkey });
+        if(res?.error) throw new Error(res.error.message || "Freighter: sign failed");
+        return res.signedTxXdr || res.signedXDR || res;
+      }
+      if(mode==="wc"){
+        if(!wcClient || !wcSession) throw new Error("WalletConnect not ready.");
+        const r = await wcClient.request({
+          topic: wcSession.topic,
+          chainId: "stellar:pubnet",
+          request: { jsonrpc:"2.0", method:"stellar_signXDR", params:{ xdr } }
+        });
+        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+        return r.signedXDR;
+      }
+      throw new Error("Unsupported signing mode.");
+    }
+
+    async function submitClassicTxXdrToHorizon(signedXdr){
+      const srv = makeHorizonServer(HORIZON);
+      const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+      return await srv.submitTransaction(tx);
+    }
+
+    // Raw JSON-RPC helper (avoids SDK XDR decoding edge cases)
+    async function rawRpc(method, params){
+      const r = await fetch(SOROBAN_RPC, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params })
+      });
+      const j = await r.json();
+      if(j.error) throw new Error(`${method} RPC error: ${j.error.message || JSON.stringify(j.error)}`);
+      return j.result;
+    }
+
+    // Soroban submit (poll using raw RPC to avoid "Bad union switch" crashes)
+    async function submitSorobanSignedXdr(signedXdr){
+      const server = makeSorobanServer(SOROBAN_RPC);
+      const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+
+      const send = await server.sendTransaction(tx);
+      if(send.status !== "PENDING" && send.status !== "SUCCESS"){
+        throw new Error(`sendTransaction: ${send.status}`);
+      }
+
+      let res = await rawRpc("getTransaction", { hash: send.hash });
+      for(let i=0; i<25 && res.status==="NOT_FOUND"; i++){
+        await new Promise(r=>setTimeout(r, 900));
+        res = await rawRpc("getTransaction", { hash: send.hash });
+      }
+      if(res.status !== "SUCCESS") throw new Error(`Tx status: ${res.status}`);
+
+      return { hash: send.hash, ...res };
+    }
+
+    async function buildChangeTrustXdr(limit=null){
+      if(!pubkey) throw new Error("Connect a wallet first.");
+      const srv = makeHorizonServer(HORIZON);
+      const acc = await srv.loadAccount(pubkey);
+
+      const op = StellarSdk.Operation.changeTrust({
+        asset: BUSDC_ASSET,
+        limit: limit ?? undefined
+      });
+
+      const tx = new StellarSdk.TransactionBuilder(acc, {
+        fee: (await srv.fetchBaseFee()).toString(),
+        networkPassphrase: NETWORK_PASSPHRASE
+      })
+        .addOperation(op)
+        .setTimeout(120)
+        .build();
+
+      return tx.toXDR();
+    }
+
+    async function ensureBUSDCTrustline({ interactive=true } = {}){
+      if(!pubkey) throw new Error("Connect a wallet first.");
+      const ok = await hasBUSDCTrustline(pubkey);
+      if(ok) return true;
+      if(!interactive) return false;
+
+      toast({type:"info", title:"Trustline needed", message:"You need a bUSDC trustline before deposit. Creating it now…", timeout:3500});
+      balStatus.textContent = "Creating bUSDC trustline…";
+
+      const xdr = await buildChangeTrustXdr(null);
+      const signed = await signXdr(xdr);
+      const res = await submitClassicTxXdrToHorizon(signed);
+
+      balStatus.textContent = `Trustline added ✓ tx: ${res.hash}`;
+      toast({type:"ok", title:"Trustline added", message:"bUSDC trustline created.", timeout:4200});
+      await refreshBalance();
+      return true;
+    }
+
+    addTrustBtn.onclick = async ()=>{
+      try{
+        if(!pubkey){ openConnectModal(); return; }
+        if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect a wallet or use secret key.");
+        await ensureBUSDCTrustline({ interactive:true });
+      }catch(e){
+        console.error(e);
+        toast({type:"err", title:"Error", message:e.message || String(e)});
+      }
+    };
+
+    // -----------------------
+    // Balance computation: "available" = balance - selling_liabilities
+    // -----------------------
+    function strToScaledBigint(amountStr){
+      return parseDecimalToBigint(amountStr || "0", DECIMALS);
+    }
+
+    async function refreshBalance(){
+      const pk = pubkeyEl.value.trim();
+      if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)){
+        usdcAvailOut.textContent = "—";
+        busdcAvailOut.textContent = "—";
+        usdcAvailInline.textContent = "—";
+        busdcAvailInline.textContent = "—";
+        availableUSDCScaled = null;
+        availableBUSDCScaled = null;
+        return;
+      }
+      balStatus.textContent = "Loading balances…";
+      try{
+        const j = await getAccountJson(pk);
+
+        const usdc = (j.balances || []).find(b => b.asset_code===USDC_CODE && b.asset_issuer===USDC_ISSUER);
+        const busdc = (j.balances || []).find(b => b.asset_code===BUSDC_CODE && b.asset_issuer===BUSDC_ISSUER);
+
+        if(usdc){
+          const bal = strToScaledBigint(usdc.balance);
+          const liab = strToScaledBigint(usdc.selling_liabilities || "0");
+          const avail = bal > liab ? (bal - liab) : 0n;
+          availableUSDCScaled = avail;
+          const s = fmtScaledBigint(avail);
+          usdcAvailOut.textContent = s;
+          usdcAvailInline.textContent = s;
+        } else {
+          availableUSDCScaled = 0n;
+          usdcAvailOut.textContent = "NO TRUSTLINE";
+          usdcAvailInline.textContent = "NO TRUSTLINE";
+        }
+
+        if(busdc){
+          const bal = strToScaledBigint(busdc.balance);
+          const liab = strToScaledBigint(busdc.selling_liabilities || "0");
+          const avail = bal > liab ? (bal - liab) : 0n;
+          availableBUSDCScaled = avail;
+          const s = fmtScaledBigint(avail);
+          busdcAvailOut.textContent = s;
+          busdcAvailInline.textContent = s;
+        } else {
+          availableBUSDCScaled = 0n;
+          busdcAvailOut.textContent = "NO TRUSTLINE";
+          busdcAvailInline.textContent = "NO TRUSTLINE";
+        }
+
+        balStatus.textContent = "";
+      }catch(e){
+        availableUSDCScaled = null;
+        availableBUSDCScaled = null;
+        balStatus.textContent = "Could not load balances.";
+      }
+    }
+    refreshBalBtn.onclick = refreshBalance;
+
+    usdcAvailInline.onclick = ()=>{
+      if(typeof availableUSDCScaled !== "bigint") return;
+      depositAmt.value = fmtScaledBigint(availableUSDCScaled);
+      updateFeeBoxes();
+      resetAction("deposit");
+      toast({type:"ok", title:"Filled", message:"Deposit amount set to your available USDC."});
+    };
+    busdcAvailInline.onclick = ()=>{
+      if(typeof availableBUSDCScaled !== "bigint") return;
+      redeemAmt.value = fmtScaledBigint(availableBUSDCScaled);
+      updateFeeBoxes();
+      resetAction("redeem");
+      toast({type:"ok", title:"Filled", message:"Withdraw amount set to your available bUSDC."});
+    };
+
+    // -----------------------
+    // Soroban read helpers
+    // -----------------------
+    function scvToNativeFromSim(sim){
+      const r0 = sim?.result?.results?.[0]?.xdr;
+      if(r0) return StellarSdk.scValToNative(r0);
+      const rv = sim?.result?.retval;
+      if(rv) return StellarSdk.scValToNative(rv);
+      return null;
+    }
+
+    async function simulate(method, argsScv=[]){
+      const server = makeSorobanServer(SOROBAN_RPC);
+      const acc = await server.getAccount("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
+      const tx = new StellarSdk.TransactionBuilder(acc, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE })
+        .addOperation(contract.call(method, ...argsScv))
+        .setTimeout(60)
+        .build();
+
+      logLine(`→ simulate ${method}`);
+      const sim = await server.simulateTransaction(tx);
+      if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
+        throw new Error("Simulation error: " + jsonBig(sim));
+      }
+      return sim;
+    }
+
+    async function refreshState(){
+      stateStatus.textContent = "Refreshing…";
+      try{
+        const [spSim, taSim, tsSim] = await Promise.all([
+          simulate("share_price"),
+          simulate("total_assets"),
+          simulate("total_supply"),
+        ]);
+
+        const sharePrice = scvToNativeFromSim(spSim);
+        const totalAssets = scvToNativeFromSim(taSim);
+        const totalSupply = scvToNativeFromSim(tsSim);
+
+        if (typeof sharePrice === "bigint"){
+          sharePriceOut.textContent = fmtScaledBigint(sharePrice);
+          impliedLine.textContent = `1 bUSDC ≈ ${fmtScaledBigint(sharePrice)} USDC`;
+        } else {
+          sharePriceOut.textContent = String(sharePrice ?? "—");
+          impliedLine.textContent = "—";
+        }
+
+        totalAssetsOut.textContent = (typeof totalAssets==="bigint") ? fmtScaledBigint(totalAssets) : String(totalAssets ?? "—");
+        totalSupplyOut.textContent = (typeof totalSupply==="bigint") ? fmtScaledBigint(totalSupply) : String(totalSupply ?? "—");
+
+        stateStatus.textContent = "Updated.";
+      }catch(e){
+        console.error(e);
+        stateStatus.textContent = `Error: ${e.message || e}`;
+        toast({type:"err", title:"Error", message:e.message || "Refresh failed"});
+      }
+    }
+    refreshBtn.onclick = refreshState;
+
+    // -----------------------
+    // Fee box updates
+    // -----------------------
+    function updateFeeBoxes(){
+      try{
+        const gross = parseDecimalToBigint(depositAmt.value, DECIMALS);
+        if(gross > 0n){
+          const fee = feeFromGross(gross);
+          const net = gross > fee ? (gross - fee) : 0n;
+          depFeeOut.textContent = `${fmtScaledBigint(fee)} ${USDC_CODE}`;
+          depNetOut.textContent = `${fmtScaledBigint(net)} ${USDC_CODE}`;
+        } else { depFeeOut.textContent = "—"; depNetOut.textContent = "—"; }
+      }catch{ depFeeOut.textContent = "—"; depNetOut.textContent = "—"; }
+
+      try{
+        const gross = parseDecimalToBigint(redeemAmt.value, DECIMALS);
+        if(gross > 0n){
+          const fee = feeFromGross(gross);
+          const net = gross > fee ? (gross - fee) : 0n;
+          wdFeeOut.textContent = `${fmtScaledBigint(fee)} ${BUSDC_CODE}`;
+          wdNetOut.textContent = `${fmtScaledBigint(net)} ${BUSDC_CODE}`;
+        } else { wdFeeOut.textContent = "—"; wdNetOut.textContent = "—"; }
+      }catch{ wdFeeOut.textContent = "—"; wdNetOut.textContent = "—"; }
+    }
+    depositAmt.addEventListener("input", ()=>{ updateFeeBoxes(); resetAction("deposit"); });
+    redeemAmt.addEventListener("input", ()=>{ updateFeeBoxes(); resetAction("redeem"); });
+    updateFeeBoxes();
+
+    function resetAction(which){
+      actionState[which].preflightOk = false;
+      actionState[which].feePaid = false;
+      actionState[which].invokeXdr = null;
+      actionState[which].feeXdr = null;
+      actionState[which].feeBig = 0n;
+      actionState[which].netBig = 0n;
+      syncActionButtons();
+    }
+
+    // -----------------------
+    // Minimum checks
+    // -----------------------
+    const MIN_NET_BI = parseDecimalToBigint(String(MIN_NET), DECIMALS);
+    const MIN_GROSS_BI = parseDecimalToBigint(MIN_GROSS_DISPLAY, DECIMALS);
+
+    function enforceGrossAndNet({ gross, net, label }){
+      if(gross < MIN_GROSS_BI) throw new Error(`${label} minimum is ${MIN_GROSS_DISPLAY}.`);
+      if(net < MIN_NET_BI) throw new Error(`${label} net amount must be ≥ ${MIN_NET}.`);
+    }
+
+    // -----------------------
+    // Vault detection
+    // -----------------------
+    async function hasVault(account){
+      if(!VAULT_SIGNER_KEY) return false;
+      try{
+        const j = await getAccountJson(account);
+        const ks = (j.signers || []).map(s=>s.key);
+        return ks.includes(VAULT_SIGNER_KEY);
+      }catch{
+        return false;
+      }
+    }
+
+    // -----------------------
+    // Build Fee tx (classic) + Build Invoke tx (soroban assembled)
+    // -----------------------
+    async function buildFeePaymentXdr({ asset, amountScaled }){
+      const srv = makeHorizonServer(HORIZON);
+      const acc = await srv.loadAccount(pubkey);
+      const feeBase = await srv.fetchBaseFee();
+
+      const tx = new StellarSdk.TransactionBuilder(acc, {
+        fee: String(feeBase),
+        networkPassphrase: NETWORK_PASSPHRASE
+      })
+        .addOperation(StellarSdk.Operation.payment({
+          destination: COLLECTION_WALLET,
+          asset,
+          amount: fmtScaledBigint(amountScaled),
+        }))
+        .setTimeout(120)
+        .build();
+
+      return tx.toXDR();
+    }
+
+    async function buildAssembledInvokeXdr({ method, netScaled }){
+      const rpc = makeSorobanServer(SOROBAN_RPC);
+      const acc = await rpc.getAccount(pubkey);
+
+      const addrScv = new StellarSdk.Address(pubkey).toScVal();
+      const netScv  = StellarSdk.nativeToScVal(netScaled, { type: "i128" });
+
+      const tx = new StellarSdk.TransactionBuilder(acc, {
+        fee: "10000",
+        networkPassphrase: NETWORK_PASSPHRASE
+      })
+        .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
+        .setTimeout(180)
+        .build();
+
+      // ✅ safer simulate wrapper (prevents “Paused in debugger” confusion + logs details)
+      const sim = await (async ()=>{
+        try {
+          return await rpc.simulateTransaction(tx);
+        } catch (e) {
+          console.error("simulateTransaction threw:", e);
+          throw new Error("simulateTransaction threw: " + (e?.message || String(e)));
+        }
+      })();
+
+      console.log("simulateTransaction result:", sim);
+
+      // ✅ keep the simulation-error detection, but log the full payload
+      if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
+        console.error("Simulation error payload:", sim);
+        throw new Error("Simulation error (see console).");
+      }
+
+      const assembled = StellarSdk.SorobanRpc.assembleTransaction(tx, sim).build();
+      return assembled.toXDR();
+    }
+
+    // -----------------------
+    // Vault modal submit handler (classic vs soroban)
+    // -----------------------
+    submitVaultXdrBtn.onclick = async ()=>{
+      try{
+        const vaultSignedXdr = (vaultXdrFromVault.value || "").trim();
+        if(!vaultSignedXdr) throw new Error("Paste the Vault-signed XDR first.");
+
+        vaultStatus.textContent = "Adding your signature…";
+
+        const shouldPromptLobstr = (mode === "wc");
+        if(shouldPromptLobstr){
+          showVaultWcPrompt(true, "If nothing pops up, tap “Sign in LOBSTR” again.");
+        }
+
+        let fullySignedXdr;
+        try{
+          // Second signature (WalletConnect / Freighter / Secret)
+          fullySignedXdr = await signXdr(vaultSignedXdr);
+        } finally {
+          if(shouldPromptLobstr){
+            showVaultWcPrompt(false);
+          }
+        }
+
+        vaultStatus.textContent = "Submitting transaction…";
+
+        let res;
+        if(pendingVaultSubmitKind === "classic"){
+          res = await submitClassicTxXdrToHorizon(fullySignedXdr);
+          vaultStatus.innerHTML = `Submitted ✓ tx: <span class="mono">${res.hash}</span>`;
+          toast({ type:"ok", title:"Fee paid", message:"Fee transaction confirmed on-chain." });
+        } else if(pendingVaultSubmitKind === "soroban"){
+          res = await submitSorobanSignedXdr(fullySignedXdr);
+          vaultStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
+          toast({ type:"ok", title:"Submitted", message:"Soroban transaction submitted." });
+        } else {
+          res = await submitClassicTxXdrToHorizon(fullySignedXdr);
+          vaultStatus.innerHTML = `Submitted ✓ tx: <span class="mono">${res.hash}</span>`;
+          toast({ type:"ok", title:"Submitted", message:"Transaction submitted." });
+        }
+
+        const cb = pendingAfterVault;
+        closeVaultModalFn();
+        if(typeof cb === "function") cb();
+
+        refreshState().catch(()=>{});
+        refreshBalance().catch(()=>{});
+      }catch(e){
+        console.error(e);
+        vaultStatus.textContent = `Error: ${e.message || e}`;
+        toast({ type:"err", title:"Error", message:e.message || "Submit failed" });
+      }
+    };
+
+    // -----------------------
+    // Preflight logic (does NOT charge fee)
+    // -----------------------
+    async function preflight(which, inputEl, statusEl){
+      statusEl.textContent = "";
+      try{
+        if(!pubkey){ openConnectModal(); return; }
+        if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
+
+        await refreshBalance();
+
+        const gross = parseDecimalToBigint(inputEl.value, DECIMALS);
+        if(!(gross > 0n)) throw new Error("Enter an amount.");
+
+        const feeBig = feeFromGross(gross);
+        const netBig = gross > feeBig ? (gross - feeBig) : 0n;
+
+        enforceGrossAndNet({ gross, net: netBig, label: which==="deposit" ? "Deposit" : "Withdraw" });
+
+        if(which==="deposit"){
+          if(typeof availableUSDCScaled !== "bigint") throw new Error("Could not read USDC balance.");
+          if(availableUSDCScaled < gross) throw new Error("Insufficient available USDC for the gross amount you entered.");
+          const ok = await ensureBUSDCTrustline({ interactive:true });
+          if(!ok) throw new Error("Missing bUSDC trustline.");
+        }else{
+          if(typeof availableBUSDCScaled !== "bigint") throw new Error("Could not read bUSDC balance.");
+          if(availableBUSDCScaled < gross) throw new Error("Insufficient available bUSDC for the gross amount you entered.");
+        }
+
+        statusEl.textContent = "Preflight: simulating Soroban…";
+        const invokeXdr = await buildAssembledInvokeXdr({
+          method: which==="deposit" ? "deposit" : "redeem",
+          netScaled: netBig
+        });
+
+        actionState[which].preflightOk = true;
+        actionState[which].feePaid = false;
+        actionState[which].invokeXdr = invokeXdr;
+        actionState[which].feeBig = feeBig;
+        actionState[which].netBig = netBig;
+
+        const feeAsset = which==="deposit" ? USDC_ASSET : BUSDC_ASSET (function(){return BUSDC_ASSET;})();
+        actionState[which].feeXdr = await buildFeePaymentXdr({ asset: (which==="deposit" ? USDC_ASSET : BUSDC_ASSET), amountScaled: feeBig });
+
+        if(which==="deposit") depositXdr.value = invokeXdr;
+        else redeemXdr.value = invokeXdr;
+
+        statusEl.textContent = `Preflight ✓ Ready. Net: ${fmtScaledBigint(netBig)} · Fee: ${fmtScaledBigint(feeBig)}`;
+        toast({type:"ok", title:"Preflight OK", message:`${which} ready · net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}`});
+
+        syncActionButtons();
+      }catch(e){
+        console.error(e);
+        actionState[which].preflightOk = false;
+        actionState[which].feePaid = false;
+        actionState[which].invokeXdr = null;
+        actionState[which].feeXdr = null;
+        syncActionButtons();
+        statusEl.textContent = `Preflight failed: ${e.message || e}`;
+        toast({type:"err", title:"Preflight failed", message:e.message || String(e)});
+      }
+    }
+
+    // -----------------------
+    // Pay fee step (classic)
+    // -----------------------
+    async function payFee(which, statusEl){
+      statusEl.textContent = "";
+      try{
+        if(!feeAck.checked) throw new Error("Tick the non-refundable fee acknowledgement first.");
+        if(!actionState[which].preflightOk || !actionState[which].feeXdr) throw new Error("Run Preflight first.");
+
+        const feeXdr = actionState[which].feeXdr;
+
+        // Vault handling
+        if(await hasVault(pubkey)){
+          statusEl.textContent = "Fee tx requires Vault co-sign — opening Vault modal…";
+
+          openVaultModal(feeXdr, "classic", ()=>{
+            actionState[which].feePaid = true;
+            syncActionButtons();
+            statusEl.textContent = `Fee paid ✓ Now execute ${which}.`;
+            actionState[which].invokeXdr = null; // stale after fee (sequence bumps)
+            refreshBalance().catch(()=>{});
+          });
+
+          return;
+        }
+
+        statusEl.textContent = "Signing fee tx…";
+        const signed = await signXdr(feeXdr);
+        statusEl.textContent = "Submitting fee tx…";
+        const res = await submitClassicTxXdrToHorizon(signed);
+
+        actionState[which].feePaid = true;
+        syncActionButtons();
+        statusEl.textContent = `Fee paid ✓ tx: ${res.hash}`;
+        toast({type:"ok", title:"Fee paid", message:`tx ${res.hash}`});
+
+        refreshBalance().catch(()=>{});
+      }catch(e){
+        console.error(e);
+        statusEl.textContent = `Fee step failed: ${e.message || e}`;
+        toast({type:"err", title:"Fee failed", message:e.message || String(e)});
+      }
+    }
+
+    // -----------------------
+    // Execute step (soroban)
+    // -----------------------
+    async function executeInvoke(which, statusEl){
+      statusEl.textContent = "";
+      try{
+        if(!actionState[which].feePaid) throw new Error("Pay the fee first.");
+        if(!actionState[which].netBig || actionState[which].netBig <= 0n) {
+          throw new Error("Missing cached net amount. Run Preflight again.");
+        }
+
+        const method = which==="deposit" ? "deposit" : "redeem";
+
+        statusEl.textContent = "Rebuilding Soroban tx (fresh sequence)…";
+        const freshInvokeXdr = await buildAssembledInvokeXdr({
+          method,
+          netScaled: actionState[which].netBig
+        });
+
+        actionState[which].invokeXdr = freshInvokeXdr;
+        if(which==="deposit") depositXdr.value = freshInvokeXdr;
+        else redeemXdr.value = freshInvokeXdr;
+
+        // Vault handling
+        if(await hasVault(pubkey)){
+          statusEl.textContent = "Invoke tx requires Vault co-sign — opening Vault modal…";
+          openVaultModal(freshInvokeXdr, "soroban", ()=>{
+            // ✅ clear UI immediately after submit (and disables Pay Fee too)
+            clearActionUI(which);
+            resetAction(which);
+            statusEl.textContent = `${which==="deposit"?"Deposit":"Withdraw"} submitted ✓`;
+            refreshState().catch(()=>{});
+            refreshBalance().catch(()=>{});
+          });
+          return;
+        }
+
+        statusEl.textContent = "Signing invoke tx…";
+        const signed = await signXdr(freshInvokeXdr);
+
+        statusEl.textContent = "Submitting invoke tx…";
+        const res = await submitSorobanSignedXdr(signed);
+
+        // ✅ clear UI immediately after submit (and disables Pay Fee too)
+        clearActionUI(which);
+        resetAction(which);
+
+        statusEl.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
+        toast({type:"ok", title:"Success", message:`${which} complete · hash ${res.hash}`});
+
+        refreshState().catch(()=>{});
+        refreshBalance().catch(()=>{});
+      }catch(e){
+        console.error(e);
+        statusEl.textContent = `Execute failed: ${e.message || e}`;
+        toast({type:"err", title:"Execute failed", message:e.message || String(e)});
+      }
+    }
+
+    // -----------------------
+    // Wire action buttons
+    // -----------------------
+    depPreflightBtn.onclick = ()=> preflight("deposit", depositAmt, depositStatus);
+    depPayFeeBtn.onclick    = ()=> payFee("deposit", depositStatus);
+    depExecuteBtn.onclick   = ()=> executeInvoke("deposit", depositStatus);
+
+    wdPreflightBtn.onclick  = ()=> preflight("redeem", redeemAmt, redeemStatus);
+    wdPayFeeBtn.onclick     = ()=> payFee("redeem", redeemStatus);
+    wdExecuteBtn.onclick    = ()=> executeInvoke("redeem", redeemStatus);
+
+    // XDR toggles
+    depositXdrToggle.onclick = ()=> toggleTextarea(depositXdr, depositXdrToggle);
+    redeemXdrToggle.onclick  = ()=> toggleTextarea(redeemXdr, redeemXdrToggle);
+
+    // Logs toggle
+    toggleLogsBtn.onclick = ()=>{
+      const hidden = logsEl.style.display === "none" || !logsEl.style.display;
+      logsEl.style.display = hidden ? "block" : "none";
+      toggleLogsBtn.textContent = hidden ? "Hide logs" : "Show logs";
+    };
+
+    // Init
+    refreshState().catch(()=>{});
+    refreshBalance().catch(()=>{});
+    syncActionButtons();
+  </script>
+</body>
+</html>
