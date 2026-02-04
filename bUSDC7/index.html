@@ -1475,11 +1475,24 @@ submitVaultXdrBtn.onclick = async ()=>{
 
         const feeXdr = actionState[which].feeXdr;
 
-        // Vault handling
-        if(await hasVault(pubkey)){
-          statusEl.textContent = "Fee tx requires Vault co-sign — opening Vault modal…";
-          return;
-        }
+// Vault handling
+if(await hasVault(pubkey)){
+  statusEl.textContent = "Fee tx requires Vault co-sign — opening Vault modal…";
+
+  openVaultModal(feeXdr, "classic", ()=>{
+    actionState[which].feePaid = true;
+    syncActionButtons();
+    statusEl.textContent = `Fee paid ✓ Now execute ${which}.`;
+
+    // After paying the fee, the cached invokeXdr is now stale (sequence bumped)
+    // (executeInvoke rebuilds anyway, but this prevents accidental reuse)
+    actionState[which].invokeXdr = null;
+
+    refreshBalance().catch(()=>{});
+  });
+
+  return;
+}
 
         // Normal signing
         statusEl.textContent = "Signing fee tx…";
