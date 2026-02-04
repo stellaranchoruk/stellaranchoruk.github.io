@@ -510,6 +510,20 @@
       return BigInt(i) * (10n ** BigInt(decimals)) + BigInt(d || "0");
     }
 
+    function makeSourceAccountShim(accountId, sequence) {
+  let seq = String(sequence);
+
+  return {
+    // what many stellar-base builds expect
+    accountId: () => accountId,
+    sequenceNumber: () => seq,
+    incrementSequenceNumber: () => { seq = (BigInt(seq) + 1n).toString(); },
+
+    // ✅ what YOUR build is complaining about
+    sourceAccount: () => accountId,
+  };
+}
+
     // fee within amount:
     // fee = ceil(gross * bps)
     // net = gross - fee
@@ -1198,15 +1212,18 @@
     // Build single tx:
     // - fee payment (asset depends on action)
     // - soroban call with NET amount
-    async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
+async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   if (!pubkey) throw new Error("Connect a wallet first.");
 
   const rpc = makeSorobanServer(SOROBAN_RPC);
   const h   = makeHorizonServer(HORIZON);
 
-  // ✅ Always build TXs from a real Account instance (has sourceAccount())
+  // Load sequence from Horizon
   const accResp = await h.loadAccount(pubkey);
-  const acc = new StellarSdk.Account(pubkey, accResp.sequence);
+
+  // ✅ Use shim objects that definitely satisfy TransactionBuilder
+  const acc1 = makeSourceAccountShim(pubkey, accResp.sequence);
+  const acc2 = makeSourceAccountShim(pubkey, accResp.sequence);
 
   // ---- fee math (inside amount)
   const feeBig = feeFromGross(grossScaled);
@@ -1217,7 +1234,7 @@
   const netScv  = StellarSdk.nativeToScVal(netBig, { type: "i128" });
 
   // 1) simulate soroban-only tx
-  const invokeOnlyTx = new StellarSdk.TransactionBuilder(acc, {
+  const invokeOnlyTx = new StellarSdk.TransactionBuilder(acc1, {
     fee: "10000",
     networkPassphrase: NETWORK_PASSPHRASE,
   })
@@ -1231,10 +1248,14 @@
   }
 
   // 2) assemble (inject footprint/resources)
-  const assembledTx = StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim).build();
+  const assembledTx =
+    StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim).build();
 
   // 3) extract invoke op
-  const parsed = StellarSdk.TransactionBuilder.fromXDR(assembledTx.toXDR(), NETWORK_PASSPHRASE);
+  const parsed = StellarSdk.TransactionBuilder.fromXDR(
+    assembledTx.toXDR(),
+    NETWORK_PASSPHRASE
+  );
   const invokeOp = parsed.operations.find(op => op.type === "invokeHostFunction");
   if (!invokeOp) throw new Error("Assembled invoke operation missing");
 
@@ -1245,10 +1266,6 @@
     asset: feeAsset,
     amount: fmtScaledBigint(feeBig),
   });
-
-  // ✅ IMPORTANT: use a *fresh* Account with the same sequence for the final build
-  // (TransactionBuilder will consume +1; we build a new one so it’s clean)
-  const acc2 = new StellarSdk.Account(pubkey, accResp.sequence);
 
   // 5) final tx (classic + soroban)
   const finalTx = new StellarSdk.TransactionBuilder(acc2, {
