@@ -504,10 +504,12 @@
     // -----------------------
     // Imports (WC via esm.sh to avoid unpkg CORS)
     // -----------------------
-    import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?bundle";
-    const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
+import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?target=es2022";
+const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
 
-    import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
+import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8?target=es2022";
+
+const mod = await import("https://esm.sh/qrcode@1.5.3?target=es2022");
 
     // QRCode helper
     let _qrLib = null;
