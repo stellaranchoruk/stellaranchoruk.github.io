@@ -1356,29 +1356,42 @@
       return tx.toXDR();
     }
 
-    async function buildAssembledInvokeXdr({ method, netScaled }){
-      const rpc = makeSorobanServer(SOROBAN_RPC);
-      const acc = await rpc.getAccount(pubkey);
+   async function buildAssembledInvokeXdr({ method, netScaled }){
+  const rpc = makeSorobanServer(SOROBAN_RPC);
+  const acc = await rpc.getAccount(pubkey);
 
-      const addrScv = new StellarSdk.Address(pubkey).toScVal();
-      const netScv  = StellarSdk.nativeToScVal(netScaled, { type: "i128" });
+  const addrScv = new StellarSdk.Address(pubkey).toScVal();
+  const netScv  = StellarSdk.nativeToScVal(netScaled, { type: "i128" });
 
-      const tx = new StellarSdk.TransactionBuilder(acc, {
-        fee: "10000",
-        networkPassphrase: NETWORK_PASSPHRASE
-      })
-        .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
-        .setTimeout(180)
-        .build();
+  const tx = new StellarSdk.TransactionBuilder(acc, {
+    fee: "10000",
+    networkPassphrase: NETWORK_PASSPHRASE
+  })
+    .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
+    .setTimeout(180)
+    .build();
 
-      const sim = await rpc.simulateTransaction(tx);
-      if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
-        throw new Error("Simulation error: " + jsonBig(sim));
-      }
-
-      const assembled = StellarSdk.SorobanRpc.assembleTransaction(tx, sim).build();
-      return assembled.toXDR();
+  // ✅ safer simulate wrapper (prevents “Paused in debugger” confusion + logs details)
+  const sim = await (async ()=>{
+    try {
+      return await rpc.simulateTransaction(tx);
+    } catch (e) {
+      console.error("simulateTransaction threw:", e);
+      throw new Error("simulateTransaction threw: " + (e?.message || String(e)));
     }
+  })();
+
+  console.log("simulateTransaction result:", sim);
+
+  // ✅ keep the simulation-error detection, but log the full payload
+  if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
+    console.error("Simulation error payload:", sim);
+    throw new Error("Simulation error (see console).");
+  }
+
+  const assembled = StellarSdk.SorobanRpc.assembleTransaction(tx, sim).build();
+  return assembled.toXDR();
+}
 
     // -----------------------
     // Vault modal submit handler (classic vs soroban)
