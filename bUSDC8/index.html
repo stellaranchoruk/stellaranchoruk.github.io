@@ -470,6 +470,21 @@
         </div>
       </div>
 
+      <!-- ✅ WalletConnect prompt to open LOBSTR for signature approval -->
+      <div id="vaultWcPrompt" class="warnbox" style="display:none; margin-top:10px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <b>Action required in LOBSTR</b>
+          <span class="stepPill warn">WalletConnect signing</span>
+        </div>
+        <div class="small" style="margin-top:6px">
+          Please open LOBSTR to approve the signature request.
+        </div>
+        <div class="actions" style="margin-top:10px; justify-content:center">
+          <button id="vaultOpenLobstrBtn" class="primary">Sign in LOBSTR</button>
+        </div>
+        <div id="vaultWcPromptHint" class="small muted" style="margin-top:6px; text-align:center"></div>
+      </div>
+
       <div class="input">
         <div class="small">Fully signed XDR from Vault</div>
         <textarea id="vaultXdrFromVault" class="vault-ta" spellcheck="false" placeholder="Paste the Vault output XDR here…"></textarea>
@@ -709,6 +724,17 @@
     const submitVaultXdrBtn = $("submitVaultXdrBtn");
     const vaultStatus = $("vaultStatus");
 
+    // ✅ WalletConnect prompt inside Vault modal
+    const vaultWcPrompt = $("vaultWcPrompt");
+    const vaultOpenLobstrBtn = $("vaultOpenLobstrBtn");
+    const vaultWcPromptHint = $("vaultWcPromptHint");
+
+    function showVaultWcPrompt(show, hint=""){
+      if(!vaultWcPrompt) return;
+      vaultWcPrompt.style.display = show ? "block" : "none";
+      if(vaultWcPromptHint) vaultWcPromptHint.textContent = hint || "";
+    }
+
     let availableUSDCScaled = null;  // BigInt
     let availableBUSDCScaled = null; // BigInt
 
@@ -799,6 +825,8 @@
       vaultStatus.textContent = "";
       vaultXdrToVault.value = xdrToPaste || "";
       vaultXdrFromVault.value = "";
+      showVaultWcPrompt(false);
+
       backdrop.classList.add("open");
       vaultModal.classList.add("open");
     }
@@ -807,6 +835,7 @@
       if(!loginModal.classList.contains("open")) backdrop.classList.remove("open");
       pendingVaultSubmitKind = null;
       pendingAfterVault = null;
+      showVaultWcPrompt(false);
     }
 
     connectBtn.onclick = openConnectModal;
@@ -924,6 +953,21 @@
       window.location.href = scheme;
       setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
     }
+
+    // ✅ used by the Vault modal "Sign in LOBSTR" button
+    function openLobstrForSigning(){
+      if(latestWcUri){
+        openLobstrApp(latestWcUri);
+        return;
+      }
+      const store  = isIOS()
+        ? "https://apps.apple.com/app/id1404357892"
+        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const t0 = Date.now();
+      window.location.href = "lobstr://";
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
+    if(vaultOpenLobstrBtn) vaultOpenLobstrBtn.onclick = openLobstrForSigning;
 
     wcBtn.onclick = async ()=>{
       try{
@@ -1417,8 +1461,20 @@
 
         vaultStatus.textContent = "Adding your signature…";
 
-        // Second signature (WalletConnect / Freighter / Secret)
-        const fullySignedXdr = await signXdr(vaultSignedXdr);
+        const shouldPromptLobstr = (mode === "wc");
+        if(shouldPromptLobstr){
+          showVaultWcPrompt(true, "If nothing pops up, tap “Sign in LOBSTR” again.");
+        }
+
+        let fullySignedXdr;
+        try{
+          // Second signature (WalletConnect / Freighter / Secret)
+          fullySignedXdr = await signXdr(vaultSignedXdr);
+        } finally {
+          if(shouldPromptLobstr){
+            showVaultWcPrompt(false);
+          }
+        }
 
         vaultStatus.textContent = "Submitting transaction…";
 
@@ -1491,8 +1547,8 @@
         actionState[which].feeBig = feeBig;
         actionState[which].netBig = netBig;
 
-        const feeAsset = which==="deposit" ? USDC_ASSET : BUSDC_ASSET;
-        actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
+        const feeAsset = which==="deposit" ? USDC_ASSET : BUSDC_ASSET (function(){return BUSDC_ASSET;})();
+        actionState[which].feeXdr = await buildFeePaymentXdr({ asset: (which==="deposit" ? USDC_ASSET : BUSDC_ASSET), amountScaled: feeBig });
 
         if(which==="deposit") depositXdr.value = invokeXdr;
         else redeemXdr.value = invokeXdr;
