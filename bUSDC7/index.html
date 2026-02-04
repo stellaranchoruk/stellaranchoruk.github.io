@@ -1204,15 +1204,16 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   const server = makeSorobanServer(SOROBAN_RPC);
   const acc = await server.getAccount(pubkey);
 
-  // ---- fee math (inside amount)
+  // ---- fee math (fee inside amount)
   const feeBig = feeFromGross(grossScaled);
-  const netBig = grossScaled > feeBig ? (grossScaled - feeBig) : 0n;
+  const netBig = grossScaled - feeBig;
+  if (netBig <= 0n) throw new Error("Amount too small after fee.");
 
   const addrScv = new StellarSdk.Address(pubkey).toScVal();
   const netScv  = StellarSdk.nativeToScVal(netBig, { type: "i128" });
 
   // -------------------------------------------------
-  // 1) SIMULATE *SOROBAN ONLY* TRANSACTION
+  // 1) SIMULATE *SOROBAN ONLY*
   // -------------------------------------------------
   const invokeOnlyTx = new StellarSdk.TransactionBuilder(acc, {
     fee: "10000",
@@ -1228,15 +1229,25 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   }
 
   // -------------------------------------------------
-  // 2) ASSEMBLE INVOKE OP WITH FOOTPRINT
+  // 2) EXTRACT FOOTPRINT + AUTH (NO OP REUSE)
   // -------------------------------------------------
-  const assembledInvokeTx =
-    StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim).build();
+  const footprint = sim.transactionData.resources.footprint;
+  const auth      = sim.result.auth;
 
-  const assembledInvokeOp = assembledInvokeTx.operations[0];
+  const invokeOp = StellarSdk.Operation.invokeHostFunction({
+    func: StellarSdk.xdr.HostFunction.hostFunctionTypeInvokeContract(
+      new StellarSdk.xdr.InvokeContractArgs({
+        contractAddress: StellarSdk.Address.fromString(CONTRACT_ID).toScAddress(),
+        functionName: method,
+        args: [netScv, addrScv, addrScv, addrScv]
+      })
+    ),
+    footprint,
+    auth
+  });
 
   // -------------------------------------------------
-  // 3) BUILD FINAL TX (fee + invoke)
+  // 3) CLASSIC FEE PAYMENT
   // -------------------------------------------------
   const feeAsset = (method === "deposit") ? USDC_ASSET : BUSDC_ASSET;
 
@@ -1246,12 +1257,15 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
     amount: fmtScaledBigint(feeBig)
   });
 
+  // -------------------------------------------------
+  // 4) FINAL TX (classic + soroban)
+  // -------------------------------------------------
   const finalTx = new StellarSdk.TransactionBuilder(acc, {
     fee: "300000",
     networkPassphrase: NETWORK_PASSPHRASE
   })
     .addOperation(feeOp)
-    .addOperation(assembledInvokeOp)
+    .addOperation(invokeOp)
     .setTimeout(180)
     .build();
 
@@ -1261,7 +1275,6 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
     netBig
   };
 }
-
     // Vault modal submit
     submitVaultXdrBtn.onclick = async ()=>{
       try{
