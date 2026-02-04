@@ -1204,7 +1204,7 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   const server = makeSorobanServer(SOROBAN_RPC);
   const acc = await server.getAccount(pubkey);
 
-  // ---- fee math (fee inside amount)
+  // ---- fee math (inside amount)
   const feeBig = feeFromGross(grossScaled);
   const netBig = grossScaled - feeBig;
   if (netBig <= 0n) throw new Error("Amount too small after fee.");
@@ -1213,7 +1213,7 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   const netScv  = StellarSdk.nativeToScVal(netBig, { type: "i128" });
 
   // -------------------------------------------------
-  // 1) SIMULATE *SOROBAN ONLY*
+  // 1) SIMULATE SOROBAN-ONLY TX
   // -------------------------------------------------
   const invokeOnlyTx = new StellarSdk.TransactionBuilder(acc, {
     fee: "10000",
@@ -1229,34 +1229,29 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   }
 
   // -------------------------------------------------
-  // 2) EXTRACT FOOTPRINT + AUTH (NO OP REUSE)
+  // 2) LET SDK ASSEMBLE (RPC-SHAPE SAFE)
   // -------------------------------------------------
-const txData =
-  sim.transactionData ??
-  sim.result?.transactionData ??
-  null;
-
-if (!txData?.resources?.footprint) {
-  throw new Error("Simulation missing footprint (unsupported RPC response)");
-}
-
-const footprint = txData.resources.footprint;
-const auth = sim.result?.auth ?? [];
-
-  const invokeOp = StellarSdk.Operation.invokeHostFunction({
-    func: StellarSdk.xdr.HostFunction.hostFunctionTypeInvokeContract(
-      new StellarSdk.xdr.InvokeContractArgs({
-        contractAddress: StellarSdk.Address.fromString(CONTRACT_ID).toScAddress(),
-        functionName: method,
-        args: [netScv, addrScv, addrScv, addrScv]
-      })
-    ),
-    footprint,
-    auth
-  });
+  const assembledTx =
+    StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim).build();
 
   // -------------------------------------------------
-  // 3) CLASSIC FEE PAYMENT
+  // 3) EXTRACT INVOKE OP *VIA XDR* (SAFE)
+  // -------------------------------------------------
+  const parsed = StellarSdk.TransactionBuilder.fromXDR(
+    assembledTx.toXDR(),
+    NETWORK_PASSPHRASE
+  );
+
+  const invokeOp = parsed.operations.find(
+    op => op.type === "invokeHostFunction"
+  );
+
+  if (!invokeOp) {
+    throw new Error("Assembled invoke operation missing");
+  }
+
+  // -------------------------------------------------
+  // 4) CLASSIC FEE PAYMENT
   // -------------------------------------------------
   const feeAsset = (method === "deposit") ? USDC_ASSET : BUSDC_ASSET;
 
@@ -1267,7 +1262,7 @@ const auth = sim.result?.auth ?? [];
   });
 
   // -------------------------------------------------
-  // 4) FINAL TX (classic + soroban)
+  // 5) FINAL TX (CLASSIC + SOROBAN)
   // -------------------------------------------------
   const finalTx = new StellarSdk.TransactionBuilder(acc, {
     fee: "300000",
@@ -1284,6 +1279,7 @@ const auth = sim.result?.auth ?? [];
     netBig
   };
 }
+
     // Vault modal submit
     submitVaultXdrBtn.onclick = async ()=>{
       try{
