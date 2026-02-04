@@ -1231,8 +1231,17 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
   // -------------------------------------------------
   // 2) EXTRACT FOOTPRINT + AUTH (NO OP REUSE)
   // -------------------------------------------------
-  const footprint = sim.transactionData.resources.footprint;
-  const auth      = sim.result.auth;
+const txData =
+  sim.transactionData ??
+  sim.result?.transactionData ??
+  null;
+
+if (!txData?.resources?.footprint) {
+  throw new Error("Simulation missing footprint (unsupported RPC response)");
+}
+
+const footprint = txData.resources.footprint;
+const auth = sim.result?.auth ?? [];
 
   const invokeOp = StellarSdk.Operation.invokeHostFunction({
     func: StellarSdk.xdr.HostFunction.hostFunctionTypeInvokeContract(
