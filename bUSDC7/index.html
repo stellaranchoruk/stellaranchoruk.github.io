@@ -1503,38 +1503,57 @@ submitVaultXdrBtn.onclick = async ()=>{
     // -----------------------
     // Execute step (soroban)
     // -----------------------
-    async function executeInvoke(which, statusEl){
-      statusEl.textContent = "";
-      try{
-        if(!actionState[which].feePaid) throw new Error("Pay the fee first.");
-        if(!actionState[which].invokeXdr) throw new Error("Missing invoke XDR. Run Preflight again.");
+async function executeInvoke(which, statusEl){
+  statusEl.textContent = "";
+  try{
+    if(!actionState[which].feePaid) throw new Error("Pay the fee first.");
 
-        const invokeXdr = actionState[which].invokeXdr;
-
-        // Vault handling
-        if(await hasVault(pubkey)){
-          statusEl.textContent = "Invoke tx requires Vault co-sign — opening Vault modal…";
-          return;
-        }
-
-        statusEl.textContent = "Signing invoke tx…";
-        const signed = await signXdr(invokeXdr);
-        statusEl.textContent = "Submitting invoke tx…";
-        const res = await submitSorobanSignedXdr(signed);
-
-        statusEl.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
-        toast({type:"ok", title:"Success", message:`${which} complete · hash ${res.hash}`});
-
-        resetAction(which);
-
-        refreshState().catch(()=>{});
-        refreshBalance().catch(()=>{});
-      }catch(e){
-        console.error(e);
-        statusEl.textContent = `Execute failed: ${e.message || e}`;
-        toast({type:"err", title:"Execute failed", message:e.message || String(e)});
-      }
+    // ✅ Rebuild invoke XDR AFTER fee is paid (sequence has moved)
+    if(!actionState[which].netBig || actionState[which].netBig <= 0n) {
+      throw new Error("Missing cached net amount. Run Preflight again.");
     }
+
+    const method = which==="deposit" ? "deposit" : "redeem";
+
+    statusEl.textContent = "Rebuilding Soroban tx (fresh sequence)…";
+    const freshInvokeXdr = await buildAssembledInvokeXdr({
+      method,
+      netScaled: actionState[which].netBig
+    });
+
+    // overwrite cached invokeXdr (optional, but nice)
+    actionState[which].invokeXdr = freshInvokeXdr;
+    if(which==="deposit") depositXdr.value = freshInvokeXdr;
+    else redeemXdr.value = freshInvokeXdr;
+
+    // Vault handling
+    if(await hasVault(pubkey)){
+      statusEl.textContent = "Invoke tx requires Vault co-sign — opening Vault modal…";
+      openVaultModal(freshInvokeXdr, "soroban", ()=>{
+        statusEl.textContent = `${which==="deposit"?"Deposit":"Withdraw"} submitted ✓`;
+        resetAction(which);
+      });
+      return;
+    }
+
+    statusEl.textContent = "Signing invoke tx…";
+    const signed = await signXdr(freshInvokeXdr);
+
+    statusEl.textContent = "Submitting invoke tx…";
+    const res = await submitSorobanSignedXdr(signed);
+
+    statusEl.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
+    toast({type:"ok", title:"Success", message:`${which} complete · hash ${res.hash}`});
+
+    resetAction(which);
+    refreshState().catch(()=>{});
+    refreshBalance().catch(()=>{});
+  }catch(e){
+    console.error(e);
+    statusEl.textContent = `Execute failed: ${e.message || e}`;
+    toast({type:"err", title:"Execute failed", message:e.message || String(e)});
+  }
+}
 
     // -----------------------
     // Wire action buttons
