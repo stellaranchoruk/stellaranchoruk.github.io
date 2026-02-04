@@ -1478,11 +1478,6 @@ submitVaultXdrBtn.onclick = async ()=>{
         // Vault handling
         if(await hasVault(pubkey)){
           statusEl.textContent = "Fee tx requires Vault co-sign — opening Vault modal…";
-          openVaultModal(feeXdr, "classic", ()=>{
-            actionState[which].feePaid = true;
-            syncActionButtons();
-            statusEl.textContent = `Fee paid ✓ Now execute ${which}.`;
-          });
           return;
         }
 
@@ -1519,11 +1514,6 @@ submitVaultXdrBtn.onclick = async ()=>{
         // Vault handling
         if(await hasVault(pubkey)){
           statusEl.textContent = "Invoke tx requires Vault co-sign — opening Vault modal…";
-          openVaultModal(invokeXdr, "soroban", ()=>{
-            statusEl.textContent = `${which==="deposit"?"Deposit":"Withdraw"} submitted ✓`;
-            // reset to require re-preflight next time (recommended)
-            resetAction(which);
-          });
           return;
         }
 
