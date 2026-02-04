@@ -64,6 +64,10 @@
       background:linear-gradient(180deg, rgba(94,234,212,.22), rgba(94,234,212,.10));
       border-color: rgba(94,234,212,.28);
     }
+    button.warn{
+      background:linear-gradient(180deg, rgba(251,191,36,.18), rgba(251,191,36,.08));
+      border-color: rgba(251,191,36,.30);
+    }
     button.ghost{background:transparent}
     .input{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
     input, textarea{
@@ -176,6 +180,35 @@
     }
     .clickable:hover{border-color: rgba(94,234,212,.35)}
     .hintline{display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px}
+
+    .warnbox{
+      margin-top:10px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(251,191,36,.28);
+      background:rgba(251,191,36,.08);
+      color:var(--text);
+    }
+    .warnbox .small{color:rgba(232,238,252,.78)}
+    .ackrow{
+      display:flex; gap:10px; align-items:flex-start; margin-top:8px;
+      padding:8px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.12);
+    }
+    .ackrow input{width:auto; margin-top:2px}
+    .stepPill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.14);
+      color:var(--muted);
+      font-size:12px;
+    }
+    .stepPill.ok{color:var(--ok); border-color: rgba(52,211,153,.25)}
+    .stepPill.warn{color:var(--warn); border-color: rgba(251,191,36,.25)}
   </style>
 </head>
 <body>
@@ -280,44 +313,78 @@
 
         <h2>Actions</h2>
 
+        <div class="warnbox">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <b>Non-refundable fee</b>
+            <span class="stepPill warn">Fee is paid before execution</span>
+          </div>
+          <div class="small" style="margin-top:6px">
+            You must run <b>Preflight</b> first. If you choose to pay the fee, it is <b>not refundable</b> even if your deposit/withdraw fails later due to account state changes, network conditions, or signature requirements.
+          </div>
+          <label class="ackrow">
+            <input type="checkbox" id="feeAck" />
+            <div class="small">
+              I understand the <b>0.15%</b> fee is <b>non-refundable</b>. I confirm I have checked my balances, trustlines, and will only proceed after a successful Preflight.
+            </div>
+          </label>
+        </div>
+
         <div class="two-col" style="margin-top:10px">
+          <!-- Deposit -->
           <div>
             <div class="input">
               <div class="small">Deposit USDC</div>
               <input id="depositAmt" inputmode="decimal" placeholder="e.g. 1000.00" />
               <div class="hintline small">
-                <span>Available: <span id="usdcAvailInline" class="clickable">—</span></span>            
+                <span>Available: <span id="usdcAvailInline" class="clickable">—</span></span>
+                <span class="muted">tap to max</span>
               </div>
               <div class="fee-box">
                 <div class="fee-row"><span>Fee (0.15%)</span><b id="depFeeOut">—</b></div>
                 <div class="fee-row" style="margin-top:6px"><span>Net deposited</span><b id="depNetOut">—</b></div>
               </div>
             </div>
+
             <div class="actions">
-              <button id="depositBtn" class="primary">Deposit USDC</button>
+              <button id="depPreflightBtn" class="primary">1) Preflight</button>
+              <button id="depPayFeeBtn" class="warn" disabled>2) Pay fee</button>
+              <button id="depExecuteBtn" class="primary" disabled>3) Execute deposit</button>
+            </div>
+
+            <div class="actions">
               <button id="depositXdrToggle">Reveal XDR</button>
             </div>
             <textarea id="depositXdr" spellcheck="false"></textarea>
+
             <div class="status-line" id="depositStatus"></div>
           </div>
 
+          <!-- Withdraw -->
           <div>
             <div class="input">
               <div class="small">Withdraw bUSDC</div>
               <input id="redeemAmt" inputmode="decimal" placeholder="e.g. 1000.00" />
               <div class="hintline small">
                 <span>Available: <span id="busdcAvailInline" class="clickable">—</span></span>
+                <span class="muted">tap to max</span>
               </div>
               <div class="fee-box">
                 <div class="fee-row"><span>Fee (0.15%)</span><b id="wdFeeOut">—</b></div>
                 <div class="fee-row" style="margin-top:6px"><span>Net withdrawn</span><b id="wdNetOut">—</b></div>
               </div>
             </div>
+
             <div class="actions">
-              <button id="redeemBtn" class="primary">Withdraw bUSDC</button>
+              <button id="wdPreflightBtn" class="primary">1) Preflight</button>
+              <button id="wdPayFeeBtn" class="warn" disabled>2) Pay fee</button>
+              <button id="wdExecuteBtn" class="primary" disabled>3) Execute withdraw</button>
+            </div>
+
+            <div class="actions">
               <button id="redeemXdrToggle">Reveal XDR</button>
             </div>
             <textarea id="redeemXdr" spellcheck="false"></textarea>
+
             <div class="status-line" id="redeemStatus"></div>
           </div>
         </div>
@@ -413,6 +480,8 @@
     const PROJECT_ID = "f658ce3a7c8a185214974f71539fea39";
     const EXPLORER   = "https://explorer-api.walletconnect.com/v3/wallets";
 
+    // Put the real Vault signer key here if you want detection.
+    // If you don't know it, set to "" to disable detection.
     const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
 
     // Fee: 0.15%
@@ -433,16 +502,14 @@
     const MIN_GROSS_DISPLAY = "10.015";
 
     // -----------------------
-    // Imports (✅ WC via esm.sh to avoid unpkg CORS)
+    // Imports (WC via esm.sh to avoid unpkg CORS)
     // -----------------------
     import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?bundle";
     const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
 
     import SignClient from "https://esm.sh/@walletconnect/sign-client@2.21.8";
 
-    // -----------------------
     // QRCode helper
-    // -----------------------
     let _qrLib = null;
     async function ensureQrLib(){
       if (_qrLib) return _qrLib;
@@ -508,17 +575,13 @@
       return BigInt(i) * (10n ** BigInt(decimals)) + BigInt(d || "0");
     }
 
-    // fee within amount:
-    // fee = ceil(gross * bps)
-    // net = gross - fee
+    // fee inside amount: fee = ceil(gross * bps), net = gross - fee
     function feeFromGross(grossScaled){
       const num = grossScaled * FEE_BPS_NUM;
       return (num + (FEE_BPS_DEN - 1n)) / FEE_BPS_DEN;
     }
 
-    // -----------------------
     // Servers
-    // -----------------------
     function makeSorobanServer(url){
       if (StellarSdk.SorobanRpc?.Server) return new StellarSdk.SorobanRpc.Server(url, { allowHttp: url.startsWith("http://") });
       if (StellarSdk.rpc?.Server) return new StellarSdk.rpc.Server(url, { allowHttp: url.startsWith("http://") });
@@ -545,8 +608,15 @@
     let wcSession = null;
     let latestWcUri = null;
 
-    let pendingActionStatusEl = null;
-    let pendingActionMethod = null;
+    // Vault modal routing
+    let pendingVaultSubmitKind = null; // "classic" | "soroban"
+    let pendingAfterVault = null;      // callback
+
+    // Per-action cached state
+    const actionState = {
+      deposit: { preflightOk:false, feePaid:false, invokeXdr:null, feeXdr:null, feeBig:0n, netBig:0n },
+      redeem:  { preflightOk:false, feePaid:false, invokeXdr:null, feeXdr:null, feeBig:0n, netBig:0n },
+    };
 
     // -----------------------
     // UI refs
@@ -588,17 +658,23 @@
     const wdFeeOut = $("wdFeeOut");
     const wdNetOut = $("wdNetOut");
 
-    const depositBtn = $("depositBtn");
-    const redeemBtn = $("redeemBtn");
+    const depPreflightBtn = $("depPreflightBtn");
+    const depPayFeeBtn = $("depPayFeeBtn");
+    const depExecuteBtn = $("depExecuteBtn");
+
+    const wdPreflightBtn = $("wdPreflightBtn");
+    const wdPayFeeBtn = $("wdPayFeeBtn");
+    const wdExecuteBtn = $("wdExecuteBtn");
 
     const depositXdr = $("depositXdr");
     const redeemXdr = $("redeemXdr");
-
     const depositXdrToggle = $("depositXdrToggle");
     const redeemXdrToggle = $("redeemXdrToggle");
 
     const depositStatus = $("depositStatus");
     const redeemStatus = $("redeemStatus");
+
+    const feeAck = $("feeAck");
 
     const backdrop = $("backdrop");
     const loginModal = $("loginModal");
@@ -634,6 +710,11 @@
       disconnectBtn.disabled = !pubkey;
       if(pubkey) pubkeyEl.value = pubkey;
 
+      // reset action state when account changes
+      actionState.deposit = { preflightOk:false, feePaid:false, invokeXdr:null, feeXdr:null, feeBig:0n, netBig:0n };
+      actionState.redeem  = { preflightOk:false, feePaid:false, invokeXdr:null, feeXdr:null, feeBig:0n, netBig:0n };
+      syncActionButtons();
+
       if(!pubkey){
         setConnPill("bad","Not connected");
         connModeLine.textContent = "—";
@@ -644,6 +725,15 @@
       connModeLine.textContent = `Mode: ${mode}`;
       refreshBalance().catch(()=>{});
     }
+
+    function syncActionButtons(){
+      depPayFeeBtn.disabled   = !(feeAck.checked && actionState.deposit.preflightOk && !actionState.deposit.feePaid);
+      depExecuteBtn.disabled  = !(actionState.deposit.feePaid && !!actionState.deposit.invokeXdr);
+
+      wdPayFeeBtn.disabled    = !(feeAck.checked && actionState.redeem.preflightOk && !actionState.redeem.feePaid);
+      wdExecuteBtn.disabled   = !(actionState.redeem.feePaid && !!actionState.redeem.invokeXdr);
+    }
+    feeAck.addEventListener("change", syncActionButtons);
 
     // -----------------------
     // Freighter API
@@ -671,7 +761,10 @@
       qrArea.style.display="none";
       if(!vaultModal.classList.contains("open")) backdrop.classList.remove("open");
     }
-    function openVaultModal(xdrToPaste){
+    function openVaultModal(xdrToPaste, kind, afterCb){
+      pendingVaultSubmitKind = kind; // "classic" | "soroban"
+      pendingAfterVault = afterCb || null;
+
       vaultStatus.textContent = "";
       vaultXdrToVault.value = xdrToPaste || "";
       vaultXdrFromVault.value = "";
@@ -681,6 +774,8 @@
     function closeVaultModalFn(){
       vaultModal.classList.remove("open");
       if(!loginModal.classList.contains("open")) backdrop.classList.remove("open");
+      pendingVaultSubmitKind = null;
+      pendingAfterVault = null;
     }
 
     connectBtn.onclick = openConnectModal;
@@ -938,6 +1033,23 @@
       return await srv.submitTransaction(tx);
     }
 
+    // Soroban submit
+    async function submitSorobanSignedXdr(signedXdr){
+      const server = makeSorobanServer(SOROBAN_RPC);
+      const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
+      const send = await server.sendTransaction(tx);
+      if(send.status !== "PENDING" && send.status !== "SUCCESS"){
+        throw new Error(`sendTransaction: ${send.status}`);
+      }
+      let res = await server.getTransaction(send.hash);
+      for(let i=0; i<18 && res.status==="NOT_FOUND"; i++){
+        await new Promise(r=>setTimeout(r, 900));
+        res = await server.getTransaction(send.hash);
+      }
+      if(res.status !== "SUCCESS") throw new Error(`Tx status: ${res.status}`);
+      return res;
+    }
+
     async function buildChangeTrustXdr(limit=null){
       if(!pubkey) throw new Error("Connect a wallet first.");
       const srv = makeHorizonServer(HORIZON);
@@ -973,7 +1085,7 @@
       const res = await submitClassicTxXdrToHorizon(signed);
 
       balStatus.textContent = `Trustline added ✓ tx: ${res.hash}`;
-      toast({type:"ok", title:"Trustline added", message:"bUSDC trustline created. Now retry deposit.", timeout:4200});
+      toast({type:"ok", title:"Trustline added", message:"bUSDC trustline created.", timeout:4200});
       await refreshBalance();
       return true;
     }
@@ -1055,12 +1167,14 @@
       if(typeof availableUSDCScaled !== "bigint") return;
       depositAmt.value = fmtScaledBigint(availableUSDCScaled);
       updateFeeBoxes();
+      resetAction("deposit");
       toast({type:"ok", title:"Filled", message:"Deposit amount set to your available USDC."});
     };
     busdcAvailInline.onclick = ()=>{
       if(typeof availableBUSDCScaled !== "bigint") return;
       redeemAmt.value = fmtScaledBigint(availableBUSDCScaled);
       updateFeeBoxes();
+      resetAction("redeem");
       toast({type:"ok", title:"Filled", message:"Withdraw amount set to your available bUSDC."});
     };
 
@@ -1148,9 +1262,19 @@
         } else { wdFeeOut.textContent = "—"; wdNetOut.textContent = "—"; }
       }catch{ wdFeeOut.textContent = "—"; wdNetOut.textContent = "—"; }
     }
-    depositAmt.addEventListener("input", updateFeeBoxes);
-    redeemAmt.addEventListener("input", updateFeeBoxes);
+    depositAmt.addEventListener("input", ()=>{ updateFeeBoxes(); resetAction("deposit"); });
+    redeemAmt.addEventListener("input", ()=>{ updateFeeBoxes(); resetAction("redeem"); });
     updateFeeBoxes();
+
+    function resetAction(which){
+      actionState[which].preflightOk = false;
+      actionState[which].feePaid = false;
+      actionState[which].invokeXdr = null;
+      actionState[which].feeXdr = null;
+      actionState[which].feeBig = 0n;
+      actionState[which].netBig = 0n;
+      syncActionButtons();
+    }
 
     // -----------------------
     // Minimum checks
@@ -1164,24 +1288,8 @@
     }
 
     // -----------------------
-    // Submit Soroban signed XDR
+    // Vault detection
     // -----------------------
-    async function submitSorobanSignedXdr(signedXdr){
-      const server = makeSorobanServer(SOROBAN_RPC);
-      const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
-      const send = await server.sendTransaction(tx);
-      if(send.status !== "PENDING" && send.status !== "SUCCESS"){
-        throw new Error(`sendTransaction: ${send.status}`);
-      }
-      let res = await server.getTransaction(send.hash);
-      for(let i=0; i<18 && res.status==="NOT_FOUND"; i++){
-        await new Promise(r=>setTimeout(r, 900));
-        res = await server.getTransaction(send.hash);
-      }
-      if(res.status !== "SUCCESS") throw new Error(`Tx status: ${res.status}`);
-      return res;
-    }
-
     async function hasVault(account){
       if(!VAULT_SIGNER_KEY) return false;
       try{
@@ -1193,107 +1301,75 @@
       }
     }
 
-    // Build single tx:
-    // - fee payment (asset depends on action)
-    // - soroban call with NET amount
-async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
-  if (!pubkey) throw new Error("Connect a wallet first.");
+    // -----------------------
+    // Build Fee tx (classic) + Build Invoke tx (soroban assembled)
+    // -----------------------
+    async function buildFeePaymentXdr({ asset, amountScaled }){
+      const srv = makeHorizonServer(HORIZON);
+      const acc = await srv.loadAccount(pubkey);
+      const feeBase = await srv.fetchBaseFee();
 
-  const rpc = makeSorobanServer(SOROBAN_RPC);
-  const h   = makeHorizonServer(HORIZON);
+      const tx = new StellarSdk.TransactionBuilder(acc, {
+        fee: String(feeBase),
+        networkPassphrase: NETWORK_PASSPHRASE
+      })
+        .addOperation(StellarSdk.Operation.payment({
+          destination: COLLECTION_WALLET,
+          asset,
+          amount: fmtScaledBigint(amountScaled),
+        }))
+        .setTimeout(120)
+        .build();
 
-  // Load sequence from Horizon (classic)
-  const accResp = await h.loadAccount(pubkey);
-  const seq = accResp.sequence;
+      return tx.toXDR();
+    }
 
-  // ---- fee math (inside amount)
-  const feeBig = feeFromGross(grossScaled);
-  const netBig = grossScaled - feeBig;
-  if (netBig <= 0n) throw new Error("Amount too small after fee.");
+    async function buildAssembledInvokeXdr({ method, netScaled }){
+      const rpc = makeSorobanServer(SOROBAN_RPC);
+      const acc = await rpc.getAccount(pubkey);
 
-  const addrScv = new StellarSdk.Address(pubkey).toScVal();
-  const netScv  = StellarSdk.nativeToScVal(netBig, { type: "i128" });
+      const addrScv = new StellarSdk.Address(pubkey).toScVal();
+      const netScv  = StellarSdk.nativeToScVal(netScaled, { type: "i128" });
 
-  // -------------------------------------------------
-  // 1) SIMULATE + ASSEMBLE SOROBAN-ONLY TX
-  // -------------------------------------------------
-  const accForInvoke = new StellarSdk.Account(pubkey, seq);
+      const tx = new StellarSdk.TransactionBuilder(acc, {
+        fee: "10000",
+        networkPassphrase: NETWORK_PASSPHRASE
+      })
+        .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
+        .setTimeout(180)
+        .build();
 
-  const invokeOnlyTx = new StellarSdk.TransactionBuilder(accForInvoke, {
-    fee: "10000",
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
-    .setTimeout(180)
-    .build();
+      const sim = await rpc.simulateTransaction(tx);
+      if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
+        throw new Error("Simulation error: " + jsonBig(sim));
+      }
 
-  const sim = await rpc.simulateTransaction(invokeOnlyTx);
-  if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
-    throw new Error("Simulation error: " + JSON.stringify(sim, null, 2));
-  }
+      const assembled = StellarSdk.SorobanRpc.assembleTransaction(tx, sim).build();
+      return assembled.toXDR();
+    }
 
-  const assembledMaybe = StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim);
-  const assembledTx = (typeof assembledMaybe.build === "function") ? assembledMaybe.build() : assembledMaybe;
-
-  // Extract raw XDR invoke op + Soroban ext (footprint/resources live here)
-  const assembledOps = assembledTx.tx.operations();
-  if (!assembledOps || !assembledOps.length) throw new Error("Assembled tx has no operations");
-  const invokeOpXdr = assembledOps[0];
-
-  const sorobanExtXdr = assembledTx.tx.ext(); // contains SorobanData + resources
-
-  // -------------------------------------------------
-  // 2) BUILD FINAL TX (classic fee op + placeholder invoke)
-  // -------------------------------------------------
-  const feeAsset = (method === "deposit") ? USDC_ASSET : BUSDC_ASSET;
-
-  const feeOp = StellarSdk.Operation.payment({
-    destination: COLLECTION_WALLET,
-    asset: feeAsset,
-    amount: fmtScaledBigint(feeBig),
-  });
-
-  // Build with a placeholder invoke op (we’ll replace it with the assembled XDR op)
-  const accForFinal = new StellarSdk.Account(pubkey, seq);
-
-  const finalTx = new StellarSdk.TransactionBuilder(accForFinal, {
-    fee: "300000", // keep as you had
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(feeOp)
-    .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv)) // placeholder
-    .setTimeout(180)
-    .build();
-
-  // -------------------------------------------------
-  // 3) PATCH FINAL TX WITH RAW XDR (invoke op + ext)
-  // -------------------------------------------------
-  const finalOps = finalTx.tx.operations();
-  const feeOpXdr = finalOps[0];
-
-  // Set ops = [feeOpXdr, invokeOpXdr]
-  finalTx.tx.operations([feeOpXdr, invokeOpXdr]);
-
-  // Set ext to the assembled Soroban ext (resources/footprint)
-  finalTx.tx.ext(sorobanExtXdr);
-
-  return { xdr: finalTx.toXDR(), feeBig, netBig };
-}
-
-    // Vault modal submit
+    // -----------------------
+    // Vault modal submit handler (classic vs soroban)
+    // -----------------------
     submitVaultXdrBtn.onclick = async ()=>{
       try{
         const xdr = (vaultXdrFromVault.value || "").trim();
         if(!xdr) throw new Error("Paste the fully signed XDR from Vault first.");
         vaultStatus.textContent = "Submitting…";
-        const res = await submitSorobanSignedXdr(xdr);
-        vaultStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
-        toast({type:"ok", title:"Submitted", message:`${pendingActionMethod || "Tx"} success`});
-        closeVaultModalFn();
 
-        if(pendingActionStatusEl){
-          pendingActionStatusEl.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
+        if(pendingVaultSubmitKind === "classic"){
+          const res = await submitClassicTxXdrToHorizon(xdr);
+          vaultStatus.innerHTML = `Submitted ✓ tx: <span class="mono">${res.hash}</span>`;
+          toast({type:"ok", title:"Fee paid", message:"Fee transaction submitted."});
+        }else{
+          const res = await submitSorobanSignedXdr(xdr);
+          vaultStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
+          toast({type:"ok", title:"Submitted", message:"Soroban transaction submitted."});
         }
+
+        const cb = pendingAfterVault;
+        closeVaultModalFn();
+        if(typeof cb === "function") cb();
 
         refreshState().catch(()=>{});
         refreshBalance().catch(()=>{});
@@ -1304,69 +1380,186 @@ async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
       }
     };
 
-    // Actions
-    async function doActionFeeInside(method, inputEl, xdrEl, statusEl, label){
+    // -----------------------
+    // Preflight logic (does NOT charge fee)
+    // -----------------------
+    async function preflight(which, inputEl, statusEl){
       statusEl.textContent = "";
       try{
         if(!pubkey){ openConnectModal(); return; }
         if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
 
+        // Ensure balances fresh
+        await refreshBalance();
+
         const gross = parseDecimalToBigint(inputEl.value, DECIMALS);
         if(!(gross > 0n)) throw new Error("Enter an amount.");
 
-        const fee = feeFromGross(gross);
-        const net = gross > fee ? (gross - fee) : 0n;
+        const feeBig = feeFromGross(gross);
+        const netBig = gross > feeBig ? (gross - feeBig) : 0n;
 
-        enforceGrossAndNet({ gross, net, label });
+        enforceGrossAndNet({ gross, net: netBig, label: which==="deposit" ? "Deposit" : "Withdraw" });
 
-        if(method === "deposit"){
+        // Balance check
+        if(which==="deposit"){
+          if(typeof availableUSDCScaled !== "bigint") throw new Error("Could not read USDC balance.");
+          if(availableUSDCScaled < gross) throw new Error("Insufficient available USDC for the gross amount you entered.");
+          // Trustline check
           const ok = await ensureBUSDCTrustline({ interactive:true });
-          if(!ok){ statusEl.textContent = "Missing bUSDC trustline. Create it first."; return; }
+          if(!ok) throw new Error("Missing bUSDC trustline.");
+        }else{
+          if(typeof availableBUSDCScaled !== "bigint") throw new Error("Could not read bUSDC balance.");
+          if(availableBUSDCScaled < gross) throw new Error("Insufficient available bUSDC for the gross amount you entered.");
         }
 
-        const { xdr, feeBig, netBig } = await buildPreparedXdrWithFeeInside({ method, grossScaled: gross });
-        xdrEl.value = xdr;
+        // Soroban simulate+assemble now (this is your big confidence step)
+        statusEl.textContent = "Preflight: simulating Soroban…";
+        const invokeXdr = await buildAssembledInvokeXdr({
+          method: which==="deposit" ? "deposit" : "redeem",
+          netScaled: netBig
+        });
 
-        const signed = await signXdr(xdr);
+        // Cache invoke xdr + fee numbers
+        actionState[which].preflightOk = true;
+        actionState[which].feePaid = false;
+        actionState[which].invokeXdr = invokeXdr;
+        actionState[which].feeBig = feeBig;
+        actionState[which].netBig = netBig;
 
+        // Also build fee XDR now (classic), so user sees consistent amounts
+        const feeAsset = which==="deposit" ? USDC_ASSET : BUSDC_ASSET;
+        actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
+
+        // Show invoke XDR in the textarea
+        if(which==="deposit") depositXdr.value = invokeXdr;
+        else redeemXdr.value = invokeXdr;
+
+        statusEl.textContent = `Preflight ✓ Ready. Net: ${fmtScaledBigint(netBig)} · Fee: ${fmtScaledBigint(feeBig)}`;
+        toast({type:"ok", title:"Preflight OK", message:`${which} ready · net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}`});
+
+        syncActionButtons();
+      }catch(e){
+        console.error(e);
+        actionState[which].preflightOk = false;
+        actionState[which].feePaid = false;
+        actionState[which].invokeXdr = null;
+        actionState[which].feeXdr = null;
+        syncActionButtons();
+        statusEl.textContent = `Preflight failed: ${e.message || e}`;
+        toast({type:"err", title:"Preflight failed", message:e.message || String(e)});
+      }
+    }
+
+    // -----------------------
+    // Pay fee step (classic)
+    // -----------------------
+    async function payFee(which, statusEl){
+      statusEl.textContent = "";
+      try{
+        if(!feeAck.checked) throw new Error("Tick the non-refundable fee acknowledgement first.");
+        if(!actionState[which].preflightOk || !actionState[which].feeXdr) throw new Error("Run Preflight first.");
+
+        const feeXdr = actionState[which].feeXdr;
+
+        // Vault handling
         if(await hasVault(pubkey)){
-          statusEl.textContent = "Signed. Vault co-sign required — opening Vault modal…";
-          pendingActionStatusEl = statusEl;
-          pendingActionMethod = method;
-          openVaultModal(signed);
-          toast({ type:"info", title:"Vault required", message:`Net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}`, timeout:5200 });
+          statusEl.textContent = "Fee tx requires Vault co-sign — opening Vault modal…";
+          openVaultModal(feeXdr, "classic", ()=>{
+            actionState[which].feePaid = true;
+            syncActionButtons();
+            statusEl.textContent = `Fee paid ✓ Now execute ${which}.`;
+          });
           return;
         }
 
+        // Normal signing
+        statusEl.textContent = "Signing fee tx…";
+        const signed = await signXdr(feeXdr);
+        statusEl.textContent = "Submitting fee tx…";
+        const res = await submitClassicTxXdrToHorizon(signed);
+
+        actionState[which].feePaid = true;
+        syncActionButtons();
+        statusEl.textContent = `Fee paid ✓ tx: ${res.hash}`;
+        toast({type:"ok", title:"Fee paid", message:`tx ${res.hash}`});
+
+        refreshBalance().catch(()=>{});
+      }catch(e){
+        console.error(e);
+        statusEl.textContent = `Fee step failed: ${e.message || e}`;
+        toast({type:"err", title:"Fee failed", message:e.message || String(e)});
+      }
+    }
+
+    // -----------------------
+    // Execute step (soroban)
+    // -----------------------
+    async function executeInvoke(which, statusEl){
+      statusEl.textContent = "";
+      try{
+        if(!actionState[which].feePaid) throw new Error("Pay the fee first.");
+        if(!actionState[which].invokeXdr) throw new Error("Missing invoke XDR. Run Preflight again.");
+
+        const invokeXdr = actionState[which].invokeXdr;
+
+        // Vault handling
+        if(await hasVault(pubkey)){
+          statusEl.textContent = "Invoke tx requires Vault co-sign — opening Vault modal…";
+          openVaultModal(invokeXdr, "soroban", ()=>{
+            statusEl.textContent = `${which==="deposit"?"Deposit":"Withdraw"} submitted ✓`;
+            // reset to require re-preflight next time (recommended)
+            resetAction(which);
+          });
+          return;
+        }
+
+        statusEl.textContent = "Signing invoke tx…";
+        const signed = await signXdr(invokeXdr);
+        statusEl.textContent = "Submitting invoke tx…";
         const res = await submitSorobanSignedXdr(signed);
+
         statusEl.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
-        toast({ type:"ok", title:"Submitted", message:`${label} success · net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}` });
+        toast({type:"ok", title:"Success", message:`${which} complete · hash ${res.hash}`});
+
+        resetAction(which);
 
         refreshState().catch(()=>{});
         refreshBalance().catch(()=>{});
       }catch(e){
         console.error(e);
-        statusEl.textContent = `Error: ${e.message || e}`;
-        toast({type:"err", title:"Error", message:e.message || "Action failed"});
+        statusEl.textContent = `Execute failed: ${e.message || e}`;
+        toast({type:"err", title:"Execute failed", message:e.message || String(e)});
       }
     }
 
-    // Wire buttons
+    // -----------------------
+    // Wire action buttons
+    // -----------------------
+    depPreflightBtn.onclick = ()=> preflight("deposit", depositAmt, depositStatus);
+    depPayFeeBtn.onclick    = ()=> payFee("deposit", depositStatus);
+    depExecuteBtn.onclick   = ()=> executeInvoke("deposit", depositStatus);
+
+    wdPreflightBtn.onclick  = ()=> preflight("redeem", redeemAmt, redeemStatus);
+    wdPayFeeBtn.onclick     = ()=> payFee("redeem", redeemStatus);
+    wdExecuteBtn.onclick    = ()=> executeInvoke("redeem", redeemStatus);
+
+    // XDR toggles
     depositXdrToggle.onclick = ()=> toggleTextarea(depositXdr, depositXdrToggle);
-    redeemXdrToggle.onclick = ()=> toggleTextarea(redeemXdr, redeemXdrToggle);
+    redeemXdrToggle.onclick  = ()=> toggleTextarea(redeemXdr, redeemXdrToggle);
 
-    depositBtn.onclick = ()=> doActionFeeInside("deposit", depositAmt, depositXdr, depositStatus, "Deposit");
-    redeemBtn.onclick  = ()=> doActionFeeInside("redeem", redeemAmt, redeemXdr, redeemStatus, "Withdraw");
-
+    // Logs toggle
     toggleLogsBtn.onclick = ()=>{
       const hidden = logsEl.style.display === "none" || !logsEl.style.display;
       logsEl.style.display = hidden ? "block" : "none";
       toggleLogsBtn.textContent = hidden ? "Hide logs" : "Show logs";
     };
 
+    // -----------------------
     // Init
+    // -----------------------
     refreshState().catch(()=>{});
     refreshBalance().catch(()=>{});
+    syncActionButtons();
   </script>
 </body>
 </html>
