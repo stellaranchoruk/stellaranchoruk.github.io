@@ -1199,77 +1199,69 @@
     // - fee payment (asset depends on action)
     // - soroban call with NET amount
     async function buildPreparedXdrWithFeeInside({ method, grossScaled }) {
-      if (!pubkey) throw new Error("Connect a wallet first.");
+  if (!pubkey) throw new Error("Connect a wallet first.");
 
-      // ✅ IMPORTANT: build TX using Horizon account shape (fixes sourceAccount errors)
-      const rpc = makeSorobanServer(SOROBAN_RPC);
-      const h   = makeHorizonServer(HORIZON);
-      const acc = await h.loadAccount(pubkey);
+  const rpc = makeSorobanServer(SOROBAN_RPC);
+  const h   = makeHorizonServer(HORIZON);
 
-      // ---- fee math (inside amount)
-      const feeBig = feeFromGross(grossScaled);
-      const netBig = grossScaled - feeBig;
-      if (netBig <= 0n) throw new Error("Amount too small after fee.");
+  // ✅ Always build TXs from a real Account instance (has sourceAccount())
+  const accResp = await h.loadAccount(pubkey);
+  const acc = new StellarSdk.Account(pubkey, accResp.sequence);
 
-      const addrScv = new StellarSdk.Address(pubkey).toScVal();
-      const netScv  = StellarSdk.nativeToScVal(netBig, { type: "i128" });
+  // ---- fee math (inside amount)
+  const feeBig = feeFromGross(grossScaled);
+  const netBig = grossScaled - feeBig;
+  if (netBig <= 0n) throw new Error("Amount too small after fee.");
 
-      // -------------------------------------------------
-      // 1) SIMULATE SOROBAN-ONLY TX (1 op only)
-      // -------------------------------------------------
-      const invokeOnlyTx = new StellarSdk.TransactionBuilder(acc, {
-        fee: "10000",
-        networkPassphrase: NETWORK_PASSPHRASE
-      })
-        .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
-        .setTimeout(180)
-        .build();
+  const addrScv = new StellarSdk.Address(pubkey).toScVal();
+  const netScv  = StellarSdk.nativeToScVal(netBig, { type: "i128" });
 
-      const sim = await rpc.simulateTransaction(invokeOnlyTx);
-      if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
-        throw new Error("Simulation error: " + JSON.stringify(sim, null, 2));
-      }
+  // 1) simulate soroban-only tx
+  const invokeOnlyTx = new StellarSdk.TransactionBuilder(acc, {
+    fee: "10000",
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
+    .setTimeout(180)
+    .build();
 
-      // -------------------------------------------------
-      // 2) ASSEMBLE to inject footprint/resources
-      // -------------------------------------------------
-      const assembledTx = StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim).build();
+  const sim = await rpc.simulateTransaction(invokeOnlyTx);
+  if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
+    throw new Error("Simulation error: " + JSON.stringify(sim, null, 2));
+  }
 
-      // -------------------------------------------------
-      // 3) EXTRACT INVOKE OP via XDR (safe)
-      // -------------------------------------------------
-      const parsed = StellarSdk.TransactionBuilder.fromXDR(
-        assembledTx.toXDR(),
-        NETWORK_PASSPHRASE
-      );
+  // 2) assemble (inject footprint/resources)
+  const assembledTx = StellarSdk.SorobanRpc.assembleTransaction(invokeOnlyTx, sim).build();
 
-      const invokeOp = parsed.operations.find(op => op.type === "invokeHostFunction");
-      if (!invokeOp) throw new Error("Assembled invoke operation missing");
+  // 3) extract invoke op
+  const parsed = StellarSdk.TransactionBuilder.fromXDR(assembledTx.toXDR(), NETWORK_PASSPHRASE);
+  const invokeOp = parsed.operations.find(op => op.type === "invokeHostFunction");
+  if (!invokeOp) throw new Error("Assembled invoke operation missing");
 
-      // -------------------------------------------------
-      // 4) CLASSIC FEE PAYMENT
-      // -------------------------------------------------
-      const feeAsset = (method === "deposit") ? USDC_ASSET : BUSDC_ASSET;
-      const feeOp = StellarSdk.Operation.payment({
-        destination: COLLECTION_WALLET,
-        asset: feeAsset,
-        amount: fmtScaledBigint(feeBig)
-      });
+  // 4) classic fee payment op
+  const feeAsset = (method === "deposit") ? USDC_ASSET : BUSDC_ASSET;
+  const feeOp = StellarSdk.Operation.payment({
+    destination: COLLECTION_WALLET,
+    asset: feeAsset,
+    amount: fmtScaledBigint(feeBig),
+  });
 
-      // -------------------------------------------------
-      // 5) FINAL TX (classic + soroban)
-      // -------------------------------------------------
-      const finalTx = new StellarSdk.TransactionBuilder(acc, {
-        fee: "300000",
-        networkPassphrase: NETWORK_PASSPHRASE
-      })
-        .addOperation(feeOp)
-        .addOperation(invokeOp)
-        .setTimeout(180)
-        .build();
+  // ✅ IMPORTANT: use a *fresh* Account with the same sequence for the final build
+  // (TransactionBuilder will consume +1; we build a new one so it’s clean)
+  const acc2 = new StellarSdk.Account(pubkey, accResp.sequence);
 
-      return { xdr: finalTx.toXDR(), feeBig, netBig };
-    }
+  // 5) final tx (classic + soroban)
+  const finalTx = new StellarSdk.TransactionBuilder(acc2, {
+    fee: "300000",
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(feeOp)
+    .addOperation(invokeOp)
+    .setTimeout(180)
+    .build();
+
+  return { xdr: finalTx.toXDR(), feeBig, netBig };
+}
 
     // Vault modal submit
     submitVaultXdrBtn.onclick = async ()=>{
