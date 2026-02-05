@@ -155,7 +155,7 @@
       padding:16px 16px 18px;
     }
     .modal-inner.vault{
-      max-height: calc(100vh - 32px);
+      max-height: calc(100dvh - 32px);
       display:flex;
       flex-direction:column;
       padding:14px;
@@ -170,7 +170,13 @@
       margin-top:10px;
       border-top:1px solid rgba(255,255,255,.08);
       padding-top:10px;
+      padding-bottom: env(safe-area-inset-bottom); /* ✅ iOS bottom bar */
     }
+
+    #vaultHashOut{
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
 
     .modal-header{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px}
     .modal-header h3{margin:0; font-size:16px}
@@ -1625,11 +1631,14 @@
           title: "Preflight successful ✅",
           body: `Everything checks out.\nNext step: pay the non-refundable 0.15% fee to continue.`,
           primaryText: "Continue → Pay fee",
-          onPrimary: ()=>{
-            const btn = (which==="deposit") ? depPayFeeBtn : wdPayFeeBtn;
-            btn?.focus?.();
-            btn?.scrollIntoView?.({ behavior:"smooth", block:"center" });
-          }
+onPrimary: ()=>{
+  const btn = (which==="deposit") ? depPayFeeBtn : wdPayFeeBtn;
+  if(btn?.disabled){
+    toast({type:"info", title:"Next step not ready", message:"Please tick the fee acknowledgement first."});
+    return;
+  }
+  btn.click(); // ✅ runs the exact same flow as clicking “2) Pay fee”
+}
         });
 
       }catch(e){
