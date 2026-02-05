@@ -146,7 +146,6 @@
       padding:14px;
       backdrop-filter: blur(8px);
     }
-    /* ✅ slimmer login modal */
     .modal-inner.slim{
       width:min(520px, 100%);
       padding:16px 16px 18px;
@@ -215,7 +214,6 @@
     .stepPill.ok{color:var(--ok); border-color: rgba(52,211,153,.25)}
     .stepPill.warn{color:var(--warn); border-color: rgba(251,191,36,.25)}
 
-    /* ✅ centered login buttons */
     .modal-actions-center{
       display:flex;
       justify-content:center;
@@ -236,7 +234,6 @@
     </div>
 
     <div class="row">
-      <!-- LEFT: WALLET FIRST -->
       <div class="card">
         <h2>Wallet</h2>
 
@@ -292,7 +289,6 @@
         <div class="status-line" id="balStatus"></div>
       </div>
 
-      <!-- RIGHT -->
       <div class="card">
         <h2>Vault Info</h2>
 
@@ -312,7 +308,6 @@
           </div>
         </div>
 
-        <!-- ✅ keep implied wording as a subtle line -->
         <div class="small muted" id="impliedLine" style="margin-top:8px">—</div>
 
         <div class="actions">
@@ -344,7 +339,6 @@
         </div>
 
         <div class="two-col" style="margin-top:10px">
-          <!-- Deposit -->
           <div>
             <div class="input">
               <div class="small">Deposit USDC</div>
@@ -372,7 +366,6 @@
             <div class="status-line" id="depositStatus"></div>
           </div>
 
-          <!-- Withdraw -->
           <div>
             <div class="input">
               <div class="small">Withdraw bUSDC</div>
@@ -412,7 +405,6 @@
     </div>
   </div>
 
-  <!-- Backdrop shared by modals -->
   <div id="backdrop" class="backdrop"></div>
 
   <!-- Connect modal -->
@@ -424,7 +416,6 @@
       </div>
       <div class="small">Pick a login method:</div>
 
-      <!-- ✅ centered buttons -->
       <div class="modal-actions-center">
         <button id="wcBtn">🔗 WalletConnect (mobile)</button>
         <button id="freighterExtBtn">🧩 Freighter (extension)</button>
@@ -445,7 +436,78 @@
     </div>
   </div>
 
-  <!-- Vault modal (round-trip co-sign) -->
+  <!-- WalletConnect signing helper modal -->
+  <div id="wcSignModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="wcSignTitle">
+    <div class="modal-inner slim">
+      <div class="modal-header">
+        <h3 id="wcSignTitle">Approve in LOBSTR</h3>
+        <button class="x" id="closeWcSignModal" aria-label="Close">×</button>
+      </div>
+      <div class="small muted" id="wcSignText">
+        A signature request was sent to your WalletConnect wallet.
+        Please open LOBSTR to approve it.
+      </div>
+      <div class="warnbox" style="margin-top:10px">
+        <div class="small" style="margin-top:0">
+          If nothing pops up, tap the button below again.
+        </div>
+        <div class="actions" style="margin-top:10px; justify-content:center">
+          <button id="wcSignOpenLobstrBtn" class="primary">Open LOBSTR</button>
+        </div>
+      </div>
+      <div class="status-line" id="wcSignStatus"></div>
+    </div>
+  </div>
+
+  <!-- NEXT STEP modal (forces user to click execute) -->
+  <div id="nextStepModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="nextStepTitle">
+    <div class="modal-inner slim">
+      <div class="modal-header">
+        <h3 id="nextStepTitle">Next step</h3>
+        <button class="x" id="closeNextStepModal" aria-label="Close">×</button>
+      </div>
+      <div class="warnbox" style="margin-top:8px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <b id="nextStepHeadline">Fee paid</b>
+          <span class="stepPill warn">Action required</span>
+        </div>
+        <div class="small" style="margin-top:6px" id="nextStepBody">
+          Now execute your transaction.
+        </div>
+      </div>
+      <div class="modal-actions-center" style="margin-top:12px">
+        <button id="nextStepExecuteBtn" class="primary">3) Execute</button>
+      </div>
+      <div class="small muted" style="margin-top:10px">
+        Tip: do not close your wallet prompts until you see “successful”.
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS modal -->
+  <div id="successModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="successTitle">
+    <div class="modal-inner slim">
+      <div class="modal-header">
+        <h3 id="successTitle">Success</h3>
+        <button class="x" id="closeSuccessModal" aria-label="Close">×</button>
+      </div>
+      <div class="warnbox" style="margin-top:8px; border-color: rgba(52,211,153,.30); background: rgba(52,211,153,.10);">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <b id="successHeadline">Transaction successful</b>
+          <span class="stepPill ok">Confirmed</span>
+        </div>
+        <div class="small" style="margin-top:6px" id="successBody">—</div>
+        <div class="small muted" style="margin-top:8px">
+          Hash: <span class="mono" id="successHash">—</span>
+        </div>
+      </div>
+      <div class="modal-actions-center" style="margin-top:12px">
+        <button id="successOkBtn" class="primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vault co-sign modal (watch-by-hash + auto-check) -->
   <div id="vaultModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
     <div class="modal-inner">
       <div class="modal-header">
@@ -453,12 +515,21 @@
         <button class="x" id="closeVaultModal" aria-label="Close">×</button>
       </div>
 
-      <div class="small">
-        Your account requires an extra signature (Vault). Steps:
+      <div class="warnbox" style="margin-top:6px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <b>Don’t close this modal yet</b>
+          <span class="stepPill warn">Waiting for confirmation</span>
+        </div>
+        <div class="small" style="margin-top:6px">
+          After you submit in Vault, this screen will auto-check for ~2 minutes. If it times out, use “check status”.
+        </div>
+      </div>
+
+      <div class="small" style="margin-top:10px">
+        Steps:
         <ol class="muted" style="margin:8px 0 0 18px">
-          <li>Copy the XDR below into LOBSTR Vault and co-sign it.</li>
-          <li>Vault will output a fully-signed XDR.</li>
-          <li>Paste that fully-signed XDR back here and press Submit.</li>
+          <li>Copy the XDR below into LOBSTR Vault and <b>co-sign + submit</b>.</li>
+          <li>Come back here — confirmation will be checked automatically.</li>
         </ol>
       </div>
 
@@ -470,26 +541,13 @@
         </div>
       </div>
 
-      <!-- ✅ WalletConnect prompt to open LOBSTR for signature approval -->
-      <div id="vaultWcPrompt" class="warnbox" style="display:none; margin-top:10px">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <b>Action required in LOBSTR</b>
-          <span class="stepPill warn">WalletConnect signing</span>
-        </div>
-        <div class="small" style="margin-top:6px">
-          Please open LOBSTR to approve the signature request.
-        </div>
-        <div class="actions" style="margin-top:10px; justify-content:center">
-          <button id="vaultOpenLobstrBtn" class="primary">Sign in LOBSTR</button>
-        </div>
-        <div id="vaultWcPromptHint" class="small muted" style="margin-top:6px; text-align:center"></div>
-      </div>
-
       <div class="input">
-        <div class="small">Fully signed XDR from Vault</div>
-        <textarea id="vaultXdrFromVault" class="vault-ta" spellcheck="false" placeholder="Paste the Vault output XDR here…"></textarea>
+        <div class="small">After submitting in Vault</div>
         <div class="actions">
-          <button id="submitVaultXdrBtn" class="primary">Submit signed XDR</button>
+          <button id="vaultWatchBtn" class="primary">Check status</button>
+        </div>
+        <div class="small muted" style="margin-top:8px">
+          Tx hash: <span class="mono" id="vaultHashOut">—</span>
         </div>
         <div class="status-line" id="vaultStatus"></div>
       </div>
@@ -529,8 +587,15 @@
     const MIN_NET = 10;
     const MIN_GROSS_DISPLAY = "10.015";
 
+    // ✅ raise fee to reduce failures
+    const TX_FEE_STROOPS = "20000";
+
+    // Vault auto-check config (2 mins @ 2.5s)
+    const VAULT_AUTO_POLL_MS = 2500;
+    const VAULT_AUTO_POLL_TRIES = Math.ceil(120000 / VAULT_AUTO_POLL_MS); // 48
+
     // -----------------------
-    // Imports (CSP-safe: target=es2022 to avoid eval)
+    // Imports
     // -----------------------
     import * as StellarSdkNS from "https://esm.sh/stellar-sdk@12.2.0?target=es2022";
     const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
@@ -603,10 +668,17 @@
       return BigInt(i) * (10n ** BigInt(decimals)) + BigInt(d || "0");
     }
 
-    // fee inside amount: fee = ceil(gross * bps), net = gross - fee
     function feeFromGross(grossScaled){
       const num = grossScaled * FEE_BPS_NUM;
       return (num + (FEE_BPS_DEN - 1n)) / FEE_BPS_DEN;
+    }
+
+    function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+    function txHashHexFromXdr(xdr){
+      const tx = StellarSdk.TransactionBuilder.fromXDR(xdr, NETWORK_PASSPHRASE);
+      const h = tx.hash();
+      return Array.from(h).map(b => b.toString(16).padStart(2,"0")).join("");
     }
 
     // Servers
@@ -639,6 +711,13 @@
     // Vault modal routing
     let pendingVaultSubmitKind = null; // "classic" | "soroban"
     let pendingAfterVault = null;      // callback
+    let pendingVaultHash = null;
+
+    // Auto-watch state
+    let _vaultAutoTimer = null;
+    let _vaultAutoAttempts = 0;
+    let _vaultAutoToken = 0;
+    let _vaultCheckInFlight = false;
 
     // Per-action cached state
     const actionState = {
@@ -716,33 +795,41 @@
     const rawWcLink = $("rawWcLink");
     const linkStatus = $("linkStatus");
 
+    const wcSignModal = $("wcSignModal");
+    const closeWcSignModal = $("closeWcSignModal");
+    const wcSignOpenLobstrBtn = $("wcSignOpenLobstrBtn");
+    const wcSignStatus = $("wcSignStatus");
+
+    const nextStepModal = $("nextStepModal");
+    const closeNextStepModal = $("closeNextStepModal");
+    const nextStepHeadline = $("nextStepHeadline");
+    const nextStepBody = $("nextStepBody");
+    const nextStepExecuteBtn = $("nextStepExecuteBtn");
+
+    const successModal = $("successModal");
+    const closeSuccessModal = $("closeSuccessModal");
+    const successOkBtn = $("successOkBtn");
+    const successHeadline = $("successHeadline");
+    const successBody = $("successBody");
+    const successHash = $("successHash");
+
     const vaultModal = $("vaultModal");
     const closeVaultModal = $("closeVaultModal");
     const vaultXdrToVault = $("vaultXdrToVault");
-    const vaultXdrFromVault = $("vaultXdrFromVault");
     const copyVaultXdrBtn = $("copyVaultXdrBtn");
-    const submitVaultXdrBtn = $("submitVaultXdrBtn");
     const vaultStatus = $("vaultStatus");
+    const vaultWatchBtn = $("vaultWatchBtn");
+    const vaultHashOut = $("vaultHashOut");
 
-    // ✅ WalletConnect prompt inside Vault modal
-    const vaultWcPrompt = $("vaultWcPrompt");
-    const vaultOpenLobstrBtn = $("vaultOpenLobstrBtn");
-    const vaultWcPromptHint = $("vaultWcPromptHint");
-
-    function showVaultWcPrompt(show, hint=""){
-      if(!vaultWcPrompt) return;
-      vaultWcPrompt.style.display = show ? "block" : "none";
-      if(vaultWcPromptHint) vaultWcPromptHint.textContent = hint || "";
-    }
-
-    let availableUSDCScaled = null;  // BigInt
-    let availableBUSDCScaled = null; // BigInt
+    let availableUSDCScaled = null;
+    let availableBUSDCScaled = null;
 
     function setConnPill(kind, label){
       connStatus.classList.remove("ok","warn","bad");
       connStatus.classList.add(kind);
       connStatus.querySelector("span:last-child").textContent = label;
     }
+
     function setConnected(address, newMode){
       pubkey = address || null;
       mode = newMode || "none";
@@ -773,7 +860,6 @@
     }
     feeAck.addEventListener("change", syncActionButtons);
 
-    // ✅ Clear UI after a Soroban submit so it doesn't look re-submittable
     function clearActionUI(which){
       if(which === "deposit"){
         depositAmt.value = "";
@@ -806,9 +892,23 @@
       }
     }
 
+    async function ensureFreighterApiSafe(){
+      const api = await ensureFreighterApi();
+      if(!api) throw new Error("Freighter extension not detected.");
+      return api;
+    }
+
     // -----------------------
-    // Modals
+    // Modal plumbing
     // -----------------------
+    function _anyModalOpen(){
+      return loginModal.classList.contains("open")
+        || wcSignModal.classList.contains("open")
+        || vaultModal.classList.contains("open")
+        || nextStepModal.classList.contains("open")
+        || successModal.classList.contains("open");
+    }
+
     function openConnectModal(){
       backdrop.classList.add("open");
       loginModal.classList.add("open");
@@ -816,36 +916,312 @@
     function closeConnectModal(){
       loginModal.classList.remove("open");
       qrArea.style.display="none";
-      if(!vaultModal.classList.contains("open")) backdrop.classList.remove("open");
+      if(!_anyModalOpen()) backdrop.classList.remove("open");
     }
-    function openVaultModal(xdrToPaste, kind, afterCb){
-      pendingVaultSubmitKind = kind; // "classic" | "soroban"
-      pendingAfterVault = afterCb || null;
 
-      vaultStatus.textContent = "";
-      vaultXdrToVault.value = xdrToPaste || "";
-      vaultXdrFromVault.value = "";
-      showVaultWcPrompt(false);
+    function openWcSignModal(){
+      wcSignStatus.textContent = "";
+      backdrop.classList.add("open");
+      wcSignModal.classList.add("open");
+    }
+    function closeWcSignModalFn(){
+      wcSignModal.classList.remove("open");
+      if(!_anyModalOpen()) backdrop.classList.remove("open");
+    }
+
+    function openNextStepModal(which){
+      const isDep = which === "deposit";
+      nextStepHeadline.textContent = isDep ? "Fee paid — now execute your deposit" : "Fee paid — now execute your withdrawal";
+      nextStepBody.textContent = isDep
+        ? "Click below to run Step 3 and submit the deposit."
+        : "Click below to run Step 3 and submit the withdrawal.";
+      nextStepExecuteBtn.textContent = isDep ? "3) Execute deposit" : "3) Execute withdraw";
+      nextStepExecuteBtn.dataset.which = which;
 
       backdrop.classList.add("open");
-      vaultModal.classList.add("open");
+      nextStepModal.classList.add("open");
     }
-    function closeVaultModalFn(){
-      vaultModal.classList.remove("open");
-      if(!loginModal.classList.contains("open")) backdrop.classList.remove("open");
-      pendingVaultSubmitKind = null;
-      pendingAfterVault = null;
-      showVaultWcPrompt(false);
+    function closeNextStepModalFn(){
+      nextStepModal.classList.remove("open");
+      if(!_anyModalOpen()) backdrop.classList.remove("open");
+    }
+
+    function openSuccessModal(which, hash){
+      const isDep = which === "deposit";
+      $("successTitle").textContent = isDep ? "Deposit successful" : "Withdrawal successful";
+      successHeadline.textContent = isDep ? "Deposit successful" : "Withdrawal successful";
+      successBody.textContent = isDep
+        ? "Your deposit transaction is confirmed."
+        : "Your withdrawal transaction is confirmed.";
+      successHash.textContent = hash || "—";
+
+      backdrop.classList.add("open");
+      successModal.classList.add("open");
+    }
+    function closeSuccessModalFn(){
+      successModal.classList.remove("open");
+      if(!_anyModalOpen()) backdrop.classList.remove("open");
     }
 
     connectBtn.onclick = openConnectModal;
     closeModal.onclick = closeConnectModal;
-    closeVaultModal.onclick = closeVaultModalFn;
+
+    closeWcSignModal.onclick = closeWcSignModalFn;
+
+    closeNextStepModal.onclick = closeNextStepModalFn;
+    nextStepExecuteBtn.onclick = ()=>{
+      const which = nextStepExecuteBtn.dataset.which;
+      closeNextStepModalFn();
+      if(which === "deposit") depExecuteBtn.click();
+      else wdExecuteBtn.click();
+    };
+
+    closeSuccessModal.onclick = closeSuccessModalFn;
+    successOkBtn.onclick = closeSuccessModalFn;
 
     backdrop.addEventListener("click", ()=>{
       if(loginModal.classList.contains("open")) closeConnectModal();
+      if(wcSignModal.classList.contains("open")) closeWcSignModalFn();
+      if(nextStepModal.classList.contains("open")) closeNextStepModalFn();
+      if(successModal.classList.contains("open")) closeSuccessModalFn();
       if(vaultModal.classList.contains("open")) closeVaultModalFn();
     });
+
+    // -----------------------
+    // WalletConnect deep links
+    // -----------------------
+    const isIOS = ()=> /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    function openLobstrApp(uri){
+      const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
+      const store  = isIOS()
+        ? "https://apps.apple.com/app/id1404357892"
+        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const t0 = Date.now();
+      window.location.href = scheme;
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
+
+    function openLobstrForSigning(){
+      if(latestWcUri){
+        openLobstrApp(latestWcUri);
+        return;
+      }
+      const store  = isIOS()
+        ? "https://apps.apple.com/app/id1404357892"
+        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
+      const t0 = Date.now();
+      window.location.href = "lobstr://";
+      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
+    }
+
+    wcSignOpenLobstrBtn.onclick = openLobstrForSigning;
+
+    async function purgeWcStorage(){
+      try{
+        Object.keys(localStorage).forEach(k=>{
+          if(k.startsWith("wc@2")) localStorage.removeItem(k);
+        });
+      }catch{}
+    }
+
+async function ensureWcClient({ retry=false } = {}){
+  if(wcClient) return wcClient;
+  try{
+    wcClient = await SignClient.init({
+      projectId: PROJECT_ID,
+      relayUrl: "wss://relay.walletconnect.com",
+      logger: "silent", // ✅ ADD THIS (or "error")
+      metadata: {
+        name: "bUSDC Vault UI",
+        description: "Vault UI for bUSDC contract",
+        url: location.origin,
+        icons: ["https://walletconnect.com/walletconnect-logo.png"]
+      }
+    });
+
+    // optional extras (safe to include)
+    try { wcClient.core?.logger?.setLevel?.("silent"); } catch {}
+    try { wcClient.logger?.setLevel?.("silent"); } catch {}
+    try { wcClient.on("session_request", ()=>{}); } catch {}
+
+    return wcClient;
+  }catch(e){
+    if(!retry && /No matching key/i.test(String(e?.message||e))){
+      await purgeWcStorage();
+      wcClient = null;
+      return ensureWcClient({ retry:true });
+    }
+    throw e;
+  }
+}
+
+    async function getFreighterLinks(){
+      try{
+        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const list = data?.listings ?? data?.data ?? [];
+        const arr = Array.isArray(list) ? list : Object.values(list);
+        const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
+        const mobile = w?.mobile || w?.app?.mobile || {};
+        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
+      }catch{
+        return { native:null, universal:null, found:false };
+      }
+    }
+
+    function buildCandidates(base, wcUri){
+      if(!base) return [];
+      const enc = encodeURIComponent(wcUri);
+      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
+      const j = base.includes("?") ? "&" : "?";
+      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
+    }
+
+    function openFreighterSmart(links, wcUri){
+      const store = isIOS()
+        ? "https://apps.apple.com/app/freighter/id6743947720"
+        : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
+      const natives = buildCandidates(links.native, wcUri);
+      const universals = buildCandidates(links.universal, wcUri);
+      let attempted=false;
+      if(natives.length){ attempted=true; window.location.href = natives[0]; }
+      else if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
+      if(!attempted){ window.open(store, "_blank", "noopener"); }
+    }
+
+    // -----------------------
+    // Vault auto-check
+    // -----------------------
+    function stopVaultAutoWatch(){
+      _vaultAutoToken++;
+      _vaultAutoAttempts = 0;
+      if(_vaultAutoTimer){
+        clearInterval(_vaultAutoTimer);
+        _vaultAutoTimer = null;
+      }
+    }
+
+    async function rawRpc(method, params){
+      const r = await fetch(SOROBAN_RPC, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params })
+      });
+      const j = await r.json();
+      if(j.error) throw new Error(`${method} RPC error: ${j.error.message || JSON.stringify(j.error)}`);
+      return j.result;
+    }
+
+    async function checkVaultHashOnce({ auto=false } = {}){
+      if(_vaultCheckInFlight) return false;
+      if(!pendingVaultHash) return false;
+
+      _vaultCheckInFlight = true;
+      try{
+        if(auto) vaultStatus.textContent = `Auto-checking confirmation… (${_vaultAutoAttempts}/${VAULT_AUTO_POLL_TRIES})`;
+        else vaultStatus.textContent = "Checking status…";
+
+        if(pendingVaultSubmitKind === "classic"){
+          const r = await fetch(`${HORIZON}/transactions/${pendingVaultHash}`);
+          if(r.ok){
+            const tx = await r.json();
+            vaultStatus.innerHTML = `Confirmed ✓ tx: <span class="mono">${tx.hash}</span>`;
+            toast({type:"ok", title:"Confirmed", message:"Transaction confirmed on-chain.", timeout:2200});
+            const cb = pendingAfterVault;
+            stopVaultAutoWatch();
+            closeVaultModalFn();
+            if(typeof cb === "function") cb({ hash: tx.hash });
+            refreshState().catch(()=>{});
+            refreshBalance().catch(()=>{});
+            return true;
+          }
+          if(!auto) vaultStatus.textContent = "Not confirmed yet — if you just submitted, wait a moment and try again.";
+          return false;
+        } else {
+          const res = await rawRpc("getTransaction", { hash: pendingVaultHash });
+          if(res?.status === "SUCCESS"){
+            vaultStatus.innerHTML = `Confirmed ✓ hash: <span class="mono">${res.hash}</span>`;
+            toast({type:"ok", title:"Confirmed", message:"Soroban transaction confirmed.", timeout:2200});
+            const cb = pendingAfterVault;
+            stopVaultAutoWatch();
+            closeVaultModalFn();
+            if(typeof cb === "function") cb({ hash: res.hash });
+            refreshState().catch(()=>{});
+            refreshBalance().catch(()=>{});
+            return true;
+          }
+          if(res?.status && res.status !== "NOT_FOUND"){
+            throw new Error(`Soroban status: ${res.status}`);
+          }
+          if(!auto) vaultStatus.textContent = "Not confirmed yet — if you just submitted, wait a moment and try again.";
+          return false;
+        }
+      } finally {
+        _vaultCheckInFlight = false;
+      }
+    }
+
+    function startVaultAutoWatch(){
+      stopVaultAutoWatch();
+      if(!pendingVaultHash) return;
+
+      _vaultAutoAttempts = 0;
+      const myToken = ++_vaultAutoToken;
+
+      (async ()=>{
+        _vaultAutoAttempts++;
+        try { await checkVaultHashOnce({ auto:true }); } catch {}
+      })();
+
+      _vaultAutoTimer = setInterval(async ()=>{
+        if(myToken !== _vaultAutoToken){ stopVaultAutoWatch(); return; }
+        if(!vaultModal.classList.contains("open")) { stopVaultAutoWatch(); return; }
+
+        _vaultAutoAttempts++;
+        if(_vaultAutoAttempts > VAULT_AUTO_POLL_TRIES){
+          stopVaultAutoWatch();
+          vaultStatus.textContent = "Auto-check timed out — tap “Check status” to retry.";
+          return;
+        }
+
+        try{
+          await checkVaultHashOnce({ auto:true });
+        }catch(e){
+          stopVaultAutoWatch();
+          vaultStatus.textContent = `Auto-check stopped — ${e?.message || "error"}. Tap “Check status” to retry.`;
+        }
+      }, VAULT_AUTO_POLL_MS);
+    }
+
+    function openVaultModal(xdrToPaste, kind, afterCb){
+      pendingVaultSubmitKind = kind;
+      pendingAfterVault = afterCb || null;
+
+      vaultStatus.textContent = "";
+      vaultXdrToVault.value = xdrToPaste || "";
+
+      pendingVaultHash = xdrToPaste ? txHashHexFromXdr(xdrToPaste) : null;
+      vaultHashOut.textContent = pendingVaultHash || "—";
+
+      backdrop.classList.add("open");
+      vaultModal.classList.add("open");
+
+      vaultStatus.textContent = "Auto-checking confirmation…";
+      startVaultAutoWatch();
+    }
+
+    function closeVaultModalFn(){
+      stopVaultAutoWatch();
+      vaultModal.classList.remove("open");
+      if(!_anyModalOpen()) backdrop.classList.remove("open");
+      pendingVaultSubmitKind = null;
+      pendingAfterVault = null;
+      pendingVaultHash = null;
+    }
+
+    closeVaultModal.onclick = closeVaultModalFn;
 
     copyVaultXdrBtn.onclick = async ()=>{
       try{
@@ -853,6 +1229,20 @@
         toast({type:"ok", title:"Copied", message:"XDR copied to clipboard."});
       }catch{
         toast({type:"err", title:"Error", message:"Could not copy (clipboard blocked)."});
+      }
+    };
+
+    vaultWatchBtn.onclick = async ()=>{
+      try{
+        if(!pendingVaultHash) throw new Error("Missing tx hash.");
+        const ok = await checkVaultHashOnce({ auto:false });
+        if(!ok){
+          toast({type:"info", title:"Not confirmed yet", message:"If you just submitted in Vault, wait a moment and try again.", timeout:2600});
+        }
+      }catch(e){
+        console.error(e);
+        vaultStatus.textContent = `Not confirmed yet — ${e.message || e}`;
+        toast({type:"info", title:"Not confirmed yet", message:"Wait a moment and try again.", timeout:2600});
       }
     };
 
@@ -877,97 +1267,6 @@
         toast({type:"err", title:"Error", message:"Freighter connect failed."});
       }
     };
-
-    const isIOS = ()=> /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-    async function purgeWcStorage(){
-      try{
-        Object.keys(localStorage).forEach(k=>{
-          if(k.startsWith("wc@2")) localStorage.removeItem(k);
-        });
-      }catch{}
-    }
-
-    async function ensureWcClient({ retry=false } = {}){
-      if(wcClient) return wcClient;
-      try{
-        wcClient = await SignClient.init({
-          projectId: PROJECT_ID,
-          relayUrl: "wss://relay.walletconnect.com",
-          metadata: {
-            name: "bUSDC Vault UI",
-            description: "Vault UI for bUSDC contract",
-            url: location.origin,
-            icons: ["https://walletconnect.com/walletconnect-logo.png"]
-          }
-        });
-        return wcClient;
-      }catch(e){
-        if(!retry && /No matching key/i.test(String(e?.message||e))){
-          await purgeWcStorage();
-          wcClient = null;
-          return ensureWcClient({ retry:true });
-        }
-        throw e;
-      }
-    }
-
-    async function getFreighterLinks(){
-      try{
-        const url = `${EXPLORER}?projectId=${encodeURIComponent(PROJECT_ID)}&entries=200&page=1`;
-        const res = await fetch(url);
-        const data = await res.json();
-        const list = data?.listings ?? data?.data ?? [];
-        const arr = Array.isArray(list) ? list : Object.values(list);
-        const w = arr.find(it => ((it.name||it.app?.name||"").toLowerCase()).includes("freighter"));
-        const mobile = w?.mobile || w?.app?.mobile || {};
-        return { native: mobile.native||mobile.nativeLink||null, universal: mobile.universal||mobile.universalLink||null, found: !!w };
-      }catch{
-        return { native:null, universal:null, found:false };
-      }
-    }
-    function buildCandidates(base, wcUri){
-      if(!base) return [];
-      const enc = encodeURIComponent(wcUri);
-      if (base.includes("{wc}") || base.includes("{URI}")) return [ base.replace("{wc}",enc).replace("{URI}",enc) ];
-      const j = base.includes("?") ? "&" : "?";
-      return [ `${base}${j}wc=${enc}`, `${base}${j}uri=${enc}` ];
-    }
-    function openFreighterSmart(links, wcUri){
-      const store = isIOS()
-        ? "https://apps.apple.com/app/freighter/id6743947720"
-        : "https://play.google.com/store/apps/details?id=org.stellar.freighterwallet&pli=1";
-      const natives = buildCandidates(links.native, wcUri);
-      const universals = buildCandidates(links.universal, wcUri);
-      let attempted=false;
-      if(natives.length){ attempted=true; window.location.href = natives[0]; }
-      else if(universals.length){ attempted=true; window.open(universals[0], "_blank", "noopener"); }
-      if(!attempted){ window.open(store, "_blank", "noopener"); }
-    }
-    function openLobstrApp(uri){
-      const scheme = `lobstr://wc?uri=${encodeURIComponent(uri)}`;
-      const store  = isIOS()
-        ? "https://apps.apple.com/app/id1404357892"
-        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
-      const t0 = Date.now();
-      window.location.href = scheme;
-      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
-    }
-
-    // ✅ used by the Vault modal "Sign in LOBSTR" button
-    function openLobstrForSigning(){
-      if(latestWcUri){
-        openLobstrApp(latestWcUri);
-        return;
-      }
-      const store  = isIOS()
-        ? "https://apps.apple.com/app/id1404357892"
-        : "https://play.google.com/store/apps/details?id=com.lobstr.client";
-      const t0 = Date.now();
-      window.location.href = "lobstr://";
-      setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
-    }
-    if(vaultOpenLobstrBtn) vaultOpenLobstrBtn.onclick = openLobstrForSigning;
 
     wcBtn.onclick = async ()=>{
       try{
@@ -1056,7 +1355,7 @@
     };
 
     // -----------------------
-    // Account + trustline helpers
+    // Account helpers
     // -----------------------
     async function getAccountJson(pk){
       const r = await fetch(`${HORIZON}/accounts/${pk}`);
@@ -1070,57 +1369,69 @@
       return !!bal;
     }
 
-    async function ensureFreighterApiSafe(){
-      const api = await ensureFreighterApi();
-      if(!api) throw new Error("Freighter extension not detected.");
-      return api;
+    async function hasVault(account){
+      if(!VAULT_SIGNER_KEY) return false;
+      try{
+        const j = await getAccountJson(account);
+        const ks = (j.signers || []).map(s=>s.key);
+        return ks.includes(VAULT_SIGNER_KEY);
+      }catch{
+        return false;
+      }
     }
 
+    // -----------------------
+    // Signing
+    // -----------------------
     async function signXdr(xdr){
       if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect WalletConnect/Freighter or use secret key.");
+
       if(mode==="secret"){
         const tx = StellarSdk.TransactionBuilder.fromXDR(xdr, NETWORK_PASSPHRASE);
         tx.sign(StellarSdk.Keypair.fromSecret(secret));
         return tx.toXDR();
       }
+
       if(mode==="freighter"){
         const api = await ensureFreighterApiSafe();
         const res = await api.signTransaction(xdr, { networkPassphrase: NETWORK_PASSPHRASE, accountToSign: pubkey });
         if(res?.error) throw new Error(res.error.message || "Freighter: sign failed");
         return res.signedTxXdr || res.signedXDR || res;
       }
+
       if(mode==="wc"){
         if(!wcClient || !wcSession) throw new Error("WalletConnect not ready.");
-        const r = await wcClient.request({
-          topic: wcSession.topic,
-          chainId: "stellar:pubnet",
-          request: { jsonrpc:"2.0", method:"stellar_signXDR", params:{ xdr } }
-        });
-        if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
-        return r.signedXDR;
+
+        openWcSignModal();
+        wcSignStatus.textContent = "Waiting for approval in LOBSTR…";
+
+        try{
+          openLobstrForSigning();
+
+          const r = await wcClient.request({
+            topic: wcSession.topic,
+            chainId: "stellar:pubnet",
+            request: { jsonrpc:"2.0", method:"stellar_signXDR", params:{ xdr } }
+          });
+          if(!r?.signedXDR) throw new Error("WalletConnect: no signedXDR");
+          return r.signedXDR;
+        } finally {
+          closeWcSignModalFn();
+        }
       }
+
       throw new Error("Unsupported signing mode.");
     }
 
+    // -----------------------
+    // Submit helpers
+    // -----------------------
     async function submitClassicTxXdrToHorizon(signedXdr){
       const srv = makeHorizonServer(HORIZON);
       const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
       return await srv.submitTransaction(tx);
     }
 
-    // Raw JSON-RPC helper (avoids SDK XDR decoding edge cases)
-    async function rawRpc(method, params){
-      const r = await fetch(SOROBAN_RPC, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params })
-      });
-      const j = await r.json();
-      if(j.error) throw new Error(`${method} RPC error: ${j.error.message || JSON.stringify(j.error)}`);
-      return j.result;
-    }
-
-    // Soroban submit (poll using raw RPC to avoid "Bad union switch" crashes)
     async function submitSorobanSignedXdr(signedXdr){
       const server = makeSorobanServer(SOROBAN_RPC);
       const tx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
@@ -1132,7 +1443,7 @@
 
       let res = await rawRpc("getTransaction", { hash: send.hash });
       for(let i=0; i<25 && res.status==="NOT_FOUND"; i++){
-        await new Promise(r=>setTimeout(r, 900));
+        await sleep(900);
         res = await rawRpc("getTransaction", { hash: send.hash });
       }
       if(res.status !== "SUCCESS") throw new Error(`Tx status: ${res.status}`);
@@ -1140,20 +1451,20 @@
       return { hash: send.hash, ...res };
     }
 
+    // -----------------------
+    // Build tx helpers
+    // -----------------------
     async function buildChangeTrustXdr(limit=null){
       if(!pubkey) throw new Error("Connect a wallet first.");
       const srv = makeHorizonServer(HORIZON);
       const acc = await srv.loadAccount(pubkey);
 
-      const op = StellarSdk.Operation.changeTrust({
-        asset: BUSDC_ASSET,
-        limit: limit ?? undefined
-      });
+      const op = StellarSdk.Operation.changeTrust({ asset: BUSDC_ASSET, limit: limit ?? undefined });
 
-      const tx = new StellarSdk.TransactionBuilder(acc, {
-        fee: (await srv.fetchBaseFee()).toString(),
-        networkPassphrase: NETWORK_PASSPHRASE
-      })
+      const base = await srv.fetchBaseFee();
+      const fee = Math.max(Number(base || 0), Number(TX_FEE_STROOPS)).toString();
+
+      const tx = new StellarSdk.TransactionBuilder(acc, { fee, networkPassphrase: NETWORK_PASSPHRASE })
         .addOperation(op)
         .setTimeout(120)
         .build();
@@ -1161,6 +1472,50 @@
       return tx.toXDR();
     }
 
+    async function buildFeePaymentXdr({ asset, amountScaled }){
+      const srv = makeHorizonServer(HORIZON);
+      const acc = await srv.loadAccount(pubkey);
+
+      const base = await srv.fetchBaseFee();
+      const fee = Math.max(Number(base || 0), Number(TX_FEE_STROOPS)).toString();
+
+      const tx = new StellarSdk.TransactionBuilder(acc, { fee, networkPassphrase: NETWORK_PASSPHRASE })
+        .addOperation(StellarSdk.Operation.payment({
+          destination: COLLECTION_WALLET,
+          asset,
+          amount: fmtScaledBigint(amountScaled),
+        }))
+        .setTimeout(120)
+        .build();
+
+      return tx.toXDR();
+    }
+
+    async function buildAssembledInvokeXdr({ method, netScaled }){
+      const rpc = makeSorobanServer(SOROBAN_RPC);
+      const acc = await rpc.getAccount(pubkey);
+
+      const addrScv = new StellarSdk.Address(pubkey).toScVal();
+      const netScv  = StellarSdk.nativeToScVal(netScaled, { type: "i128" });
+
+      const tx = new StellarSdk.TransactionBuilder(acc, { fee: TX_FEE_STROOPS, networkPassphrase: NETWORK_PASSPHRASE })
+        .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
+        .setTimeout(180)
+        .build();
+
+      const sim = await rpc.simulateTransaction(tx);
+      if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
+        console.error("Simulation error payload:", sim);
+        throw new Error("Simulation error (see console).");
+      }
+
+      const assembled = StellarSdk.SorobanRpc.assembleTransaction(tx, sim).build();
+      return assembled.toXDR();
+    }
+
+    // -----------------------
+    // Trustline UX
+    // -----------------------
     async function ensureBUSDCTrustline({ interactive=true } = {}){
       if(!pubkey) throw new Error("Connect a wallet first.");
       const ok = await hasBUSDCTrustline(pubkey);
@@ -1192,7 +1547,7 @@
     };
 
     // -----------------------
-    // Balance computation: "available" = balance - selling_liabilities
+    // Balances
     // -----------------------
     function strToScaledBigint(amountStr){
       return parseDecimalToBigint(amountStr || "0", DECIMALS);
@@ -1269,7 +1624,7 @@
     };
 
     // -----------------------
-    // Soroban read helpers
+    // Soroban reads
     // -----------------------
     function scvToNativeFromSim(sim){
       const r0 = sim?.result?.results?.[0]?.xdr;
@@ -1282,7 +1637,7 @@
     async function simulate(method, argsScv=[]){
       const server = makeSorobanServer(SOROBAN_RPC);
       const acc = await server.getAccount("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
-      const tx = new StellarSdk.TransactionBuilder(acc, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE })
+      const tx = new StellarSdk.TransactionBuilder(acc, { fee: TX_FEE_STROOPS, networkPassphrase: NETWORK_PASSPHRASE })
         .addOperation(contract.call(method, ...argsScv))
         .setTimeout(60)
         .build();
@@ -1329,7 +1684,7 @@
     refreshBtn.onclick = refreshState;
 
     // -----------------------
-    // Fee box updates
+    // Fee boxes
     // -----------------------
     function updateFeeBoxes(){
       try{
@@ -1378,136 +1733,7 @@
     }
 
     // -----------------------
-    // Vault detection
-    // -----------------------
-    async function hasVault(account){
-      if(!VAULT_SIGNER_KEY) return false;
-      try{
-        const j = await getAccountJson(account);
-        const ks = (j.signers || []).map(s=>s.key);
-        return ks.includes(VAULT_SIGNER_KEY);
-      }catch{
-        return false;
-      }
-    }
-
-    // -----------------------
-    // Build Fee tx (classic) + Build Invoke tx (soroban assembled)
-    // -----------------------
-    async function buildFeePaymentXdr({ asset, amountScaled }){
-      const srv = makeHorizonServer(HORIZON);
-      const acc = await srv.loadAccount(pubkey);
-      const feeBase = await srv.fetchBaseFee();
-
-      const tx = new StellarSdk.TransactionBuilder(acc, {
-        fee: String(feeBase),
-        networkPassphrase: NETWORK_PASSPHRASE
-      })
-        .addOperation(StellarSdk.Operation.payment({
-          destination: COLLECTION_WALLET,
-          asset,
-          amount: fmtScaledBigint(amountScaled),
-        }))
-        .setTimeout(120)
-        .build();
-
-      return tx.toXDR();
-    }
-
-    async function buildAssembledInvokeXdr({ method, netScaled }){
-      const rpc = makeSorobanServer(SOROBAN_RPC);
-      const acc = await rpc.getAccount(pubkey);
-
-      const addrScv = new StellarSdk.Address(pubkey).toScVal();
-      const netScv  = StellarSdk.nativeToScVal(netScaled, { type: "i128" });
-
-      const tx = new StellarSdk.TransactionBuilder(acc, {
-        fee: "10000",
-        networkPassphrase: NETWORK_PASSPHRASE
-      })
-        .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
-        .setTimeout(180)
-        .build();
-
-      // ✅ safer simulate wrapper (prevents “Paused in debugger” confusion + logs details)
-      const sim = await (async ()=>{
-        try {
-          return await rpc.simulateTransaction(tx);
-        } catch (e) {
-          console.error("simulateTransaction threw:", e);
-          throw new Error("simulateTransaction threw: " + (e?.message || String(e)));
-        }
-      })();
-
-      console.log("simulateTransaction result:", sim);
-
-      // ✅ keep the simulation-error detection, but log the full payload
-      if (StellarSdk.SorobanRpc?.Api?.isSimulationError?.(sim)) {
-        console.error("Simulation error payload:", sim);
-        throw new Error("Simulation error (see console).");
-      }
-
-      const assembled = StellarSdk.SorobanRpc.assembleTransaction(tx, sim).build();
-      return assembled.toXDR();
-    }
-
-    // -----------------------
-    // Vault modal submit handler (classic vs soroban)
-    // -----------------------
-    submitVaultXdrBtn.onclick = async ()=>{
-      try{
-        const vaultSignedXdr = (vaultXdrFromVault.value || "").trim();
-        if(!vaultSignedXdr) throw new Error("Paste the Vault-signed XDR first.");
-
-        vaultStatus.textContent = "Adding your signature…";
-
-        const shouldPromptLobstr = (mode === "wc");
-        if(shouldPromptLobstr){
-          showVaultWcPrompt(true, "If nothing pops up, tap “Sign in LOBSTR” again.");
-        }
-
-        let fullySignedXdr;
-        try{
-          // Second signature (WalletConnect / Freighter / Secret)
-          fullySignedXdr = await signXdr(vaultSignedXdr);
-        } finally {
-          if(shouldPromptLobstr){
-            showVaultWcPrompt(false);
-          }
-        }
-
-        vaultStatus.textContent = "Submitting transaction…";
-
-        let res;
-        if(pendingVaultSubmitKind === "classic"){
-          res = await submitClassicTxXdrToHorizon(fullySignedXdr);
-          vaultStatus.innerHTML = `Submitted ✓ tx: <span class="mono">${res.hash}</span>`;
-          toast({ type:"ok", title:"Fee paid", message:"Fee transaction confirmed on-chain." });
-        } else if(pendingVaultSubmitKind === "soroban"){
-          res = await submitSorobanSignedXdr(fullySignedXdr);
-          vaultStatus.innerHTML = `Submitted ✓ hash: <span class="mono">${res.hash}</span>`;
-          toast({ type:"ok", title:"Submitted", message:"Soroban transaction submitted." });
-        } else {
-          res = await submitClassicTxXdrToHorizon(fullySignedXdr);
-          vaultStatus.innerHTML = `Submitted ✓ tx: <span class="mono">${res.hash}</span>`;
-          toast({ type:"ok", title:"Submitted", message:"Transaction submitted." });
-        }
-
-        const cb = pendingAfterVault;
-        closeVaultModalFn();
-        if(typeof cb === "function") cb();
-
-        refreshState().catch(()=>{});
-        refreshBalance().catch(()=>{});
-      }catch(e){
-        console.error(e);
-        vaultStatus.textContent = `Error: ${e.message || e}`;
-        toast({ type:"err", title:"Error", message:e.message || "Submit failed" });
-      }
-    };
-
-    // -----------------------
-    // Preflight logic (does NOT charge fee)
+    // Preflight
     // -----------------------
     async function preflight(which, inputEl, statusEl){
       statusEl.textContent = "";
@@ -1547,8 +1773,8 @@
         actionState[which].feeBig = feeBig;
         actionState[which].netBig = netBig;
 
-        const feeAsset = which==="deposit" ? USDC_ASSET : BUSDC_ASSET (function(){return BUSDC_ASSET;})();
-        actionState[which].feeXdr = await buildFeePaymentXdr({ asset: (which==="deposit" ? USDC_ASSET : BUSDC_ASSET), amountScaled: feeBig });
+        const feeAsset = (which==="deposit" ? USDC_ASSET : BUSDC_ASSET);
+        actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
 
         if(which==="deposit") depositXdr.value = invokeXdr;
         else redeemXdr.value = invokeXdr;
@@ -1570,7 +1796,7 @@
     }
 
     // -----------------------
-    // Pay fee step (classic)
+    // Pay fee (classic)
     // -----------------------
     async function payFee(which, statusEl){
       statusEl.textContent = "";
@@ -1580,16 +1806,22 @@
 
         const feeXdr = actionState[which].feeXdr;
 
-        // Vault handling
         if(await hasVault(pubkey)){
-          statusEl.textContent = "Fee tx requires Vault co-sign — opening Vault modal…";
+          statusEl.textContent = "Signing fee tx (your signature)…";
 
-          openVaultModal(feeXdr, "classic", ()=>{
+          const partiallySigned = await signXdr(feeXdr);
+
+          statusEl.textContent = "Fee tx needs Vault co-sign — opening Vault modal…";
+
+          openVaultModal(partiallySigned, "classic", ()=>{
             actionState[which].feePaid = true;
             syncActionButtons();
             statusEl.textContent = `Fee paid ✓ Now execute ${which}.`;
             actionState[which].invokeXdr = null; // stale after fee (sequence bumps)
             refreshBalance().catch(()=>{});
+
+            // ✅ force next step
+            openNextStepModal(which);
           });
 
           return;
@@ -1606,6 +1838,9 @@
         toast({type:"ok", title:"Fee paid", message:`tx ${res.hash}`});
 
         refreshBalance().catch(()=>{});
+
+        // ✅ force next step
+        openNextStepModal(which);
       }catch(e){
         console.error(e);
         statusEl.textContent = `Fee step failed: ${e.message || e}`;
@@ -1614,7 +1849,7 @@
     }
 
     // -----------------------
-    // Execute step (soroban)
+    // Execute (soroban)
     // -----------------------
     async function executeInvoke(which, statusEl){
       statusEl.textContent = "";
@@ -1636,17 +1871,24 @@
         if(which==="deposit") depositXdr.value = freshInvokeXdr;
         else redeemXdr.value = freshInvokeXdr;
 
-        // Vault handling
         if(await hasVault(pubkey)){
-          statusEl.textContent = "Invoke tx requires Vault co-sign — opening Vault modal…";
-          openVaultModal(freshInvokeXdr, "soroban", ()=>{
-            // ✅ clear UI immediately after submit (and disables Pay Fee too)
+          statusEl.textContent = "Signing invoke tx (your signature)…";
+
+          const partiallySigned = await signXdr(freshInvokeXdr);
+
+          statusEl.textContent = "Invoke tx needs Vault co-sign — opening Vault modal…";
+
+          openVaultModal(partiallySigned, "soroban", ({ hash } = {})=>{
             clearActionUI(which);
             resetAction(which);
             statusEl.textContent = `${which==="deposit"?"Deposit":"Withdraw"} submitted ✓`;
             refreshState().catch(()=>{});
             refreshBalance().catch(()=>{});
+
+            // ✅ success modal
+            openSuccessModal(which, hash || "—");
           });
+
           return;
         }
 
@@ -1656,7 +1898,6 @@
         statusEl.textContent = "Submitting invoke tx…";
         const res = await submitSorobanSignedXdr(signed);
 
-        // ✅ clear UI immediately after submit (and disables Pay Fee too)
         clearActionUI(which);
         resetAction(which);
 
@@ -1665,6 +1906,9 @@
 
         refreshState().catch(()=>{});
         refreshBalance().catch(()=>{});
+
+        // ✅ success modal
+        openSuccessModal(which, res.hash);
       }catch(e){
         console.error(e);
         statusEl.textContent = `Execute failed: ${e.message || e}`;
@@ -1673,7 +1917,7 @@
     }
 
     // -----------------------
-    // Wire action buttons
+    // Wire buttons
     // -----------------------
     depPreflightBtn.onclick = ()=> preflight("deposit", depositAmt, depositStatus);
     depPayFeeBtn.onclick    = ()=> payFee("deposit", depositStatus);
@@ -1683,11 +1927,9 @@
     wdPayFeeBtn.onclick     = ()=> payFee("redeem", redeemStatus);
     wdExecuteBtn.onclick    = ()=> executeInvoke("redeem", redeemStatus);
 
-    // XDR toggles
     depositXdrToggle.onclick = ()=> toggleTextarea(depositXdr, depositXdrToggle);
     redeemXdrToggle.onclick  = ()=> toggleTextarea(redeemXdr, redeemXdrToggle);
 
-    // Logs toggle
     toggleLogsBtn.onclick = ()=>{
       const hidden = logsEl.style.display === "none" || !logsEl.style.display;
       logsEl.style.display = hidden ? "block" : "none";
