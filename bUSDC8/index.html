@@ -435,7 +435,7 @@
     </div>
   </div>
 
-  <!-- ✅ Vault modal now uses "watch by hash" (no paste-back needed) -->
+  <!-- ✅ Vault modal: user signs first (WC/Freighter/Secret), then paste into Vault + watch by hash -->
   <div id="vaultModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
     <div class="modal-inner">
       <div class="modal-header">
@@ -443,8 +443,15 @@
         <button class="x" id="closeVaultModal" aria-label="Close">×</button>
       </div>
 
-      <div class="small">
-        Your account requires an extra signature (Vault). Steps:
+      <div class="warnbox" style="margin-top:6px">
+        <b>Don’t close this modal yet</b>
+        <div class="small" style="margin-top:6px">
+          After submitting in Vault, come back here and wait until the transaction is <b>Confirmed</b>.
+        </div>
+      </div>
+
+      <div class="small" style="margin-top:10px">
+        Steps:
         <ol class="muted" style="margin:8px 0 0 18px">
           <li>Copy the XDR below into LOBSTR Vault and co-sign + submit it.</li>
           <li>Return here and click <b>I’ve signed in Vault — check status</b>.</li>
@@ -459,6 +466,7 @@
         </div>
       </div>
 
+      <!-- WC prompt used during FIRST signature (and also helpful if Vault submission triggers wallet attention) -->
       <div id="vaultWcPrompt" class="warnbox" style="display:none; margin-top:10px">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
           <b>Action required in LOBSTR</b>
@@ -468,15 +476,14 @@
           Please open LOBSTR to approve the signature request.
         </div>
         <div class="actions" style="margin-top:10px; justify-content:center">
-          <button id="vaultOpenLobstrBtn" class="primary">Sign in LOBSTR</button>
+          <button id="vaultOpenLobstrBtn" class="primary">Open LOBSTR</button>
         </div>
         <div id="vaultWcPromptHint" class="small muted" style="margin-top:6px; text-align:center"></div>
       </div>
 
       <div class="input">
-        <div class="small">Step 2: Sign & submit in LOBSTR Vault</div>
+        <div class="small">Step 2: After submitting in Vault</div>
         <div class="actions">
-          <button id="openVaultBtn">Open LOBSTR Vault</button>
           <button id="vaultWatchBtn" class="primary">I’ve signed in Vault — check status</button>
         </div>
         <div class="small muted" style="margin-top:8px">
@@ -502,6 +509,7 @@
 
     const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
 
+    // Fee: 0.15%
     const FEE_BPS_NUM = 15n;
     const FEE_BPS_DEN = 10000n;
 
@@ -517,6 +525,9 @@
 
     const MIN_NET = 10;
     const MIN_GROSS_DISPLAY = "10.015";
+
+    // ✅ set high fee for safety
+    const TX_FEE = "20000";
 
     // -----------------------
     // Imports
@@ -597,7 +608,7 @@
       return (num + (FEE_BPS_DEN - 1n)) / FEE_BPS_DEN;
     }
 
-    function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+    const sleep = (ms)=> new Promise(r=>setTimeout(r, ms));
 
     function txHashHexFromXdr(xdr){
       const tx = StellarSdk.TransactionBuilder.fromXDR(xdr, NETWORK_PASSPHRASE);
@@ -737,11 +748,10 @@
     const vaultXdrToVault = $("vaultXdrToVault");
     const copyVaultXdrBtn = $("copyVaultXdrBtn");
     const vaultStatus = $("vaultStatus");
-    const openVaultBtn = $("openVaultBtn");
     const vaultWatchBtn = $("vaultWatchBtn");
     const vaultHashOut = $("vaultHashOut");
 
-    // ✅ WalletConnect prompt inside Vault modal
+    // WC prompt in Vault modal (used while waiting for WC signature)
     const vaultWcPrompt = $("vaultWcPrompt");
     const vaultOpenLobstrBtn = $("vaultOpenLobstrBtn");
     const vaultWcPromptHint = $("vaultWcPromptHint");
@@ -822,6 +832,11 @@
         return null;
       }
     }
+    async function ensureFreighterApiSafe(){
+      const api = await ensureFreighterApi();
+      if(!api) throw new Error("Freighter extension not detected.");
+      return api;
+    }
 
     // -----------------------
     // Modals
@@ -860,9 +875,9 @@
       showVaultWcPrompt(false);
     }
 
-    $("connectBtn").onclick = openConnectModal;
-    $("closeModal").onclick = closeConnectModal;
-    $("closeVaultModal").onclick = closeVaultModalFn;
+    connectBtn.onclick = openConnectModal;
+    closeModal.onclick = closeConnectModal;
+    closeVaultModal.onclick = closeVaultModalFn;
 
     backdrop.addEventListener("click", ()=>{
       if(loginModal.classList.contains("open")) closeConnectModal();
@@ -972,13 +987,6 @@
     }
     if(vaultOpenLobstrBtn) vaultOpenLobstrBtn.onclick = openLobstrForSigning;
 
-    // Vault modal: Open Vault (best-effort)
-    openVaultBtn.onclick = ()=>{
-      // If we have a WC session, open LOBSTR to the session (it will still help users navigate).
-      if(latestWcUri) openLobstrApp(latestWcUri);
-      else window.open("https://lobstr.co/", "_blank", "noopener");
-    };
-
     // Vault modal: watch hash
     vaultWatchBtn.onclick = async ()=>{
       try{
@@ -988,7 +996,7 @@
         if(pendingVaultSubmitKind === "classic"){
           const j = await waitHorizonTx(pendingVaultHash);
           vaultStatus.innerHTML = `Confirmed ✓ tx: <span class="mono">${j.hash}</span>`;
-          toast({type:"ok", title:"Confirmed", message:"Fee transaction confirmed on-chain.", timeout:3400});
+          toast({type:"ok", title:"Confirmed", message:"Transaction confirmed on-chain.", timeout:3400});
         } else {
           const res = await waitSorobanTx(pendingVaultHash);
           vaultStatus.innerHTML = `Confirmed ✓ hash: <span class="mono">${res.hash}</span>`;
@@ -1042,17 +1050,17 @@
         latestWcUri = uri;
 
         const QR = await ensureQrLib();
-        await QR.toCanvas($("qrCanvas"), uri, { width:256, margin:1 });
+        await QR.toCanvas(qrCanvas, uri, { width:256, margin:1 });
 
-        $("qrArea").style.display = "flex";
-        $("rawWcLink").href = uri;
+        qrArea.style.display = "flex";
+        rawWcLink.href = uri;
 
-        $("linkStatus").textContent = "Loading Freighter deep link…";
+        linkStatus.textContent = "Loading Freighter deep link…";
         const freighterLinks = await getFreighterLinks();
-        $("linkStatus").textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
+        linkStatus.textContent = freighterLinks.found ? "" : "Freighter link not found — store fallback.";
 
-        $("btnLobstr").onclick = ()=> openLobstrApp(latestWcUri);
-        $("btnFreighter").onclick = async ()=>{
+        btnLobstr.onclick = ()=> openLobstrApp(latestWcUri);
+        btnFreighter.onclick = async ()=>{
           const links = await getFreighterLinks();
           openFreighterSmart(links, latestWcUri);
         };
@@ -1066,7 +1074,7 @@
 
         wcClient = sc;
         secret = null;
-        $("qrArea").style.display="none";
+        qrArea.style.display="none";
         closeConnectModal();
         setConnected(address, "wc");
         toast({type:"ok", title:"Connected", message:"WalletConnect connected."});
@@ -1076,7 +1084,7 @@
       }
     };
 
-    $("disconnectBtn").onclick = async ()=>{
+    disconnectBtn.onclick = async ()=>{
       try{
         if(mode==="wc" && wcClient && wcSession){
           await wcClient.disconnect({ topic: wcSession.topic, reason:{ code:6000, message:"User disconnected" }});
@@ -1089,7 +1097,7 @@
       toast({type:"ok", title:"Done", message:"Disconnected."});
     };
 
-    $("usePubkeyBtn").onclick = ()=>{
+    usePubkeyBtn.onclick = ()=>{
       const pk = pubkeyEl.value.trim();
       if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)){
         toast({type:"err", title:"Error", message:"Invalid public key."}); return;
@@ -1099,7 +1107,7 @@
       toast({type:"ok", title:"Done", message:"Pubkey set (read-only)."});
     };
 
-    $("useSecretBtn").onclick = ()=>{
+    useSecretBtn.onclick = ()=>{
       const sk = seckeyEl.value.trim();
       if(!StellarSdk.StrKey.isValidEd25519SecretSeed(sk)){
         toast({type:"err", title:"Error", message:"Invalid secret key."}); return;
@@ -1110,7 +1118,7 @@
       toast({type:"ok", title:"Done", message:"Secret key set (local signing)."});
     };
 
-    $("openExplorerBtn").onclick = ()=>{
+    openExplorerBtn.onclick = ()=>{
       const pk = pubkeyEl.value.trim();
       if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)) return;
       window.open(`https://stellar.expert/explorer/public/account/${pk}`, "_blank", "noopener,noreferrer");
@@ -1129,12 +1137,6 @@
       const j = await getAccountJson(pk);
       const bal = (j.balances || []).find(b => b.asset_code===BUSDC_CODE && b.asset_issuer===BUSDC_ISSUER);
       return !!bal;
-    }
-
-    async function ensureFreighterApiSafe(){
-      const api = await ensureFreighterApi();
-      if(!api) throw new Error("Freighter extension not detected.");
-      return api;
     }
 
     async function signXdr(xdr){
@@ -1161,6 +1163,17 @@
         return r.signedXDR;
       }
       throw new Error("Unsupported signing mode.");
+    }
+
+    // Helper: show WC prompt while we wait for signature
+    async function signXdrWithWcPrompt(xdr, { hint="If nothing pops up, tap “Open LOBSTR” again." } = {}){
+      const shouldPrompt = (mode === "wc");
+      if(shouldPrompt) showVaultWcPrompt(true, hint);
+      try{
+        return await signXdr(xdr);
+      } finally {
+        if(shouldPrompt) showVaultWcPrompt(false);
+      }
     }
 
     async function submitClassicTxXdrToHorizon(signedXdr){
@@ -1191,7 +1204,7 @@
 
       let res = await rawRpc("getTransaction", { hash: send.hash });
       for(let i=0; i<25 && res.status==="NOT_FOUND"; i++){
-        await new Promise(r=>setTimeout(r, 900));
+        await sleep(900);
         res = await rawRpc("getTransaction", { hash: send.hash });
       }
       if(res.status !== "SUCCESS") throw new Error(`Tx status: ${res.status}`);
@@ -1210,7 +1223,7 @@
       });
 
       const tx = new StellarSdk.TransactionBuilder(acc, {
-        fee: (await srv.fetchBaseFee()).toString(),
+        fee: TX_FEE,
         networkPassphrase: NETWORK_PASSPHRASE
       })
         .addOperation(op)
@@ -1230,7 +1243,7 @@
       balStatus.textContent = "Creating bUSDC trustline…";
 
       const xdr = await buildChangeTrustXdr(null);
-      const signed = await signXdr(xdr);
+      const signed = await signXdrWithWcPrompt(xdr);
       const res = await submitClassicTxXdrToHorizon(signed);
 
       balStatus.textContent = `Trustline added ✓ tx: ${res.hash}`;
@@ -1239,7 +1252,7 @@
       return true;
     }
 
-    $("addTrustBtn").onclick = async ()=>{
+    addTrustBtn.onclick = async ()=>{
       try{
         if(!pubkey){ openConnectModal(); return; }
         if(mode==="pubkey" || mode==="none") throw new Error("Read-only. Connect a wallet or use secret key.");
@@ -1260,10 +1273,10 @@
     async function refreshBalance(){
       const pk = pubkeyEl.value.trim();
       if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk)){
-        $("usdcAvailOut").textContent = "—";
-        $("busdcAvailOut").textContent = "—";
-        $("usdcAvailInline").textContent = "—";
-        $("busdcAvailInline").textContent = "—";
+        usdcAvailOut.textContent = "—";
+        busdcAvailOut.textContent = "—";
+        usdcAvailInline.textContent = "—";
+        busdcAvailInline.textContent = "—";
         availableUSDCScaled = null;
         availableBUSDCScaled = null;
         return;
@@ -1281,12 +1294,12 @@
           const avail = bal > liab ? (bal - liab) : 0n;
           availableUSDCScaled = avail;
           const s = fmtScaledBigint(avail);
-          $("usdcAvailOut").textContent = s;
-          $("usdcAvailInline").textContent = s;
+          usdcAvailOut.textContent = s;
+          usdcAvailInline.textContent = s;
         } else {
           availableUSDCScaled = 0n;
-          $("usdcAvailOut").textContent = "NO TRUSTLINE";
-          $("usdcAvailInline").textContent = "NO TRUSTLINE";
+          usdcAvailOut.textContent = "NO TRUSTLINE";
+          usdcAvailInline.textContent = "NO TRUSTLINE";
         }
 
         if(busdc){
@@ -1295,12 +1308,12 @@
           const avail = bal > liab ? (bal - liab) : 0n;
           availableBUSDCScaled = avail;
           const s = fmtScaledBigint(avail);
-          $("busdcAvailOut").textContent = s;
-          $("busdcAvailInline").textContent = s;
+          busdcAvailOut.textContent = s;
+          busdcAvailInline.textContent = s;
         } else {
           availableBUSDCScaled = 0n;
-          $("busdcAvailOut").textContent = "NO TRUSTLINE";
-          $("busdcAvailInline").textContent = "NO TRUSTLINE";
+          busdcAvailOut.textContent = "NO TRUSTLINE";
+          busdcAvailInline.textContent = "NO TRUSTLINE";
         }
 
         balStatus.textContent = "";
@@ -1310,16 +1323,16 @@
         balStatus.textContent = "Could not load balances.";
       }
     }
-    $("refreshBalBtn").onclick = refreshBalance;
+    refreshBalBtn.onclick = refreshBalance;
 
-    $("usdcAvailInline").onclick = ()=>{
+    usdcAvailInline.onclick = ()=>{
       if(typeof availableUSDCScaled !== "bigint") return;
       depositAmt.value = fmtScaledBigint(availableUSDCScaled);
       updateFeeBoxes();
       resetAction("deposit");
       toast({type:"ok", title:"Filled", message:"Deposit amount set to your available USDC."});
     };
-    $("busdcAvailInline").onclick = ()=>{
+    busdcAvailInline.onclick = ()=>{
       if(typeof availableBUSDCScaled !== "bigint") return;
       redeemAmt.value = fmtScaledBigint(availableBUSDCScaled);
       updateFeeBoxes();
@@ -1341,7 +1354,7 @@
     async function simulate(method, argsScv=[]){
       const server = makeSorobanServer(SOROBAN_RPC);
       const acc = await server.getAccount("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
-      const tx = new StellarSdk.TransactionBuilder(acc, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE })
+      const tx = new StellarSdk.TransactionBuilder(acc, { fee: TX_FEE, networkPassphrase: NETWORK_PASSPHRASE })
         .addOperation(contract.call(method, ...argsScv))
         .setTimeout(60)
         .build();
@@ -1456,10 +1469,9 @@
     async function buildFeePaymentXdr({ asset, amountScaled }){
       const srv = makeHorizonServer(HORIZON);
       const acc = await srv.loadAccount(pubkey);
-      const feeBase = await srv.fetchBaseFee();
 
       const tx = new StellarSdk.TransactionBuilder(acc, {
-        fee: String(feeBase),
+        fee: TX_FEE,
         networkPassphrase: NETWORK_PASSPHRASE
       })
         .addOperation(StellarSdk.Operation.payment({
@@ -1481,7 +1493,7 @@
       const netScv  = StellarSdk.nativeToScVal(netScaled, { type: "i128" });
 
       const tx = new StellarSdk.TransactionBuilder(acc, {
-        fee: "10000",
+        fee: TX_FEE,
         networkPassphrase: NETWORK_PASSPHRASE
       })
         .addOperation(contract.call(method, netScv, addrScv, addrScv, addrScv))
@@ -1543,7 +1555,7 @@
         actionState[which].feeBig = feeBig;
         actionState[which].netBig = netBig;
 
-        // ✅ FIXED: correct fee asset selection
+        // ✅ fee asset selection is correct
         const feeAsset = (which==="deposit" ? USDC_ASSET : BUSDC_ASSET);
         actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
 
@@ -1567,6 +1579,22 @@
     }
 
     // -----------------------
+    // Vault handoff: SIGN FIRST, then paste into Vault + watch by hash
+    // -----------------------
+    async function openVaultFlow({ unsignedXdr, kind, afterCb, statusEl }){
+      // 1) get user's signature first
+      statusEl.textContent = "Signing (your signature)…";
+      const signedOnce = await signXdrWithWcPrompt(unsignedXdr, { hint:"Approve in LOBSTR, then come back here." });
+
+      // 2) open modal with the now-partially-signed XDR (ready for Vault)
+      statusEl.textContent = "Open Vault to co-sign + submit…";
+      openVaultModal(signedOnce, kind, afterCb);
+
+      // Optional: auto-start by checking soon (user still needs to submit first)
+      vaultStatus.textContent = "Waiting for you to submit in Vault…";
+    }
+
+    // -----------------------
     // Pay fee (classic)
     // -----------------------
     async function payFee(which, statusEl){
@@ -1575,22 +1603,26 @@
         if(!feeAck.checked) throw new Error("Tick the non-refundable fee acknowledgement first.");
         if(!actionState[which].preflightOk || !actionState[which].feeXdr) throw new Error("Run Preflight first.");
 
-        const feeXdr = actionState[which].feeXdr;
+        const feeXdrUnsigned = actionState[which].feeXdr;
 
         if(await hasVault(pubkey)){
-          statusEl.textContent = "Fee tx requires Vault co-sign — open Vault modal…";
-          openVaultModal(feeXdr, "classic", ()=>{
-            actionState[which].feePaid = true;
-            syncActionButtons();
-            statusEl.textContent = `Fee paid ✓ Now execute ${which}.`;
-            actionState[which].invokeXdr = null; // stale after fee (sequence bumps)
-            refreshBalance().catch(()=>{});
+          await openVaultFlow({
+            unsignedXdr: feeXdrUnsigned,
+            kind: "classic",
+            statusEl,
+            afterCb: ()=>{
+              actionState[which].feePaid = true;
+              syncActionButtons();
+              statusEl.textContent = `Fee confirmed ✓ Now execute ${which}.`;
+              actionState[which].invokeXdr = null; // stale after fee (sequence bumps)
+              refreshBalance().catch(()=>{});
+            }
           });
           return;
         }
 
         statusEl.textContent = "Signing fee tx…";
-        const signed = await signXdr(feeXdr);
+        const signed = await signXdrWithWcPrompt(feeXdrUnsigned);
         statusEl.textContent = "Submitting fee tx…";
         const res = await submitClassicTxXdrToHorizon(signed);
 
@@ -1621,29 +1653,33 @@
         const method = which==="deposit" ? "deposit" : "redeem";
 
         statusEl.textContent = "Rebuilding Soroban tx (fresh sequence)…";
-        const freshInvokeXdr = await buildAssembledInvokeXdr({
+        const freshInvokeXdrUnsigned = await buildAssembledInvokeXdr({
           method,
           netScaled: actionState[which].netBig
         });
 
-        actionState[which].invokeXdr = freshInvokeXdr;
-        if(which==="deposit") depositXdr.value = freshInvokeXdr;
-        else redeemXdr.value = freshInvokeXdr;
+        actionState[which].invokeXdr = freshInvokeXdrUnsigned;
+        if(which==="deposit") depositXdr.value = freshInvokeXdrUnsigned;
+        else redeemXdr.value = freshInvokeXdrUnsigned;
 
         if(await hasVault(pubkey)){
-          statusEl.textContent = "Invoke tx requires Vault co-sign — open Vault modal…";
-          openVaultModal(freshInvokeXdr, "soroban", ()=>{
-            clearActionUI(which);
-            resetAction(which);
-            statusEl.textContent = `${which==="deposit"?"Deposit":"Withdraw"} submitted ✓`;
-            refreshState().catch(()=>{});
-            refreshBalance().catch(()=>{});
+          await openVaultFlow({
+            unsignedXdr: freshInvokeXdrUnsigned,
+            kind: "soroban",
+            statusEl,
+            afterCb: ()=>{
+              clearActionUI(which);
+              resetAction(which);
+              statusEl.textContent = `${which==="deposit"?"Deposit":"Withdraw"} confirmed ✓`;
+              refreshState().catch(()=>{});
+              refreshBalance().catch(()=>{});
+            }
           });
           return;
         }
 
         statusEl.textContent = "Signing invoke tx…";
-        const signed = await signXdr(freshInvokeXdr);
+        const signed = await signXdrWithWcPrompt(freshInvokeXdrUnsigned);
 
         statusEl.textContent = "Submitting invoke tx…";
         const res = await submitSorobanSignedXdr(signed);
@@ -1666,21 +1702,21 @@
     // -----------------------
     // Wire buttons
     // -----------------------
-    $("depPreflightBtn").onclick = ()=> preflight("deposit", $("depositAmt"), $("depositStatus"));
-    $("depPayFeeBtn").onclick    = ()=> payFee("deposit", $("depositStatus"));
-    $("depExecuteBtn").onclick   = ()=> executeInvoke("deposit", $("depositStatus"));
+    depPreflightBtn.onclick = ()=> preflight("deposit", depositAmt, depositStatus);
+    depPayFeeBtn.onclick    = ()=> payFee("deposit", depositStatus);
+    depExecuteBtn.onclick   = ()=> executeInvoke("deposit", depositStatus);
 
-    $("wdPreflightBtn").onclick  = ()=> preflight("redeem", $("redeemAmt"), $("redeemStatus"));
-    $("wdPayFeeBtn").onclick     = ()=> payFee("redeem", $("redeemStatus"));
-    $("wdExecuteBtn").onclick    = ()=> executeInvoke("redeem", $("redeemStatus"));
+    wdPreflightBtn.onclick  = ()=> preflight("redeem", redeemAmt, redeemStatus);
+    wdPayFeeBtn.onclick     = ()=> payFee("redeem", redeemStatus);
+    wdExecuteBtn.onclick    = ()=> executeInvoke("redeem", redeemStatus);
 
-    $("depositXdrToggle").onclick = ()=> toggleTextarea($("depositXdr"), $("depositXdrToggle"));
-    $("redeemXdrToggle").onclick  = ()=> toggleTextarea($("redeemXdr"), $("redeemXdrToggle"));
+    depositXdrToggle.onclick = ()=> toggleTextarea(depositXdr, depositXdrToggle);
+    redeemXdrToggle.onclick  = ()=> toggleTextarea(redeemXdr, redeemXdrToggle);
 
-    $("toggleLogsBtn").onclick = ()=>{
+    toggleLogsBtn.onclick = ()=>{
       const hidden = logsEl.style.display === "none" || !logsEl.style.display;
       logsEl.style.display = hidden ? "block" : "none";
-      $("toggleLogsBtn").textContent = hidden ? "Hide logs" : "Show logs";
+      toggleLogsBtn.textContent = hidden ? "Hide logs" : "Show logs";
     };
 
     // Init
