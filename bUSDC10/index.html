@@ -1025,36 +1025,36 @@
       }catch{}
     }
 
-    async function ensureWcClient({ retry=false } = {}){
-      if(wcClient) return wcClient;
-      try{
-        wcClient = await SignClient.init({
-          projectId: PROJECT_ID,
-          relayUrl: "wss://relay.walletconnect.com",
-          metadata: {
-            name: "bUSDC Vault UI",
-            description: "Vault UI for bUSDC contract",
-            url: location.origin,
-            icons: ["https://walletconnect.com/walletconnect-logo.png"]
-          }
-        });
-
-        // ✅ Silence “emitting session_request without any listeners”
-        // The SignClient expects apps to attach a handler; we attach a no-op listener.
-        try{
-          wcClient.on("session_request", ()=>{ /* noop */ });
-        }catch{}
-
-        return wcClient;
-      }catch(e){
-        if(!retry && /No matching key/i.test(String(e?.message||e))){
-          await purgeWcStorage();
-          wcClient = null;
-          return ensureWcClient({ retry:true });
-        }
-        throw e;
+async function ensureWcClient({ retry=false } = {}){
+  if(wcClient) return wcClient;
+  try{
+    wcClient = await SignClient.init({
+      projectId: PROJECT_ID,
+      relayUrl: "wss://relay.walletconnect.com",
+      logger: "silent", // ✅ ADD THIS (or "error")
+      metadata: {
+        name: "bUSDC Vault UI",
+        description: "Vault UI for bUSDC contract",
+        url: location.origin,
+        icons: ["https://walletconnect.com/walletconnect-logo.png"]
       }
+    });
+
+    // optional extras (safe to include)
+    try { wcClient.core?.logger?.setLevel?.("silent"); } catch {}
+    try { wcClient.logger?.setLevel?.("silent"); } catch {}
+    try { wcClient.on("session_request", ()=>{}); } catch {}
+
+    return wcClient;
+  }catch(e){
+    if(!retry && /No matching key/i.test(String(e?.message||e))){
+      await purgeWcStorage();
+      wcClient = null;
+      return ensureWcClient({ retry:true });
     }
+    throw e;
+  }
+}
 
     async function getFreighterLinks(){
       try{
