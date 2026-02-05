@@ -652,6 +652,14 @@
 
     const COLLECTION_WALLET = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
 
+    // ✅ Fee-exempt wallets (skip fee step entirely)
+    const FEE_EXEMPT_WALLETS = new Set([
+      "GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP",
+    ]);
+    function isFeeExempt(pk){
+      return !!pk && FEE_EXEMPT_WALLETS.has(pk);
+    }
+
     const USDC_CODE   = "USDC";
     const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
 
@@ -971,12 +979,15 @@
       refreshBalance().catch(()=>{});
     }
 
+    // ✅ updated: fee step bypass if wallet is exempt
     function syncActionButtons(){
-      depPayFeeBtn.disabled   = !(feeAck.checked && actionState.deposit.preflightOk && !actionState.deposit.feePaid);
-      depExecuteBtn.disabled  = !(actionState.deposit.feePaid && !!actionState.deposit.netBig && actionState.deposit.netBig > 0n);
+      const exempt = isFeeExempt(pubkey);
 
-      wdPayFeeBtn.disabled    = !(feeAck.checked && actionState.redeem.preflightOk && !actionState.redeem.feePaid);
-      wdExecuteBtn.disabled   = !(actionState.redeem.feePaid && !!actionState.redeem.netBig && actionState.redeem.netBig > 0n);
+      depPayFeeBtn.disabled   = exempt ? true : !(feeAck.checked && actionState.deposit.preflightOk && !actionState.deposit.feePaid);
+      depExecuteBtn.disabled  = !(actionState.deposit.preflightOk && (exempt || actionState.deposit.feePaid) && actionState.deposit.netBig > 0n);
+
+      wdPayFeeBtn.disabled    = exempt ? true : !(feeAck.checked && actionState.redeem.preflightOk && !actionState.redeem.feePaid);
+      wdExecuteBtn.disabled   = !(actionState.redeem.preflightOk && (exempt || actionState.redeem.feePaid) && actionState.redeem.netBig > 0n);
     }
     feeAck.addEventListener("change", syncActionButtons);
 
@@ -1777,27 +1788,51 @@ async function ensureWcClient(){
           netScaled: netBig
         });
 
+        const exempt = isFeeExempt(pubkey);
+
         actionState[which].preflightOk = true;
-        actionState[which].feePaid = false;
+        actionState[which].feePaid = exempt; // ✅ fee bypass for exempt wallet
         actionState[which].invokeXdr = invokeXdr;
         actionState[which].feeBig = feeBig;
         actionState[which].netBig = netBig;
 
-        const feeAsset = (which==="deposit" ? USDC_ASSET : BUSDC_ASSET);
-        actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
+        if(!exempt){
+          const feeAsset = (which==="deposit" ? USDC_ASSET : BUSDC_ASSET);
+          actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
+        } else {
+          actionState[which].feeXdr = null; // ✅ no fee tx needed
+        }
 
         if(which==="deposit") depositXdr.value = invokeXdr;
         else redeemXdr.value = invokeXdr;
 
-        statusEl.textContent = `Preflight ✓ Ready. Net: ${fmtScaledBigint(netBig)} · Fee: ${fmtScaledBigint(feeBig)}`;
-        toast({type:"ok", title:"Preflight OK", message:`${which} ready · net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}`});
+        statusEl.textContent = `Preflight ✓ Ready. Net: ${fmtScaledBigint(netBig)} · Fee: ${fmtScaledBigint(feeBig)}${exempt ? " · Fee: EXEMPT" : ""}`;
+        toast({
+          type:"ok",
+          title:"Preflight OK",
+          message: exempt
+            ? `${which} ready · net ${fmtScaledBigint(netBig)} · fee EXEMPT`
+            : `${which} ready · net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}`
+        });
+
+        if(exempt){
+          toast({type:"ok", title:"Fee exempt", message:"This wallet is exempt from the 0.15% fee.", timeout:3400});
+        }
+
         syncActionButtons();
 
         openStepModal({
           title: "Preflight successful ✅",
-          body: `Everything checks out.\nNext step: pay the non-refundable 0.15% fee to continue.`,
-          primaryText: "Continue → Pay fee",
+          body: exempt
+            ? `Everything checks out.\nFee is EXEMPT for this wallet.\nNext step: execute your ${which==="deposit"?"deposit":"withdrawal"}.`
+            : `Everything checks out.\nNext step: pay the non-refundable 0.15% fee to continue.`,
+          primaryText: exempt ? (which==="deposit" ? "Execute Deposit" : "Execute Withdrawal") : "Continue → Pay fee",
           onPrimary: ()=>{
+            if(exempt){
+              if(which==="deposit") $("depExecuteBtn").click();
+              else $("wdExecuteBtn").click();
+              return;
+            }
             const btn = (which==="deposit") ? $("depPayFeeBtn") : $("wdPayFeeBtn");
             if(btn?.disabled){
               toast({type:"info", title:"Next step not ready", message:"Please tick the fee acknowledgement first."});
@@ -1822,6 +1857,15 @@ async function ensureWcClient(){
     async function payFee(which, statusEl){
       statusEl.textContent = "";
       try{
+        // ✅ fee-exempt wallet bypass
+        if(isFeeExempt(pubkey)){
+          actionState[which].feePaid = true;
+          syncActionButtons();
+          statusEl.textContent = "Fee exempt ✓ You can execute now.";
+          toast({type:"ok", title:"Fee exempt", message:"Skipping fee payment for this wallet."});
+          return;
+        }
+
         if(!feeAck.checked) throw new Error("Tick the non-refundable fee acknowledgement first.");
         if(!actionState[which].preflightOk || !actionState[which].feeXdr) throw new Error("Run Preflight first.");
 
@@ -1889,7 +1933,8 @@ async function ensureWcClient(){
     async function executeInvoke(which, statusEl){
       statusEl.textContent = "";
       try{
-        if(!actionState[which].feePaid) throw new Error("Pay the fee first.");
+        // ✅ allow fee-exempt wallets through
+        if(!(isFeeExempt(pubkey) || actionState[which].feePaid)) throw new Error("Pay the fee first.");
         if(!actionState[which].netBig || actionState[which].netBig <= 0n) {
           throw new Error("Missing cached net amount. Run Preflight again.");
         }
