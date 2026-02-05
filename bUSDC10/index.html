@@ -257,8 +257,6 @@
       align-items:center;
       margin:10px 0 6px;
     }
-    
-    /* container is just a wrapper */
     .vault-logo .inner{
       display:flex;
       justify-content:center;
@@ -266,11 +264,9 @@
       opacity:.98;
       filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
     }
-    
-    /* THIS is the important bit: force the SVG to the size you want */
     .vault-logo svg{
-      width: 80px;      /* ~¼ size feel */
-      max-width: 40vw;   /* responsive on mobile */
+      width: 80px;
+      max-width: 40vw;
       height: auto;
       display:block;
     }
@@ -646,9 +642,7 @@
 
     const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
 
-    // ✅ Set this to the endpoint you already tested (HTTP 201 OK)
-    // It must accept JSON { xdr: "<base64-xdr>", network_passphrase: "<passphrase>" }
-    // and return JSON with { xdr, network_passphrase, hash }.
+    // ✅ Endpoint must accept JSON { xdr, network_passphrase } and return JSON with { xdr, network_passphrase, hash }.
     const LOBSTR_VAULT_CREATE_URL = "https://vault.lobstr.co/api/transactions/";
 
     // Fee: 0.15%
@@ -820,14 +814,15 @@
 
     let wcListenersAttached = false;
 
+    // ✅ init lock to prevent duplicate/parallel init() calls
+    let wcInitPromise = null;
+
     function attachWcListeners(client){
       if(!client || wcListenersAttached) return;
       wcListenersAttached = true;
-    
-      // This silences the error you saw
-      client.on("session_request", (_event)=>{ /* intentionally no-op */ });
-    
-      // Optional: silence other noisy events (safe no-ops)
+
+      // No-op listeners to avoid "emitting ... without any listeners"
+      client.on("session_request", (_event)=>{ /* no-op */ });
       client.on("session_event", (_event)=>{});
       client.on("session_update", (_event)=>{});
       client.on("session_delete", (_event)=>{});
@@ -1078,7 +1073,6 @@
         })
       });
 
-      // Your test said "HTTP 201 (OK)" so treat any 2xx as success.
       if(!r.ok){
         const txt = await r.text().catch(()=> "");
         throw new Error(`Vault POST failed (${r.status}). ${txt}`);
@@ -1178,7 +1172,6 @@
 
       pendingVaultHash = hash || null;
 
-      // XDR hidden by default
       vaultXdrToVault.value = xdrForOptionalReveal || "";
       vaultXdrToVault.style.display = "none";
       toggleVaultXdrBtn.textContent = "Show XDR";
@@ -1196,11 +1189,10 @@
     }
 
     async function openVaultModalWithPush(signedXdr, kind, afterCb){
-      // Show modal immediately with "sending" state, then update once POST succeeds
       openVaultModalCore({
         kind,
         afterCb,
-        hash: txHashHexFromXdr(signedXdr), // fallback
+        hash: txHashHexFromXdr(signedXdr),
         xdrForOptionalReveal: signedXdr,
         sentMsg: "Sending transaction to LOBSTR Vault…"
       });
@@ -1208,12 +1200,8 @@
       try{
         const created = await pushToLobstrVault({ signedXdr });
         pendingVaultHash = created.hash;
-
-        // Update UI line + keep XDR optional
         vaultSentLine.textContent = "Sent to LOBSTR Vault ✓ Now open Vault to sign & submit.";
-        // leave auto-check running (it will now check using pendingVaultHash)
       }catch(e){
-        // If POST fails, we fall back to manual flow (XDR toggle + copy)
         vaultSentLine.textContent = "Could not auto-send to Vault. Use Show XDR → copy/paste into Vault manually.";
         toast({type:"err", title:"Vault POST failed", message: e?.message || String(e), timeout:4500});
       }
@@ -1258,45 +1246,69 @@
       setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
     }
 
+    // ✅ stronger purge (localStorage + IndexedDB where possible)
     async function purgeWcStorage(){
       try{
-        Object.keys(localStorage).forEach(k=>{
-          if(k.startsWith("wc@2")) localStorage.removeItem(k);
-        });
+        for(const k of Object.keys(localStorage)){
+          if(k.startsWith("wc@") || k.includes("walletconnect") || k.includes("WALLETCONNECT")){
+            localStorage.removeItem(k);
+          }
+        }
+      }catch{}
+
+      // IndexedDB (WalletConnect Core)
+      try{
+        if(indexedDB?.databases){
+          const dbs = await indexedDB.databases();
+          for(const db of dbs){
+            const name = db?.name || "";
+            if(name.includes("wc") || name.includes("walletconnect") || name.includes("WALLETCONNECT")){
+              indexedDB.deleteDatabase(name);
+            }
+          }
+        }
       }catch{}
     }
 
     async function ensureWcClient({ retry=false } = {}){
       if(wcClient){
-        // ✅ ensure listeners exist even for already-created client
         attachWcListeners(wcClient);
         return wcClient;
       }
-      try{
-        wcClient = await SignClient.init({
-          projectId: PROJECT_ID,
-          relayUrl: "wss://relay.walletconnect.com",
-          metadata: {
-            name: "bUSDC Vault UI",
-            description: "Vault UI for bUSDC contract",
-            url: location.origin,
-            icons: ["https://walletconnect.com/walletconnect-logo.png"]
+
+      // ✅ init lock to prevent duplicates / races
+      if(wcInitPromise) return await wcInitPromise;
+
+      wcInitPromise = (async ()=>{
+        try{
+          wcClient = await SignClient.init({
+            projectId: PROJECT_ID,
+            relayUrl: "wss://relay.walletconnect.com",
+            metadata: {
+              name: "bUSDC Vault UI",
+              description: "Vault UI for bUSDC contract",
+              url: location.origin,
+              icons: ["https://walletconnect.com/walletconnect-logo.png"]
+            }
+          });
+
+          attachWcListeners(wcClient);
+          return wcClient;
+
+        }catch(e){
+          if(!retry && /No matching key/i.test(String(e?.message||e))){
+            await purgeWcStorage();
+            wcClient = null;
+            wcListenersAttached = false;
+            return await ensureWcClient({ retry:true });
           }
-        });
-    
-        // ✅ attach once
-        attachWcListeners(wcClient);
-        return wcClient;
-    
-      }catch(e){
-        if(!retry && /No matching key/i.test(String(e?.message||e))){
-          await purgeWcStorage();
-          wcClient = null;
-          wcListenersAttached = false; // ✅ reset the flag too
-          return ensureWcClient({ retry:true });
+          throw e;
+        } finally {
+          wcInitPromise = null;
         }
-        throw e;
-      }
+      })();
+
+      return await wcInitPromise;
     }
 
     async function getFreighterLinks(){
@@ -2012,15 +2024,19 @@
       }
     };
 
+    // ✅ disable button during connect to prevent double clicks + races
     wcBtn.onclick = async ()=>{
+      wcBtn.disabled = true;
       try{
         const sc = await ensureWcClient();
         attachWcListeners(sc);
+
         const { uri, approval } = await sc.connect({
           optionalNamespaces: {
             stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
           }
         });
+
         if(!uri) throw new Error("No WalletConnect URI");
         latestWcUri = uri;
 
@@ -2056,6 +2072,8 @@
       }catch(e){
         console.error(e);
         toast({type:"err", title:"Error", message:String(e?.message || "WalletConnect canceled/failed.")});
+      } finally {
+        wcBtn.disabled = false;
       }
     };
 
