@@ -1304,11 +1304,11 @@
     // ✅ init lock
     
     async function ensureWcClient(){
-      if(wcClient) return wcClient;
-      if(wcInitPromise) return await wcInitPromise;
+      if (wcClient) return wcClient;
+      if (wcInitPromise) return await wcInitPromise;
     
       wcInitPromise = (async ()=>{
-        // 🔥 MUST purge BEFORE init to avoid session_request:<id> emits during init
+        // 🔥 must purge BEFORE init
         await purgeWcStorageHard();
     
         const sc = await SignClient.init({
@@ -1322,7 +1322,7 @@
           }
         });
     
-        // attach listeners immediately after init (this is now safe because storage is clean)
+        // silence init-time emits
         sc.on("session_request", ()=>{});
         sc.on("session_event", ()=>{});
         sc.on("session_update", ()=>{});
@@ -1332,8 +1332,11 @@
         return sc;
       })();
     
-      try { return await wcInitPromise; }
-      finally { wcInitPromise = null; }
+      try {
+        return await wcInitPromise;
+      } finally {
+        wcInitPromise = null;
+      }
     }
     
     // ✅ Also purge once at startup to prevent init-time pending emits from earlier sessions
