@@ -170,13 +170,8 @@
       margin-top:10px;
       border-top:1px solid rgba(255,255,255,.08);
       padding-top:10px;
-      padding-bottom: env(safe-area-inset-bottom); /* ✅ iOS bottom bar */
+      padding-bottom: env(safe-area-inset-bottom);
     }
-
-    #vaultHashOut{
-  word-break: break-all;
-  overflow-wrap: anywhere;
-}
 
     .modal-header{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px}
     .modal-header h3{margin:0; font-size:16px}
@@ -245,6 +240,7 @@
     }
     .stepPill.ok{color:var(--ok); border-color: rgba(52,211,153,.25)}
     .stepPill.warn{color:var(--warn); border-color: rgba(251,191,36,.25)}
+    .stepPill.bad{color:var(--bad); border-color: rgba(251,113,133,.25)}
 
     .modal-actions-center{
       display:flex;
@@ -254,6 +250,18 @@
       margin-top:12px;
     }
     .modal-actions-center button{ min-width: 220px; }
+
+    .vault-logo{
+      display:flex;
+      justify-content:center;
+      margin:10px 0 6px;
+    }
+    .vault-logo .inner{
+      width:140px;
+      max-width:60%;
+      opacity:.98;
+      filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
+    }
   </style>
 </head>
 <body>
@@ -468,7 +476,7 @@
     </div>
   </div>
 
-  <!-- WC signing prompt modal (shown BEFORE Vault modal for WC) -->
+  <!-- WC signing prompt modal -->
   <div id="wcSignModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="wcSignTitle">
     <div class="modal-inner tiny">
       <div class="modal-header">
@@ -492,7 +500,7 @@
     </div>
   </div>
 
-  <!-- Step modal (Preflight -> Pay fee, Fee -> Execute, Success) -->
+  <!-- Step modal -->
   <div id="stepModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="stepTitle">
     <div class="modal-inner tiny">
       <div class="modal-header">
@@ -509,7 +517,7 @@
     </div>
   </div>
 
-  <!-- Vault modal (watch by hash) -->
+  <!-- Vault modal -->
   <div id="vaultModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
     <div class="modal-inner vault">
       <div class="modal-header">
@@ -518,6 +526,56 @@
       </div>
 
       <div class="vault-body">
+        <div class="vault-logo">
+          <div class="inner" aria-hidden="true">
+            <!-- LOBSTR Vault SVG -->
+            <svg width="244" height="244" viewBox="0 0 244 244" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="3" width="238" height="238" rx="58" fill="url(#paint0_linear_2740_9594)" stroke="#411286" stroke-width="6"/>
+              <path d="M151.209 108.487C153.908 71.0573 144.152 52.3425 121.941 52.3425C99.7304 52.3425 89.9744 71.0573 92.6733 108.487H76.6456C72.4688 60.1623 87.5673 36 121.941 36C156.315 36 171.414 60.1623 167.237 108.487H151.209Z" fill="url(#paint1_linear_2740_9594)"/>
+              <path d="M121.941 89.7803L181.402 103.237C182.043 128.08 182.043 144.999 181.402 153.994C180.299 169.475 174.492 175.712 168.158 182.304C159.862 190.938 144.457 199.652 121.941 208.448C99.4264 199.652 84.0208 190.938 75.7248 182.304C69.3905 175.712 63.584 169.475 62.4808 153.994C61.8397 144.999 61.8397 128.08 62.4808 103.237L121.941 89.7803Z" fill="url(#paint2_linear_2740_9594)" fill-opacity="0.31"/>
+              <path d="M151.039 84.5192C150.667 62.6952 140.947 51.7832 121.88 51.7832C102.813 51.7832 93.1342 62.6952 92.8438 84.5192C96.1 65.1275 105.779 55.4317 121.88 55.4317C137.981 55.4317 147.701 65.1275 151.039 84.5192Z" fill="url(#paint3_linear_2740_9594)"/>
+              <path d="M121.941 89.7803L181.402 102.575C182.043 126.193 182.043 142.279 181.402 150.831C180.299 165.55 174.492 171.479 168.158 177.746C159.862 185.954 144.457 194.24 121.941 202.603C99.4264 194.24 84.0208 185.954 75.7248 177.746C69.3905 171.479 63.584 165.55 62.4808 150.831C61.8397 142.279 61.8397 126.193 62.4808 102.575L121.941 89.7803Z" fill="url(#paint4_linear_2740_9594)"/>
+              <path d="M121.941 89.7803L181.402 102.575C182.043 126.193 182.043 142.279 181.402 150.831C180.299 165.55 174.492 171.479 168.158 177.746C159.862 185.954 144.457 194.24 121.941 202.603V89.7803Z" fill="url(#paint5_linear_2740_9594)"/>
+              <path d="M121.942 89.7803V99.12L62.2803 111.285L62.4808 102.575L121.942 89.7803Z" fill="url(#paint6_linear_2740_9594)"/>
+              <path d="M121.941 89.7803V99.12L181.611 111.217L181.416 102.566L121.941 89.7803Z" fill="url(#paint7_linear_2740_9594)"/>
+              <defs>
+                <linearGradient id="paint0_linear_2740_9594" x1="216.5" y1="24.5" x2="27" y2="220" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#5218A6"/>
+                  <stop offset="1" stop-color="#9769FF"/>
+                </linearGradient>
+                <linearGradient id="paint1_linear_2740_9594" x1="71.5176" y1="51.0569" x2="89.4992" y2="104.069" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#FBF8FF"/>
+                  <stop offset="1" stop-color="#D0B1FF"/>
+                </linearGradient>
+                <linearGradient id="paint2_linear_2740_9594" x1="198.502" y1="150.41" x2="109.64" y2="57.0717" gradientUnits="userSpaceOnUse">
+                  <stop/>
+                  <stop offset="1" stop-color="#090114" stop-opacity="0.01"/>
+                </linearGradient>
+                <linearGradient id="paint3_linear_2740_9594" x1="116.076" y1="48.5008" x2="116.076" y2="55.1001" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#EEEEEE"/>
+                  <stop offset="1" stop-color="#DAC1FF"/>
+                </linearGradient>
+                <linearGradient id="paint4_linear_2740_9594" x1="62" y1="165.456" x2="121.941" y2="165.456" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="white"/>
+                  <stop offset="1" stop-color="#DBC3FF"/>
+                </linearGradient>
+                <linearGradient id="paint5_linear_2740_9594" x1="139.305" y1="259.014" x2="212.436" y2="236.504" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#B27EFF"/>
+                  <stop offset="1" stop-color="#B482FF"/>
+                </linearGradient>
+                <linearGradient id="paint6_linear_2740_9594" x1="62.2803" y1="104.205" x2="92.1109" y2="104.205" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="white"/>
+                  <stop offset="1" stop-color="#E8D8FF"/>
+                </linearGradient>
+                <linearGradient id="paint7_linear_2740_9594" x1="165.912" y1="117.499" x2="141.688" y2="82.0186" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#C7A1FF"/>
+                  <stop offset="1" stop-color="#BE92FF"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+        </div>
+
         <div class="warnbox" style="margin-top:8px">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
             <b>Don’t close this modal yet</b>
@@ -532,22 +590,20 @@
         <div class="small" style="margin-top:10px">
           Steps:
           <ol class="muted" style="margin:8px 0 0 18px">
-            <li>Copy the XDR below into LOBSTR Vault and <b>submit</b>.</li>
-            <li>Come back here — confirmation will be checked automatically.</li>
+            <li>Go to <b>LOBSTR Vault</b> to sign and submit the transaction.</li>
+            <li>Come back here — <b>confirmation will be checked automatically</b>.</li>
           </ol>
         </div>
 
-        <div class="input" style="margin-top:10px">
-          <div class="small">XDR to paste into Vault</div>
-          <textarea id="vaultXdrToVault" class="vault-ta" spellcheck="false"></textarea>
-          <div class="actions">
-            <button id="copyVaultXdrBtn">Copy XDR</button>
-            <button id="toggleVaultXdrBtn" class="ghost">Hide XDR</button>
-          </div>
-        </div>
+        <div class="small muted" id="vaultSentLine" style="margin-top:10px">—</div>
 
-        <div class="small muted" style="margin-top:8px">
-          Tx hash: <span class="mono" id="vaultHashOut">—</span>
+        <div class="input" style="margin-top:10px">
+          <div class="small">XDR (optional)</div>
+          <textarea id="vaultXdrToVault" class="vault-ta" spellcheck="false" style="display:none"></textarea>
+          <div class="actions">
+            <button id="toggleVaultXdrBtn" class="ghost">Show XDR</button>
+            <button id="copyVaultXdrBtn" style="display:none">Copy XDR</button>
+          </div>
         </div>
 
         <div class="small muted" id="vaultAutoLine" style="margin-top:6px">—</div>
@@ -578,6 +634,11 @@
 
     const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
 
+    // ✅ Set this to the endpoint you already tested (HTTP 201 OK)
+    // It must accept JSON { xdr: "<base64-xdr>", network_passphrase: "<passphrase>" }
+    // and return JSON with { xdr, network_passphrase, hash }.
+    const LOBSTR_VAULT_CREATE_URL = "PASTE_YOUR_WORKING_LOBSTR_VAULT_ENDPOINT_HERE";
+
     // Fee: 0.15%
     const FEE_BPS_NUM = 15n;
     const FEE_BPS_DEN = 10000n;
@@ -591,7 +652,6 @@
     const BUSDC_ISSUER = "GA57KXF2UAGURRYK4LKTO4BO2JASL2PQCO2C53XUNK5G4CXX6QAL6QNR";
 
     const DECIMALS = 7;
-
     const MIN_NET = 10;
     const MIN_GROSS_DISPLAY = "10.015";
 
@@ -655,7 +715,7 @@
     function toggleTextarea(el, btn){
       const hidden = el.style.display === "none" || !el.style.display;
       el.style.display = hidden ? "block" : "none";
-      btn.textContent = hidden ? "Hide XDR" : "Reveal XDR";
+      btn.textContent = hidden ? "Hide XDR" : "Show XDR";
     }
 
     function fmtScaledBigint(x, decimals=DECIMALS){
@@ -835,12 +895,12 @@
     const vaultXdrToVault = $("vaultXdrToVault");
     const copyVaultXdrBtn = $("copyVaultXdrBtn");
     const toggleVaultXdrBtn = $("toggleVaultXdrBtn");
-    const vaultHashOut = $("vaultHashOut");
     const vaultStatus = $("vaultStatus");
     const vaultCheckBtn = $("vaultCheckBtn");
     const vaultOpenSiteBtn = $("vaultOpenSiteBtn");
     const vaultAutoLine = $("vaultAutoLine");
     const vaultAutoPill = $("vaultAutoPill");
+    const vaultSentLine = $("vaultSentLine");
 
     // Step modal
     const stepModal = $("stepModal");
@@ -975,6 +1035,38 @@
     function closeWcSignModalFn(){ closeModalEl(wcSignModal); }
 
     // -----------------------
+    // LOBSTR Vault POST helper
+    // -----------------------
+    async function pushToLobstrVault({ signedXdr }){
+      if(!LOBSTR_VAULT_CREATE_URL || LOBSTR_VAULT_CREATE_URL.includes("PASTE_YOUR_WORKING")){
+        throw new Error("LOBSTR_VAULT_CREATE_URL not set.");
+      }
+
+      const r = await fetch(LOBSTR_VAULT_CREATE_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          xdr: signedXdr,
+          network_passphrase: NETWORK_PASSPHRASE
+        })
+      });
+
+      // Your test said "HTTP 201 (OK)" so treat any 2xx as success.
+      if(!r.ok){
+        const txt = await r.text().catch(()=> "");
+        throw new Error(`Vault POST failed (${r.status}). ${txt}`);
+      }
+
+      const j = await r.json();
+      if(!j?.hash) throw new Error("Vault POST returned no hash.");
+      return {
+        hash: String(j.hash),
+        xdr: String(j.xdr || signedXdr),
+        network_passphrase: String(j.network_passphrase || NETWORK_PASSPHRASE),
+      };
+    }
+
+    // -----------------------
     // Vault modal
     // -----------------------
     function stopVaultAutoCheck(){
@@ -982,19 +1074,6 @@
       if(pendingVaultAutoTimer){
         clearTimeout(pendingVaultAutoTimer);
         pendingVaultAutoTimer = null;
-      }
-    }
-
-    async function vaultCheckOnce(){
-      if(!pendingVaultHash) throw new Error("Missing tx hash.");
-      if(pendingVaultSubmitKind === "classic"){
-        const j = await waitHorizonTx(pendingVaultHash, { tries: 1, delayMs: 1 });
-        return { ok:true, kind:"classic", hash:j.hash };
-      } else {
-        const res = await rawRpc("getTransaction", { hash: pendingVaultHash });
-        if(res.status === "SUCCESS") return { ok:true, kind:"soroban", hash: pendingVaultHash };
-        if(res.status && res.status !== "NOT_FOUND") throw new Error(`Soroban status: ${res.status}`);
-        return { ok:false, kind:"soroban", hash: pendingVaultHash };
       }
     }
 
@@ -1053,7 +1132,6 @@
             }
           }
         }catch(e){
-          // Keep auto-checking unless it's clearly terminal.
           vaultStatus.textContent = `Waiting… (${e?.message || e})`;
         }
         await sleep(VAULT_AUTO_DELAY_MS);
@@ -1067,24 +1145,51 @@
       }
     }
 
-    function openVaultModal(xdrToPaste, kind, afterCb){
+    function openVaultModalCore({ kind, afterCb, hash, xdrForOptionalReveal, sentMsg }){
       pendingVaultSubmitKind = kind;
       pendingAfterVault = afterCb || null;
 
-      vaultXdrToVault.value = xdrToPaste || "";
-      vaultXdrToVault.style.display = "block";
-      toggleVaultXdrBtn.textContent = "Hide XDR";
+      pendingVaultHash = hash || null;
 
-      pendingVaultHash = xdrToPaste ? txHashHexFromXdr(xdrToPaste) : null;
-      vaultHashOut.textContent = pendingVaultHash || "—";
+      // XDR hidden by default
+      vaultXdrToVault.value = xdrForOptionalReveal || "";
+      vaultXdrToVault.style.display = "none";
+      toggleVaultXdrBtn.textContent = "Show XDR";
+      copyVaultXdrBtn.style.display = "none";
 
+      vaultSentLine.textContent = sentMsg || "Transaction prepared for Vault.";
       vaultAutoLine.textContent = "Auto-checking will start now…";
+
       vaultAutoPill.textContent = "Waiting…";
       vaultAutoPill.classList.remove("ok","warn","bad");
       vaultAutoPill.classList.add("warn");
 
       openModal(vaultModal);
       runVaultAutoCheck().catch(()=>{});
+    }
+
+    async function openVaultModalWithPush(signedXdr, kind, afterCb){
+      // Show modal immediately with "sending" state, then update once POST succeeds
+      openVaultModalCore({
+        kind,
+        afterCb,
+        hash: txHashHexFromXdr(signedXdr), // fallback
+        xdrForOptionalReveal: signedXdr,
+        sentMsg: "Sending transaction to LOBSTR Vault…"
+      });
+
+      try{
+        const created = await pushToLobstrVault({ signedXdr });
+        pendingVaultHash = created.hash;
+
+        // Update UI line + keep XDR optional
+        vaultSentLine.textContent = "Sent to LOBSTR Vault ✓ Now open Vault to sign & submit.";
+        // leave auto-check running (it will now check using pendingVaultHash)
+      }catch(e){
+        // If POST fails, we fall back to manual flow (XDR toggle + copy)
+        vaultSentLine.textContent = "Could not auto-send to Vault. Use Show XDR → copy/paste into Vault manually.";
+        toast({type:"err", title:"Vault POST failed", message: e?.message || String(e), timeout:4500});
+      }
     }
 
     function closeVaultModalFn(){
@@ -1095,6 +1200,7 @@
       pendingVaultHash = null;
       vaultAutoLine.textContent = "—";
       vaultStatus.textContent = "";
+      vaultSentLine.textContent = "—";
     }
 
     // -----------------------
@@ -1147,11 +1253,8 @@
           }
         });
 
-        // Listener to silence "emitting session_request ... without any listeners"
-        // (the client can emit internal events even when you only use request())
-        try{
-          wcClient.on("session_request", ()=>{});
-        }catch{}
+        // silence "emitting session_request ... without any listeners"
+        try{ wcClient.on("session_request", ()=>{}); }catch{}
 
         return wcClient;
       }catch(e){
@@ -1626,19 +1729,18 @@
         toast({type:"ok", title:"Preflight OK", message:`${which} ready · net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}`});
         syncActionButtons();
 
-        // ✅ Guided step modal: Preflight -> Pay fee
         openStepModal({
           title: "Preflight successful ✅",
           body: `Everything checks out.\nNext step: pay the non-refundable 0.15% fee to continue.`,
           primaryText: "Continue → Pay fee",
-onPrimary: ()=>{
-  const btn = (which==="deposit") ? depPayFeeBtn : wdPayFeeBtn;
-  if(btn?.disabled){
-    toast({type:"info", title:"Next step not ready", message:"Please tick the fee acknowledgement first."});
-    return;
-  }
-  btn.click(); // ✅ runs the exact same flow as clicking “2) Pay fee”
-}
+          onPrimary: ()=>{
+            const btn = (which==="deposit") ? $("depPayFeeBtn") : $("wdPayFeeBtn");
+            if(btn?.disabled){
+              toast({type:"info", title:"Next step not ready", message:"Please tick the fee acknowledgement first."});
+              return;
+            }
+            btn.click();
+          }
         });
 
       }catch(e){
@@ -1668,22 +1770,21 @@ onPrimary: ()=>{
             body: "Open LOBSTR to approve the fee transaction signature request."
           });
 
-          statusEl.textContent = "Opening Vault co-sign…";
-          openVaultModal(signedByUser, "classic", ()=>{
+          statusEl.textContent = "Sending to Vault + opening co-sign…";
+          await openVaultModalWithPush(signedByUser, "classic", ()=>{
             actionState[which].feePaid = true;
             syncActionButtons();
             statusEl.textContent = `Fee confirmed ✓ Now execute ${which}.`;
-            actionState[which].invokeXdr = null; // stale after fee (sequence bumps)
+            actionState[which].invokeXdr = null;
             refreshBalance().catch(()=>{});
 
-            // ✅ Guided step modal: Fee -> Execute (forced click)
             openStepModal({
               title: "Fee paid successfully ✅",
               body: `The fee has been confirmed on-chain.\nNext step: execute your ${which==="deposit"?"deposit":"withdrawal"}.`,
               primaryText: which==="deposit" ? "Execute Deposit" : "Execute Withdrawal",
               onPrimary: ()=>{
-                if(which==="deposit") depExecuteBtn.click();
-                else wdExecuteBtn.click();
+                if(which==="deposit") $("depExecuteBtn").click();
+                else $("wdExecuteBtn").click();
               }
             });
           });
@@ -1704,14 +1805,13 @@ onPrimary: ()=>{
         toast({type:"ok", title:"Fee paid", message:`tx ${res.hash}`});
         refreshBalance().catch(()=>{});
 
-        // ✅ Guided step modal: Fee -> Execute
         openStepModal({
           title: "Fee paid successfully ✅",
           body: `The fee has been confirmed on-chain.\nNext step: execute your ${which==="deposit"?"deposit":"withdrawal"}.`,
           primaryText: which==="deposit" ? "Execute Deposit" : "Execute Withdrawal",
           onPrimary: ()=>{
-            if(which==="deposit") depExecuteBtn.click();
-            else wdExecuteBtn.click();
+            if(which==="deposit") $("depExecuteBtn").click();
+            else $("wdExecuteBtn").click();
           }
         });
 
@@ -1749,15 +1849,14 @@ onPrimary: ()=>{
             body: "Open LOBSTR to approve the execution transaction signature request."
           });
 
-          statusEl.textContent = "Opening Vault co-sign…";
-          openVaultModal(signedByUser, "soroban", ()=>{
+          statusEl.textContent = "Sending to Vault + opening co-sign…";
+          await openVaultModalWithPush(signedByUser, "soroban", ()=>{
             clearActionUI(which);
             resetAction(which);
             statusEl.textContent = `${which==="deposit"?"Deposit":"Withdrawal"} submitted ✓`;
             refreshState().catch(()=>{});
             refreshBalance().catch(()=>{});
 
-            // ✅ Success modal
             openStepModal({
               title: (which==="deposit" ? "Deposit successful 🎉" : "Withdrawal successful 🎉"),
               body: "Your transaction has been confirmed on-chain.\nBalances will update shortly.",
@@ -1786,7 +1885,6 @@ onPrimary: ()=>{
         refreshState().catch(()=>{});
         refreshBalance().catch(()=>{});
 
-        // ✅ Success modal
         openStepModal({
           title: (which==="deposit" ? "Deposit successful 🎉" : "Withdrawal successful 🎉"),
           body: "Your transaction has been confirmed on-chain.\nBalances will update shortly.",
@@ -1818,6 +1916,13 @@ onPrimary: ()=>{
     });
 
     // Vault buttons
+    toggleVaultXdrBtn.onclick = ()=>{
+      const willShow = (vaultXdrToVault.style.display === "none" || !vaultXdrToVault.style.display);
+      vaultXdrToVault.style.display = willShow ? "block" : "none";
+      toggleVaultXdrBtn.textContent = willShow ? "Hide XDR" : "Show XDR";
+      copyVaultXdrBtn.style.display = willShow ? "inline-flex" : "none";
+    };
+
     copyVaultXdrBtn.onclick = async ()=>{
       try{
         await navigator.clipboard.writeText(vaultXdrToVault.value || "");
@@ -1826,14 +1931,8 @@ onPrimary: ()=>{
         toast({type:"err", title:"Error", message:"Could not copy (clipboard blocked)."});
       }
     };
-    toggleVaultXdrBtn.onclick = ()=>{
-      const isVisible = vaultXdrToVault.style.display !== "none";
-      vaultXdrToVault.style.display = isVisible ? "none" : "block";
-      toggleVaultXdrBtn.textContent = isVisible ? "Show XDR" : "Hide XDR";
-    };
 
     vaultOpenSiteBtn.onclick = ()=>{
-      // Best-effort: open vault site (can be replaced with a deep link later)
       window.open("https://lobstr.co/vault/", "_blank", "noopener,noreferrer");
     };
 
@@ -1841,7 +1940,6 @@ onPrimary: ()=>{
       try{
         if(!pendingVaultHash) throw new Error("Missing tx hash.");
         vaultStatus.textContent = "Checking…";
-        // single-shot check + friendly message
         if(pendingVaultSubmitKind === "classic"){
           const j = await waitHorizonTx(pendingVaultHash, { tries: 3, delayMs: 800 });
           vaultStatus.innerHTML = `Confirmed ✓ tx: <span class="mono">${j.hash}</span>`;
@@ -1862,7 +1960,7 @@ onPrimary: ()=>{
       }
     };
 
-    // Login buttons
+    // Login / connect flows
     freighterExtBtn.onclick = async ()=>{
       try{
         const freighter = await ensureFreighterApi();
