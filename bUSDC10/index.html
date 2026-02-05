@@ -628,6 +628,7 @@
   </div>
 
   <script type="module">
+    await purgeWcStorageHard();
     // -----------------------
     // CONFIG
     // -----------------------
@@ -1244,100 +1245,86 @@
       setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
     }
 
-    // ✅ Stronger purge: nuke known WC localStorage keys + common WC IndexedDB DB names
-    async function purgeWcStorageHard(){
-      // localStorage
-      try{
-        const kill = [];
-        for(const k of Object.keys(localStorage)){
-          const kk = k.toLowerCase();
-          if(
-            kk.startsWith("wc@") ||
-            kk.includes("walletconnect") ||
-            kk.includes("wcv2") ||
-            kk.includes("sign-client") ||
-            kk.includes("wc_session") ||
-            kk.includes("wc_session") ||
-            kk.includes("wc") // last resort; comment out if too aggressive
-          ){
-            kill.push(k);
-          }
+async function purgeWcStorageHard(){
+  // localStorage keys WC commonly uses
+  try{
+    const kill = (k) =>
+      k.startsWith("wc@2") ||
+      k.startsWith("wc@") ||
+      k.startsWith("walletconnect") ||
+      k.startsWith("WALLETCONNECT") ||
+      k.startsWith("W3M") ||          // web3modal / related
+      k.includes("walletconnect") ||
+      k.includes("wc@2");
+
+    Object.keys(localStorage).forEach(k => { if(kill(k)) localStorage.removeItem(k); });
+    Object.keys(sessionStorage).forEach(k => { if(kill(k)) sessionStorage.removeItem(k); });
+  }catch{}
+
+  // IndexedDB databases (this is the big one)
+  try{
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of (dbs || [])) {
+        const name = db?.name || "";
+        if (!name) continue;
+        if (
+          name.includes("walletconnect") ||
+          name.includes("wc") ||
+          name.includes("WALLETCONNECT")
+        ) {
+          await new Promise((resolve)=> {
+            const req = indexedDB.deleteDatabase(name);
+            req.onsuccess = req.onerror = req.onblocked = () => resolve();
+          });
         }
-        for(const k of kill) localStorage.removeItem(k);
-      }catch{}
-    
-      // IndexedDB
-      try{
-        const candidates = new Set();
-    
-        // If supported, enumerate DBs
-        if (indexedDB?.databases){
-          const dbs = await indexedDB.databases();
-          for(const db of dbs){
-            if(!db?.name) continue;
-            const n = db.name.toLowerCase();
-            if(n.includes("walletconnect") || n.includes("wc") || n.includes("sign")){
-              candidates.add(db.name);
-            }
-          }
-        }
-    
-        // Add common WC Core DB names (these vary by build)
-        [
-          "walletconnect",
-          "walletconnect-v2",
-          "walletconnect-keyvaluestorage",
-          "wc@2:core:0.3",
-          "wc@2:core:0.4",
-          "wc@2:client:0.3",
-          "wc@2:client:0.4",
-          "wc@2:core",
-          "wc@2:client",
-        ].forEach(n=>candidates.add(n));
-    
-        for(const name of candidates){
-          try{ indexedDB.deleteDatabase(name); }catch{}
-        }
-      }catch{}
+      }
+    } else {
+      // fallback: common WC db names (best effort)
+      const common = ["walletconnect", "wc@2"];
+      for(const name of common){
+        await new Promise((resolve)=> {
+          const req = indexedDB.deleteDatabase(name);
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        });
+      }
     }
+  }catch{}
+}
     
     // ✅ init lock
     
-    async function ensureWcClient(){
-      if (wcClient) return wcClient;
-      if (wcInitPromise) return await wcInitPromise;
-    
-      wcInitPromise = (async ()=>{
-        // 🔥 must purge BEFORE init
-        await purgeWcStorageHard();
-    
-        const sc = await SignClient.init({
-          projectId: PROJECT_ID,
-          relayUrl: "wss://relay.walletconnect.com",
-          metadata: {
-            name: "bUSDC Vault UI",
-            description: "Vault UI for bUSDC contract",
-            url: location.origin,
-            icons: ["https://walletconnect.com/walletconnect-logo.png"]
-          }
-        });
-    
-        // silence init-time emits
-        sc.on("session_request", ()=>{});
-        sc.on("session_event", ()=>{});
-        sc.on("session_update", ()=>{});
-        sc.on("session_delete", ()=>{});
-    
-        wcClient = sc;
-        return sc;
-      })();
-    
-      try {
-        return await wcInitPromise;
-      } finally {
-        wcInitPromise = null;
+async function ensureWcClient(){
+  if (wcClient) return wcClient;
+  if (wcInitPromise) return await wcInitPromise;
+
+  wcInitPromise = (async ()=>{
+    await purgeWcStorageHard(); // ✅ must happen BEFORE init
+
+    const sc = await SignClient.init({
+      projectId: PROJECT_ID,
+      relayUrl: "wss://relay.walletconnect.com",
+      metadata: {
+        name: "bUSDC Vault UI",
+        description: "Vault UI for bUSDC contract",
+        url: location.origin,
+        icons: ["https://walletconnect.com/walletconnect-logo.png"]
       }
-    }
+    });
+
+    // attach listeners immediately after init resolves
+    sc.on("session_request", ()=>{});
+    sc.on("session_event", ()=>{});
+    sc.on("session_update", ()=>{});
+    sc.on("session_delete", ()=>{});
+
+    wcClient = sc;
+    return sc;
+  })();
+
+  try { return await wcInitPromise; }
+  finally { wcInitPromise = null; }
+}
     
     // ✅ Also purge once at startup to prevent init-time pending emits from earlier sessions
     (async ()=>{
