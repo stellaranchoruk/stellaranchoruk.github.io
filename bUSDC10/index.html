@@ -811,11 +811,9 @@
     let wcClient = null;
     let wcSession = null;
     let latestWcUri = null;
+    let wcInitPromise = null; // ✅ keep ONLY this one
 
     let wcListenersAttached = false;
-
-    // ✅ init lock to prevent duplicate/parallel init() calls
-    let wcInitPromise = null;
 
     function attachWcListeners(client){
       if(!client || wcListenersAttached) return;
@@ -1304,7 +1302,6 @@
     }
     
     // ✅ init lock
-    let wcInitPromise = null;
     
     async function ensureWcClient(){
       if(wcClient) return wcClient;
