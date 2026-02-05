@@ -1246,70 +1246,103 @@
       setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
     }
 
-    // ✅ stronger purge (localStorage + IndexedDB where possible)
-    async function purgeWcStorage(){
+    // ✅ Stronger purge: nuke known WC localStorage keys + common WC IndexedDB DB names
+    async function purgeWcStorageHard(){
+      // localStorage
       try{
+        const kill = [];
         for(const k of Object.keys(localStorage)){
-          if(k.startsWith("wc@") || k.includes("walletconnect") || k.includes("WALLETCONNECT")){
-            localStorage.removeItem(k);
+          const kk = k.toLowerCase();
+          if(
+            kk.startsWith("wc@") ||
+            kk.includes("walletconnect") ||
+            kk.includes("wcv2") ||
+            kk.includes("sign-client") ||
+            kk.includes("wc_session") ||
+            kk.includes("wc_session") ||
+            kk.includes("wc") // last resort; comment out if too aggressive
+          ){
+            kill.push(k);
           }
         }
+        for(const k of kill) localStorage.removeItem(k);
       }catch{}
-
-      // IndexedDB (WalletConnect Core)
+    
+      // IndexedDB
       try{
-        if(indexedDB?.databases){
+        const candidates = new Set();
+    
+        // If supported, enumerate DBs
+        if (indexedDB?.databases){
           const dbs = await indexedDB.databases();
           for(const db of dbs){
-            const name = db?.name || "";
-            if(name.includes("wc") || name.includes("walletconnect") || name.includes("WALLETCONNECT")){
-              indexedDB.deleteDatabase(name);
+            if(!db?.name) continue;
+            const n = db.name.toLowerCase();
+            if(n.includes("walletconnect") || n.includes("wc") || n.includes("sign")){
+              candidates.add(db.name);
             }
           }
+        }
+    
+        // Add common WC Core DB names (these vary by build)
+        [
+          "walletconnect",
+          "walletconnect-v2",
+          "walletconnect-keyvaluestorage",
+          "wc@2:core:0.3",
+          "wc@2:core:0.4",
+          "wc@2:client:0.3",
+          "wc@2:client:0.4",
+          "wc@2:core",
+          "wc@2:client",
+        ].forEach(n=>candidates.add(n));
+    
+        for(const name of candidates){
+          try{ indexedDB.deleteDatabase(name); }catch{}
         }
       }catch{}
     }
-
-    async function ensureWcClient({ retry=false } = {}){
-      if(wcClient){
-        attachWcListeners(wcClient);
-        return wcClient;
-      }
-
-      // ✅ init lock to prevent duplicates / races
+    
+    // ✅ init lock
+    let wcInitPromise = null;
+    
+    async function ensureWcClient(){
+      if(wcClient) return wcClient;
       if(wcInitPromise) return await wcInitPromise;
-
+    
       wcInitPromise = (async ()=>{
-        try{
-          wcClient = await SignClient.init({
-            projectId: PROJECT_ID,
-            relayUrl: "wss://relay.walletconnect.com",
-            metadata: {
-              name: "bUSDC Vault UI",
-              description: "Vault UI for bUSDC contract",
-              url: location.origin,
-              icons: ["https://walletconnect.com/walletconnect-logo.png"]
-            }
-          });
-
-          attachWcListeners(wcClient);
-          return wcClient;
-
-        }catch(e){
-          if(!retry && /No matching key/i.test(String(e?.message||e))){
-            await purgeWcStorage();
-            wcClient = null;
-            wcListenersAttached = false;
-            return await ensureWcClient({ retry:true });
+        // 🔥 MUST purge BEFORE init to avoid session_request:<id> emits during init
+        await purgeWcStorageHard();
+    
+        const sc = await SignClient.init({
+          projectId: PROJECT_ID,
+          relayUrl: "wss://relay.walletconnect.com",
+          metadata: {
+            name: "bUSDC Vault UI",
+            description: "Vault UI for bUSDC contract",
+            url: location.origin,
+            icons: ["https://walletconnect.com/walletconnect-logo.png"]
           }
-          throw e;
-        } finally {
-          wcInitPromise = null;
-        }
+        });
+    
+        // attach listeners immediately after init (this is now safe because storage is clean)
+        sc.on("session_request", ()=>{});
+        sc.on("session_event", ()=>{});
+        sc.on("session_update", ()=>{});
+        sc.on("session_delete", ()=>{});
+    
+        wcClient = sc;
+        return sc;
       })();
-
-      return await wcInitPromise;
+    
+      try { return await wcInitPromise; }
+      finally { wcInitPromise = null; }
     }
+    
+    // ✅ Also purge once at startup to prevent init-time pending emits from earlier sessions
+    (async ()=>{
+      await purgeWcStorageHard();
+    })();
 
     async function getFreighterLinks(){
       try{
