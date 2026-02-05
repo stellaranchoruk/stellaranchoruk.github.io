@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LOBSTR Vault Push – Test</title>
+  <style>
+    :root{--bg:#0b0f17;--card:#111a2b;--muted:#8ea0c2;--text:#e8eefc;--accent:#5eead4;--bad:#fb7185;--border:rgba(255,255,255,.10);--mono:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:980px;margin:22px auto;padding:0 16px 60px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.22)}
+    h2{margin:0 0 10px;font-size:16px}
+    .small{color:var(--muted);font-size:12px;line-height:1.35}
+    textarea,input{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 11px;background:rgba(0,0,0,.18);color:var(--text);outline:none;font:13px/1.4 var(--mono)}
+    textarea{min-height:180px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:900px){.row{grid-template-columns:1fr}}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    button{border:1px solid var(--border);background:rgba(0,0,0,.20);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:700}
+    button:hover{border-color: rgba(94,234,212,.35)}
+    button.primary{background:linear-gradient(180deg, rgba(94,234,212,.22), rgba(94,234,212,.10));border-color: rgba(94,234,212,.28)}
+    .out{white-space:pre-wrap;background:rgba(0,0,0,.18);border:1px solid var(--border);border-radius:12px;padding:10px;font:12px/1.45 var(--mono);min-height:140px}
+    .err{color:var(--bad)}
+    .hr{height:1px;background:var(--border);margin:12px 0}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:rgba(0,0,0,.18);color:var(--muted);font-size:12px}
+    .pill b{color:var(--text)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>LOBSTR Vault “push XDR” test</h2>
+      <div class="small">
+        Endpoint per LOBSTR docs: <span class="pill"><b>POST</b> https://vault.lobstr.co/api/transactions/</span><br/>
+        Body: <span class="pill"><b>{"xdr":"..."}</b></span><br/>
+        Note: Vault may return <b>403</b> if the account disallows unsigned requests — attach a valid signature and resubmit.
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <div class="small">XDR (base64)</div>
+          <textarea id="xdrIn" placeholder="Paste transaction XDR (base64) here…"></textarea>
+
+          <div class="actions">
+            <button class="primary" id="sendDirectBtn">Send to Vault (direct)</button>
+            <button id="sendProxyBtn">Send to Vault (via proxy)</button>
+            <button id="clearBtn">Clear</button>
+          </div>
+
+          <div class="small" style="margin-top:8px">
+            Proxy URL (only used for “via proxy”):<br/>
+            <input id="proxyUrl" placeholder="e.g. https://your-worker.yourdomain.workers.dev/transactions" />
+          </div>
+        </div>
+
+        <div>
+          <div class="small">Result</div>
+          <div id="out" class="out">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const VAULT_URL = "https://vault.lobstr.co/api/transactions/";
+    const $ = (id)=>document.getElementById(id);
+
+    function pretty(obj){
+      try{ return JSON.stringify(obj, null, 2); }catch{ return String(obj); }
+    }
+
+    async function postJson(url, body){
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      const text = await r.text();
+      let json = null;
+      try{ json = JSON.parse(text); }catch{}
+
+      return { ok: r.ok, status: r.status, text, json };
+    }
+
+    function setOut(msg, isErr=false){
+      $("out").innerHTML = isErr ? `<span class="err">${msg}</span>` : msg;
+    }
+
+    async function send(url){
+      const xdr = ($("xdrIn").value || "").trim();
+      if(!xdr) return setOut("Paste an XDR first.", true);
+
+      setOut("Sending…");
+      try{
+        const res = await postJson(url, { xdr });
+
+        const payload = res.json ?? res.text;
+        const head = `HTTP ${res.status} ${res.ok ? "(OK)" : "(NOT OK)"}`;
+        setOut(`${head}\n\n${typeof payload === "string" ? payload : pretty(payload)}`, !res.ok);
+
+        // Helpful hint on common failure
+        if(res.status === 403){
+          setOut(
+            `${head}\n\n${typeof payload === "string" ? payload : pretty(payload)}\n\n` +
+            "Tip: Vault can reject unsigned transactions if the account disallows unsigned requests. " +
+            "Attach at least one valid signature to the XDR and resubmit.",
+            true
+          );
+        }
+      }catch(e){
+        // This is what you’ll see if CORS blocks direct calls
+        setOut(
+          `Request failed in browser.\n\n${e}\n\n` +
+          "If this was a CORS error, use the “via proxy” button and route through your own backend/worker.",
+          true
+        );
+      }
+    }
+
+    $("sendDirectBtn").onclick = ()=> send(VAULT_URL);
+    $("sendProxyBtn").onclick = ()=>{
+      const u = ($("proxyUrl").value || "").trim();
+      if(!u) return setOut("Enter your proxy URL first.", true);
+      return send(u);
+    };
+    $("clearBtn").onclick = ()=>{
+      $("xdrIn").value = "";
+      setOut("—");
+    };
+  </script>
+</body>
+</html>
