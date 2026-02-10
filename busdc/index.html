@@ -257,8 +257,6 @@
       align-items:center;
       margin:10px 0 6px;
     }
-    
-    /* container is just a wrapper */
     .vault-logo .inner{
       display:flex;
       justify-content:center;
@@ -266,11 +264,9 @@
       opacity:.98;
       filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
     }
-    
-    /* THIS is the important bit: force the SVG to the size you want */
     .vault-logo svg{
-      width: 80px;      /* ~¼ size feel */
-      max-width: 40vw;   /* responsive on mobile */
+      width: 80px;
+      max-width: 40vw;
       height: auto;
       display:block;
     }
@@ -632,6 +628,7 @@
   </div>
 
   <script type="module">
+    await purgeWcStorageHard();
     // -----------------------
     // CONFIG
     // -----------------------
@@ -646,9 +643,7 @@
 
     const VAULT_SIGNER_KEY = "GA2T6GR7VXXXBETTERSAFETHANSORRYXXXPROTECTEDBYLOBSTRVAULT";
 
-    // ✅ Set this to the endpoint you already tested (HTTP 201 OK)
-    // It must accept JSON { xdr: "<base64-xdr>", network_passphrase: "<passphrase>" }
-    // and return JSON with { xdr, network_passphrase, hash }.
+    // ✅ Endpoint must accept JSON { xdr, network_passphrase } and return JSON with { xdr, network_passphrase, hash }.
     const LOBSTR_VAULT_CREATE_URL = "https://vault.lobstr.co/api/transactions/";
 
     // Fee: 0.15%
@@ -656,6 +651,14 @@
     const FEE_BPS_DEN = 10000n;
 
     const COLLECTION_WALLET = "GCZWVRELD5V426NZ23LXG7BBZRDB4QRS2JRMPS5S7Z6LOFPWPPFYVMMB";
+
+    // ✅ Fee-exempt wallets (skip fee step entirely)
+    const FEE_EXEMPT_WALLETS = new Set([
+      "GDGEWZMIJ2K6AEYYV2L4FYN27YJP5OVZSWCJIM662D5OS7EL6T6WBGBP",
+    ]);
+    function isFeeExempt(pk){
+      return !!pk && FEE_EXEMPT_WALLETS.has(pk);
+    }
 
     const USDC_CODE   = "USDC";
     const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
@@ -817,17 +820,16 @@
     let wcClient = null;
     let wcSession = null;
     let latestWcUri = null;
+    let wcInitPromise = null; // ✅ keep ONLY this one
 
     let wcListenersAttached = false;
 
     function attachWcListeners(client){
       if(!client || wcListenersAttached) return;
       wcListenersAttached = true;
-    
-      // This silences the error you saw
-      client.on("session_request", (_event)=>{ /* intentionally no-op */ });
-    
-      // Optional: silence other noisy events (safe no-ops)
+
+      // No-op listeners to avoid "emitting ... without any listeners"
+      client.on("session_request", (_event)=>{ /* no-op */ });
       client.on("session_event", (_event)=>{});
       client.on("session_update", (_event)=>{});
       client.on("session_delete", (_event)=>{});
@@ -977,12 +979,15 @@
       refreshBalance().catch(()=>{});
     }
 
+    // ✅ updated: fee step bypass if wallet is exempt
     function syncActionButtons(){
-      depPayFeeBtn.disabled   = !(feeAck.checked && actionState.deposit.preflightOk && !actionState.deposit.feePaid);
-      depExecuteBtn.disabled  = !(actionState.deposit.feePaid && !!actionState.deposit.netBig && actionState.deposit.netBig > 0n);
+      const exempt = isFeeExempt(pubkey);
 
-      wdPayFeeBtn.disabled    = !(feeAck.checked && actionState.redeem.preflightOk && !actionState.redeem.feePaid);
-      wdExecuteBtn.disabled   = !(actionState.redeem.feePaid && !!actionState.redeem.netBig && actionState.redeem.netBig > 0n);
+      depPayFeeBtn.disabled   = exempt ? true : !(feeAck.checked && actionState.deposit.preflightOk && !actionState.deposit.feePaid);
+      depExecuteBtn.disabled  = !(actionState.deposit.preflightOk && (exempt || actionState.deposit.feePaid) && actionState.deposit.netBig > 0n);
+
+      wdPayFeeBtn.disabled    = exempt ? true : !(feeAck.checked && actionState.redeem.preflightOk && !actionState.redeem.feePaid);
+      wdExecuteBtn.disabled   = !(actionState.redeem.preflightOk && (exempt || actionState.redeem.feePaid) && actionState.redeem.netBig > 0n);
     }
     feeAck.addEventListener("change", syncActionButtons);
 
@@ -1078,7 +1083,6 @@
         })
       });
 
-      // Your test said "HTTP 201 (OK)" so treat any 2xx as success.
       if(!r.ok){
         const txt = await r.text().catch(()=> "");
         throw new Error(`Vault POST failed (${r.status}). ${txt}`);
@@ -1178,7 +1182,6 @@
 
       pendingVaultHash = hash || null;
 
-      // XDR hidden by default
       vaultXdrToVault.value = xdrForOptionalReveal || "";
       vaultXdrToVault.style.display = "none";
       toggleVaultXdrBtn.textContent = "Show XDR";
@@ -1196,11 +1199,10 @@
     }
 
     async function openVaultModalWithPush(signedXdr, kind, afterCb){
-      // Show modal immediately with "sending" state, then update once POST succeeds
       openVaultModalCore({
         kind,
         afterCb,
-        hash: txHashHexFromXdr(signedXdr), // fallback
+        hash: txHashHexFromXdr(signedXdr),
         xdrForOptionalReveal: signedXdr,
         sentMsg: "Sending transaction to LOBSTR Vault…"
       });
@@ -1208,12 +1210,8 @@
       try{
         const created = await pushToLobstrVault({ signedXdr });
         pendingVaultHash = created.hash;
-
-        // Update UI line + keep XDR optional
         vaultSentLine.textContent = "Sent to LOBSTR Vault ✓ Now open Vault to sign & submit.";
-        // leave auto-check running (it will now check using pendingVaultHash)
       }catch(e){
-        // If POST fails, we fall back to manual flow (XDR toggle + copy)
         vaultSentLine.textContent = "Could not auto-send to Vault. Use Show XDR → copy/paste into Vault manually.";
         toast({type:"err", title:"Vault POST failed", message: e?.message || String(e), timeout:4500});
       }
@@ -1258,46 +1256,91 @@
       setTimeout(()=>{ if(!document.hidden && Date.now()-t0<2000){ window.open(store, "_blank", "noopener"); } }, 1800);
     }
 
-    async function purgeWcStorage(){
-      try{
-        Object.keys(localStorage).forEach(k=>{
-          if(k.startsWith("wc@2")) localStorage.removeItem(k);
-        });
-      }catch{}
-    }
+async function purgeWcStorageHard(){
+  // localStorage keys WC commonly uses
+  try{
+    const kill = (k) =>
+      k.startsWith("wc@2") ||
+      k.startsWith("wc@") ||
+      k.startsWith("walletconnect") ||
+      k.startsWith("WALLETCONNECT") ||
+      k.startsWith("W3M") ||          // web3modal / related
+      k.includes("walletconnect") ||
+      k.includes("wc@2");
 
-    async function ensureWcClient({ retry=false } = {}){
-      if(wcClient){
-        // ✅ ensure listeners exist even for already-created client
-        attachWcListeners(wcClient);
-        return wcClient;
-      }
-      try{
-        wcClient = await SignClient.init({
-          projectId: PROJECT_ID,
-          relayUrl: "wss://relay.walletconnect.com",
-          metadata: {
-            name: "bUSDC Vault UI",
-            description: "Vault UI for bUSDC contract",
-            url: location.origin,
-            icons: ["https://walletconnect.com/walletconnect-logo.png"]
-          }
-        });
-    
-        // ✅ attach once
-        attachWcListeners(wcClient);
-        return wcClient;
-    
-      }catch(e){
-        if(!retry && /No matching key/i.test(String(e?.message||e))){
-          await purgeWcStorage();
-          wcClient = null;
-          wcListenersAttached = false; // ✅ reset the flag too
-          return ensureWcClient({ retry:true });
+    Object.keys(localStorage).forEach(k => { if(kill(k)) localStorage.removeItem(k); });
+    Object.keys(sessionStorage).forEach(k => { if(kill(k)) sessionStorage.removeItem(k); });
+  }catch{}
+
+  // IndexedDB databases (this is the big one)
+  try{
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of (dbs || [])) {
+        const name = db?.name || "";
+        if (!name) continue;
+        if (
+          name.includes("walletconnect") ||
+          name.includes("wc") ||
+          name.includes("WALLETCONNECT")
+        ) {
+          await new Promise((resolve)=> {
+            const req = indexedDB.deleteDatabase(name);
+            req.onsuccess = req.onerror = req.onblocked = () => resolve();
+          });
         }
-        throw e;
+      }
+    } else {
+      // fallback: common WC db names (best effort)
+      const common = ["walletconnect", "wc@2"];
+      for(const name of common){
+        await new Promise((resolve)=> {
+          const req = indexedDB.deleteDatabase(name);
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        });
       }
     }
+  }catch{}
+}
+    
+    // ✅ init lock
+    
+async function ensureWcClient(){
+  if (wcClient) return wcClient;
+  if (wcInitPromise) return await wcInitPromise;
+
+  wcInitPromise = (async ()=>{
+    await purgeWcStorageHard(); // ✅ must happen BEFORE init
+
+    const sc = await SignClient.init({
+      projectId: PROJECT_ID,
+      relayUrl: "wss://relay.walletconnect.com",
+      metadata: {
+        name: "bUSDC Vault UI",
+        description: "Vault UI for bUSDC contract",
+        url: location.origin,
+        icons: ["https://walletconnect.com/walletconnect-logo.png"]
+      }
+    });
+
+    // attach listeners immediately after init resolves
+    sc.on("session_request", ()=>{});
+    sc.on("session_event", ()=>{});
+    sc.on("session_update", ()=>{});
+    sc.on("session_delete", ()=>{});
+
+    wcClient = sc;
+    return sc;
+  })();
+
+  try { return await wcInitPromise; }
+  finally { wcInitPromise = null; }
+}
+    
+    // ✅ Also purge once at startup to prevent init-time pending emits from earlier sessions
+    (async ()=>{
+      await purgeWcStorageHard();
+    })();
 
     async function getFreighterLinks(){
       try{
@@ -1617,25 +1660,51 @@
     // Fee boxes
     // -----------------------
     function updateFeeBoxes(){
+      const exempt = isFeeExempt(pubkey);
+    
+      // ---------- Deposit ----------
       try{
         const gross = parseDecimalToBigint(depositAmt.value, DECIMALS);
         if(gross > 0n){
-          const fee = feeFromGross(gross);
-          const net = gross > fee ? (gross - fee) : 0n;
-          depFeeOut.textContent = `${fmtScaledBigint(fee)} ${USDC_CODE}`;
-          depNetOut.textContent = `${fmtScaledBigint(net)} ${USDC_CODE}`;
-        } else { depFeeOut.textContent = "—"; depNetOut.textContent = "—"; }
-      }catch{ depFeeOut.textContent = "—"; depNetOut.textContent = "—"; }
-
+          if(exempt){
+            depFeeOut.textContent = `0 ${USDC_CODE} (fee-exempt)`;
+            depNetOut.textContent = `${fmtScaledBigint(gross)} ${USDC_CODE}`;
+          } else {
+            const fee = feeFromGross(gross);
+            const net = gross > fee ? (gross - fee) : 0n;
+            depFeeOut.textContent = `${fmtScaledBigint(fee)} ${USDC_CODE}`;
+            depNetOut.textContent = `${fmtScaledBigint(net)} ${USDC_CODE}`;
+          }
+        } else {
+          depFeeOut.textContent = "—";
+          depNetOut.textContent = "—";
+        }
+      } catch {
+        depFeeOut.textContent = "—";
+        depNetOut.textContent = "—";
+      }
+    
+      // ---------- Withdraw ----------
       try{
         const gross = parseDecimalToBigint(redeemAmt.value, DECIMALS);
         if(gross > 0n){
-          const fee = feeFromGross(gross);
-          const net = gross > fee ? (gross - fee) : 0n;
-          wdFeeOut.textContent = `${fmtScaledBigint(fee)} ${BUSDC_CODE}`;
-          wdNetOut.textContent = `${fmtScaledBigint(net)} ${BUSDC_CODE}`;
-        } else { wdFeeOut.textContent = "—"; wdNetOut.textContent = "—"; }
-      }catch{ wdFeeOut.textContent = "—"; wdNetOut.textContent = "—"; }
+          if(exempt){
+            wdFeeOut.textContent = `0 ${BUSDC_CODE} (fee-exempt)`;
+            wdNetOut.textContent = `${fmtScaledBigint(gross)} ${BUSDC_CODE}`;
+          } else {
+            const fee = feeFromGross(gross);
+            const net = gross > fee ? (gross - fee) : 0n;
+            wdFeeOut.textContent = `${fmtScaledBigint(fee)} ${BUSDC_CODE}`;
+            wdNetOut.textContent = `${fmtScaledBigint(net)} ${BUSDC_CODE}`;
+          }
+        } else {
+          wdFeeOut.textContent = "—";
+          wdNetOut.textContent = "—";
+        }
+      } catch {
+        wdFeeOut.textContent = "—";
+        wdNetOut.textContent = "—";
+      }
     }
 
     function resetAction(which){
@@ -1723,11 +1792,23 @@
 
         const gross = parseDecimalToBigint(inputEl.value, DECIMALS);
         if(!(gross > 0n)) throw new Error("Enter an amount.");
-
-        const feeBig = feeFromGross(gross);
-        const netBig = gross > feeBig ? (gross - feeBig) : 0n;
-
-        enforceGrossAndNet({ gross, net: netBig, label: which==="deposit" ? "Deposit" : "Withdraw" });
+        
+        const exempt = isFeeExempt(pubkey);
+        
+        const feeBig = exempt ? 0n : feeFromGross(gross);
+        const netBig = exempt ? gross : (gross > feeBig ? (gross - feeBig) : 0n);
+        
+        // Only enforce the “net >= 10” rule for non-exempt wallets
+        if(!exempt){
+          enforceGrossAndNet({
+            gross,
+            net: netBig,
+            label: which==="deposit" ? "Deposit" : "Withdraw"
+          });
+        }else{
+          // For exempt wallets, still enforce gross minimum (so you don't allow dust)
+          if(gross < MIN_GROSS_BI) throw new Error(`${which==="deposit" ? "Deposit" : "Withdraw"} minimum is ${MIN_GROSS_DISPLAY}.`);
+        }
 
         if(which==="deposit"){
           if(typeof availableUSDCScaled !== "bigint") throw new Error("Could not read USDC balance.");
@@ -1746,26 +1827,48 @@
         });
 
         actionState[which].preflightOk = true;
-        actionState[which].feePaid = false;
+        actionState[which].feePaid = exempt; // ✅ fee bypass for exempt wallet
         actionState[which].invokeXdr = invokeXdr;
         actionState[which].feeBig = feeBig;
         actionState[which].netBig = netBig;
 
-        const feeAsset = (which==="deposit" ? USDC_ASSET : BUSDC_ASSET);
-        actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
+        if(exempt){
+          actionState[which].feeXdr = null;
+        } else {
+          const feeAsset = (which==="deposit" ? USDC_ASSET : BUSDC_ASSET);
+          actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
+        }
 
         if(which==="deposit") depositXdr.value = invokeXdr;
         else redeemXdr.value = invokeXdr;
 
-        statusEl.textContent = `Preflight ✓ Ready. Net: ${fmtScaledBigint(netBig)} · Fee: ${fmtScaledBigint(feeBig)}`;
-        toast({type:"ok", title:"Preflight OK", message:`${which} ready · net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}`});
+        statusEl.textContent = `Preflight ✓ Ready. Net: ${fmtScaledBigint(netBig)} · Fee: ${fmtScaledBigint(feeBig)}${exempt ? " · Fee: EXEMPT" : ""}`;
+        toast({
+          type:"ok",
+          title:"Preflight OK",
+          message: exempt
+            ? `${which} ready · net ${fmtScaledBigint(netBig)} · fee EXEMPT`
+            : `${which} ready · net ${fmtScaledBigint(netBig)} · fee ${fmtScaledBigint(feeBig)}`
+        });
+
+        if(exempt){
+          toast({type:"ok", title:"Fee exempt", message:"This wallet is exempt from the 0.15% fee.", timeout:3400});
+        }
+
         syncActionButtons();
 
         openStepModal({
           title: "Preflight successful ✅",
-          body: `Everything checks out.\nNext step: pay the non-refundable 0.15% fee to continue.`,
-          primaryText: "Continue → Pay fee",
+          body: exempt
+            ? `Everything checks out.\nFee is EXEMPT for this wallet.\nNext step: execute your ${which==="deposit"?"deposit":"withdrawal"}.`
+            : `Everything checks out.\nNext step: pay the non-refundable 0.15% fee to continue.`,
+          primaryText: exempt ? (which==="deposit" ? "Execute Deposit" : "Execute Withdrawal") : "Continue → Pay fee",
           onPrimary: ()=>{
+            if(exempt){
+              if(which==="deposit") $("depExecuteBtn").click();
+              else $("wdExecuteBtn").click();
+              return;
+            }
             const btn = (which==="deposit") ? $("depPayFeeBtn") : $("wdPayFeeBtn");
             if(btn?.disabled){
               toast({type:"info", title:"Next step not ready", message:"Please tick the fee acknowledgement first."});
@@ -1790,6 +1893,32 @@
     async function payFee(which, statusEl){
       statusEl.textContent = "";
       try{
+        // ✅ fee-exempt wallet bypass
+        if(isFeeExempt(pubkey)){
+          actionState[which].feePaid = true;
+          syncActionButtons();
+        
+          statusEl.textContent = "Fee exempt ✓ Full amount will be used.";
+          toast({
+            type:"ok",
+            title:"Fee exempt",
+            message:"This wallet is exempt from fees. Full amount will be executed."
+          });
+        
+          // Keep UX consistent with paid-fee flow
+          openStepModal({
+            title: "Fee skipped ✅",
+            body: `This wallet is fee-exempt.\nNext step: execute your ${which==="deposit" ? "deposit" : "withdrawal"} using the full amount.`,
+            primaryText: which==="deposit" ? "Execute Deposit" : "Execute Withdrawal",
+            onPrimary: ()=>{
+              if(which==="deposit") $("depExecuteBtn").click();
+              else $("wdExecuteBtn").click();
+            }
+          });
+        
+          return;
+        }
+
         if(!feeAck.checked) throw new Error("Tick the non-refundable fee acknowledgement first.");
         if(!actionState[which].preflightOk || !actionState[which].feeXdr) throw new Error("Run Preflight first.");
 
@@ -1857,7 +1986,8 @@
     async function executeInvoke(which, statusEl){
       statusEl.textContent = "";
       try{
-        if(!actionState[which].feePaid) throw new Error("Pay the fee first.");
+        // ✅ allow fee-exempt wallets through
+        if(!(isFeeExempt(pubkey) || actionState[which].feePaid)) throw new Error("Pay the fee first.");
         if(!actionState[which].netBig || actionState[which].netBig <= 0n) {
           throw new Error("Missing cached net amount. Run Preflight again.");
         }
@@ -2012,15 +2142,19 @@
       }
     };
 
+    // ✅ disable button during connect to prevent double clicks + races
     wcBtn.onclick = async ()=>{
+      wcBtn.disabled = true;
       try{
         const sc = await ensureWcClient();
         attachWcListeners(sc);
+
         const { uri, approval } = await sc.connect({
           optionalNamespaces: {
             stellar: { chains:["stellar:pubnet"], methods:["stellar_signXDR","stellar_signAndSubmitXDR"], events:[] }
           }
         });
+
         if(!uri) throw new Error("No WalletConnect URI");
         latestWcUri = uri;
 
@@ -2056,6 +2190,8 @@
       }catch(e){
         console.error(e);
         toast({type:"err", title:"Error", message:String(e?.message || "WalletConnect canceled/failed.")});
+      } finally {
+        wcBtn.disabled = false;
       }
     };
 
