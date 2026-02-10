@@ -1660,25 +1660,51 @@ async function ensureWcClient(){
     // Fee boxes
     // -----------------------
     function updateFeeBoxes(){
+      const exempt = isFeeExempt(pubkey);
+    
+      // ---------- Deposit ----------
       try{
         const gross = parseDecimalToBigint(depositAmt.value, DECIMALS);
         if(gross > 0n){
-          const fee = feeFromGross(gross);
-          const net = gross > fee ? (gross - fee) : 0n;
-          depFeeOut.textContent = `${fmtScaledBigint(fee)} ${USDC_CODE}`;
-          depNetOut.textContent = `${fmtScaledBigint(net)} ${USDC_CODE}`;
-        } else { depFeeOut.textContent = "—"; depNetOut.textContent = "—"; }
-      }catch{ depFeeOut.textContent = "—"; depNetOut.textContent = "—"; }
-
+          if(exempt){
+            depFeeOut.textContent = `0 ${USDC_CODE} (fee-exempt)`;
+            depNetOut.textContent = `${fmtScaledBigint(gross)} ${USDC_CODE}`;
+          } else {
+            const fee = feeFromGross(gross);
+            const net = gross > fee ? (gross - fee) : 0n;
+            depFeeOut.textContent = `${fmtScaledBigint(fee)} ${USDC_CODE}`;
+            depNetOut.textContent = `${fmtScaledBigint(net)} ${USDC_CODE}`;
+          }
+        } else {
+          depFeeOut.textContent = "—";
+          depNetOut.textContent = "—";
+        }
+      } catch {
+        depFeeOut.textContent = "—";
+        depNetOut.textContent = "—";
+      }
+    
+      // ---------- Withdraw ----------
       try{
         const gross = parseDecimalToBigint(redeemAmt.value, DECIMALS);
         if(gross > 0n){
-          const fee = feeFromGross(gross);
-          const net = gross > fee ? (gross - fee) : 0n;
-          wdFeeOut.textContent = `${fmtScaledBigint(fee)} ${BUSDC_CODE}`;
-          wdNetOut.textContent = `${fmtScaledBigint(net)} ${BUSDC_CODE}`;
-        } else { wdFeeOut.textContent = "—"; wdNetOut.textContent = "—"; }
-      }catch{ wdFeeOut.textContent = "—"; wdNetOut.textContent = "—"; }
+          if(exempt){
+            wdFeeOut.textContent = `0 ${BUSDC_CODE} (fee-exempt)`;
+            wdNetOut.textContent = `${fmtScaledBigint(gross)} ${BUSDC_CODE}`;
+          } else {
+            const fee = feeFromGross(gross);
+            const net = gross > fee ? (gross - fee) : 0n;
+            wdFeeOut.textContent = `${fmtScaledBigint(fee)} ${BUSDC_CODE}`;
+            wdNetOut.textContent = `${fmtScaledBigint(net)} ${BUSDC_CODE}`;
+          }
+        } else {
+          wdFeeOut.textContent = "—";
+          wdNetOut.textContent = "—";
+        }
+      } catch {
+        wdFeeOut.textContent = "—";
+        wdNetOut.textContent = "—";
+      }
     }
 
     function resetAction(which){
@@ -1766,11 +1792,23 @@ async function ensureWcClient(){
 
         const gross = parseDecimalToBigint(inputEl.value, DECIMALS);
         if(!(gross > 0n)) throw new Error("Enter an amount.");
-
-        const feeBig = feeFromGross(gross);
-        const netBig = gross > feeBig ? (gross - feeBig) : 0n;
-
-        enforceGrossAndNet({ gross, net: netBig, label: which==="deposit" ? "Deposit" : "Withdraw" });
+        
+        const exempt = isFeeExempt(pubkey);
+        
+        const feeBig = exempt ? 0n : feeFromGross(gross);
+        const netBig = exempt ? gross : (gross > feeBig ? (gross - feeBig) : 0n);
+        
+        // Only enforce the “net >= 10” rule for non-exempt wallets
+        if(!exempt){
+          enforceGrossAndNet({
+            gross,
+            net: netBig,
+            label: which==="deposit" ? "Deposit" : "Withdraw"
+          });
+        }else{
+          // For exempt wallets, still enforce gross minimum (so you don't allow dust)
+          if(gross < MIN_GROSS_BI) throw new Error(`${which==="deposit" ? "Deposit" : "Withdraw"} minimum is ${MIN_GROSS_DISPLAY}.`);
+        }
 
         if(which==="deposit"){
           if(typeof availableUSDCScaled !== "bigint") throw new Error("Could not read USDC balance.");
@@ -1796,11 +1834,11 @@ async function ensureWcClient(){
         actionState[which].feeBig = feeBig;
         actionState[which].netBig = netBig;
 
-        if(!exempt){
+        if(exempt){
+          actionState[which].feeXdr = null;
+        } else {
           const feeAsset = (which==="deposit" ? USDC_ASSET : BUSDC_ASSET);
           actionState[which].feeXdr = await buildFeePaymentXdr({ asset: feeAsset, amountScaled: feeBig });
-        } else {
-          actionState[which].feeXdr = null; // ✅ no fee tx needed
         }
 
         if(which==="deposit") depositXdr.value = invokeXdr;
@@ -1861,8 +1899,25 @@ async function ensureWcClient(){
         if(isFeeExempt(pubkey)){
           actionState[which].feePaid = true;
           syncActionButtons();
-          statusEl.textContent = "Fee exempt ✓ You can execute now.";
-          toast({type:"ok", title:"Fee exempt", message:"Skipping fee payment for this wallet."});
+        
+          statusEl.textContent = "Fee exempt ✓ Full amount will be used.";
+          toast({
+            type:"ok",
+            title:"Fee exempt",
+            message:"This wallet is exempt from fees. Full amount will be executed."
+          });
+        
+          // Keep UX consistent with paid-fee flow
+          openStepModal({
+            title: "Fee skipped ✅",
+            body: `This wallet is fee-exempt.\nNext step: execute your ${which==="deposit" ? "deposit" : "withdrawal"} using the full amount.`,
+            primaryText: which==="deposit" ? "Execute Deposit" : "Execute Withdrawal",
+            onPrimary: ()=>{
+              if(which==="deposit") $("depExecuteBtn").click();
+              else $("wdExecuteBtn").click();
+            }
+          });
+        
           return;
         }
 
