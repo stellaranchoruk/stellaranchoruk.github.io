@@ -1826,8 +1826,6 @@ async function ensureWcClient(){
           netScaled: netBig
         });
 
-        const exempt = isFeeExempt(pubkey);
-
         actionState[which].preflightOk = true;
         actionState[which].feePaid = exempt; // ✅ fee bypass for exempt wallet
         actionState[which].invokeXdr = invokeXdr;
