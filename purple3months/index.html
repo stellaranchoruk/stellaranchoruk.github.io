@@ -46,6 +46,7 @@
     }
     button.secondary{background:rgba(255,255,255,.06)}
     button.danger{background:rgba(251,113,133,.14)}
+    button.small{padding:8px 10px;border-radius:10px;font-size:12px}
     button:disabled{opacity:.5;cursor:not-allowed}
     .pill{font-size:12px;color:var(--muted)}
     .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
@@ -58,6 +59,10 @@
     .tag{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);font-size:12px;color:var(--muted)}
     .dim{opacity:.55; filter:saturate(.8)}
     hr{border:0;border-top:1px solid rgba(255,255,255,.10);margin:14px 0}
+    .miniCard{
+      padding:12px;border-radius:12px;background:rgba(0,0,0,.16);
+      border:1px solid rgba(255,255,255,.10)
+    }
   </style>
 </head>
 <body>
@@ -137,15 +142,11 @@
 
         <!-- Locked -->
         <div id="lockedSection">
-          <div class="controls" style="justify-content:space-between; align-items:flex-end">
-            <div>
-              <h2 style="margin-bottom:6px">Locked payments (fixed)</h2>
-              <div class="small">
-                Always included when enabled:
-                <span class="mono">DAO Fund → each member: 600,000 AQUA</span> and
-                <span class="mono">DAO Fund → Signers Guild Treasury: 16,200,000 AQUA</span>.
-              </div>
-            </div>
+          <h2 style="margin-bottom:6px">Locked payments (fixed)</h2>
+          <div class="small">
+            Always included when enabled:
+            <span class="mono">DAO Fund → each member: 600,000 AQUA</span> and
+            <span class="mono">DAO Fund → Signers Guild Treasury: 16,200,000 AQUA</span>.
           </div>
 
           <div class="row header" style="margin-top:10px">
@@ -181,43 +182,39 @@
           <h2 style="margin-bottom:6px">Extra payments (optional)</h2>
           <div class="small" style="margin-bottom:10px">
             Add ad-hoc payments to the same transaction when needed.
-            Be aware: if any of these sources are different accounts, the final transaction must be authorized by those accounts’ signers.
+            If any of these sources are different accounts, the final transaction must be authorized by those accounts’ signers.
           </div>
 
-          <div class="card" style="padding:12px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10)">
+          <div class="miniCard">
             <div class="controls" style="justify-content:space-between">
               <div>
-                <div class="name" style="font-size:14px">1) Proposal payment (fixed amount)</div>
+                <div class="name" style="font-size:14px">Proposal payments (fixed amount, add many)</div>
                 <div class="small">
-                  <span class="mono">1,500,000 AQUA</span> from
-                  <span class="mono" id="proposalSourceLine"></span> →
-                  <span class="mono">(flexible destination)</span>
+                  Each is <span class="mono">1,500,000 AQUA</span> from <span class="mono" id="proposalSourceLine"></span> → flexible destination.
                 </div>
               </div>
-              <label class="small" style="display:flex;align-items:center;gap:8px">
-                <input type="checkbox" id="proposalEnable" />
-                Include
-              </label>
+              <div class="controls">
+                <button class="secondary small" id="addProposal">+ Add</button>
+                <button class="secondary small" id="clearProposals">Clear</button>
+              </div>
             </div>
 
-            <div style="display:grid;grid-template-columns: 2fr 1fr; gap:10px; margin-top:10px">
-              <div>
-                <div class="pill">Destination address</div>
-                <input id="proposalDest" type="text" class="mono" placeholder="G..." spellcheck="false" />
-              </div>
-              <div>
-                <div class="pill">Amount (AQUA)</div>
-                <input id="proposalAmt" type="text" class="mono" disabled />
-              </div>
+            <div class="row header" style="margin-top:10px">
+              <div>Label</div><div>Destination</div><div>Amount</div><div>Include</div>
+            </div>
+            <div id="proposalRows"></div>
+
+            <div class="small" style="margin-top:10px">
+              Tip: you can leave rows unchecked to keep them as placeholders.
             </div>
           </div>
 
           <div style="height:10px"></div>
 
-          <div class="card" style="padding:12px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10)">
+          <div class="miniCard">
             <div class="controls" style="justify-content:space-between">
               <div>
-                <div class="name" style="font-size:14px">2) Delegation Payments Top Up (flexible)</div>
+                <div class="name" style="font-size:14px">Delegation Payments Top Up (flexible)</div>
                 <div class="small">
                   from <span class="mono" id="delegationSourceLine"></span> →
                   <span class="mono" id="delegationDestLine"></span>
@@ -229,20 +226,18 @@
               </label>
             </div>
 
-            <div style="display:grid;grid-template-columns: 1fr; gap:10px; margin-top:10px">
-              <div>
-                <div class="pill">Amount (AQUA)</div>
-                <input id="delegationAmt" type="number" min="0" step="0.0000001" value="0" class="mono" />
-              </div>
+            <div style="margin-top:10px">
+              <div class="pill">Amount (AQUA)</div>
+              <input id="delegationAmt" type="number" min="0" step="0.0000001" value="0" class="mono" />
             </div>
           </div>
 
           <div style="height:10px"></div>
 
-          <div class="card" style="padding:12px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10)">
+          <div class="miniCard">
             <div class="controls" style="justify-content:space-between">
               <div>
-                <div class="name" style="font-size:14px">3) SDEX Rewards Top Up (flexible)</div>
+                <div class="name" style="font-size:14px">SDEX Rewards Top Up (flexible)</div>
                 <div class="small">
                   from <span class="mono" id="sdexSourceLine"></span> →
                   <span class="mono" id="sdexDestLine"></span>
@@ -254,11 +249,9 @@
               </label>
             </div>
 
-            <div style="display:grid;grid-template-columns: 1fr; gap:10px; margin-top:10px">
-              <div>
-                <div class="pill">Amount (AQUA)</div>
-                <input id="sdexAmt" type="number" min="0" step="0.0000001" value="0" class="mono" />
-              </div>
+            <div style="margin-top:10px">
+              <div class="pill">Amount (AQUA)</div>
+              <input id="sdexAmt" type="number" min="0" step="0.0000001" value="0" class="mono" />
             </div>
           </div>
         </div>
@@ -344,7 +337,6 @@
     </div>
   </div>
 
-  <!-- Stellar SDK (CDN). -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/12.2.0/stellar-sdk.min.js"></script>
 
   <script>
@@ -354,11 +346,9 @@
     const AQUA_CODE = "AQUA";
     const AQUA_ISSUER = "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA";
 
-    // Main accounts
     const DAO_FUND = "GDB3GJCDWLAMVV7ZL6Q7BH3PGVMFWHA5KSRIY2NML3RXX35ESL3MBOXU";
     const TREASURY = "GD4MJHIGMXVZ2RMXARKSVP6MS5VF3DRJRD3XYHNALHKDLNVRILMSSSTX";
 
-    // Extras
     const DELEGATION_SOURCE = "GDLPCKVNQZ3337RDURRV6MCKZATJGPLVCKZQXXGQW6JTITW6IEBZBTLT";
     const DELEGATION_DEST   = "GCL65B2BXG5LAD633I53QWD7W2BESQIKMDMKJOCRRBXAEUEFVQDCOUZA";
 
@@ -377,11 +367,9 @@
       ["sparky_al",   "GBZEMYFQVN3QHBR7F2U77TZ3QNFKSX5UPYLTPZMRASXOMNE5LAM3XMRY"],
     ];
 
-    // Locked amounts (AQUA)
     const LOCKED_PER_MEMBER = 600000;
     const LOCKED_TO_TREASURY = 16200000;
 
-    // Proposal payment (AQUA)
     const PROPOSAL_AMOUNT = 1500000;
 
     // =========================================================
@@ -402,6 +390,16 @@
     const elLockedRows = document.getElementById("lockedRows");
     const elTreasuryRows = document.getElementById("treasuryRows");
 
+    const elProposalRows = document.getElementById("proposalRows");
+    const btnAddProposal = document.getElementById("addProposal");
+    const btnClearProposals = document.getElementById("clearProposals");
+
+    const elDelegationEnable = document.getElementById("delegationEnable");
+    const elDelegationAmt = document.getElementById("delegationAmt");
+
+    const elSdexEnable = document.getElementById("sdexEnable");
+    const elSdexAmt = document.getElementById("sdexAmt");
+
     const elLockedOps = document.getElementById("lockedOps");
     const elTreasuryOps = document.getElementById("treasuryOps");
     const elExtraOps = document.getElementById("extraOps");
@@ -421,17 +419,6 @@
 
     const elSecret = document.getElementById("secret");
 
-    // Extras refs
-    const elProposalEnable = document.getElementById("proposalEnable");
-    const elProposalDest = document.getElementById("proposalDest");
-    const elProposalAmt = document.getElementById("proposalAmt");
-
-    const elDelegationEnable = document.getElementById("delegationEnable");
-    const elDelegationAmt = document.getElementById("delegationAmt");
-
-    const elSdexEnable = document.getElementById("sdexEnable");
-    const elSdexAmt = document.getElementById("sdexAmt");
-
     // Lines
     document.getElementById("proposalSourceLine").textContent = DAO_FUND;
     document.getElementById("delegationSourceLine").textContent = DELEGATION_SOURCE;
@@ -442,8 +429,6 @@
     elTxSource.value = DAO_FUND;
     elIssuerLine.textContent = AQUA_ISSUER;
     elTreasuryAddr.textContent = TREASURY;
-
-    elProposalAmt.value = String(PROPOSAL_AMOUNT);
 
     function horizonUrl() {
       return elNetwork.value === "TESTNET"
@@ -484,25 +469,16 @@
       elLockedSection.classList.toggle("dim", !elEnableLocked.checked);
       elTreasurySection.classList.toggle("dim", !elEnableTreasury.checked);
 
-      // Disable inputs when off (still visible)
-      for (const inp of elLockedSection.querySelectorAll("input,textarea,select,button")){
-        // locked section is read-only anyway; just leave as-is
-        inp.disabled = inp.disabled; // no-op
+      for (const inp of elTreasurySection.querySelectorAll("input")){
+        if (inp.type === "number" || inp.type === "checkbox") inp.disabled = !elEnableTreasury.checked;
       }
-      for (const inp of elTreasurySection.querySelectorAll("input,textarea,select,button")){
-        // only disable treasury inputs (amounts + includes)
-        if (inp.tagName === "INPUT"){
-          if (inp.type === "number" || inp.type === "checkbox") inp.disabled = !elEnableTreasury.checked;
-        }
-      }
-
       updateTotals();
     }
     elEnableLocked.addEventListener("change", syncSectionEnabled);
     elEnableTreasury.addEventListener("change", syncSectionEnabled);
 
     // =========================================================
-    // Locked rows (always included when enabled)
+    // Locked rows
     // =========================================================
     const lockedOps = [];
     function addLockedRow(name, dest, amount){
@@ -541,10 +517,9 @@
     addLockedRow("Aqua Signers Guild Treasury", TREASURY, LOCKED_TO_TREASURY);
 
     // =========================================================
-    // Treasury rows (editable, default 0)
+    // Treasury rows (default 0)
     // =========================================================
-    const treasuryState = new Map(); // addr -> {amountEl, includeEl, name}
-
+    const treasuryState = new Map();
     function addTreasuryRow(name, dest){
       const wrap = document.createElement("div");
       wrap.className = "row";
@@ -561,9 +536,8 @@
       amount.type = "number";
       amount.min = "0";
       amount.step = "0.0000001";
-      amount.placeholder = "0";
-      amount.inputMode = "decimal";
       amount.value = "0";
+      amount.className = "mono";
       amount.addEventListener("input", updateTotals);
       c3.appendChild(amount);
 
@@ -579,7 +553,6 @@
 
       treasuryState.set(dest, {amountEl: amount, includeEl: include, name});
     }
-
     MEMBERS.forEach(([name, addr]) => addTreasuryRow(name, addr));
 
     // Bulk apply (treasury only)
@@ -613,29 +586,87 @@
     });
 
     // =========================================================
-    // Extras wiring
+    // Proposal rows (many)
     // =========================================================
-    function extraProposalEnabled(){
-      return elProposalEnable.checked;
+    const proposalState = []; // {labelEl, destEl, includeEl}
+    let proposalCounter = 0;
+
+    function addProposalRow(prefillDest=""){
+      proposalCounter += 1;
+
+      const wrap = document.createElement("div");
+      wrap.className = "row";
+      wrap.style.padding = "8px 0";
+      wrap.style.borderBottom = "1px solid rgba(255,255,255,.06)";
+
+      const c1 = document.createElement("div");
+      const label = document.createElement("input");
+      label.type = "text";
+      label.placeholder = "e.g. Proposal 123";
+      label.value = `Proposal ${proposalCounter}`;
+      c1.appendChild(label);
+
+      const c2 = document.createElement("div");
+      const dest = document.createElement("input");
+      dest.type = "text";
+      dest.className = "mono";
+      dest.placeholder = "Destination G...";
+      dest.spellcheck = false;
+      dest.value = prefillDest;
+      c2.appendChild(dest);
+
+      const c3 = document.createElement("div");
+      const amt = document.createElement("input");
+      amt.type = "text";
+      amt.className = "mono";
+      amt.disabled = true;
+      amt.value = fmtAmount(PROPOSAL_AMOUNT);
+      c3.appendChild(amt);
+
+      const c4 = document.createElement("div");
+      const include = document.createElement("input");
+      include.type = "checkbox";
+      include.checked = false;
+      c4.appendChild(include);
+
+      [label, dest, include].forEach(el=>{
+        el.addEventListener("input", updateTotals);
+        el.addEventListener("change", updateTotals);
+      });
+
+      wrap.appendChild(c1); wrap.appendChild(c2); wrap.appendChild(c3); wrap.appendChild(c4);
+      elProposalRows.appendChild(wrap);
+
+      proposalState.push({labelEl: label, destEl: dest, includeEl: include});
+      updateTotals();
     }
-    function extraDelegationEnabled(){
-      return elDelegationEnable.checked && parseFloat(elDelegationAmt.value || "0") > 0;
-    }
-    function extraSdexEnabled(){
-      return elSdexEnable.checked && parseFloat(elSdexAmt.value || "0") > 0;
-    }
-    [elProposalEnable, elProposalDest, elDelegationEnable, elDelegationAmt, elSdexEnable, elSdexAmt].forEach(el=>{
+
+    // Start with 1 empty proposal row (unchecked) so you can just fill + tick
+    addProposalRow("");
+
+    btnAddProposal.addEventListener("click", () => addProposalRow(""));
+    btnClearProposals.addEventListener("click", () => {
+      proposalState.length = 0;
+      proposalCounter = 0;
+      elProposalRows.innerHTML = "";
+      addProposalRow("");
+      setStatus("Proposal rows cleared.", "ok");
+    });
+
+    // =========================================================
+    // Extras listeners
+    // =========================================================
+    [elDelegationEnable, elDelegationAmt, elSdexEnable, elSdexAmt].forEach(el=>{
       el.addEventListener("input", updateTotals);
       el.addEventListener("change", updateTotals);
     });
 
     // =========================================================
-    // Totals
+    // Collectors
     // =========================================================
     function collectTreasuryPayments(){
       const items = [];
       if (!elEnableTreasury.checked) return items;
-
       for (const [addr, st] of treasuryState.entries()){
         const inc = st.includeEl.checked;
         const v = parseFloat(st.amountEl.value || "0");
@@ -646,16 +677,26 @@
       return items;
     }
 
+    function collectProposalPayments(){
+      const items = [];
+      for (const p of proposalState){
+        if (!p.includeEl.checked) continue;
+        const dest = (p.destEl.value || "").trim();
+        const label = (p.labelEl.value || "").trim();
+        items.push({ label, destination: dest, amount: fmtAmount(PROPOSAL_AMOUNT) });
+      }
+      return items;
+    }
+
     function collectExtraPayments(){
       const extras = [];
 
-      // 1) Proposal payment: fixed amount, flexible dest, source = DAO_FUND
-      if (extraProposalEnabled()){
-        const dest = (elProposalDest.value || "").trim();
-        extras.push({ kind:"proposal", source: DAO_FUND, destination: dest, amount: fmtAmount(PROPOSAL_AMOUNT) });
+      // Proposal payments (many): source = DAO_FUND, dest flexible, amount fixed
+      for (const p of collectProposalPayments()){
+        extras.push({ kind:"proposal", source: DAO_FUND, destination: p.destination, amount: p.amount, label: p.label });
       }
 
-      // 2) Delegation top-up: source = DELEGATION_SOURCE, dest fixed, amount flexible
+      // Delegation top-up: source = DELEGATION_SOURCE, dest fixed
       if (elDelegationEnable.checked){
         const v = parseFloat(elDelegationAmt.value || "0");
         if (v > 0){
@@ -663,7 +704,7 @@
         }
       }
 
-      // 3) SDEX top-up: source = SDEX_SOURCE, dest fixed, amount flexible
+      // SDEX top-up: source = SDEX_SOURCE, dest fixed
       if (elSdexEnable.checked){
         const v = parseFloat(elSdexAmt.value || "0");
         if (v > 0){
@@ -674,6 +715,9 @@
       return extras;
     }
 
+    // =========================================================
+    // Totals
+    // =========================================================
     function updateTotals(){
       const lockedCount = elEnableLocked.checked ? lockedOps.length : 0;
 
@@ -699,13 +743,11 @@
         extraTotal += parseFloat(e.amount || "0");
       }
 
-      // DAO total (locked): only when locked enabled
       const daoTotalLocked = elEnableLocked.checked
         ? (MEMBERS.length * LOCKED_PER_MEMBER) + LOCKED_TO_TREASURY
         : 0;
 
       const totalOps = lockedCount + treasuryCount + extraCount;
-
       const baseFee = parseInt(elBaseFee.value || "100", 10);
       const totalFee = (isFinite(baseFee) ? baseFee : 0) * totalOps;
 
@@ -719,10 +761,9 @@
       elTreasuryTotalAqua.textContent = fmtAmount(treasuryTotal);
       elExtraTotalAqua.textContent = fmtAmount(extraTotal);
     }
+
     updateTotals();
     elBaseFee.addEventListener("input", updateTotals);
-
-    // Initial section sync
     syncSectionEnabled();
 
     // =========================================================
@@ -743,8 +784,8 @@
     document.getElementById("build").addEventListener("click", async () => {
       try{
         setStatus("Building…", "warn");
-        elXdr.value = "";
-        elSignedXdr.value = "";
+        document.getElementById("xdr").value = "";
+        document.getElementById("signedXdr").value = "";
 
         const txSource = (elTxSource.value || "").trim();
         if (!txSource) throw new Error("Transaction source is blank.");
@@ -755,10 +796,14 @@
         const treasuryPays = collectTreasuryPayments();
         const extras = collectExtraPayments();
 
-        // Validate proposal if enabled
-        if (elProposalEnable.checked){
-          const d = (elProposalDest.value || "").trim();
-          if (!d) throw new Error("Proposal payment is enabled but destination is blank.");
+        // Validate proposal rows that are included
+        for (const p of proposalState){
+          if (!p.includeEl.checked) continue;
+          const d = (p.destEl.value || "").trim();
+          if (!d){
+            const label = (p.labelEl.value || "").trim() || "(unnamed)";
+            throw new Error(`Proposal payment "${label}" is included but destination is blank.`);
+          }
         }
 
         const horizon = horizonUrl();
@@ -784,7 +829,7 @@
           builder = builder.setTimeout(0);
         }
 
-        // Locked ops (enabled): DAO fund -> members + DAO -> treasury
+        // Locked ops (enabled)
         if (elEnableLocked.checked){
           for (const op of lockedOps){
             builder = builder.addOperation(StellarSdk.Operation.payment({
@@ -807,7 +852,7 @@
           }
         }
 
-        // Extras: each has its own source account
+        // Extras: each has explicit source
         for (const e of extras){
           builder = builder.addOperation(StellarSdk.Operation.payment({
             source: e.source,
