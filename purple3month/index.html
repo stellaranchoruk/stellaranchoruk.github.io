@@ -23,7 +23,6 @@
     h1{margin:0 0 10px;font-size:20px}
     h2{margin:0 0 10px;font-size:16px}
     .sub{color:var(--muted);margin:0 0 18px;font-size:13px;line-height:1.35}
-    .grid{display:grid;grid-template-columns:1fr;gap:14px}
     .card{
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       border:1px solid var(--border); border-radius:14px; padding:14px;
@@ -68,13 +67,13 @@
       <span class="tag">DAO Fund → Members (fixed 600,000 AQUA each)</span>
       <span class="tag">DAO Fund → Signers Guild Treasury (fixed 16,200,000 AQUA)</span>
       <span class="tag">Treasury → Members (flexible)</span><br/>
-      Then lets you sign the built XDR (Freighter recommended) and copy the signed XDR.
+      Then lets you sign the built XDR locally and copy the signed XDR.
     </p>
 
     <div class="two">
       <div class="card">
         <div class="controls" style="justify-content:space-between">
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center; width:100%">
             <div style="min-width:220px">
               <div class="pill">Network</div>
               <select id="network">
@@ -89,11 +88,6 @@
                 Sequence number is fetched from Horizon for this account (tx source).
               </div>
             </div>
-          </div>
-
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="secondary" id="fillTreasuryZeros">Fill treasury blanks with 0</button>
-            <button class="danger" id="clearTreasury">Clear treasury amounts</button>
           </div>
         </div>
 
@@ -140,6 +134,7 @@
         <h2>Treasury payments (flexible)</h2>
         <div class="small" style="margin-bottom:10px">
           These ops have <span class="mono">sourceAccount = Signers Guild Treasury</span>. Set amounts to 0 to exclude.
+          (All amounts load at <span class="mono">0</span> by default.)
         </div>
 
         <div style="margin-bottom:10px">
@@ -178,35 +173,22 @@
           <div class="pill">Signed XDR (base64)</div>
           <textarea id="signedXdr" spellcheck="false" placeholder="Sign after building..."></textarea>
           <div class="small" style="margin-top:8px">
-            Note: ops with different source accounts require the transaction be authorized by signers for those accounts.
+            Note: ops with different source accounts require authorization by signers for those accounts.
             If your signer key is present on both the DAO fund and the treasury, a single signature can satisfy both.
           </div>
         </div>
       </div>
 
       <div class="card">
-        <h2>Signing</h2>
+        <h2>Local signing</h2>
         <div class="small">
-          Recommended: sign with <span class="mono">Freighter</span> (no secret key in this page).<br/>
-          Alternative: paste a secret key to sign locally (not stored; still risky in a browser).
-        </div>
-
-        <hr>
-
-        <div class="controls">
-          <button id="connectFreighter" class="secondary">Check Freighter</button>
-          <button id="signFreighter">Sign with Freighter</button>
-        </div>
-        <div class="small" id="freighterInfo" style="margin-top:10px;color:var(--muted)"></div>
-
-        <hr>
-
-        <div class="pill">Local signing (optional / risky)</div>
-        <div class="small" style="margin-top:6px">
           Paste a Stellar secret key (starts with <span class="mono">S</span>) to sign the currently-built XDR locally.
-          This page does not save it, but browser environments are inherently risky.
+          This page does not save it, but browser environments are inherently risky—use a dedicated signer machine if possible.
         </div>
-        <div style="margin-top:10px">
+
+        <hr>
+
+        <div>
           <div class="pill">Secret key</div>
           <input id="secret" type="text" class="mono" placeholder="S.............................................." spellcheck="false" />
         </div>
@@ -247,8 +229,6 @@
 
   <!-- Stellar SDK (CDN). You can pin/change versions if you prefer. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/12.2.0/stellar-sdk.min.js"></script>
-  <!-- Freighter API (CDN). -->
-  <script src="https://cdn.jsdelivr.net/npm/@stellar/freighter-api@4.1.0/dist/index.umd.js"></script>
 
   <script>
     // =========================================================
@@ -275,19 +255,6 @@
     // Locked amounts (AQUA)
     const LOCKED_PER_MEMBER = 600000;       // 600,000 AQUA each
     const LOCKED_TO_TREASURY = 16200000;    // 16,200,000 AQUA
-
-    // Prefill flexible treasury payouts from your JSON example (AQUA units)
-    const TREASURY_PREFILL = new Map([
-      ["GB3ETBDUUPUP77UQK6BS4XWDXIPJKBU2WTWCZHJQ3HM756HUNC5G5D6I", 2389824],
-      ["GBJFBCTGFJXBYA7JETBRFTSTPAKVRR2CKEMASWYZN4KQVGRAOKMWMA23", 2389824],
-      ["GCDD4OHCP4M3MJENSHVEIX4KT6KRNI62MBZZYKLJSD3DKQYWDNYTTMOE", 2389824],
-      ["GBJNLJVDV36N7FGXPVAUESCR2Z7FM7NMZ4HAJUGWKLPC4DSG6VHX3RGK", 2389824],
-      ["GBEROCL2TJJFKT3YIXCZDWTR4MWYANKDBNQRGGWCGDQACLUYYUWLHC3F", 2389824],
-      ["GBDVBOWFPYWJS3BVS4H4YYOGN7UTMR4TKKPJ77YK2N7LD7OVYI35NN52", 2389824],
-      ["GBCDIOPTY7I76YTYMCOUCMAZ6OOJWLPJSB4UZPAUMRVYW2KFKRDUBN45", 2389824],
-      ["GCUJTAYFMYKNZK2TUFR6EOO6I6K6SDHILYNLQ6FJ3KDF3FBVE24ZX7YT", 2075251.2],
-      ["GBZEMYFQVN3QHBR7F2U77TZ3QNFKSX5UPYLTPZMRASXOMNE5LAM3XMRY", 1642713.6],
-    ]);
 
     // =========================================================
     // UI refs
@@ -316,7 +283,6 @@
     const elIssuerLine = document.getElementById("issuerLine");
     const elTreasuryAddr = document.getElementById("treasuryAddr");
 
-    const elFreighterInfo = document.getElementById("freighterInfo");
     const elSecret = document.getElementById("secret");
 
     elDaoSource.value = DAO_SOURCE_DEFAULT;
@@ -345,7 +311,6 @@
     }
 
     function fmtAmount(n) {
-      // return a string with up to 7 decimals, trimmed
       if (!isFinite(n)) return "0";
       const s = (Math.round(n * 1e7) / 1e7).toFixed(7);
       return s.replace(/\.?0+$/,'');
@@ -358,8 +323,6 @@
     elNetwork.addEventListener("change", () => {
       rebuildHorizonInfo();
       setStatus("Network changed. Rebuild XDR.", "warn");
-      // Freighter network check too
-      checkFreighter().catch(()=>{});
     });
 
     // =========================================================
@@ -402,11 +365,11 @@
     addLockedRow("Aqua Signers Guild Treasury", TREASURY, LOCKED_TO_TREASURY);
 
     // =========================================================
-    // Treasury rows (editable)
+    // Treasury rows (editable, default 0)
     // =========================================================
     const treasuryState = new Map(); // addr -> {amountEl, includeEl, name}
 
-    function addTreasuryRow(name, dest, initial){
+    function addTreasuryRow(name, dest){
       const wrap = document.createElement("div");
       wrap.className = "row";
       wrap.style.padding = "8px 0";
@@ -424,7 +387,7 @@
       amount.step = "0.0000001";
       amount.placeholder = "0";
       amount.inputMode = "decimal";
-      amount.value = (initial != null) ? String(initial) : "";
+      amount.value = "0";
       amount.addEventListener("input", updateTotals);
       c3.appendChild(amount);
 
@@ -441,25 +404,7 @@
       treasuryState.set(dest, {amountEl: amount, includeEl: include, name});
     }
 
-    MEMBERS.forEach(([name, addr]) => addTreasuryRow(name, addr, TREASURY_PREFILL.has(addr) ? TREASURY_PREFILL.get(addr) : 0));
-
-    document.getElementById("fillTreasuryZeros").addEventListener("click", () => {
-      for (const st of treasuryState.values()){
-        if (!st.amountEl.value) st.amountEl.value = "0";
-      }
-      updateTotals();
-    });
-
-    document.getElementById("clearTreasury").addEventListener("click", () => {
-      for (const st of treasuryState.values()){
-        st.amountEl.value = "";
-        st.includeEl.checked = true;
-      }
-      elXdr.value = "";
-      elSignedXdr.value = "";
-      setStatus("Ready", "warn");
-      updateTotals();
-    });
+    MEMBERS.forEach(([name, addr]) => addTreasuryRow(name, addr));
 
     // Bulk apply (treasury only)
     document.getElementById("applyBulk").addEventListener("click", () => {
@@ -510,7 +455,6 @@
       const baseFee = parseInt(elBaseFee.value || "100", 10);
       const totalFee = (isFinite(baseFee) ? baseFee : 0) * totalOps;
 
-      // DAO total: (members * 600k) + 16.2m
       const daoTotal = (MEMBERS.length * LOCKED_PER_MEMBER) + LOCKED_TO_TREASURY;
 
       elLockedOps.textContent = String(lockedCount);
@@ -535,7 +479,6 @@
       return r.json();
     }
 
-    // Collect treasury payments
     function collectTreasuryPayments(){
       const items = [];
       for (const [addr, st] of treasuryState.entries()){
@@ -572,7 +515,7 @@
         const aqua = new StellarSdk.Asset(AQUA_CODE, AQUA_ISSUER);
 
         let builder = new StellarSdk.TransactionBuilder(account, {
-          fee: String(baseFee),               // base fee per op (SDK will multiply by op count)
+          fee: String(baseFee),
           networkPassphrase: passphrase()
         });
 
@@ -588,7 +531,7 @@
           builder = builder.setTimeout(0);
         }
 
-        // Locked ops: DAO fund -> members (600k each)
+        // Locked ops: DAO fund -> members (600k each) + DAO -> treasury (16.2m)
         for (const op of lockedOps){
           builder = builder.addOperation(StellarSdk.Operation.payment({
             destination: op.destination,
@@ -650,74 +593,6 @@
     });
 
     // =========================================================
-    // Freighter signing
-    // =========================================================
-    async function checkFreighter(){
-      try{
-        const api = window.freighterApi || window.FreighterApi || null;
-        if (!api) {
-          elFreighterInfo.textContent = "Freighter API not found. Ensure Freighter is installed and the CDN loaded.";
-          return { ok:false };
-        }
-
-        const isConnected = await api.isConnected();
-        const isAllowed = await api.isAllowed(); // may prompt depending on version
-        const pub = isConnected ? await api.getPublicKey().catch(()=>null) : null;
-
-        // Freighter network: expects "PUBLIC" or "TESTNET"
-        const expected = elNetwork.value;
-        let freighterNet = null;
-        try { freighterNet = await api.getNetwork(); } catch(_) {}
-
-        elFreighterInfo.innerHTML =
-          `Installed: <span class="${isConnected?'ok':'warn'}">${isConnected ? 'Yes' : 'Not connected'}</span><br/>` +
-          `Allowed: <span class="${isAllowed?'ok':'warn'}">${isAllowed ? 'Yes' : 'No / needs approval'}</span><br/>` +
-          `Public key: <span class="mono">${pub ? escapeHtml(pub) : '(unknown)'}</span><br/>` +
-          `Freighter network: <span class="mono">${freighterNet || '(unknown)'}</span> (this UI: <span class="mono">${expected}</span>)`;
-
-        return { ok:true, api, isConnected, isAllowed, pub, freighterNet };
-      } catch (e){
-        elFreighterInfo.textContent = "Freighter check error: " + (e.message || String(e));
-        return { ok:false };
-      }
-    }
-
-    document.getElementById("connectFreighter").addEventListener("click", () => {
-      checkFreighter().catch(()=>{});
-    });
-
-    document.getElementById("signFreighter").addEventListener("click", async () => {
-      try{
-        const v = elXdr.value.trim();
-        if (!v) throw new Error("Build XDR first.");
-
-        setStatus("Requesting Freighter signature…", "warn");
-
-        const api = window.freighterApi || window.FreighterApi;
-        if (!api) throw new Error("Freighter API not found (is Freighter installed?).");
-
-        // Ensure permission
-        const allowed = await api.isAllowed();
-        if (!allowed){
-          // request access (some versions use setAllowed / requestAccess; try both safely)
-          if (api.requestAccess) await api.requestAccess();
-          else if (api.setAllowed) await api.setAllowed();
-        }
-
-        // Sign XDR
-        // Some versions use signTransaction(xdr, { networkPassphrase }) and return XDR
-        const signed = await api.signTransaction(v, { networkPassphrase: passphrase() });
-
-        elSignedXdr.value = signed;
-        setStatus("Signed with Freighter.", "ok");
-        await checkFreighter();
-      } catch (e){
-        console.error(e);
-        setStatus(e.message || String(e), "bad");
-      }
-    });
-
-    // =========================================================
     // Local signing (secret key)
     // =========================================================
     document.getElementById("wipeSecret").addEventListener("click", () => {
@@ -745,9 +620,6 @@
         setStatus(e.message || String(e), "bad");
       }
     });
-
-    // Initial check
-    checkFreighter().catch(()=>{});
   </script>
 </body>
 </html>
