@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aquarius Guild Payouts → Build + Sign XDR</title>
+  <style>
+    :root{
+      --bg:#0b0f17; --card:#111a2b; --muted:#8ea0c2; --text:#e8eefc;
+      --accent:#5eead4; --warn:#fbbf24; --bad:#fb7185; --ok:#34d399;
+      --border:rgba(255,255,255,.12);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:var(--sans); color:var(--text); background:
+        radial-gradient(1200px 800px at 15% -10%, rgba(94,234,212,.18), transparent 60%),
+        radial-gradient(900px 600px at 120% 10%, rgba(142,160,194,.12), transparent 55%),
+        var(--bg);
+    }
+    .wrap{max-width:1180px;margin:24px auto;padding:0 16px}
+    h1{margin:0 0 10px;font-size:20px}
+    h2{margin:0 0 10px;font-size:16px}
+    .sub{color:var(--muted);margin:0 0 18px;font-size:13px;line-height:1.35}
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border); border-radius:14px; padding:14px;
+    }
+    .row{display:grid;grid-template-columns: 1.1fr 2fr 1fr .6fr; gap:10px; align-items:center}
+    .row.header{color:var(--muted);font-size:12px;padding-bottom:8px;border-bottom:1px dashed rgba(255,255,255,.12);margin-bottom:10px}
+    .name{font-weight:700}
+    .addr{font-family:var(--mono);font-size:12px;color:var(--muted);word-break:break-all}
+    input[type="text"], input[type="number"], textarea, select{
+      width:100%; padding:10px 10px; border-radius:10px;
+      background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.14);
+      color:var(--text); outline:none;
+    }
+    input[type="number"]{font-family:var(--mono)}
+    textarea{min-height:120px; font-family:var(--mono); font-size:12px}
+    .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    button{
+      padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.16);
+      background:rgba(94,234,212,.12); color:var(--text); cursor:pointer;
+      font-weight:700;
+    }
+    button.secondary{background:rgba(255,255,255,.06)}
+    button.danger{background:rgba(251,113,133,.14)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .pill{font-size:12px;color:var(--muted)}
+    .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+    .two{display:grid;grid-template-columns:1fr;gap:14px}
+    @media (min-width: 980px){ .two{grid-template-columns: 1.25fr .95fr;} }
+    .small{font-size:12px;color:var(--muted);line-height:1.35}
+    .mono{font-family:var(--mono)}
+    .totals{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+    .totals .box{padding:8px 10px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.04)}
+    .tag{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);font-size:12px;color:var(--muted)}
+    .dim{opacity:.55; filter:saturate(.8)}
+    hr{border:0;border-top:1px solid rgba(255,255,255,.10);margin:14px 0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Aquarius Guild Payouts → Build + Sign XDR</h1>
+    <p class="sub">
+      Build a single transaction XDR with optional sections:
+      <span class="tag">Locked guild payouts</span>
+      <span class="tag">Treasury payouts</span>
+      <span class="tag">Extra / ad-hoc payments</span>
+      then sign locally.
+    </p>
+
+    <div class="two">
+      <div class="card">
+        <div class="controls" style="justify-content:space-between">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center; width:100%">
+            <div style="min-width:220px">
+              <div class="pill">Network</div>
+              <select id="network">
+                <option value="PUBLIC" selected>Public Network</option>
+                <option value="TESTNET">Testnet</option>
+              </select>
+            </div>
+            <div style="min-width:430px;flex:1">
+              <div class="pill">Transaction source (sequence fetched from here)</div>
+              <input id="txSource" type="text" spellcheck="false" class="mono" />
+              <div class="small" style="margin-top:6px">
+                Tip: if you disable the guild sections and only do ad-hoc payments, you can still keep this as the DAO fund.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:12px">
+          <div>
+            <div class="pill">Base fee (stroops / op)</div>
+            <input id="baseFee" type="number" min="100" step="1" value="100" />
+          </div>
+          <div>
+            <div class="pill">Memo (optional, max 28 chars)</div>
+            <input id="memo" type="text" placeholder="e.g. Aquarius payout Q1 2026" />
+          </div>
+          <div>
+            <div class="pill">Timebound (minutes; 0 = none)</div>
+            <input id="timebound" type="number" min="0" step="1" value="0" />
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="small">
+          Asset:
+          <span class="mono">AQUA</span> /
+          <span class="mono" id="issuerLine"></span>
+        </div>
+
+        <hr>
+
+        <div class="controls" style="justify-content:space-between">
+          <div class="controls">
+            <label class="small" style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="enableLocked" checked />
+              Enable Locked payments (fixed)
+            </label>
+            <label class="small" style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="enableTreasury" checked />
+              Enable Treasury payments (flexible)
+            </label>
+          </div>
+          <div class="small">
+            Disable both to use this page as a quick “ad-hoc payments” XDR builder.
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- Locked -->
+        <div id="lockedSection">
+          <div class="controls" style="justify-content:space-between; align-items:flex-end">
+            <div>
+              <h2 style="margin-bottom:6px">Locked payments (fixed)</h2>
+              <div class="small">
+                Always included when enabled:
+                <span class="mono">DAO Fund → each member: 600,000 AQUA</span> and
+                <span class="mono">DAO Fund → Signers Guild Treasury: 16,200,000 AQUA</span>.
+              </div>
+            </div>
+          </div>
+
+          <div class="row header" style="margin-top:10px">
+            <div>Name</div><div>Destination</div><div>Amount (AQUA)</div><div>Include</div>
+          </div>
+          <div id="lockedRows"></div>
+          <hr>
+        </div>
+
+        <!-- Treasury -->
+        <div id="treasurySection">
+          <h2 style="margin-bottom:6px">Treasury payments (flexible)</h2>
+          <div class="small" style="margin-bottom:10px">
+            These ops have <span class="mono">sourceAccount = Signers Guild Treasury</span>. Set amounts to 0 to exclude.
+            (All amounts load at <span class="mono">0</span>.)
+          </div>
+
+          <div style="margin-bottom:10px">
+            <div class="pill">Signers Guild Treasury (op source)</div>
+            <div class="addr mono" id="treasuryAddr"></div>
+          </div>
+
+          <div class="row header">
+            <div>Name</div><div>Destination</div><div>Amount (AQUA)</div><div>Include</div>
+          </div>
+          <div id="treasuryRows"></div>
+
+          <hr>
+        </div>
+
+        <!-- Extras -->
+        <div id="extrasSection">
+          <h2 style="margin-bottom:6px">Extra payments (optional)</h2>
+          <div class="small" style="margin-bottom:10px">
+            Add ad-hoc payments to the same transaction when needed.
+            Be aware: if any of these sources are different accounts, the final transaction must be authorized by those accounts’ signers.
+          </div>
+
+          <div class="card" style="padding:12px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10)">
+            <div class="controls" style="justify-content:space-between">
+              <div>
+                <div class="name" style="font-size:14px">1) Proposal payment (fixed amount)</div>
+                <div class="small">
+                  <span class="mono">1,500,000 AQUA</span> from
+                  <span class="mono" id="proposalSourceLine"></span> →
+                  <span class="mono">(flexible destination)</span>
+                </div>
+              </div>
+              <label class="small" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="proposalEnable" />
+                Include
+              </label>
+            </div>
+
+            <div style="display:grid;grid-template-columns: 2fr 1fr; gap:10px; margin-top:10px">
+              <div>
+                <div class="pill">Destination address</div>
+                <input id="proposalDest" type="text" class="mono" placeholder="G..." spellcheck="false" />
+              </div>
+              <div>
+                <div class="pill">Amount (AQUA)</div>
+                <input id="proposalAmt" type="text" class="mono" disabled />
+              </div>
+            </div>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="card" style="padding:12px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10)">
+            <div class="controls" style="justify-content:space-between">
+              <div>
+                <div class="name" style="font-size:14px">2) Delegation Payments Top Up (flexible)</div>
+                <div class="small">
+                  from <span class="mono" id="delegationSourceLine"></span> →
+                  <span class="mono" id="delegationDestLine"></span>
+                </div>
+              </div>
+              <label class="small" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="delegationEnable" checked />
+                Include
+              </label>
+            </div>
+
+            <div style="display:grid;grid-template-columns: 1fr; gap:10px; margin-top:10px">
+              <div>
+                <div class="pill">Amount (AQUA)</div>
+                <input id="delegationAmt" type="number" min="0" step="0.0000001" value="0" class="mono" />
+              </div>
+            </div>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="card" style="padding:12px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10)">
+            <div class="controls" style="justify-content:space-between">
+              <div>
+                <div class="name" style="font-size:14px">3) SDEX Rewards Top Up (flexible)</div>
+                <div class="small">
+                  from <span class="mono" id="sdexSourceLine"></span> →
+                  <span class="mono" id="sdexDestLine"></span>
+                </div>
+              </div>
+              <label class="small" style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="sdexEnable" checked />
+                Include
+              </label>
+            </div>
+
+            <div style="display:grid;grid-template-columns: 1fr; gap:10px; margin-top:10px">
+              <div>
+                <div class="pill">Amount (AQUA)</div>
+                <input id="sdexAmt" type="number" min="0" step="0.0000001" value="0" class="mono" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px" class="totals">
+          <div class="box"><span class="pill">Locked ops:</span> <span id="lockedOps" class="mono">0</span></div>
+          <div class="box"><span class="pill">Treasury ops:</span> <span id="treasuryOps" class="mono">0</span></div>
+          <div class="box"><span class="pill">Extra ops:</span> <span id="extraOps" class="mono">0</span></div>
+          <div class="box"><span class="pill">Total ops:</span> <span id="totalOps" class="mono">0</span></div>
+          <div class="box"><span class="pill">Est. total fee (stroops):</span> <span id="totalFee" class="mono">0</span></div>
+          <div class="box"><span class="pill">DAO total AQUA (locked):</span> <span id="daoTotalAqua" class="mono">0</span></div>
+          <div class="box"><span class="pill">Treasury total AQUA:</span> <span id="treasuryTotalAqua" class="mono">0</span></div>
+          <div class="box"><span class="pill">Extra total AQUA:</span> <span id="extraTotalAqua" class="mono">0</span></div>
+          <div class="box"><span class="pill">Status:</span> <span id="status" class="mono warn">Ready</span></div>
+        </div>
+
+        <div style="margin-top:14px" class="controls">
+          <button id="build">Build XDR</button>
+          <button class="secondary" id="copyXdr">Copy XDR</button>
+          <button class="secondary" id="copySignedXdr">Copy Signed XDR</button>
+          <button class="secondary" id="openLab">Open in Stellar Laboratory</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="pill">Unsigned XDR (base64)</div>
+          <textarea id="xdr" spellcheck="false" placeholder="Build XDR first..."></textarea>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="pill">Signed XDR (base64)</div>
+          <textarea id="signedXdr" spellcheck="false" placeholder="Sign after building..."></textarea>
+          <div class="small" style="margin-top:8px">
+            Note: ops with different source accounts require authorization by signers for those accounts.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Local signing</h2>
+        <div class="small">
+          Paste a Stellar secret key (starts with <span class="mono">S</span>) to sign the currently-built XDR locally.
+          This page does not save it, but browser environments are inherently risky.
+        </div>
+
+        <hr>
+
+        <div>
+          <div class="pill">Secret key</div>
+          <input id="secret" type="text" class="mono" placeholder="S.............................................." spellcheck="false" />
+        </div>
+        <div class="controls" style="margin-top:10px">
+          <button id="signLocal" class="danger">Sign locally</button>
+          <button id="wipeSecret" class="secondary">Wipe secret</button>
+        </div>
+
+        <hr>
+
+        <div class="pill">Horizon</div>
+        <div class="small mono" id="horizonInfo" style="margin-top:6px;word-break:break-all"></div>
+
+        <hr>
+
+        <div class="pill">Quick bulk paste (treasury only)</div>
+        <div class="small" style="margin-top:6px">
+          Paste lines like <span class="mono">Claw=123</span> or <span class="mono">GB...=50</span>, then click Apply.
+        </div>
+        <textarea id="bulk" spellcheck="false" placeholder="Claw=2389824&#10;Cryptoboar=2389824&#10;GCUJ...=2075251.2"></textarea>
+        <div class="controls" style="margin-top:10px">
+          <button class="secondary" id="applyBulk">Apply</button>
+        </div>
+        <div class="small" id="bulkResult" style="margin-top:8px;color:var(--muted)"></div>
+
+        <hr>
+
+        <h2>Built-in checks</h2>
+        <ul class="small" style="margin:0;padding-left:18px">
+          <li>Build uses Horizon sequence for <span class="mono">Transaction source</span>.</li>
+          <li>Timebound: <span class="mono">0</span> = none; otherwise valid for N minutes.</li>
+          <li>Amounts are entered in <span class="mono">AQUA</span> (up to 7 decimals).</li>
+          <li>If any recipient lacks an AQUA trustline, that payment will fail on submit.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stellar SDK (CDN). -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/12.2.0/stellar-sdk.min.js"></script>
+
+  <script>
+    // =========================================================
+    // Config
+    // =========================================================
+    const AQUA_CODE = "AQUA";
+    const AQUA_ISSUER = "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA";
+
+    // Main accounts
+    const DAO_FUND = "GDB3GJCDWLAMVV7ZL6Q7BH3PGVMFWHA5KSRIY2NML3RXX35ESL3MBOXU";
+    const TREASURY = "GD4MJHIGMXVZ2RMXARKSVP6MS5VF3DRJRD3XYHNALHKDLNVRILMSSSTX";
+
+    // Extras
+    const DELEGATION_SOURCE = "GDLPCKVNQZ3337RDURRV6MCKZATJGPLVCKZQXXGQW6JTITW6IEBZBTLT";
+    const DELEGATION_DEST   = "GCL65B2BXG5LAD633I53QWD7W2BESQIKMDMKJOCRRBXAEUEFVQDCOUZA";
+
+    const SDEX_SOURCE = "GBU44GPNHLW5GSGE4HDOEFLSSF5A6TF4BAPQ7ZWPB7YTZ2F4I4L22DOM";
+    const SDEX_DEST   = "GC5VEAWX7C3GSTW7RUKJKMQWXYZFW5TH4NGI4ZQSF6LNLUYSDGBVANBA";
+
+    const MEMBERS = [
+      ["Claw",        "GB3ETBDUUPUP77UQK6BS4XWDXIPJKBU2WTWCZHJQ3HM756HUNC5G5D6I"],
+      ["Cryptoboar",  "GBJFBCTGFJXBYA7JETBRFTSTPAKVRR2CKEMASWYZN4KQVGRAOKMWMA23"],
+      ["nikimelo",    "GCDD4OHCP4M3MJENSHVEIX4KT6KRNI62MBZZYKLJSD3DKQYWDNYTTMOE"],
+      ["Core77",      "GBJNLJVDV36N7FGXPVAUESCR2Z7FM7NMZ4HAJUGWKLPC4DSG6VHX3RGK"],
+      ["Overcat",     "GBEROCL2TJJFKT3YIXCZDWTR4MWYANKDBNQRGGWCGDQACLUYYUWLHC3F"],
+      ["Orbitlens",   "GBDVBOWFPYWJS3BVS4H4YYOGN7UTMR4TKKPJ77YK2N7LD7OVYI35NN52"],
+      ["Umbrel",      "GBCDIOPTY7I76YTYMCOUCMAZ6OOJWLPJSB4UZPAUMRVYW2KFKRDUBN45"],
+      ["JasonC",      "GCUJTAYFMYKNZK2TUFR6EOO6I6K6SDHILYNLQ6FJ3KDF3FBVE24ZX7YT"],
+      ["sparky_al",   "GBZEMYFQVN3QHBR7F2U77TZ3QNFKSX5UPYLTPZMRASXOMNE5LAM3XMRY"],
+    ];
+
+    // Locked amounts (AQUA)
+    const LOCKED_PER_MEMBER = 600000;
+    const LOCKED_TO_TREASURY = 16200000;
+
+    // Proposal payment (AQUA)
+    const PROPOSAL_AMOUNT = 1500000;
+
+    // =========================================================
+    // UI refs
+    // =========================================================
+    const elNetwork = document.getElementById("network");
+    const elTxSource = document.getElementById("txSource");
+    const elBaseFee = document.getElementById("baseFee");
+    const elMemo = document.getElementById("memo");
+    const elTimebound = document.getElementById("timebound");
+
+    const elEnableLocked = document.getElementById("enableLocked");
+    const elEnableTreasury = document.getElementById("enableTreasury");
+
+    const elLockedSection = document.getElementById("lockedSection");
+    const elTreasurySection = document.getElementById("treasurySection");
+
+    const elLockedRows = document.getElementById("lockedRows");
+    const elTreasuryRows = document.getElementById("treasuryRows");
+
+    const elLockedOps = document.getElementById("lockedOps");
+    const elTreasuryOps = document.getElementById("treasuryOps");
+    const elExtraOps = document.getElementById("extraOps");
+    const elTotalOps = document.getElementById("totalOps");
+    const elTotalFee = document.getElementById("totalFee");
+    const elDaoTotalAqua = document.getElementById("daoTotalAqua");
+    const elTreasuryTotalAqua = document.getElementById("treasuryTotalAqua");
+    const elExtraTotalAqua = document.getElementById("extraTotalAqua");
+
+    const elStatus = document.getElementById("status");
+    const elXdr = document.getElementById("xdr");
+    const elSignedXdr = document.getElementById("signedXdr");
+
+    const elHorizonInfo = document.getElementById("horizonInfo");
+    const elIssuerLine = document.getElementById("issuerLine");
+    const elTreasuryAddr = document.getElementById("treasuryAddr");
+
+    const elSecret = document.getElementById("secret");
+
+    // Extras refs
+    const elProposalEnable = document.getElementById("proposalEnable");
+    const elProposalDest = document.getElementById("proposalDest");
+    const elProposalAmt = document.getElementById("proposalAmt");
+
+    const elDelegationEnable = document.getElementById("delegationEnable");
+    const elDelegationAmt = document.getElementById("delegationAmt");
+
+    const elSdexEnable = document.getElementById("sdexEnable");
+    const elSdexAmt = document.getElementById("sdexAmt");
+
+    // Lines
+    document.getElementById("proposalSourceLine").textContent = DAO_FUND;
+    document.getElementById("delegationSourceLine").textContent = DELEGATION_SOURCE;
+    document.getElementById("delegationDestLine").textContent = DELEGATION_DEST;
+    document.getElementById("sdexSourceLine").textContent = SDEX_SOURCE;
+    document.getElementById("sdexDestLine").textContent = SDEX_DEST;
+
+    elTxSource.value = DAO_FUND;
+    elIssuerLine.textContent = AQUA_ISSUER;
+    elTreasuryAddr.textContent = TREASURY;
+
+    elProposalAmt.value = String(PROPOSAL_AMOUNT);
+
+    function horizonUrl() {
+      return elNetwork.value === "TESTNET"
+        ? "https://horizon-testnet.stellar.org"
+        : "https://horizon.stellar.org";
+    }
+
+    function passphrase() {
+      return elNetwork.value === "TESTNET"
+        ? StellarSdk.Networks.TESTNET
+        : StellarSdk.Networks.PUBLIC;
+    }
+
+    function setStatus(text, cls) {
+      elStatus.className = "mono " + (cls || "warn");
+      elStatus.textContent = text;
+    }
+
+    function fmtAmount(n) {
+      if (!isFinite(n)) return "0";
+      const s = (Math.round(n * 1e7) / 1e7).toFixed(7);
+      return s.replace(/\.?0+$/,'');
+    }
+
+    function rebuildHorizonInfo(){
+      elHorizonInfo.textContent = horizonUrl() + " (network passphrase: " + passphrase() + ")";
+    }
+    rebuildHorizonInfo();
+    elNetwork.addEventListener("change", () => {
+      rebuildHorizonInfo();
+      setStatus("Network changed. Rebuild XDR.", "warn");
+    });
+
+    // =========================================================
+    // Section enable/disable visuals
+    // =========================================================
+    function syncSectionEnabled(){
+      elLockedSection.classList.toggle("dim", !elEnableLocked.checked);
+      elTreasurySection.classList.toggle("dim", !elEnableTreasury.checked);
+
+      // Disable inputs when off (still visible)
+      for (const inp of elLockedSection.querySelectorAll("input,textarea,select,button")){
+        // locked section is read-only anyway; just leave as-is
+        inp.disabled = inp.disabled; // no-op
+      }
+      for (const inp of elTreasurySection.querySelectorAll("input,textarea,select,button")){
+        // only disable treasury inputs (amounts + includes)
+        if (inp.tagName === "INPUT"){
+          if (inp.type === "number" || inp.type === "checkbox") inp.disabled = !elEnableTreasury.checked;
+        }
+      }
+
+      updateTotals();
+    }
+    elEnableLocked.addEventListener("change", syncSectionEnabled);
+    elEnableTreasury.addEventListener("change", syncSectionEnabled);
+
+    // =========================================================
+    // Locked rows (always included when enabled)
+    // =========================================================
+    const lockedOps = [];
+    function addLockedRow(name, dest, amount){
+      const wrap = document.createElement("div");
+      wrap.className = "row";
+      wrap.style.padding = "8px 0";
+      wrap.style.borderBottom = "1px solid rgba(255,255,255,.06)";
+
+      const c1 = document.createElement("div");
+      c1.innerHTML = `<div class="name">${name}</div>`;
+      const c2 = document.createElement("div");
+      c2.innerHTML = `<div class="addr">${dest}</div>`;
+
+      const c3 = document.createElement("div");
+      const amt = document.createElement("input");
+      amt.type = "text";
+      amt.value = fmtAmount(amount);
+      amt.disabled = true;
+      amt.className = "mono";
+      c3.appendChild(amt);
+
+      const c4 = document.createElement("div");
+      const inc = document.createElement("input");
+      inc.type = "checkbox";
+      inc.checked = true;
+      inc.disabled = true;
+      c4.appendChild(inc);
+
+      wrap.appendChild(c1); wrap.appendChild(c2); wrap.appendChild(c3); wrap.appendChild(c4);
+      elLockedRows.appendChild(wrap);
+
+      lockedOps.push({name, destination: dest, amount: fmtAmount(amount)});
+    }
+
+    MEMBERS.forEach(([name, addr]) => addLockedRow(name, addr, LOCKED_PER_MEMBER));
+    addLockedRow("Aqua Signers Guild Treasury", TREASURY, LOCKED_TO_TREASURY);
+
+    // =========================================================
+    // Treasury rows (editable, default 0)
+    // =========================================================
+    const treasuryState = new Map(); // addr -> {amountEl, includeEl, name}
+
+    function addTreasuryRow(name, dest){
+      const wrap = document.createElement("div");
+      wrap.className = "row";
+      wrap.style.padding = "8px 0";
+      wrap.style.borderBottom = "1px solid rgba(255,255,255,.06)";
+
+      const c1 = document.createElement("div");
+      c1.innerHTML = `<div class="name">${name}</div>`;
+      const c2 = document.createElement("div");
+      c2.innerHTML = `<div class="addr">${dest}</div>`;
+
+      const c3 = document.createElement("div");
+      const amount = document.createElement("input");
+      amount.type = "number";
+      amount.min = "0";
+      amount.step = "0.0000001";
+      amount.placeholder = "0";
+      amount.inputMode = "decimal";
+      amount.value = "0";
+      amount.addEventListener("input", updateTotals);
+      c3.appendChild(amount);
+
+      const c4 = document.createElement("div");
+      const include = document.createElement("input");
+      include.type = "checkbox";
+      include.checked = true;
+      include.addEventListener("change", updateTotals);
+      c4.appendChild(include);
+
+      wrap.appendChild(c1); wrap.appendChild(c2); wrap.appendChild(c3); wrap.appendChild(c4);
+      elTreasuryRows.appendChild(wrap);
+
+      treasuryState.set(dest, {amountEl: amount, includeEl: include, name});
+    }
+
+    MEMBERS.forEach(([name, addr]) => addTreasuryRow(name, addr));
+
+    // Bulk apply (treasury only)
+    document.getElementById("applyBulk").addEventListener("click", () => {
+      const txt = document.getElementById("bulk").value || "";
+      const lines = txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      const byName = new Map();
+      for (const [addr, st] of treasuryState.entries()){
+        byName.set(st.name.toLowerCase(), addr);
+      }
+
+      let applied = 0, skipped = 0;
+      for (const line of lines){
+        const m = line.match(/^(.+?)\s*=\s*([0-9]+(\.[0-9]+)?)\s*$/);
+        if (!m){ skipped++; continue; }
+        const key = m[1].trim();
+        const amt = m[2];
+
+        let addr = null;
+        if (treasuryState.has(key)) addr = key;
+        if (!addr) addr = byName.get(key.toLowerCase()) || null;
+
+        if (!addr){ skipped++; continue; }
+        treasuryState.get(addr).amountEl.value = amt;
+        treasuryState.get(addr).includeEl.checked = true;
+        applied++;
+      }
+      updateTotals();
+      document.getElementById("bulkResult").textContent = `Applied: ${applied}. Skipped: ${skipped}.`;
+    });
+
+    // =========================================================
+    // Extras wiring
+    // =========================================================
+    function extraProposalEnabled(){
+      return elProposalEnable.checked;
+    }
+    function extraDelegationEnabled(){
+      return elDelegationEnable.checked && parseFloat(elDelegationAmt.value || "0") > 0;
+    }
+    function extraSdexEnabled(){
+      return elSdexEnable.checked && parseFloat(elSdexAmt.value || "0") > 0;
+    }
+    [elProposalEnable, elProposalDest, elDelegationEnable, elDelegationAmt, elSdexEnable, elSdexAmt].forEach(el=>{
+      el.addEventListener("input", updateTotals);
+      el.addEventListener("change", updateTotals);
+    });
+
+    // =========================================================
+    // Totals
+    // =========================================================
+    function collectTreasuryPayments(){
+      const items = [];
+      if (!elEnableTreasury.checked) return items;
+
+      for (const [addr, st] of treasuryState.entries()){
+        const inc = st.includeEl.checked;
+        const v = parseFloat(st.amountEl.value || "0");
+        if (inc && v > 0){
+          items.push({ destination: addr, amount: fmtAmount(v), name: st.name });
+        }
+      }
+      return items;
+    }
+
+    function collectExtraPayments(){
+      const extras = [];
+
+      // 1) Proposal payment: fixed amount, flexible dest, source = DAO_FUND
+      if (extraProposalEnabled()){
+        const dest = (elProposalDest.value || "").trim();
+        extras.push({ kind:"proposal", source: DAO_FUND, destination: dest, amount: fmtAmount(PROPOSAL_AMOUNT) });
+      }
+
+      // 2) Delegation top-up: source = DELEGATION_SOURCE, dest fixed, amount flexible
+      if (elDelegationEnable.checked){
+        const v = parseFloat(elDelegationAmt.value || "0");
+        if (v > 0){
+          extras.push({ kind:"delegation", source: DELEGATION_SOURCE, destination: DELEGATION_DEST, amount: fmtAmount(v) });
+        }
+      }
+
+      // 3) SDEX top-up: source = SDEX_SOURCE, dest fixed, amount flexible
+      if (elSdexEnable.checked){
+        const v = parseFloat(elSdexAmt.value || "0");
+        if (v > 0){
+          extras.push({ kind:"sdex", source: SDEX_SOURCE, destination: SDEX_DEST, amount: fmtAmount(v) });
+        }
+      }
+
+      return extras;
+    }
+
+    function updateTotals(){
+      const lockedCount = elEnableLocked.checked ? lockedOps.length : 0;
+
+      let treasuryCount = 0;
+      let treasuryTotal = 0;
+      if (elEnableTreasury.checked){
+        for (const st of treasuryState.values()){
+          const inc = st.includeEl.checked;
+          const v = parseFloat(st.amountEl.value || "0");
+          if (inc && v > 0){
+            treasuryCount += 1;
+            treasuryTotal += v;
+          }
+        }
+      }
+
+      const extras = collectExtraPayments();
+      let extraCount = 0;
+      let extraTotal = 0;
+
+      for (const e of extras){
+        extraCount += 1;
+        extraTotal += parseFloat(e.amount || "0");
+      }
+
+      // DAO total (locked): only when locked enabled
+      const daoTotalLocked = elEnableLocked.checked
+        ? (MEMBERS.length * LOCKED_PER_MEMBER) + LOCKED_TO_TREASURY
+        : 0;
+
+      const totalOps = lockedCount + treasuryCount + extraCount;
+
+      const baseFee = parseInt(elBaseFee.value || "100", 10);
+      const totalFee = (isFinite(baseFee) ? baseFee : 0) * totalOps;
+
+      elLockedOps.textContent = String(lockedCount);
+      elTreasuryOps.textContent = String(treasuryCount);
+      elExtraOps.textContent = String(extraCount);
+      elTotalOps.textContent = String(totalOps);
+      elTotalFee.textContent = String(totalFee);
+
+      elDaoTotalAqua.textContent = fmtAmount(daoTotalLocked);
+      elTreasuryTotalAqua.textContent = fmtAmount(treasuryTotal);
+      elExtraTotalAqua.textContent = fmtAmount(extraTotal);
+    }
+    updateTotals();
+    elBaseFee.addEventListener("input", updateTotals);
+
+    // Initial section sync
+    syncSectionEnabled();
+
+    // =========================================================
+    // Horizon helpers
+    // =========================================================
+    async function fetchAccount(accountId, horizon){
+      const r = await fetch(`${horizon}/accounts/${encodeURIComponent(accountId)}`);
+      if (!r.ok) {
+        const t = await r.text().catch(() => "");
+        throw new Error(`Horizon account lookup failed (${r.status}). ${t}`.slice(0, 260));
+      }
+      return r.json();
+    }
+
+    // =========================================================
+    // Build XDR
+    // =========================================================
+    document.getElementById("build").addEventListener("click", async () => {
+      try{
+        setStatus("Building…", "warn");
+        elXdr.value = "";
+        elSignedXdr.value = "";
+
+        const txSource = (elTxSource.value || "").trim();
+        if (!txSource) throw new Error("Transaction source is blank.");
+
+        const baseFee = parseInt(elBaseFee.value || "100", 10);
+        if (!isFinite(baseFee) || baseFee < 100) throw new Error("Base fee must be ≥ 100 stroops.");
+
+        const treasuryPays = collectTreasuryPayments();
+        const extras = collectExtraPayments();
+
+        // Validate proposal if enabled
+        if (elProposalEnable.checked){
+          const d = (elProposalDest.value || "").trim();
+          if (!d) throw new Error("Proposal payment is enabled but destination is blank.");
+        }
+
+        const horizon = horizonUrl();
+        const acct = await fetchAccount(txSource, horizon);
+
+        const account = new StellarSdk.Account(acct.account_id, acct.sequence);
+        const aqua = new StellarSdk.Asset(AQUA_CODE, AQUA_ISSUER);
+
+        let builder = new StellarSdk.TransactionBuilder(account, {
+          fee: String(baseFee),
+          networkPassphrase: passphrase()
+        });
+
+        const memoTxt = (elMemo.value || "").trim();
+        if (memoTxt){
+          builder = builder.addMemo(StellarSdk.Memo.text(memoTxt.slice(0, 28)));
+        }
+
+        const minutes = parseInt(elTimebound.value || "0", 10);
+        if (isFinite(minutes) && minutes > 0){
+          builder = builder.setTimeout(minutes * 60);
+        } else {
+          builder = builder.setTimeout(0);
+        }
+
+        // Locked ops (enabled): DAO fund -> members + DAO -> treasury
+        if (elEnableLocked.checked){
+          for (const op of lockedOps){
+            builder = builder.addOperation(StellarSdk.Operation.payment({
+              destination: op.destination,
+              asset: aqua,
+              amount: op.amount
+            }));
+          }
+        }
+
+        // Treasury ops (enabled): sourceAccount = TREASURY
+        if (elEnableTreasury.checked){
+          for (const p of treasuryPays){
+            builder = builder.addOperation(StellarSdk.Operation.payment({
+              source: TREASURY,
+              destination: p.destination,
+              asset: aqua,
+              amount: p.amount
+            }));
+          }
+        }
+
+        // Extras: each has its own source account
+        for (const e of extras){
+          builder = builder.addOperation(StellarSdk.Operation.payment({
+            source: e.source,
+            destination: e.destination,
+            asset: aqua,
+            amount: e.amount
+          }));
+        }
+
+        const tx = builder.build();
+        elXdr.value = tx.toXDR();
+
+        setStatus(`Built XDR. Total ops: ${tx.operations.length}.`, "ok");
+      } catch (e){
+        console.error(e);
+        setStatus(e.message || String(e), "bad");
+      }
+    });
+
+    // =========================================================
+    // Copy / Lab
+    // =========================================================
+    document.getElementById("copyXdr").addEventListener("click", async () => {
+      try{
+        const v = elXdr.value.trim();
+        if (!v) throw new Error("No XDR to copy.");
+        await navigator.clipboard.writeText(v);
+        setStatus("Copied unsigned XDR.", "ok");
+      } catch (e){
+        setStatus(e.message || String(e), "bad");
+      }
+    });
+
+    document.getElementById("copySignedXdr").addEventListener("click", async () => {
+      try{
+        const v = elSignedXdr.value.trim();
+        if (!v) throw new Error("No signed XDR to copy.");
+        await navigator.clipboard.writeText(v);
+        setStatus("Copied signed XDR.", "ok");
+      } catch (e){
+        setStatus(e.message || String(e), "bad");
+      }
+    });
+
+    document.getElementById("openLab").addEventListener("click", () => {
+      const v = elSignedXdr.value.trim() || elXdr.value.trim();
+      if (!v){ setStatus("Build an XDR first.", "warn"); return; }
+      const url = "https://laboratory.stellar.org/#txsigner?network=" + (elNetwork.value === "TESTNET" ? "test" : "public");
+      window.open(url, "_blank", "noopener,noreferrer");
+      setStatus("Opened Stellar Laboratory (paste XDR into Tx Signer).", "ok");
+    });
+
+    // =========================================================
+    // Local signing
+    // =========================================================
+    document.getElementById("wipeSecret").addEventListener("click", () => {
+      elSecret.value = "";
+      setStatus("Secret wiped.", "ok");
+    });
+
+    document.getElementById("signLocal").addEventListener("click", () => {
+      try{
+        const xdr = elXdr.value.trim();
+        if (!xdr) throw new Error("Build XDR first.");
+        const sk = (elSecret.value || "").trim();
+        if (!sk) throw new Error("Paste a secret key first.");
+
+        setStatus("Signing locally…", "warn");
+
+        const kp = StellarSdk.Keypair.fromSecret(sk);
+        const tx = new StellarSdk.Transaction(xdr, passphrase());
+        tx.sign(kp);
+
+        elSignedXdr.value = tx.toXDR();
+        setStatus("Signed locally.", "ok");
+      } catch (e){
+        console.error(e);
+        setStatus(e.message || String(e), "bad");
+      }
+    });
+  </script>
+</body>
+</html>
