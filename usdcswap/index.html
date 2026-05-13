@@ -363,9 +363,19 @@
 
       // EVM CCTP domains. Confirm against Circle docs for your target networks.
       evmDestinations: [
-        { id:"ethereum-sepolia", label:"Ethereum Sepolia", domain:0 },
-        { id:"base-sepolia", label:"Base Sepolia", domain:6 },
-        { id:"arbitrum-sepolia", label:"Arbitrum Sepolia", domain:3 }
+        // EVM-only CCTP destinations. Domain IDs are CCTP domain IDs, not EVM chain IDs.
+        // Verify every domain/chain/address against Circle's current docs before production.
+        // Mainnet-style labels are used here; for Stellar testnet, switch these to the matching testnet routes.
+        { id:"ethereum", label:"Ethereum", type:"evm", domain:0, chainId:1 },
+        { id:"avalanche", label:"Avalanche C-Chain", type:"evm", domain:1, chainId:43114 },
+        { id:"optimism", label:"OP Mainnet", type:"evm", domain:2, chainId:10 },
+        { id:"arbitrum", label:"Arbitrum One", type:"evm", domain:3, chainId:42161 },
+        { id:"base", label:"Base", type:"evm", domain:6, chainId:8453 },
+        { id:"polygon", label:"Polygon PoS", type:"evm", domain:7, chainId:137 },
+        { id:"unichain", label:"Unichain", type:"evm", domain:10, chainId:130 },
+        { id:"linea", label:"Linea", type:"evm", domain:11, chainId:59144 },
+        { id:"sonic", label:"Sonic", type:"evm", domain:13, chainId:146 },
+        { id:"worldchain", label:"World Chain", type:"evm", domain:14, chainId:480 }
       ],
 
       walletConnectProjectId: "f658ce3a7c8a185214974f71539fea39",
