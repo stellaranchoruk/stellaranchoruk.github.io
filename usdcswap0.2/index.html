@@ -98,7 +98,6 @@ const els = {
 
 let mode="none",pubkey=null,wcClient=null,wcSession=null,latestWcUri=null,transferId=makeTransferId(),feePaid=false,approved=false,burnSubmitted=false,evmAccount=null,preparedFeeXdr="",preparedApproveXdr="",preparedBurnXdr="",messageHex="",attestationHex="";
 let feeTxHash="",approveTxHash="",burnTxHash="",evmReceiveTxHash="",attestationPollTimer=null,attestationPollAttempts=0;
-let feeTxHash="", approveTxHash="", burnTxHash="", evmReceiveTxHash="", attestationPollTimer=null, attestationPollAttempts=0;
 
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]))}
 function toast({type="info",title="",message="",timeout=2800}={}){const el=document.createElement("div");el.className=`toast ${type}`;el.innerHTML=`<div class="ico">${type==="ok"?"✓":type==="err"?"!":"ℹ"}</div><div class="body">${title?`<div class="title">${esc(title)}</div>`:""}<div class="msg">${esc(message||"")}</div></div><button class="x">×</button>`;toastWrap.appendChild(el);const close=()=>{el.style.animation="tout .16s ease-in forwards";setTimeout(()=>el.remove(),180)};el.querySelector(".x").onclick=close;if(timeout)setTimeout(close,timeout)}
