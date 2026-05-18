@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stellar CCTP Bridge v2.1.6</title>
+<style>
+/* v2.1.6 patch canvas
+   Apply this on top of v2.1.5.
+   Purpose: stop the MetaMask App Store redirect loop during signing.
+
+   The important change is:
+   - Connect/pairing still uses: https://metamask.app.link/wc?uri=<wc_uri>
+   - Signing existing WalletConnect requests now uses native app schemes first:
+       metamask://
+       metamask://wc
+   - No App Store fallback is used during signing.
+*/
+:root{--bg:#f5f7fb;--card:#fff;--text:#101828;--muted:#667085;--line:#e4e7ec;--blue:#315bff;--blue2:#eef3ff;--green:#12b76a;--amber:#f79009;--red:#f04438;--shadow:0 24px 80px rgba(16,24,40,.10);--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}*{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--text);background:radial-gradient(900px 520px at 8% 0%,#eaf0ff 0%,transparent 58%),radial-gradient(720px 500px at 100% 12%,#e9fbf4 0%,transparent 55%),var(--bg)}button,input,select,textarea{font:inherit}.wrap{max-width:980px;margin:0 auto;padding:24px 16px 72px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px}.logo{width:40px;height:40px;border-radius:15px;background:linear-gradient(135deg,var(--blue),#62d4ff);box-shadow:0 12px 30px rgba(49,91,255,.22)}h1{margin:0;font-size:20px;letter-spacing:-.03em}.sub,.small{color:var(--muted);font-size:13px;line-height:1.45}.badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.75);border-radius:999px;padding:8px 12px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:var(--green)}.hero{background:rgba(255,255,255,.84);border:1px solid rgba(255,255,255,.95);box-shadow:var(--shadow);border-radius:34px;padding:22px}.hero-head h2{margin:0;font-size:30px;letter-spacing:-.06em}.notice{border:1px solid #fedf89;background:#fffaeb;color:#93370d;border-radius:18px;padding:12px;font-size:13px;line-height:1.45;margin:12px 0}.codebox{border:1px solid var(--line);background:#101828;color:#f9fafb;border-radius:18px;padding:14px;overflow:auto;font-family:var(--mono);font-size:12px;line-height:1.55;white-space:pre}.smallbtn{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px 12px;color:var(--text);font-size:12px;font-weight:850;cursor:pointer}.smallbtn.primary{border-color:#99b1ff;background:#eef3ff;color:#2444bc}.rowbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}.patch-card{border:1px solid var(--line);background:#fff;border-radius:24px;padding:16px;margin-top:16px}.patch-card h3{margin:0 0 8px}.test-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.test-tile{border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff}.test-tile b{display:block}.test-tile span{display:block;color:var(--muted);font-size:12px;margin-top:4px}@media(max-width:720px){.test-grid{grid-template-columns:1fr}.hero{border-radius:26px;padding:16px}.badge{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="brand"><div class="logo"></div><div><h1>Stellar CCTP Bridge</h1><div class="sub">v2.1.6 · MetaMask signing deep-link fix for v2.1.5</div></div></div><div class="badge"><span class="dot"></span><span>Patch canvas</span></div></div>
+  <main class="hero">
+    <div class="hero-head"><div><h2>v2.1.6 MetaMask signing fix</h2><p class="sub">This canvas contains the exact patch to apply to <b>Stellar Cctp Bridge V2 1 5</b>. It keeps pairing unchanged, but changes the Action required in MetaMask modal so signing opens the installed MetaMask app instead of the App Store.</p></div></div>
+    <div class="notice"><b>Important split:</b><br>Initial WalletConnect pairing should still use <span class="mono">https://metamask.app.link/wc?uri=...</span>. Signing actions should not reuse that link and should not use the generic App Store-prone universal link. They should try <span class="mono">metamask://</span> first.</div>
+    <div class="patch-card"><h3>Replace the v2.1.5 MetaMask signing helpers with this</h3><div class="codebox" id="patchCode">function openMetaMaskSign() {
+  if (!isMobileDevice()) {
+    els.signingStatusLine.textContent =
+      "Open MetaMask on your phone to approve the pending WalletConnect request.";
+    return;
+  }
+
+  const candidates = [
+    "metamask://",
+    "metamask://wc"
+  ];
+
+  openAppCandidates(candidates, els.signingStatusLine, {
+    openingText: "Opening MetaMask…",
+    failedText:
+      "Could not open MetaMask automatically. Open MetaMask manually and check pending WalletConnect requests."
+  });
+}
+
+function openAppCandidates(urls, statusEl, opts = {}) {
+  let index = 0;
+  const openingText = opts.openingText || "Opening wallet…";
+  const failedText = opts.failedText ||
+    "Could not open the wallet automatically. Open the app manually and check pending WalletConnect requests.";
+
+  const tryNext = () => {
+    if (index >= urls.length) {
+      if (statusEl) statusEl.textContent = failedText;
+      return;
+    }
+
+    const url = urls[index++];
+    if (statusEl) statusEl.textContent = openingText;
+
+    window.location.href = url;
+
+    setTimeout(() => {
+      if (!document.hidden) tryNext();
+    }, 1200);
+  };
+
+  tryNext();
+}
+
+async function evmSend(tx) {
+  if (evmMode === "wc") {
+    showSigning(
+      "Action required in MetaMask",
+      "Approve transaction",
+      "A WalletConnect transaction request is being sent. When the status says request sent, open MetaMask to approve it.",
+      openMetaMaskSign,
+      evmWcUri
+    );
+
+    setSigningRequestState(
+      "Preparing request…",
+      "Building and sending the WalletConnect request to the relay."
+    );
+
+    const requestPromise = evmRequest("eth_sendTransaction", [tx]);
+
+    setTimeout(() => {
+      setSigningRequestState(
+        "Request sent — open MetaMask",
+        "The transaction request should now be waiting in MetaMask."
+      );
+      openMetaMaskSign();
+    }, 950);
+
+    try {
+      const result = await requestPromise;
+      closeModals();
+      return result;
+    } catch (e) {
+      setSigningRequestState("Request failed", e?.message || String(e));
+      throw e;
+    }
+  }
+
+  showSigning(
+    "Action required in EVM wallet",
+    "Approve transaction",
+    "Approve the request in your browser wallet.",
+    null,
+    null
+  );
+
+  const result = await evmRequest("eth_sendTransaction", [tx]);
+  closeModals();
+  return result;
+}</div><div class="rowbtns"><button class="smallbtn primary" id="copyPatchBtn">Copy patch</button></div></div>
+    <div class="patch-card"><h3>Keep this unchanged for connection / pairing</h3><div class="codebox">function openMetaMaskConnect(uri) {
+  openScheme(
+    `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`,
+    els.evmLinkStatus,
+    "Opening MetaMask…",
+    "Desktop detected: scan this QR with MetaMask mobile."
+  );
+}</div></div>
+    <div class="test-grid"><div class="test-tile"><b>Expected signing behaviour</b><span>Click Receive on Base / Approve EVM / Burn EVM → modal appears → request status updates → MetaMask app opens via native scheme.</span></div><div class="test-tile"><b>No App Store fallback</b><span>During signing, no universal link or store link is used. If MetaMask does not open, the user is told to open it manually.</span></div></div>
+  </main>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+$("copyPatchBtn").onclick = async () => {
+  await navigator.clipboard.writeText($("patchCode").textContent);
+  $("copyPatchBtn").textContent = "Copied";
+  setTimeout(() => $("copyPatchBtn").textContent = "Copy patch", 1400);
+};
+</script>
+</body>
+</html>
