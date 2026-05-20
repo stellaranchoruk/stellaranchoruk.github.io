@@ -1,192 +1,290 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Stellar CCTP MVP v0.3</title>
-  <style>
-    :root{--bg:#0b0f17;--card:#111a2b;--muted:#8ea0c2;--text:#e8eefc;--accent:#5eead4;--warn:#fbbf24;--bad:#fb7185;--ok:#34d399;--border:rgba(255,255,255,.10);--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;--sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-    *{box-sizing:border-box}body{margin:0;font-family:var(--sans);color:var(--text);background:radial-gradient(1000px 700px at 20% 0%,rgba(94,234,212,.12),transparent 55%),radial-gradient(900px 600px at 95% 15%,rgba(251,113,133,.10),transparent 55%),var(--bg)}
-    .wrap{max-width:1220px;margin:22px auto;padding:0 16px 60px}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}h1{margin:0;font-size:22px;letter-spacing:-.01em}h2{margin:0 0 10px;font-size:15px}h3{margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.sub{color:var(--muted);font-size:12px;margin-top:6px;max-width:780px;line-height:1.45}
-    .row{display:grid;grid-template-columns:1fr .88fr;gap:14px}@media(max-width:980px){.row{grid-template-columns:1fr}}.card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.22)}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:620px){.grid2{grid-template-columns:1fr}}.kv{padding:10px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.18);min-height:54px}.k{color:var(--muted);font-size:11px;letter-spacing:.2px;text-transform:uppercase}.v{margin-top:4px;font-size:14px;word-break:break-all}.v.big{font-size:18px;font-weight:800}.mono{font-family:var(--mono)}
-    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}button{border:1px solid var(--border);background:rgba(0,0,0,.20);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:700}button:hover{border-color:rgba(94,234,212,.35)}button:disabled{opacity:.5;cursor:not-allowed}button.primary{background:linear-gradient(180deg,rgba(94,234,212,.22),rgba(94,234,212,.10));border-color:rgba(94,234,212,.28)}button.warn{background:linear-gradient(180deg,rgba(251,191,36,.20),rgba(251,191,36,.08));border-color:rgba(251,191,36,.28)}button.ghost{background:transparent}
-    .input{display:flex;flex-direction:column;gap:6px;margin-top:10px}input,select,textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 11px;background:rgba(0,0,0,.18);color:var(--text);outline:none;font:14px/1.4 var(--mono)}select{font-family:var(--sans)}textarea{min-height:104px;resize:vertical;display:none}.small{color:var(--muted);font-size:12px;line-height:1.45}.hr{height:1px;background:var(--border);margin:14px 0}
-    .pill{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:999px;background:rgba(0,0,0,.18);color:var(--muted);font-size:12px}.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.pill.ok .dot{background:var(--ok)}.pill.warn .dot{background:var(--warn)}.pill.bad .dot{background:var(--bad)}.status-line{margin-top:8px;color:var(--muted);font-size:12px;word-break:break-word;line-height:1.45}
-    .step{border:1px solid var(--border);border-radius:14px;padding:12px;background:rgba(0,0,0,.14);margin-top:10px}.step-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.step-title{font-weight:900;font-size:14px}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:620px){.two-col{grid-template-columns:1fr}}
-    .toast-wrap{position:fixed;top:12px;right:12px;z-index:50;display:flex;flex-direction:column;gap:10px;pointer-events:none}.toast{pointer-events:auto;width:min(390px,calc(100vw - 24px));border-radius:14px;padding:10px;border:1px solid var(--border);background:rgba(10,14,22,.9);backdrop-filter:blur(8px);display:flex;gap:10px;align-items:flex-start;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:tin .16s ease-out forwards}.toast .ico{width:26px;height:26px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);background:rgba(255,255,255,.04);font-weight:900}.toast.ok .ico{color:var(--ok)}.toast.err .ico{color:var(--bad)}.toast.info .ico{color:var(--accent)}.toast .body{flex:1}.toast .title{font-weight:900;font-size:12px;letter-spacing:.2px}.toast .msg{font-size:12px;color:var(--muted);margin-top:2px;white-space:pre-wrap}.toast .x{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;padding:0 6px}@keyframes tin{from{transform:translateY(-6px);opacity:0}to{transform:none;opacity:1}}@keyframes tout{from{transform:none;opacity:1}to{transform:translateY(-6px);opacity:0}}
-    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:40}.backdrop.open{display:block}.modal{position:fixed;inset:0;display:none;z-index:41;place-items:center;padding:18px}.modal.open{display:grid}.modal-inner{width:min(560px,100%);background:rgba(16,22,35,.94);border:1px solid var(--border);border-radius:16px;box-shadow:0 16px 50px rgba(0,0,0,.5);padding:14px;backdrop-filter:blur(8px)}.modal-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}.modal-header h3{margin:0;font-size:16px;color:var(--text);text-transform:none;letter-spacing:0}.modal-header .x{border:none;background:transparent;color:var(--muted);font-size:20px;cursor:pointer}.qr-wrap{margin-top:12px;display:none;gap:12px;align-items:center;flex-direction:column}.wallet-choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stellar CCTP Bridge</title>
+  <link rel="stylesheet" href="./src/styles.css">
 </head>
 <body>
-  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
-  <div class="wrap">
-    <div class="top"><div><h1>Stellar CCTP MVP v0.3</h1><div class="sub">Outgoing Stellar Testnet USDC → Base Sepolia / EVM USDC. Flow: pay Stellar fee, approve Circle TokenMessengerMinter, burn on Stellar, fetch Circle attestation, then mint/receive on the EVM destination. No custom custody contracts.</div></div><div class="pill warn"><span class="dot"></span><span>Testnet MVP</span></div></div>
-    <div class="row">
-      <div class="card">
-        <h2>Bridge out: Stellar USDC → EVM USDC</h2>
-        <div class="grid2">
-          <div class="kv"><div class="k">Connected Stellar wallet</div><div class="v mono" id="walletOut">—</div></div>
-          <div class="kv"><div class="k">EVM wallet</div><div class="v mono" id="evmWalletOut">—</div></div>
-          <div class="kv"><div class="k">Transfer ID</div><div class="v mono" id="transferIdOut">—</div></div>
-          <div class="kv"><div class="k">Stellar USDC balance</div><div class="v big" id="usdcBalanceOut">—</div></div>
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <header class="shell topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">C</div>
+      <div>
+        <h1>Stellar CCTP Bridge</h1>
+        <p>USDC burn, attest, mint, and recover flows for Stellar CCTP V2.</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="status-pill" id="networkBadge">Testnet preview</span>
+      <button class="icon-btn" id="resetBtn" type="button" title="Reset transfer" aria-label="Reset transfer">
+        <span aria-hidden="true">R</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="shell app-grid">
+    <section class="workspace">
+      <div class="section-title">
+        <div>
+          <h2>Bridge USDC</h2>
+          <p id="routeSubtitle">Choose a route and quote the transfer before signing.</p>
         </div>
-        <div class="hr"></div>
-        <div class="two-col"><div class="input"><div class="small">Amount to bridge, Stellar USDC</div><input id="amountEl" inputmode="decimal" placeholder="e.g. 10.00" /></div><div class="input"><div class="small">Destination EVM chain</div><select id="destChainEl"></select></div></div>
-        <div class="input"><div class="small">Destination EVM address</div><input id="evmRecipientEl" class="mono" placeholder="0x..." /></div>
-
-        <div class="step"><div class="step-head"><div><div class="step-title">Step 1 — Pay service fee on Stellar</div><div class="small">Normal Stellar USDC payment to your fee wallet. The memo is the transfer ID.</div></div><div class="pill" id="step1Pill"><span class="dot"></span><span>Locked</span></div></div><div class="grid2"><div class="kv"><div class="k">Service fee</div><div class="v" id="serviceFeeOut">—</div></div><div class="kv"><div class="k">Fee wallet</div><div class="v mono" id="feeWalletOut">—</div></div></div><div class="actions"><button id="connectBtn" class="primary">Connect Stellar wallet</button><button id="newTransferBtn">New transfer ID</button><button id="payFeeBtn" class="warn" disabled>Pay fee</button><button id="verifyFeeBtn" disabled>Verify fee</button><button id="feeXdrToggle">Reveal fee XDR</button></div><textarea id="feeXdr" spellcheck="false"></textarea><div class="status-line" id="feeStatusLine"></div></div>
-
-        <div class="step"><div class="step-head"><div><div class="step-title">Step 2 — Approve USDC spend</div><div class="small">Approves Circle’s TokenMessengerMinter to spend exactly the bridge amount. This is a separate Soroban call.</div></div><div class="pill" id="step2Pill"><span class="dot"></span><span>Locked</span></div></div><div class="actions"><button id="prepareApproveBtn" class="primary" disabled>Prepare approve XDR</button><button id="signSubmitApproveBtn" disabled>Sign & submit approve</button><button id="approveXdrToggle">Reveal approve XDR</button></div><textarea id="approveXdr" spellcheck="false"></textarea><div class="status-line" id="approveStatusLine"></div></div>
-
-        <div class="step"><div class="step-head"><div><div class="step-title">Step 3 — Burn Stellar USDC via Circle CCTP</div><div class="small">Calls TokenMessengerMinter.deposit_for_burn on Stellar. Destination recipient is your EVM address padded to bytes32.</div></div><div class="pill" id="step3Pill"><span class="dot"></span><span>Locked</span></div></div><div class="actions"><button id="prepareBurnBtn" class="primary" disabled>Prepare CCTP burn XDR</button><button id="signSubmitBurnBtn" disabled>Sign & submit burn</button><button id="burnXdrToggle">Reveal burn XDR</button></div><textarea id="burnXdr" spellcheck="false"></textarea><div class="status-line" id="burnStatusLine"></div></div>
-
-        <div class="step"><div class="step-head"><div><div class="step-title">Step 4 — Fetch Circle attestation</div><div class="small">Uses Iris sandbox by source domain 27 and the Stellar burn transaction hash. You can also paste message/attestation manually.</div></div><div class="pill" id="step4Pill"><span class="dot"></span><span>Pending</span></div></div><div class="input"><div class="small">Burn transaction hash</div><input id="burnHashEl" class="mono" placeholder="Stellar burn tx hash" /></div><div class="actions"><button id="fetchAttestationBtn">Fetch attestation</button><button id="manualAttToggle">Paste manually</button></div><div id="manualAttArea" style="display:none"><div class="input"><div class="small">CCTP message hex</div><input id="messageHexEl" class="mono" placeholder="0x..." /></div><div class="input"><div class="small">Attestation hex</div><input id="attestationHexEl" class="mono" placeholder="0x..." /></div></div><div class="status-line" id="attestationStatusLine"></div></div>
-
-        <div class="step"><div class="step-head"><div><div class="step-title">Step 5 — Mint / receive on EVM</div><div class="small">Connect your Base Sepolia/EVM wallet and call receiveMessage(message, attestation) on the destination MessageTransmitter.</div></div><div class="pill" id="step5Pill"><span class="dot"></span><span>Locked</span></div></div><div class="actions"><button id="connectEvmBtn" class="primary">Connect EVM wallet</button><button id="switchEvmBtn" disabled>Switch chain</button><button id="receiveEvmBtn" disabled>Receive / mint on EVM</button></div><div class="status-line" id="evmStatusLine"></div></div>
+        <div class="env-switch" role="group" aria-label="Environment">
+          <button class="seg active" id="testnetBtn" type="button">Testnet</button>
+          <button class="seg" id="mainnetBtn" type="button">Mainnet</button>
+        </div>
       </div>
 
-      <div class="card"><h2>Configuration</h2><div class="small">The Stellar side is filled with your testnet USDC/CCTP values. For Step 5, add the destination testnet MessageTransmitter addresses in CONFIG.evmDestinations before trying to receive on EVM.</div><div class="hr"></div><h3>Stellar</h3><div class="kv"><div class="k">Network</div><div class="v mono" id="networkOut"></div></div><div class="kv" style="margin-top:10px"><div class="k">RPC</div><div class="v mono" id="rpcOut"></div></div><div class="kv" style="margin-top:10px"><div class="k">TokenMessengerMinter</div><div class="v mono" id="tmmOut"></div></div><div class="kv" style="margin-top:10px"><div class="k">USDC contract</div><div class="v mono" id="usdcContractOut"></div></div><div class="hr"></div><h3>Wallet</h3><div class="kv"><div class="k">Stellar connection</div><div class="v"><div id="connStatus" class="pill bad"><span class="dot"></span><span>Not connected</span></div><div class="small" id="connModeLine" style="margin-top:6px">—</div></div></div><div class="input"><div class="small">Manual Stellar public key fallback</div><input id="pubkeyEl" class="mono" placeholder="G..." /><div class="actions"><button id="usePubkeyBtn">Use pubkey</button><button id="disconnectBtn" disabled>Disconnect Stellar</button></div></div><div class="hr"></div><h3>Logs</h3><div class="actions"><button id="toggleLogsBtn">Show logs</button></div><textarea id="logs" spellcheck="false"></textarea></div>
+      <div class="route-board">
+        <label class="field">
+          <span>Source chain</span>
+          <select id="sourceChain"></select>
+        </label>
+        <button class="swap-btn" id="swapRouteBtn" type="button" title="Swap route" aria-label="Swap source and destination">-></button>
+        <label class="field">
+          <span>Destination chain</span>
+          <select id="destChain"></select>
+        </label>
+      </div>
+
+      <div class="form-grid">
+        <label class="field amount-field">
+          <span>You send</span>
+          <input id="amountInput" inputmode="decimal" autocomplete="off" placeholder="0.00">
+        </label>
+        <label class="field">
+          <span>Receiving address</span>
+          <input id="recipientInput" class="mono" autocomplete="off" placeholder="0x... or G...">
+        </label>
+      </div>
+
+      <div class="wallet-grid">
+        <button class="wallet-btn" id="sourceWalletBtn" type="button">
+          <span>
+            <strong id="sourceWalletTitle">Connect source wallet</strong>
+            <small id="sourceWalletMeta">Required</small>
+          </span>
+          <span aria-hidden="true">-></span>
+        </button>
+        <button class="wallet-btn" id="destWalletBtn" type="button">
+          <span>
+            <strong id="destWalletTitle">Connect receiver wallet</strong>
+            <small id="destWalletMeta">Optional autofill</small>
+          </span>
+          <span aria-hidden="true">-></span>
+        </button>
+      </div>
+
+      <div class="toolbar">
+        <button class="small-btn" id="useConnectedRecipientBtn" type="button" disabled>Use connected recipient</button>
+        <button class="small-btn primary" id="refreshQuoteBtn" type="button">Refresh quote</button>
+        <button class="small-btn" id="refreshAllowanceBtn" type="button">Check fast allowance</button>
+      </div>
+
+      <div class="transfer-options">
+        <button class="speed-card active" id="fastBtn" type="button">
+          <strong>Fast</strong>
+          <span id="fastMeta">Confirmed finality, fee applies.</span>
+        </button>
+        <button class="speed-card" id="standardBtn" type="button">
+          <strong>Standard</strong>
+          <span>Hard finality, usually no protocol fee.</span>
+        </button>
+        <label class="toggle-line" id="forwardingToggleWrap">
+          <input id="forwardingToggle" type="checkbox" checked>
+          <span>Use Circle auto-delivery when destination supports it</span>
+        </label>
+        <label class="buffer-line">
+          <span>maxFee buffer</span>
+          <input id="feeBufferInput" inputmode="numeric" value="20">
+          <span>%</span>
+        </label>
+      </div>
+
+      <div class="notice" id="routeNotice">
+        <strong id="routeNoticeTitle">Route ready</strong>
+        <span id="routeNoticeText">Quote the transfer to continue.</span>
+      </div>
+
+      <section class="quote-panel" aria-labelledby="quoteHeading">
+        <div class="quote-head">
+          <h3 id="quoteHeading">Quote</h3>
+          <span id="quoteStatus">Not quoted</span>
+        </div>
+        <div class="quote-grid">
+          <div class="metric">
+            <span>You burn</span>
+            <strong id="burnAmountOut">0.00 USDC</strong>
+          </div>
+          <div class="metric receive">
+            <span>Estimated receive</span>
+            <strong id="receiveAmountOut">0.00 USDC</strong>
+          </div>
+          <div class="metric">
+            <span>Circle fee estimate</span>
+            <strong id="feeEstimateOut">0.00 USDC</strong>
+          </div>
+          <div class="metric">
+            <span>maxFee parameter</span>
+            <strong id="maxFeeOut">0.00 USDC</strong>
+          </div>
+          <div class="metric">
+            <span>Forwarding fee</span>
+            <strong id="forwardFeeOut">-</strong>
+          </div>
+          <div class="metric">
+            <span>Protocol fee</span>
+            <strong id="protocolFeeOut">-</strong>
+          </div>
+        </div>
+        <p id="quoteNote" class="quiet">Fees are fetched from Circle before signing.</p>
+      </section>
+
+      <button class="main-action" id="mainActionBtn" type="button">Connect source wallet</button>
+      <p class="helper" id="mainHelper">Connect your sending wallet to begin.</p>
+
+      <section class="timeline-panel" aria-labelledby="progressHeading">
+        <h3 id="progressHeading">Progress</h3>
+        <div id="timeline"></div>
+      </section>
+
+      <section class="success-panel" id="successPanel">
+        <div>
+          <h3>Bridge complete</h3>
+          <p id="successText">The transfer is complete.</p>
+        </div>
+        <div class="success-grid">
+          <div><span>Approve</span><strong id="successApproveTx">-</strong></div>
+          <div><span>Burn</span><strong id="successBurnTx">-</strong></div>
+          <div><span>Receive / forward</span><strong id="successReceiveTx">-</strong></div>
+        </div>
+        <button class="small-btn" id="copySummaryBtn" type="button">Copy summary</button>
+      </section>
+    </section>
+
+    <aside class="side-stack">
+      <section class="panel">
+        <h3>Network</h3>
+        <div class="kv"><span>Environment</span><strong id="envOut">testnet</strong></div>
+        <div class="kv"><span>Mainnet armed</span><strong id="mainnetArmedOut">false</strong></div>
+        <button class="small-btn warn full" id="armMainnetBtn" type="button">Arm mainnet actions</button>
+        <p class="quiet danger-text" id="mainnetWarning">Mainnet actions use real USDC. Keep this locked until a final dry run is done.</p>
+      </section>
+
+      <section class="panel">
+        <h3>Connections</h3>
+        <div class="kv"><span>Stellar</span><strong class="mono" id="stellarConnOut">Not connected</strong></div>
+        <div class="kv"><span>EVM</span><strong class="mono" id="evmConnOut">Not connected</strong></div>
+        <div class="kv"><span>Vault / multisig</span><strong class="mono" id="vaultModeOut">Unknown</strong></div>
+      </section>
+
+      <section class="panel">
+        <h3>Route model</h3>
+        <div class="kv"><span>Source domain</span><strong id="sourceDomainOut">27</strong></div>
+        <div class="kv"><span>Destination domain</span><strong id="destDomainOut">6</strong></div>
+        <div class="kv"><span>Delivery</span><strong id="deliveryOut">Manual receive</strong></div>
+        <div class="kv"><span>Fast allowance</span><strong class="mono" id="allowanceOut">Not checked</strong></div>
+        <p class="quiet" id="routeModelNote"></p>
+      </section>
+
+      <section class="panel">
+        <h3>Contracts</h3>
+        <div class="kv"><span>TokenMessenger</span><strong class="mono" id="tokenMessengerOut">-</strong></div>
+        <div class="kv"><span>MessageTransmitter</span><strong class="mono" id="messageTransmitterOut">-</strong></div>
+        <div class="kv"><span>CctpForwarder</span><strong class="mono" id="forwarderOut">-</strong></div>
+        <div class="kv"><span>USDC source</span><strong class="mono" id="usdcOut">-</strong></div>
+      </section>
+
+      <section class="panel advanced-panel">
+        <div class="panel-head">
+          <h3>Advanced</h3>
+          <button class="small-btn" id="advancedToggle" type="button">Show</button>
+        </div>
+        <div class="advanced" id="advancedArea">
+          <label class="field compact">
+            <span>Burn transaction hash</span>
+            <input id="burnHashInput" class="mono" placeholder="0x... or Stellar tx hash">
+          </label>
+          <label class="field compact">
+            <span>Nonce for re-attestation</span>
+            <input id="nonceInput" class="mono" placeholder="Nonce from Iris">
+          </label>
+          <div class="button-grid">
+            <button class="small-btn" id="fetchMessageBtn" type="button">Fetch message</button>
+            <button class="small-btn" id="resumePollingBtn" type="button">Resume polling</button>
+            <button class="small-btn" id="verifyAttestationBtn" type="button">Verify attestation</button>
+            <button class="small-btn" id="reattestBtn" type="button">Re-attest</button>
+          </div>
+          <label class="textarea-field">
+            <span>Message</span>
+            <textarea id="messageText" spellcheck="false"></textarea>
+          </label>
+          <label class="textarea-field">
+            <span>Attestation</span>
+            <textarea id="attestationText" spellcheck="false"></textarea>
+          </label>
+          <div class="button-grid">
+            <button class="small-btn" id="useAttestationBtn" type="button">Use pasted attestation</button>
+            <button class="small-btn" id="manualReceiveBtn" type="button">Retry manual receive</button>
+          </div>
+          <div class="log-box mono" id="logBox" aria-live="polite"></div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <div class="backdrop" id="backdrop"></div>
+
+  <section class="modal" id="connectModal" role="dialog" aria-modal="true" aria-labelledby="connectTitle">
+    <div class="modal-inner">
+      <div class="modal-head">
+        <div>
+          <h3 id="connectTitle">Connect wallet</h3>
+          <p id="connectSubtitle">Choose a wallet for this route.</p>
+        </div>
+        <button class="icon-btn" data-close type="button" aria-label="Close">x</button>
+      </div>
+      <div class="connect-options" id="connectOptions"></div>
+      <div class="qr-area" id="qrArea">
+        <canvas id="qrCanvas" width="256" height="256"></canvas>
+        <div class="qr-fallback" id="qrFallback"></div>
+        <div class="toolbar center">
+          <button class="small-btn primary" id="openMobileWalletBtn" type="button">Open wallet</button>
+          <button class="small-btn" id="copyWcBtn" type="button">Copy link</button>
+        </div>
+        <p class="quiet" id="qrStatus">Scan or open this WalletConnect request.</p>
+      </div>
+      <label class="field compact manual-area" id="manualArea">
+        <span id="manualLabel">Manual address</span>
+        <input id="manualAddressInput" class="mono" placeholder="Address">
+        <button class="small-btn" id="useManualAddressBtn" type="button">Use address</button>
+      </label>
     </div>
-  </div>
+  </section>
 
-  <div id="backdrop" class="backdrop"></div><div id="loginModal" class="modal" role="dialog" aria-modal="true"><div class="modal-inner"><div class="modal-header"><h3>Connect Stellar Wallet</h3><button class="x" id="closeModal" aria-label="Close">×</button></div><div class="small">Use Freighter extension or WalletConnect for Stellar signing.</div><div class="actions" style="margin-top:10px"><button id="wcBtn">🔗 WalletConnect</button><button id="freighterExtBtn">🧩 Freighter Extension</button></div><div id="qrArea" class="qr-wrap"><canvas id="qrCanvas" width="256" height="256" style="background:#fff;border-radius:12px"></canvas><div class="wallet-choices"><button id="btnLobstr">Open in LOBSTR</button><button id="btnFreighter">Open in Freighter</button></div><div class="small">Scan with your wallet app, or tap above on mobile · <a id="rawWcLink" href="#" target="_blank" rel="noreferrer">raw wc link</a></div><div id="linkStatus" class="small"></div></div></div></div>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <section class="modal" id="signingModal" role="dialog" aria-modal="true" aria-labelledby="signingTitle">
+    <div class="modal-inner small-modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="signingTitle">Action required</h3>
+          <p id="signingText">Approve the request in your wallet.</p>
+        </div>
+        <button class="icon-btn" data-close type="button" aria-label="Close">x</button>
+      </div>
+      <div class="status-box">
+        <strong id="signingStatus">Waiting for signature...</strong>
+        <span id="signingSubtext">Do not refresh the page while the wallet request is open.</span>
+      </div>
+      <div class="toolbar">
+        <button class="small-btn primary" id="openSigningWalletBtn" type="button">Open wallet</button>
+        <button class="small-btn" id="copySigningLinkBtn" type="button">Copy WC link</button>
+      </div>
+    </div>
+  </section>
 
-<script type="module">
-import * as StellarSdkNS from "https://esm.sh/@stellar/stellar-sdk@latest?bundle";
-import { encodeFunctionData, parseAbi } from "https://esm.sh/viem@2.38.5";
-const StellarSdk = StellarSdkNS.default ?? StellarSdkNS;
-
-const CONFIG = {
-  networkPassphrase: "Test SDF Network ; September 2015",
-  horizonUrl: "https://horizon-testnet.stellar.org",
-  sorobanRpcUrl: "https://soroban-testnet.stellar.org",
-  irisApiUrl: "https://iris-api-sandbox.circle.com",
-  stellarDomain: 27,
-  tokenMessengerMinter: "CDNG7HXAPBWICI2E3AUBP3YZWZELJLYSB6F5CC7WLDTLTHVM74SLRTHP",
-  stellarUsdcContract: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-  stellarUsdcAssetCode: "USDC",
-  stellarUsdcIssuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-  feeWallet: "GDXF6SYWIQOKOZ7BACXHBFBLQZEIH25KOTTLWQK35GO3JKRNIFHHGBPC",
-  serviceFeeUsdc: "0.50",
-  evmDestinations: [
-    { id:"base-sepolia", label:"Base Sepolia", type:"evm", domain:6, chainId:84532, rpcUrl:"https://sepolia.base.org", messageTransmitter:"0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" },
-    { id:"ethereum-sepolia", label:"Ethereum Sepolia", type:"evm", domain:0, chainId:11155111, rpcUrl:"https://ethereum-sepolia-rpc.publicnode.com", messageTransmitter:"0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" },
-    { id:"arbitrum-sepolia", label:"Arbitrum Sepolia", type:"evm", domain:3, chainId:421614, rpcUrl:"https://sepolia-rollup.arbitrum.io/rpc", messageTransmitter:"0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" },
-    { id:"optimism-sepolia", label:"OP Sepolia", type:"evm", domain:2, chainId:11155420, rpcUrl:"https://sepolia.optimism.io", messageTransmitter:"0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" },
-    { id:"avalanche-fuji", label:"Avalanche Fuji", type:"evm", domain:1, chainId:43113, rpcUrl:"https://api.avax-test.network/ext/bc/C/rpc", messageTransmitter:"0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" },
-    { id:"polygon-amoy", label:"Polygon Amoy", type:"evm", domain:7, chainId:80002, rpcUrl:"https://rpc-amoy.polygon.technology", messageTransmitter:"0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" }
-  ],
-  walletConnectProjectId: "f658ce3a7c8a185214974f71539fea39",
-  walletExplorer: "https://explorer-api.walletconnect.com/v3/wallets"
-};
-
-const DECIMALS_STELLAR = 7n;
-const TIMEOUT_SECONDS = 180;
-const ZERO_BYTES_32 = new Uint8Array(32);
-const $ = id => document.getElementById(id);
-const toastWrap = $("toastWrap");
-const logsEl = $("logs");
-const els = {
-  walletOut:$("walletOut"),evmWalletOut:$("evmWalletOut"),transferIdOut:$("transferIdOut"),usdcBalanceOut:$("usdcBalanceOut"),amountEl:$("amountEl"),destChainEl:$("destChainEl"),evmRecipientEl:$("evmRecipientEl"),serviceFeeOut:$("serviceFeeOut"),feeWalletOut:$("feeWalletOut"),connectBtn:$("connectBtn"),newTransferBtn:$("newTransferBtn"),payFeeBtn:$("payFeeBtn"),verifyFeeBtn:$("verifyFeeBtn"),feeXdr:$("feeXdr"),feeXdrToggle:$("feeXdrToggle"),feeStatusLine:$("feeStatusLine"),prepareApproveBtn:$("prepareApproveBtn"),signSubmitApproveBtn:$("signSubmitApproveBtn"),approveXdr:$("approveXdr"),approveXdrToggle:$("approveXdrToggle"),approveStatusLine:$("approveStatusLine"),prepareBurnBtn:$("prepareBurnBtn"),signSubmitBurnBtn:$("signSubmitBurnBtn"),burnXdr:$("burnXdr"),burnXdrToggle:$("burnXdrToggle"),burnStatusLine:$("burnStatusLine"),burnHashEl:$("burnHashEl"),fetchAttestationBtn:$("fetchAttestationBtn"),manualAttToggle:$("manualAttToggle"),manualAttArea:$("manualAttArea"),messageHexEl:$("messageHexEl"),attestationHexEl:$("attestationHexEl"),attestationStatusLine:$("attestationStatusLine"),connectEvmBtn:$("connectEvmBtn"),switchEvmBtn:$("switchEvmBtn"),receiveEvmBtn:$("receiveEvmBtn"),evmStatusLine:$("evmStatusLine"),step1Pill:$("step1Pill"),step2Pill:$("step2Pill"),step3Pill:$("step3Pill"),step4Pill:$("step4Pill"),step5Pill:$("step5Pill"),networkOut:$("networkOut"),rpcOut:$("rpcOut"),tmmOut:$("tmmOut"),usdcContractOut:$("usdcContractOut"),connStatus:$("connStatus"),connModeLine:$("connModeLine"),pubkeyEl:$("pubkeyEl"),usePubkeyBtn:$("usePubkeyBtn"),disconnectBtn:$("disconnectBtn"),backdrop:$("backdrop"),loginModal:$("loginModal"),closeModal:$("closeModal"),wcBtn:$("wcBtn"),freighterExtBtn:$("freighterExtBtn"),qrArea:$("qrArea"),qrCanvas:$("qrCanvas"),btnLobstr:$("btnLobstr"),btnFreighter:$("btnFreighter"),rawWcLink:$("rawWcLink"),linkStatus:$("linkStatus"),toggleLogsBtn:$("toggleLogsBtn")
-};
-
-let mode="none",pubkey=null,wcClient=null,wcSession=null,latestWcUri=null,transferId=makeTransferId(),feePaid=false,approved=false,burnSubmitted=false,evmAccount=null,preparedFeeXdr="",preparedApproveXdr="",preparedBurnXdr="",messageHex="",attestationHex="";
-
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]))}
-function toast({type="info",title="",message="",timeout=2800}={}){const el=document.createElement("div");el.className=`toast ${type}`;el.innerHTML=`<div class="ico">${type==="ok"?"✓":type==="err"?"!":"ℹ"}</div><div class="body">${title?`<div class="title">${esc(title)}</div>`:""}<div class="msg">${esc(message||"")}</div></div><button class="x">×</button>`;toastWrap.appendChild(el);const close=()=>{el.style.animation="tout .16s ease-in forwards";setTimeout(()=>el.remove(),180)};el.querySelector(".x").onclick=close;if(timeout)setTimeout(close,timeout)}
-function logLine(...args){logsEl.value+=args.map(a=>typeof a==="string"?a:JSON.stringify(a,(_,v)=>typeof v==="bigint"?v.toString():v,2)).join(" ")+"\n";logsEl.scrollTop=logsEl.scrollHeight}
-function setPill(el,kind,text){el.classList.remove("ok","warn","bad");if(kind)el.classList.add(kind);el.querySelector("span:last-child").textContent=text}
-function toggleTextarea(el,btn,a="Hide XDR",b="Reveal XDR"){const h=el.style.display==="none"||!el.style.display;el.style.display=h?"block":"none";btn.textContent=h?a:b}
-function makeTransferId(){return"SP-"+crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase().padStart(8,"0")}
-function isEvmAddress(v){return/^0x[a-fA-F0-9]{40}$/.test(String(v||"").trim())}
-function parseDecimalToBigint(s,decimals=7n){s=String(s||"").trim().replace(/,/g,"");if(!s)return 0n;if(!/^\d+(\.\d+)?$/.test(s))throw new Error("Enter a positive number");const[i,dRaw=""]=s.split("."),dec=Number(decimals),d=(dRaw+"0".repeat(dec)).slice(0,dec);return BigInt(i)*(10n**decimals)+BigInt(d||"0")}
-function bytes32FromHexAddress(a){a=String(a||"").trim();if(!isEvmAddress(a))throw new Error("Invalid EVM address");const out=new Uint8Array(32),hex=a.slice(2).toLowerCase();for(let i=0;i<20;i++)out[12+i]=parseInt(hex.slice(i*2,i*2+2),16);return out}
-function getDest(){return CONFIG.evmDestinations.find(x=>x.id===els.destChainEl.value)}
-
-function getRpcModule(){
-  const rpc = StellarSdk.rpc ?? StellarSdk.SorobanRpc;
-  if(!rpc) throw new Error("No Stellar RPC module found on StellarSdk.");
-  return rpc;
-}
-
-function getSorobanServer(){
-  const rpc = getRpcModule();
-  if(rpc.Server) return new rpc.Server(CONFIG.sorobanRpcUrl,{allowHttp:CONFIG.sorobanRpcUrl.startsWith("http://")});
-  throw new Error("No Soroban RPC Server constructor found in stellar-sdk build.");
-}
-
-function isSimulationError(sim){
-  const rpc = getRpcModule();
-  return rpc.Api?.isSimulationError?.(sim) ?? false;
-}
-
-function simToJson(sim){
-  return JSON.stringify(sim,(_,v)=>typeof v==="bigint"?v.toString():v,2);
-}
-
-async function prepareSorobanTransaction(server, tx0){
-  if(typeof server.prepareTransaction === "function"){
-    return server.prepareTransaction(tx0);
-  }
-
-  const sim = await server.simulateTransaction(tx0);
-  if(isSimulationError(sim)) throw new Error("Simulation error: "+simToJson(sim));
-
-  const rpc = getRpcModule();
-  if(typeof rpc.assembleTransaction !== "function"){
-    throw new Error("assembleTransaction not found on StellarSdk.rpc or StellarSdk.SorobanRpc.");
-  }
-
-  return rpc.assembleTransaction(tx0, sim).build();
-}
-
-function updateFlowState(){els.walletOut.textContent=pubkey||"—";els.evmWalletOut.textContent=evmAccount||"—";els.transferIdOut.textContent=transferId;els.payFeeBtn.disabled=!pubkey;els.verifyFeeBtn.disabled=!pubkey;els.prepareApproveBtn.disabled=!pubkey||!feePaid;els.signSubmitApproveBtn.disabled=!preparedApproveXdr||mode==="pubkey";els.prepareBurnBtn.disabled=!pubkey||!feePaid||!approved;els.signSubmitBurnBtn.disabled=!preparedBurnXdr||mode==="pubkey";els.fetchAttestationBtn.disabled=!burnSubmitted&&!els.burnHashEl.value.trim();els.switchEvmBtn.disabled=!evmAccount;els.receiveEvmBtn.disabled=!evmAccount||!messageHex||!attestationHex;setPill(els.step1Pill,pubkey?(feePaid?"ok":"warn"):"bad",pubkey?(feePaid?"Paid":"Ready"):"Locked");setPill(els.step2Pill,feePaid?(approved?"ok":"warn"):"bad",feePaid?(approved?"Approved":"Ready"):"Locked");setPill(els.step3Pill,approved?(burnSubmitted?"ok":"warn"):"bad",approved?(burnSubmitted?"Burned":"Ready"):"Locked");setPill(els.step4Pill,messageHex&&attestationHex?"ok":(burnSubmitted?"warn":"bad"),messageHex&&attestationHex?"Ready":"Pending");setPill(els.step5Pill,evmAccount&&messageHex&&attestationHex?"warn":"bad",evmAccount&&messageHex&&attestationHex?"Ready":"Locked");els.connStatus.classList.remove("ok","bad");els.connStatus.classList.add(pubkey?"ok":"bad");els.connStatus.querySelector("span:last-child").textContent=pubkey?"Connected":"Not connected";els.connModeLine.textContent=pubkey?`Mode: ${mode}`:"—";els.disconnectBtn.disabled=!pubkey}
-function initUi(){CONFIG.evmDestinations.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.label;els.destChainEl.appendChild(o)});els.serviceFeeOut.textContent=`${CONFIG.serviceFeeUsdc} USDC`;els.feeWalletOut.textContent=CONFIG.feeWallet;els.networkOut.textContent=CONFIG.networkPassphrase;els.rpcOut.textContent=CONFIG.sorobanRpcUrl;els.tmmOut.textContent=CONFIG.tokenMessengerMinter;els.usdcContractOut.textContent=CONFIG.stellarUsdcContract;updateFlowState()}
-async function refreshUsdcBalance(){if(!pubkey){els.usdcBalanceOut.textContent="—";return}try{const r=await fetch(`${CONFIG.horizonUrl}/accounts/${pubkey}`),j=await r.json(),bal=(j.balances||[]).find(b=>b.asset_code===CONFIG.stellarUsdcAssetCode&&b.asset_issuer===CONFIG.stellarUsdcIssuer);els.usdcBalanceOut.textContent=bal?bal.balance:"0"}catch{els.usdcBalanceOut.textContent="Could not load"}}
-async function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.async=true;s.onload=res;s.onerror=()=>rej(new Error("Failed to load: "+src));document.head.appendChild(s)})}
-async function getSignClient(){if(window.SignClient)return window.SignClient.default??window.SignClient;try{const m=await import("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/esm/index.js");return m.default??m.SignClient??m}catch{}try{const m=await import("https://unpkg.com/@walletconnect/sign-client@2.17.1/dist/esm/index.js");return m.default??m.SignClient??m}catch{}await loadScript("https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.1/dist/umd/index.min.js");return window.SignClient.default??window.SignClient}
-async function ensureWcClient(){if(wcClient)return wcClient;const SignClient=await getSignClient();wcClient=await SignClient.init({projectId:CONFIG.walletConnectProjectId,relayUrl:"wss://relay.walletconnect.com",metadata:{name:"Stellar CCTP MVP",description:"Stellar CCTP bridge out MVP",url:location.origin,icons:["https://walletconnect.com/walletconnect-logo.png"]}});return wcClient}
-async function ensureFreighterApi(){if(window.freighterApi)return window.freighterApi;try{const m=await import("https://esm.sh/@stellar/freighter-api@5.0.0");window.freighterApi=m.default??m;return window.freighterApi}catch{return null}}
-function openModal(){els.backdrop.classList.add("open");els.loginModal.classList.add("open")}
-function closeModal(){els.backdrop.classList.remove("open");els.loginModal.classList.remove("open");els.qrArea.style.display="none"}
-function setConnected(a,m){pubkey=a||null;mode=m||"none";if(pubkey)els.pubkeyEl.value=pubkey;updateFlowState();refreshUsdcBalance().catch(()=>{})}
-async function signXdr(xdr){if(mode==="pubkey"||mode==="none")throw new Error("Read-only mode. Connect Freighter or WalletConnect to sign.");if(mode==="freighter"){const api=await ensureFreighterApi(),res=await api.signTransaction(xdr,{networkPassphrase:CONFIG.networkPassphrase,accountToSign:pubkey});if(res?.error)throw new Error(res.error.message||"Freighter signing failed");return res.signedTxXdr||res.signedXDR||res}if(mode==="wc"){const chain=CONFIG.networkPassphrase.includes("Public Global")?"stellar:pubnet":"stellar:testnet",r=await wcClient.request({topic:wcSession.topic,chainId:chain,request:{jsonrpc:"2.0",method:"stellar_signXDR",params:{xdr}}});if(!r?.signedXDR)throw new Error("WalletConnect: no signedXDR returned");return r.signedXDR}throw new Error("Unsupported signing mode")}
-async function submitSorobanSignedXdr(xdr){const server=getSorobanServer(),tx=StellarSdk.TransactionBuilder.fromXDR(xdr,CONFIG.networkPassphrase),send=await server.sendTransaction(tx);if(send.status!=="PENDING"&&send.status!=="SUCCESS")throw new Error(`sendTransaction: ${send.status}`);let res=await server.getTransaction(send.hash);for(let i=0;i<40&&res.status==="NOT_FOUND";i++){await new Promise(r=>setTimeout(r,1000));res=await server.getTransaction(send.hash)}if(res.status!=="SUCCESS")throw new Error(`Tx status: ${res.status}`);return{hash:send.hash,result:res}}
-async function buildFeePaymentXdr(){const server=new StellarSdk.Horizon.Server(CONFIG.horizonUrl),account=await server.loadAccount(pubkey),asset=new StellarSdk.Asset(CONFIG.stellarUsdcAssetCode,CONFIG.stellarUsdcIssuer),tx=new StellarSdk.TransactionBuilder(account,{fee:StellarSdk.BASE_FEE,networkPassphrase:CONFIG.networkPassphrase}).addMemo(StellarSdk.Memo.text(transferId)).addOperation(StellarSdk.Operation.payment({destination:CONFIG.feeWallet,asset,amount:CONFIG.serviceFeeUsdc})).setTimeout(TIMEOUT_SECONDS).build();return tx.toXDR()}
-async function payFee(){try{preparedFeeXdr=await buildFeePaymentXdr();els.feeXdr.value=preparedFeeXdr;const signed=await signXdr(preparedFeeXdr),server=new StellarSdk.Horizon.Server(CONFIG.horizonUrl),tx=StellarSdk.TransactionBuilder.fromXDR(signed,CONFIG.networkPassphrase),res=await server.submitTransaction(tx);els.feeStatusLine.innerHTML=`Fee payment submitted ✓ hash: <span class="mono">${res.hash}</span>`;toast({type:"ok",title:"Fee paid",message:"Submitted. Verifying..."});await verifyFeePayment()}catch(e){els.feeStatusLine.textContent=`Error: ${e.message||e}`;toast({type:"err",title:"Fee error",message:e.message||"Fee payment failed"})}}
-async function verifyFeePayment(){try{const r=await fetch(`${CONFIG.horizonUrl}/accounts/${CONFIG.feeWallet}/payments?order=desc&limit=30`),j=await r.json(),records=j?._embedded?.records||[];for(const p of records){if(p.type==="payment"&&p.from===pubkey&&p.to===CONFIG.feeWallet&&p.asset_code===CONFIG.stellarUsdcAssetCode&&p.asset_issuer===CONFIG.stellarUsdcIssuer&&Number(p.amount)>=Number(CONFIG.serviceFeeUsdc)){const tr=await fetch(`${CONFIG.horizonUrl}/transactions/${p.transaction_hash}`).then(x=>x.json()).catch(()=>null);if(!tr||tr.memo===transferId){feePaid=true;els.feeStatusLine.innerHTML=`Fee detected ✓ tx: <span class="mono">${p.transaction_hash}</span>`;updateFlowState();return true}}}feePaid=false;els.feeStatusLine.textContent="Fee not detected yet.";updateFlowState();return false}catch(e){els.feeStatusLine.textContent=`Verify error: ${e.message||e}`;return false}}
-
-async function buildSorobanContractXdr(contractId,method,args,fee="1000000"){
-  const server=getSorobanServer();
-  const account=await server.getAccount(pubkey);
-  const contract=new StellarSdk.Contract(contractId);
-  const tx0=new StellarSdk.TransactionBuilder(account,{fee,networkPassphrase:CONFIG.networkPassphrase})
-    .addOperation(contract.call(method,...args))
-    .setTimeout(TIMEOUT_SECONDS)
-    .build();
-
-  logLine(`Preparing Soroban tx: ${method}`);
-  const prepared=await prepareSorobanTransaction(server,tx0);
-  return prepared.toXDR();
-}
-
-async function buildApproveXdr(){if(!feePaid)throw new Error("Pay fee first");const amount=parseDecimalToBigint(els.amountEl.value,DECIMALS_STELLAR);if(amount<=0n)throw new Error("Enter bridge amount");const server=getSorobanServer(),latest=await server.getLatestLedger(),expiration=latest.sequence+100000,args=[new StellarSdk.Address(pubkey).toScVal(),new StellarSdk.Address(CONFIG.tokenMessengerMinter).toScVal(),StellarSdk.nativeToScVal(amount,{type:"i128"}),StellarSdk.nativeToScVal(expiration,{type:"u32"})];return buildSorobanContractXdr(CONFIG.stellarUsdcContract,"approve",args)}
-async function prepareApprove(){try{preparedApproveXdr=await buildApproveXdr();els.approveXdr.value=preparedApproveXdr;els.approveStatusLine.textContent="Approve XDR prepared.";updateFlowState();toast({type:"ok",title:"Prepared",message:"Approve XDR prepared"})}catch(e){console.error(e);els.approveStatusLine.textContent=`Error: ${e.message||e}`;toast({type:"err",title:"Approve prepare failed",message:e.message||""})}}
-async function signSubmitApprove(){try{const signed=await signXdr(preparedApproveXdr),res=await submitSorobanSignedXdr(signed);approved=true;els.approveStatusLine.innerHTML=`Approved ✓ hash: <span class="mono">${res.hash}</span>`;updateFlowState();toast({type:"ok",title:"Approved",message:"USDC spend approved"})}catch(e){els.approveStatusLine.textContent=`Error: ${e.message||e}`;toast({type:"err",title:"Approve failed",message:e.message||""})}}
-async function buildCctpBurnXdr(){if(!approved)throw new Error("Approve USDC first");const evmRecipient=els.evmRecipientEl.value.trim();if(!isEvmAddress(evmRecipient))throw new Error("Enter valid EVM recipient");const amount=parseDecimalToBigint(els.amountEl.value,DECIMALS_STELLAR);if(amount<=0n)throw new Error("Enter bridge amount");const dest=getDest();const args=[new StellarSdk.Address(pubkey).toScVal(),StellarSdk.nativeToScVal(amount,{type:"i128"}),StellarSdk.nativeToScVal(dest.domain,{type:"u32"}),StellarSdk.xdr.ScVal.scvBytes(bytes32FromHexAddress(evmRecipient)),new StellarSdk.Address(CONFIG.stellarUsdcContract).toScVal(),StellarSdk.xdr.ScVal.scvBytes(ZERO_BYTES_32),StellarSdk.nativeToScVal(0n,{type:"i128"}),StellarSdk.nativeToScVal(2000,{type:"u32"})];return buildSorobanContractXdr(CONFIG.tokenMessengerMinter,"deposit_for_burn",args)}
-async function prepareBurn(){try{preparedBurnXdr=await buildCctpBurnXdr();els.burnXdr.value=preparedBurnXdr;els.burnStatusLine.textContent="Burn XDR prepared.";updateFlowState();toast({type:"ok",title:"Prepared",message:"CCTP burn XDR prepared"})}catch(e){console.error(e);els.burnStatusLine.textContent=`Error: ${e.message||e}`;toast({type:"err",title:"Burn prepare failed",message:e.message||""})}}
-async function signSubmitBurn(){try{const signed=await signXdr(preparedBurnXdr),res=await submitSorobanSignedXdr(signed);burnSubmitted=true;els.burnHashEl.value=res.hash;els.burnStatusLine.innerHTML=`Burn submitted ✓ hash: <span class="mono">${res.hash}</span>`;updateFlowState();toast({type:"ok",title:"Burn submitted",message:"Now fetch attestation"})}catch(e){els.burnStatusLine.textContent=`Error: ${e.message||e}`;toast({type:"err",title:"Burn failed",message:e.message||""})}}
-async function fetchAttestation(){try{const hash=els.burnHashEl.value.trim();if(!hash)throw new Error("Enter burn tx hash");els.attestationStatusLine.textContent="Fetching from Iris sandbox...";const url=`${CONFIG.irisApiUrl}/v2/messages/${CONFIG.stellarDomain}?transactionHash=${encodeURIComponent(hash)}`,j=await fetch(url).then(r=>r.json());logLine("Iris response",j);const item=j?.messages?.[0]||j?.message||j?.[0];messageHex=item?.message||item?.messageBytes||j?.message;attestationHex=item?.attestation||j?.attestation;if(!messageHex||!attestationHex){els.attestationStatusLine.textContent="No completed attestation yet. Try again in a bit, or paste manually.";updateFlowState();return}els.messageHexEl.value=messageHex;els.attestationHexEl.value=attestationHex;els.attestationStatusLine.textContent="Attestation ready ✓";updateFlowState();toast({type:"ok",title:"Attestation ready",message:"Ready for EVM receive"})}catch(e){els.attestationStatusLine.textContent=`Error: ${e.message||e}`;toast({type:"err",title:"Attestation failed",message:e.message||""})}}
-async function connectEvm(){try{if(!window.ethereum)throw new Error("No EVM wallet found. Install MetaMask/Rabby/Coinbase Wallet.");const accounts=await window.ethereum.request({method:"eth_requestAccounts"});evmAccount=accounts[0];els.evmWalletOut.textContent=evmAccount;updateFlowState();toast({type:"ok",title:"EVM connected",message:evmAccount})}catch(e){els.evmStatusLine.textContent=`Error: ${e.message||e}`}}
-async function switchEvm(){const d=getDest();try{await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:"0x"+Number(d.chainId).toString(16)}]});toast({type:"ok",title:"Chain switched",message:d.label})}catch(e){try{await window.ethereum.request({method:"wallet_addEthereumChain",params:[{chainId:"0x"+Number(d.chainId).toString(16),chainName:d.label,nativeCurrency:{name:"ETH",symbol:"ETH",decimals:18},rpcUrls:[d.rpcUrl],blockExplorerUrls:[]}]} )}catch(addErr){els.evmStatusLine.textContent=`Switch error: ${addErr.message||addErr}`}}}
-async function receiveOnEvm(){try{const d=getDest();messageHex=els.messageHexEl.value.trim()||messageHex;attestationHex=els.attestationHexEl.value.trim()||attestationHex;if(!d.messageTransmitter)throw new Error(`Add ${d.label} testnet MessageTransmitter address in CONFIG.evmDestinations first.`);if(!messageHex||!attestationHex)throw new Error("Missing message/attestation");await switchEvm();const data=encodeFunctionData({abi:parseAbi(["function receiveMessage(bytes message, bytes attestation) returns (bool)"]),functionName:"receiveMessage",args:[messageHex,attestationHex]});const txHash=await window.ethereum.request({method:"eth_sendTransaction",params:[{from:evmAccount,to:d.messageTransmitter,data}]});els.evmStatusLine.innerHTML=`EVM receive submitted ✓ hash: <span class="mono">${txHash}</span>`;toast({type:"ok",title:"EVM receive sent",message:txHash})}catch(e){els.evmStatusLine.textContent=`Error: ${e.message||e}`;toast({type:"err",title:"Receive failed",message:e.message||""})}}
-
-els.connectBtn.onclick=openModal;els.closeModal.onclick=closeModal;els.backdrop.onclick=closeModal;els.usePubkeyBtn.onclick=()=>{const pk=els.pubkeyEl.value.trim();if(!StellarSdk.StrKey.isValidEd25519PublicKey(pk))return toast({type:"err",title:"Invalid",message:"Invalid Stellar pubkey"});setConnected(pk,"pubkey")};els.disconnectBtn.onclick=()=>setConnected("","none");els.newTransferBtn.onclick=()=>{transferId=makeTransferId();feePaid=approved=burnSubmitted=false;preparedFeeXdr=preparedApproveXdr=preparedBurnXdr=messageHex=attestationHex="";[els.feeXdr,els.approveXdr,els.burnXdr,els.messageHexEl,els.attestationHexEl,els.burnHashEl].forEach(x=>x.value="");[els.feeStatusLine,els.approveStatusLine,els.burnStatusLine,els.attestationStatusLine,els.evmStatusLine].forEach(x=>x.textContent="");updateFlowState()};els.payFeeBtn.onclick=payFee;els.verifyFeeBtn.onclick=verifyFeePayment;els.prepareApproveBtn.onclick=prepareApprove;els.signSubmitApproveBtn.onclick=signSubmitApprove;els.prepareBurnBtn.onclick=prepareBurn;els.signSubmitBurnBtn.onclick=signSubmitBurn;els.fetchAttestationBtn.onclick=fetchAttestation;els.connectEvmBtn.onclick=connectEvm;els.switchEvmBtn.onclick=switchEvm;els.receiveEvmBtn.onclick=receiveOnEvm;els.feeXdrToggle.onclick=()=>toggleTextarea(els.feeXdr,els.feeXdrToggle);els.approveXdrToggle.onclick=()=>toggleTextarea(els.approveXdr,els.approveXdrToggle,"Hide approve XDR","Reveal approve XDR");els.burnXdrToggle.onclick=()=>toggleTextarea(els.burnXdr,els.burnXdrToggle);els.manualAttToggle.onclick=()=>{const show=els.manualAttArea.style.display==="none";els.manualAttArea.style.display=show?"block":"none"};els.messageHexEl.oninput=els.attestationHexEl.oninput=()=>{messageHex=els.messageHexEl.value.trim();attestationHex=els.attestationHexEl.value.trim();updateFlowState()};els.toggleLogsBtn.onclick=()=>toggleTextarea(logsEl,els.toggleLogsBtn,"Hide logs","Show logs");
-els.wcBtn.onclick=async()=>{try{const sc=await ensureWcClient(),chain="stellar:testnet",{uri,approval}=await sc.connect({optionalNamespaces:{stellar:{chains:[chain],methods:["stellar_signXDR","stellar_signAndSubmitXDR"],events:[]}}});latestWcUri=uri;await QRCode.toCanvas(els.qrCanvas,uri,{width:256,margin:1});els.qrArea.style.display="flex";els.rawWcLink.href=uri;wcSession=await approval();const accounts=wcSession.namespaces?.stellar?.accounts||[],first=accounts.find(a=>a.startsWith(chain))||accounts[0]||"",address=first.split(":")[2]||"";if(!StellarSdk.StrKey.isValidEd25519PublicKey(address))throw new Error("Invalid WC address");wcClient=sc;closeModal();setConnected(address,"wc")}catch(e){toast({type:"err",title:"WalletConnect",message:e.message||"Failed"})}};
-els.freighterExtBtn.onclick=async()=>{try{const api=await ensureFreighterApi();let address="";try{address=await api.getPublicKey()}catch{}if(!address&&api.getAddress){const r=await api.getAddress();address=r?.address||""}if(!address&&api.requestAccess){const r=await api.requestAccess();address=r?.address||""}if(!StellarSdk.StrKey.isValidEd25519PublicKey(address))throw new Error("Could not get Freighter address");closeModal();setConnected(address,"freighter")}catch(e){toast({type:"err",title:"Freighter",message:e.message||"Failed"})}};
-initUi();
-</script>
+  <script src="./src/app.js"></script>
 </body>
 </html>
